@@ -23,7 +23,7 @@ def nicknames(f):
         if s[0] == '#':
             continue
 
-        mbid, domid, name, loc, description = s.split(None, 4)
+        mbid, domid, name, loc, _ = s.split(None, 4)
         domlist.append((mbid, domid, name, loc))
     return domlist
 
@@ -294,8 +294,8 @@ if __name__ == '__main__':
     # Extract the engineering format
     vec = args.engFmt.split(",")
     if len(vec) != 5:
-        print(("ERROR: engineering format "
-                              "spec is --E ATWD0,ATWD1,ATWD2,ATWD3,FADC"), file=sys.stderr)
+        print("ERROR: engineering format spec is"
+              " --E ATWD0,ATWD1,ATWD2,ATWD3,FADC", file=sys.stderr)
         sys.exit(1)
     engFmt = (tuple([int(x) for x in vec[0:4]]), int(vec[4]))
 

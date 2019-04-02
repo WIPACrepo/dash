@@ -111,11 +111,11 @@ class MBeanThread(MonitorThread):
                             type(beanDict).__name__, beanDict))
             elif len(beanDict) > 0:
                 # report monitoring data
-                    with self.__reporterLock:
-                        reporter = self.__reporter
-                    for key, data in beanDict.items():
-                        if not self.isClosed:
-                            reporter.send(datetime.datetime.now(), key, data)
+                with self.__reporterLock:
+                    reporter = self.__reporter
+                for key, data in beanDict.items():
+                    if not self.isClosed:
+                        reporter.send(datetime.datetime.now(), key, data)
 
     def __fetch_beans_slowly(self):
         if len(self.__beanKeys) == 0:
@@ -368,7 +368,7 @@ class MonitorTask(CnCTask):
         return MBeanThread(comp, runDir, liveMoni, runOptions, dashlog)
 
     @classmethod
-    def createCnCMoniThread(self, runset, runDir, toFile, dashlog):
+    def createCnCMoniThread(cls, runset, runDir, toFile, dashlog):
         return CnCMoniThread(runset, runDir, toFile, dashlog)
 
     def close(self):

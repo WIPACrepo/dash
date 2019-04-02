@@ -213,13 +213,14 @@ def remove_hubs(args):
 
     # verify that original run configuration file exists
     if len(args.runConfig) != 1:
-        p.error("Unexpected number of runConfig arguments (%d)" %
-                len(args.runConfig))
+        raise SystemExit("Unexpected number of runConfig arguments (%d)" %
+                         (len(args.runConfig), ))
     rc_path = os.path.join(args.config_dir, args.runConfig[0])
     if not rc_path.endswith(".xml"):
         rc_path += ".xml"
     if not os.path.exists(rc_path):
-        p.error("Run configuration \"%s\" does not exist" % args.runConfig[0])
+        raise SystemExit("Run configuration \"%s\" does not exist" %
+                         (args.runConfig[0], ))
 
     try:
         run_config = DAQConfigParser.parse(args.config_dir, rc_path)

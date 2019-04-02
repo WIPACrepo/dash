@@ -320,8 +320,8 @@ class DashLog(ComponentLog):
     STOP_RUN = re.compile(r"^(|.*\]\s+)Stopping run (\d+)\s*$")
     PHYS_TOTAL = re.compile((r"^(|.*\]\s+)(\d+) physics events collected in"
                              r" (\d+) seconds \((\d+\.\d+) Hz\)\s*$"))
-    OTHER_TOTAL = re.compile((r"^(|.*\]\s+)(\d+) moni events, (\d+) SN events,"
-                             r" (\d+) tcals\s*$"))
+    OTHER_TOTAL = re.compile(r"^(|.*\]\s+)(\d+) moni events, (\d+) SN events,"
+                             r" (\d+) tcals\s*$")
     RECOVER = re.compile((r"^(|.*\]\s+)Recovering from failed run"
                           r" (\d_)\.\.\.\s*$"))
     RUN_TERM = re.compile(r"^(|.*\]\s+)Run terminated (\S+)\.\s*$")
@@ -617,13 +617,13 @@ class GlobalTriggerLog(ComponentLog):
     TRIG_NUM = re.compile(r"^(|.*\]\s+)(\S+):  #  (\d+).*$")
     ISSUE_NUM = re.compile(r"^(|.*\]\s+)Issue # \d+ GTEventPayload .*$")
     MERGED_NUM = re.compile(r"^(|.*\]\s+)Merged GT # (\d+).*$")
-    TOT_GT_EVTS = re.compile((r"^(|.*\]\s+)Total # of GT events = "
-                             "(\d+).*$"))
+    TOT_GT_EVTS = re.compile(r"^(|.*\]\s+)Total # of GT events = "
+                             r"(\d+).*$")
     TOT_MERGED = re.compile((r"^(|.*\]\s+)Total # of merged GT events ="
                              r"(\d+).*$"))
     TRIG_TOTAL = re.compile(r"^(|.*\]\s+)Total # of (\S+)= (\d+).*$")
-    PROC_TOTAL = re.compile((r"^(|.*\]\s+)Processed (\d+) hits at \d+\.\d+"
-                             r" ms per hit.*$"))
+    PROC_TOTAL = re.compile(r"^(|.*\]\s+)Processed (\d+) hits at \d+\.\d+"
+                            r" ms per hit.*$")
 
     STATE_INITIAL = 0
     STATE_CONFIG = 1
@@ -1253,12 +1253,10 @@ class BaseDom(object):
 
     def __transition(self, curState, newState):
         if DEBUG:
-            print(("   %s: %s "
-                                 "(%s) -> %s") % \
-                                 (str(self),
-                                  self.__stateString(self.__state),
-                                  self.__stateString(curState),
-                                  self.__stateString(newState)), file=sys.stderr)
+            print("   %s: %s (%s) -> %s" %
+                  (str(self), self.__stateString(self.__state),
+                   self.__stateString(curState), self.__stateString(newState)),
+                  file=sys.stderr)
         prevState = self.__state
         self.__state = newState
         if prevState != curState:
@@ -1658,7 +1656,7 @@ class StringHubLog(ComponentLog):
                         if line.find("STDERR-") >= 0 and \
                                 (line.find(" at ") > 0 or
                                  line.find("	at ") > 0):
-                                continue
+                            continue
 
                         inTCalException = False
                         # stack trace is done, keep looking for matches
@@ -1740,10 +1738,10 @@ class StringHubLog(ComponentLog):
                                     self.__domMap[cardLoc].setStartRun()
                                 except LogParseException as lpe:
                                     self.logError(("WARNING: %s(%s) "
-                                                   "start run: %s") % (
-                                            cardLoc,
-                                            str(self.__domMap[cardLoc]),
-                                            str(lpe)))
+                                                   "start run: %s") %
+                                                  (cardLoc,
+                                                   self.__domMap[cardLoc],
+                                                   lpe))
                                 continue
 
                 elif state == self.STATE_STOPPING:

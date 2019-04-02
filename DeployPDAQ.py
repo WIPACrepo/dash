@@ -91,9 +91,9 @@ def add_arguments(parser, config_as_arg=True):
                               " configuration files"))
 
 
-class CommandRunner(object):
+class RSyncRunner(object):
     """
-    Build a list of commands, then run them all in parallel
+    Build a list of rsync commands, then run them all in parallel
     """
 
     # default number of threads used to run all commands
@@ -189,13 +189,15 @@ class CommandRunner(object):
         """
         Add this command to the front of the queue
         """
-        self.__queue.insert(0, (description, host, command))
+        with self.__qlock:
+            self.__queue.insert(0, (description, host, command))
 
     def add_last(self, description, host, command):
         """
         Append this command to the back of the queue
         """
-        self.__queue.append((description, host, command))
+        with self.__qlock:
+            self.__queue.append((description, host, command))
 
     @property
     def num_remaining_commands(self):
@@ -262,7 +264,7 @@ def collapse_user(path, home=None):
 
 def deploy(config, pdaq_dir, subdirs, delete, dry_run, deep_dry_run,
            trace_level, nice_level=NICE_LEVEL_DEFAULT, express=EXPRESS_DEFAULT,
-           wait_seconds=WAIT_SECONDS_DEFAULT, home=None, cmd_runner=None):
+           wait_seconds=WAIT_SECONDS_DEFAULT, home=None, rsync_runner=None):
     """
     Deploy pDAQ software and configuration files to the cluster
     """
@@ -286,8 +288,8 @@ def deploy(config, pdaq_dir, subdirs, delete, dry_run, deep_dry_run,
         config.writeCacheFile()
 
     # if user or unit tests didn't specify a command runner, create one
-    if cmd_runner is None:
-        cmd_runner = CommandRunner()
+    if rsync_runner is None:
+        rsync_runner = RSyncRunner()
 
     # build stub of rsync command
     if express:
@@ -348,7 +350,7 @@ def deploy(config, pdaq_dir, subdirs, delete, dry_run, deep_dry_run,
 
         # add to the end of the command queue
         if not dry_run:
-            cmd_runner.add_last("application", node_name, cmd)
+            rsync_runner.add_last("application", node_name, cmd)
 
         if rsync_config_src is not None:
             # build the command to rsync the configuration directory
@@ -359,21 +361,21 @@ def deploy(config, pdaq_dir, subdirs, delete, dry_run, deep_dry_run,
 
             # add to the front of the command queue
             if not dry_run:
-                cmd_runner.add_first("configuration", node_name, cmd)
+                rsync_runner.add_first("configuration", node_name, cmd)
 
     if not dry_run:
         # start the threads and wait until all are finished
-        cmd_runner.start()
+        rsync_runner.start()
         while True:
-            num = cmd_runner.running_threads
+            num = rsync_runner.running_threads
             if num is not None:
                 if num == 0:
                     break
                 if trace_level >= 0:
                     print("Waiting for %d (of %d) threads"
                           " (%d commands remaining)" %
-                          (num, cmd_runner.total_threads,
-                           cmd_runner.num_remaining_commands))
+                          (num, rsync_runner.total_threads,
+                           rsync_runner.num_remaining_commands))
             time.sleep(wait_seconds)
 
 
@@ -456,9 +458,8 @@ def run_deploy(args):
            express=args.express)
 
 
-if __name__ == "__main__":
-    import argparse
-
+def main():
+    "Main program"
     parser = argparse.ArgumentParser()
 
     add_arguments(parser)
@@ -474,3 +475,9 @@ if __name__ == "__main__":
                              " from the correct host?")
 
     run_deploy(args)
+
+
+if __name__ == "__main__":
+    import argparse
+
+    main()

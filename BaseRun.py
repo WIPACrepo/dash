@@ -135,6 +135,10 @@ class FlasherThread(threading.Thread):
 
 
 class FlasherScript(object):
+    """
+    Read in a flasher script, producing a list of XML_file_name/duration pairs.
+    """
+
     @classmethod
     def __find_flasher_data_file(cls, dirname, filename):
         """Find a flasher data file"""
@@ -230,9 +234,6 @@ class FlasherScript(object):
             i += 1
         return pairs
 
-    """
-    Read in a flasher script, producing a list of XML_file_name/duration pairs.
-    """
     @classmethod
     def findDataFile(cls, flashFile, basedir=None):
         """
@@ -413,7 +414,7 @@ class Run(object):
         #   kill the current components
         #
         if activeCfgName is None or activeCfgName != clusterCfgName:
-            self.__mgr.killComponents(dryRun=self.__dry_run)
+            self.__mgr.kill_components(dryRun=self.__dry_run)
             self.__run_killed = True
 
         try:
@@ -808,17 +809,17 @@ class BaseRun(object):
             print("Not refreshing state in isUserStopped()", file=sys.stderr)
         return self.__user_stopped
 
-    def killComponents(self, dryRun=False):
+    def kill_components(self, dryRun=False):
         "Kill all pDAQ components"
         cfgDir = find_pdaq_config()
 
-        comps = ComponentManager.getActiveComponents(None, configDir=cfgDir,
-                                                     validate=False)
+        comps = ComponentManager.get_active_components(None, config_dir=cfgDir,
+                                                       validate=False)
 
         verbose = False
 
         if comps is not None:
-            ComponentManager.kill(comps, verbose=verbose, dryRun=dryRun,
+            ComponentManager.kill(comps, verbose=verbose, dry_run=dryRun,
                                   logger=self.__logger)
 
     def launch(self, clusterCfg):
@@ -848,13 +849,13 @@ class BaseRun(object):
         livePort = DAQPort.I3LIVE_ZMQ
 
         self.logCmd("Launch %s" % clusterCfg)
-        ComponentManager.launch(doCnC, dryRun=self.__dry_run, verbose=verbose,
-                                clusterConfig=clusterCfg, dashDir=dashDir,
-                                configDir=cfgDir, daqDataDir=daqDataDir,
-                                logDir=logDir, logDirFallback=logDirFallback,
-                                spadeDir=spadeDir, copyDir=copyDir,
-                                logPort=logPort, livePort=livePort,
-                                eventCheck=eventCheck,
+        ComponentManager.launch(doCnC, dry_run=self.__dry_run, verbose=verbose,
+                                cluster_config=clusterCfg, dash_dir=dashDir,
+                                config_dir=cfgDir, daq_data_dir=daqDataDir,
+                                log_dir=logDir, log_dir_fallback=logDirFallback,
+                                spade_dir=spadeDir, copy_dir=copyDir,
+                                log_port=logPort, live_port=livePort,
+                                event_check=eventCheck,
                                 logger=self.__logger)
 
         # give components a chance to start
@@ -979,7 +980,7 @@ class BaseRun(object):
         cnc = self.cncConnection()
 
         # grab summary info from CnC
-        for rep in range(10):
+        for _ in range(10):
             try:
                 summary = cnc.rpc_run_summary(runNum)
                 break
@@ -992,7 +993,7 @@ class BaseRun(object):
         # calculate duration
         if summary is None:
             raise ValueError("Cannot fetch run summary")
-            
+
         if summary["startTime"] == "None" or summary["endTime"] == "None":
             duration = "???"
         else:

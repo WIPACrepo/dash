@@ -26,8 +26,6 @@
 
 from __future__ import print_function
 
-import os
-import re
 import socket
 import subprocess
 import time
@@ -251,6 +249,7 @@ class CnCRun(BaseRun):
     def flash(self, dataPath, secs):
         """
         Start flashers for the specified duration with the specified data file
+        Return True if there was a problem
         """
         if self.__runSetId is None:
             self.logError("No active runset!")
@@ -281,11 +280,13 @@ class CnCRun(BaseRun):
 
         if dataPath is not None:
             subrun += 1
-            RunNumber.setLast(runData[0], subrun)
+            RunNumber.setLast(data[0], subrun)
             if self.__dryRun:
                 print("Flash subrun#%d - turn off flashers" % subrun)
             else:
                 cnc.rpc_runset_subrun(self.__runSetId, subrun, [])
+
+        return False
 
     def getLastRunNumber(self):
         "Return the last used run and subrun numbers as a tuple"
@@ -394,7 +395,7 @@ class CnCRun(BaseRun):
             self.__runSetId = runSetId
             self.__runCfg = runCfg
 
-        (runNum, subrun) = self.getLastRunNumber()
+        (runNum, _) = self.getLastRunNumber()
         self.__runNum = runNum + 1
         RunNumber.setLast(self.__runNum, 0)
 

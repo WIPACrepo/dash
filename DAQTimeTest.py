@@ -5,7 +5,6 @@ import datetime
 import time
 import unittest
 from DAQTime import DAQDateTime, PayloadTime
-from leapseconds import leapseconds, MJD
 from locate_pdaq import set_pdaq_config_dir
 
 

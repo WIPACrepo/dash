@@ -465,9 +465,8 @@ class DefaultDomGeometry(object):
                 if mbid in self.__domIdToDom:
                     oldNum = self.__domIdToDom[mbid].string()
                     if oldNum != dom.string():
-                        print(("DOM %s belongs to both" +
-                                             " string %d and %d") % \
-                                             (mbid, oldNum, dom.string()), file=sys.stderr)
+                        print("DOM %s belongs to both string %d and %d" %
+                              (mbid, oldNum, dom.string()), file=sys.stderr)
 
                 self.__domIdToDom[mbid] = dom
 
@@ -508,8 +507,8 @@ class DefaultDomGeometry(object):
 
             print("%s<string>" % indent, file=out)
             if strnum in self.STRING_COMMENT:
-                print("%s%s<!-- %s -->" % (indent, indent,
-                                                  self.STRING_COMMENT[strnum]), file=out)
+                print("%s%s<!-- %s -->" %
+                      (indent, indent, self.STRING_COMMENT[strnum]), file=out)
             if strnum is not None:
                 print("%s%s<number>%d</number>" % \
                     (indent, indent, strnum), file=out)
@@ -991,9 +990,8 @@ class DomsTxtReader(object):
                     strNum = int(strStr)
                     pos = int(posStr)
                 except:
-                    print(("Bad location \"%s\" "
-                                          "for DOM \"%s\"") % \
-                                          (loc, prodId), file=sys.stderr)
+                    print("Bad location \"%s\" for DOM \"%s\"" %
+                          (loc, prodId), file=sys.stderr)
                     continue
 
                 if pos is None or pos <= 60:
@@ -1147,8 +1145,8 @@ class GeometryFileReader(object):
 
                 m = LINE_PAT.match(line)
                 if not m:
-                    print("Bad geometry line %d: %s" % (linenum,
-                                                                      line), file=sys.stderr)
+                    print("Bad geometry line %d: %s" % (linenum, line),
+                          file=sys.stderr)
                     continue
 
                 strStr = m.group(1)

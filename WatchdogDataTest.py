@@ -98,6 +98,10 @@ class MockMBeanClient(object):
             raise Exception("Unknown %s bean %s.%s" %
                             (self.fullname, name, fldName))
 
+    @property
+    def fullname(self):
+        return "MockMBeanClient"
+
     def get(self, beanName, fldName):
         self.check(beanName, fldName)
         return self.__beanData[beanName][fldName].nextValue()

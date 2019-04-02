@@ -15,8 +15,6 @@ import tempfile
 import threading
 import time
 
-import DeployPDAQ
-
 from ClusterDescription import ClusterDescription
 from CnCLogger import CnCLogger
 from Component import Component
@@ -25,6 +23,7 @@ from DAQClient import DAQClient
 from DAQConst import DAQPort
 from DefaultDomGeometry import DefaultDomGeometry
 from LiveImports import MoniPort, SERVICE_NAME
+from RemoteShell import RemoteManager
 from RunCluster import RunCluster
 from RunSet import RunSet
 from leapseconds import leapseconds, MJD
@@ -172,7 +171,7 @@ class LiveChecker(BaseLiveChecker):
     def _checkText(self, checker, msg, debug, setError):
         if self.__type is None or self.__type != "json":
             valStr = str(self.__value)
-        elif isinstance(self.__value, list) or isinstance(self.__value, tuple):
+        elif isinstance(self.__value, (list, tuple)):
             valStr = "["
             for v in self.__value:
                 if len(valStr) > 1:
@@ -868,7 +867,7 @@ class MockCluCfgFileHost(object):
                     print("%s</host>" % indent, file=fd)
 
             if printed_host and not split_hosts:
-                    print("%s</host>" % indent, file=fd)
+                print("%s</host>" % indent, file=fd)
 
 
 class MockCluCfgFileSimHubs(MockClusterWriter):
@@ -1016,7 +1015,8 @@ class MockClusterConfig(object):
         return self.__descName
 
     def extractComponents(self, masterList):
-        return RunCluster.extractComponentsFromNodes(list(self.__nodes.values()),
+        nodeComps = list(self.__nodes.values())
+        return RunCluster.extractComponentsFromNodes(nodeComps,
                                                      masterList)
 
     @property
@@ -1124,8 +1124,9 @@ class MockClusterConfigFile(MockClusterWriter):
                                      self.__defaultJVMExtraArgs)
 
                 if hasHubXML:
-                    self.writeHubXML(fd, indent2, self.__defaultAlertEMail,
-                                     self.__defaultNTPHost)
+                    #self.writeHubXML(fd, indent2, self.__defaultAlertEMail,
+                    #                 self.__defaultNTPHost)
+                    raise NotImplementedError("writeHubXML")
 
                 if self.__defaultLogLevel is not None:
                     self.writeLine(fd, indent2, "logLevel",
@@ -1701,97 +1702,6 @@ class MockDefaultDomGeometryFile(object):
                 print("</domGeometry>", file=fd)
 
 
-class MockDeployComponent(Component):
-    def __init__(self, name, id, logLevel, hsDir, hsInterval, hsMaxFiles,
-                 jvmPath, jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs,
-                 jvmExtraArgs, alertEMail, ntpHost, numReplayFiles=None,
-                 host=None):
-        self.__hsDir = hsDir
-        self.__hsInterval = hsInterval
-        self.__hsMaxFiles = hsMaxFiles
-        self.__jvmPath = jvmPath
-        self.__jvmServer = jvmServer is True
-        self.__jvmHeapInit = jvmHeapInit
-        self.__jvmHeapMax = jvmHeapMax
-        self.__jvmArgs = jvmArgs
-        self.__jvmExtraArgs = jvmExtraArgs
-        self.__alertEMail = alertEMail
-        self.__ntpHost = ntpHost
-        self.__numReplayFiles = numReplayFiles
-        self.__host = host
-
-        super(MockDeployComponent, self).__init__(name, id, logLevel)
-
-    @property
-    def alertEMail(self):
-        return self.__alertEMail
-
-    @property
-    def hasHitSpoolOptions(self):
-        return self.__hsDir is not None or self.__hsInterval is not None or \
-            self.__hsMaxFiles is not None
-
-    @property
-    def hasReplayOptions(self):
-        return self.__numReplayFiles is not None
-
-    @property
-    def hitspoolDirectory(self):
-        return self.__hsDir
-
-    @property
-    def hitspoolInterval(self):
-        return self.__hsInterval
-
-    @property
-    def hitspoolMaxFiles(self):
-        return self.__hsMaxFiles
-
-    @property
-    def isControlServer(self):
-        return False
-
-    @property
-    def host(self):
-        return self.__host
-
-    @property
-    def isLocalhost(self):
-        return self.__host is not None and self.__host == "localhost"
-
-    @property
-    def jvmArgs(self):
-        return self.__jvmArgs
-
-    @property
-    def jvmExtraArgs(self):
-        return self.__jvmExtraArgs
-
-    @property
-    def jvmHeapInit(self):
-        return self.__jvmHeapInit
-
-    @property
-    def jvmHeapMax(self):
-        return self.__jvmHeapMax
-
-    @property
-    def jvmPath(self):
-        return self.__jvmPath
-
-    @property
-    def jvmServer(self):
-        return self.__jvmServer
-
-    @property
-    def ntpHost(self):
-        return self.__ntpHost
-
-    @property
-    def numReplayFilesToSkip(self):
-        return self.__numReplayFiles
-
-
 class MockDAQClient(DAQClient):
     def __init__(self, name, num, host, port, mbeanPort, connectors,
                  appender, outLinks=None, extraLoud=False):
@@ -1956,58 +1866,36 @@ class MockLogger(LogChecker):
         self._checkMsg(m)
 
 
-class MockParallelShell(object):
-    BINDIR = os.path.join(find_pdaq_trunk(), 'target', 'pDAQ-%s-dist' %
-                          ComponentManager.RELEASE, 'bin')
+class MockRPCClient(object):
+    def __init__(self, name, num, outLinks=None):
+        self.xmlrpc = MockXMLRPC(name, num, outLinks)
 
-    def __init__(self, isParallel=True, debug=False):
-        self.__exp = []
-        self.__rtnCodes = []
-        self.__results = []
-        self.__isParallel = isParallel
-        self.__debug = debug
 
-    def __addExpected(self, cmd):
+class MockRemoteRunner(object):
+    DEBUG = False
+
+    def __init__(self, host):
+        self.__host = host
+        self.__expected = []
+
+    def __add_expected(self, cmd):
         if cmd.find("/bin/StringHub") > 0 and cmd.find(".componentId=") < 0:
             raise Exception("Missing componentId: %s" % cmd)
-        self.__exp.append(cmd)
+        self.__expected.append(cmd)
 
-    def __checkCmd(self, cmd):
-        expLen = len(self.__exp)
-        if expLen == 0:
-            raise Exception('Did not expect command "%s"' % cmd)
-
-        if self.__debug:
-            print("PSh got: " + cmd, file=sys.stderr)
-
-        found = None
-        for i in range(expLen):
-            if cmd == self.__exp[i]:
-                found = i
-                if self.__debug:
-                    print("PSh found cmd", file=sys.stderr)
-                break
-            if self.__debug:
-                print("PSh not: " + self.__exp[i], file=sys.stderr)
-
-        if found is None:
-            raise Exception("Command not found in expected command list:"
-                            " cmd=\"%s\"" % (cmd, ))
-
-        del self.__exp[found]
-
-    def __isLocalhost(self, host):
+    @classmethod
+    def __is_localhost(cls, host):
         return host == 'localhost' or host == '127.0.0.1'
 
-    def add(self, cmd):
-        self.__checkCmd(cmd)
+    def add_expected_java(self, comp, config_dir, daq_data_dir, log_port,
+                          live_port, verbose, event_check):
+        if comp.host != self.__host:
+            raise Exception("Component host \"%s\" is not \"%s\"" %
+                            (comp.host, self.__host))
 
-    def addExpectedJava(self, comp, configDir, daqDataDir, logPort, livePort,
-                        verbose, eventCheck, host):
-
-        ipAddr = ip.getLocalIpAddr(host)
-        jarPath = os.path.join(MockParallelShell.BINDIR,
-                               ComponentManager.getComponentJar(comp.name))
+        ip_addr = ip.getLocalIpAddr(comp.host)
+        jar_path = os.path.join(MockRemoteManager.BINDIR,
+                                ComponentManager.get_component_jar(comp.name))
 
         if verbose:
             redir = ''
@@ -2015,7 +1903,7 @@ class MockParallelShell(object):
             redir = ' </dev/null >/dev/null 2>&1'
 
         cmd = comp.jvmPath
-        cmd += " -Dicecube.daq.component.configDir='%s'" % configDir
+        cmd += " -Dicecube.daq.component.configDir='%s'" % str(config_dir)
 
         if comp.jvmServer is not None and comp.jvmServer:
             cmd += " -server"
@@ -2045,166 +1933,152 @@ class MockParallelShell(object):
 
         if comp.isHub:
             cmd += " -Dicecube.daq.stringhub.componentId=%d" % comp.id
-        if eventCheck and comp.isBuilder:
+        if event_check and comp.isBuilder:
             cmd += ' -Dicecube.daq.eventBuilder.validateEvents'
 
-        cmd += ' -jar %s' % jarPath
-        if daqDataDir is not None:
-            cmd += ' -d %s' % daqDataDir
-        cmd += ' -c %s:%d' % (ipAddr, DAQPort.CNCSERVER)
+        cmd += ' -jar %s' % jar_path
+        if daq_data_dir is not None:
+            cmd += ' -d %s' % daq_data_dir
+        cmd += ' -c %s:%d' % (ip_addr, DAQPort.CNCSERVER)
 
-        if logPort is not None:
-            cmd += ' -l %s:%d,%s' % (ipAddr, logPort, comp.logLevel)
-        if livePort is not None:
-            cmd += ' -L %s:%d,%s' % (ipAddr, livePort, comp.logLevel)
-            cmd += ' -M %s:%d' % (ipAddr, MoniPort)
+        if log_port is not None:
+            cmd += ' -l %s:%d,%s' % (ip_addr, log_port, comp.logLevel)
+        if live_port is not None:
+            cmd += ' -L %s:%d,%s' % (ip_addr, live_port, comp.logLevel)
+            cmd += ' -M %s:%d' % (ip_addr, MoniPort)
         cmd += ' %s &' % redir
 
-        if not self.__isLocalhost(host):
-            qCmd = "ssh -n %s 'sh -c \"%s\"%s &'" % (host, cmd, redir)
+        if not self.__is_localhost(comp.host):
+            qCmd = "ssh -n %s 'sh -c \"%s\"%s &'" % (comp.host, cmd, redir)
             cmd = qCmd
 
-        self.__addExpected(cmd)
+        self.__add_expected(cmd)
 
-    def addExpectedJavaKill(self, compName, compId, killWith9, verbose, host):
-        if killWith9:
+    def add_expected_java_kill(self, comp_name, comp_id, kill_with_9, verbose,
+                               host):
+        if kill_with_9:
             nineArg = '-9'
         else:
             nineArg = ''
 
         user = os.environ['USER']
 
-        if compName.endswith("hub"):
-            killPat = "stringhub.componentId=%d " % compId
+        if comp_name.endswith("hub"):
+            kill_pat = "stringhub.componentId=%d " % comp_id
         else:
-            killPat = ComponentManager.getComponentJar(compName)
+            kill_pat = ComponentManager.get_component_jar(comp_name)
 
-        if self.__isLocalhost(host):
-            sshCmd = ''
-            pkillOpt = ' -fu %s' % user
+        if self.__is_localhost(host):
+            ssh_cmd = ''
+            pkill_opt = ' -fu %s' % user
         else:
-            sshCmd = 'ssh %s ' % host
-            pkillOpt = ' -f'
+            ssh_cmd = 'ssh %s ' % host
+            pkill_opt = ' -f'
 
-        self.__addExpected('%spkill %s%s \"%s\"' %
-                           (sshCmd, nineArg, pkillOpt, killPat))
+        self.__add_expected('%spkill %s%s \"%s\"' %
+                            (ssh_cmd, nineArg, pkill_opt, kill_pat))
 
-        if not killWith9:
-            self.__addExpected('sleep 2; %spkill -9%s \"%s\"' %
-                               (sshCmd, pkillOpt, killPat))
+        if not kill_with_9:
+            self.__add_expected('sleep 2; %spkill -9%s \"%s\"' %
+                                (ssh_cmd, pkill_opt, kill_pat))
 
-    def addExpectedPython(self, doCnC, dashDir, configDir, logDir, daqDataDir,
-                          spadeDir, cluCfgName, cfgName, copyDir, logPort,
-                          livePort, forceRestart=True):
-        if doCnC:
-            cmd = os.path.join(dashDir, 'CnCServer.py')
-            cmd += ' -c %s' % configDir
-            cmd += ' -o %s' % logDir
-            cmd += ' -q %s' % daqDataDir
-            cmd += ' -s %s' % spadeDir
-            if cluCfgName is not None:
-                if cluCfgName.endswith("-cluster"):
-                    cmd += ' -C %s' % cluCfgName
+    def add_expected_python(self, do_cnc, dash_dir, config_dir, log_dir,
+                            daq_data_dir, spade_dir, clu_cfg_name, cfg_name,
+                            copy_dir, log_port, live_port, force_restart=True):
+        if do_cnc:
+            cmd = os.path.join(dash_dir, 'CnCServer.py')
+            cmd += ' -c %s' % config_dir
+            cmd += ' -o %s' % log_dir
+            cmd += ' -q %s' % daq_data_dir
+            cmd += ' -s %s' % spade_dir
+            if clu_cfg_name is not None:
+                if clu_cfg_name.endswith("-cluster"):
+                    cmd += ' -C %s' % clu_cfg_name
                 else:
-                    cmd += ' -C %s-cluster' % cluCfgName
-            if logPort is not None:
-                cmd += ' -l localhost:%d' % logPort
-            if livePort is not None:
-                cmd += ' -L localhost:%d' % livePort
-            if copyDir is not None:
-                cmd += ' -a %s' % copyDir
-            if not forceRestart:
+                    cmd += ' -C %s-cluster' % clu_cfg_name
+            if log_port is not None:
+                cmd += ' -l localhost:%d' % log_port
+            if live_port is not None:
+                cmd += ' -L localhost:%d' % live_port
+            if copy_dir is not None:
+                cmd += ' -a %s' % copy_dir
+            if not force_restart:
                 cmd += ' -F'
             cmd += ' -d'
 
-            self.__addExpected(cmd)
+            self.__add_expected(cmd)
 
-    def addExpectedPythonKill(self, doCnC, killWith9):
+    def add_expected_python_kill(self, do_cnc, kill_with_9):
         pass
 
-    def addExpectedRsync(self, dir, subdirs, delete, dryRun, remoteHost,
-                         rtnCode, result="",
-                         niceAdj=DeployPDAQ.NICE_LEVEL_DEFAULT,
-                         express=DeployPDAQ.EXPRESS_DEFAULT):
+    def append(self, cmd, handle_out, handle_err):
+        if len(self.__expected) == 0:
+            raise Exception("Unexpected %s command: \"%s\"" %
+                            (self.__host, cmd))
 
-        if express:
-            rCmd = "rsync"
+        if self.__expected[0] == cmd:
+            self.__expected.pop(0)
+        elif cmd in self.__expected:
+            idx = self.__expected.index(cmd)
+            print("Out of order %s command (pos=%d): \"%s\"" %
+                  (self.__host, idx, cmd))
+            del self.__expected[idx]
         else:
-            rCmd = 'nice rsync --rsync-path "nice -n %d rsync"' % (niceAdj)
+            raise Exception("Unknown %s command: \"%s\"" %
+                            (self.__host, cmd))
 
-        if not delete:
-            dOpt = ""
-        else:
-            dOpt = " --delete"
-
-        if not dryRun:
-            drOpt = ""
-        else:
-            drOpt = " --dry-run"
-
-        group = "{" + ",".join(subdirs) + "}"
-
-        cmd = "%s -azLC%s%s %s %s:%s" % \
-            (rCmd, dOpt, drOpt, os.path.join(dir, group), remoteHost, dir)
-        self.__addExpected(cmd)
-        self.__rtnCodes.append(rtnCode)
-        self.__results.append(result)
-
-    def addExpectedUndeploy(self, pdaqDir, remoteHost):
-        cmd = "ssh %s \"\\rm -rf ~%s/config %s\"" % \
-            (remoteHost, os.environ["USER"], pdaqDir)
-        self.__addExpected(cmd)
+        if self.DEBUG:
+            print("** %s <= %s" % (self.__host, cmd, ))
 
     def check(self):
-        if len(self.__exp) > 0:
-            raise Exception(('ParallelShell did not receive expected commands:'
-                             ' %s') % str(self.__exp))
+        explen = len(self.__expected)
+        if explen > 0:
+            raise Exception("Found %d unused command%s for %s: %s" %
+                            (explen, "" if explen == 1 else "s", self.__host,
+                             self.__expected))
 
-    def getMetaPath(self, subdir):
-        return os.path.join(find_pdaq_trunk(), subdir)
+    def handle_err(self, lines, rtncode):
+        if rtncode is not None:
+            print("Return code was %s (expected None)!" % (rtncode, ))
 
-    def getResult(self, idx):
-        if idx < 0 or idx >= len(self.__results):
-            raise Exception("Cannot return result %d (only %d available)" %
-                            (idx, len(self.__results)))
+        for line in lines:
+            print("?? %s" % (line, ))
 
-        return self.__results[idx]
+    def handle_out(self, lines, rtncode):
+        if rtncode is None:
+            print("Return code was unknown!")
+        else:
+            print("Return code was %s" % (rtncode, ))
 
-    def getReturnCodes(self):
-        return self.__rtnCodes
-
-    @property
-    def isParallel(self):
-        return self.__isParallel
-
-    def showAll(self):
-        raise Exception('SHOWALL')
-
-    def shuffle(self):
-        pass
+        for line in lines:
+            print(":: %s" % (line, ))
 
     def start(self):
         pass
 
-    def system(self, cmd):
-        self.__checkCmd(cmd)
-
-    def wait(self, monitorIval=None):
-        pass
-
-    def getCmdResults(self):
-
-        # commands are in self.__exp
-        ret = {}
-        for exp, rtncode in zip(self.__exp, self.__rtnCodes):
-            ret[exp] = (rtncode, "")
-
-        return ret
+    def wait(self):
+        del self.__expected[:]
 
 
-class MockRPCClient(object):
-    def __init__(self, name, num, outLinks=None):
-        self.xmlrpc = MockXMLRPC(name, num, outLinks)
+class MockRemoteManager(RemoteManager):
+    BINDIR = os.path.join(find_pdaq_trunk(), 'target', 'pDAQ-%s-dist' %
+                          ComponentManager.RELEASE, 'bin')
+
+    def __init__(self, dry_run=False, verbose=False, trace=False, timeout=None):
+        super(MockRemoteManager, self).__init__(dry_run=dry_run,
+                                                verbose=verbose, trace=trace,
+                                                timeout=timeout)
+
+    def check(self):
+        for shell in self.shells:
+            shell.check()
+
+    def create_runner(self, host):
+        return MockRemoteRunner(host)
+
+    def shuffle(self):
+        from stacktrace import stacktrace
+        print("Unneeded shuffle: %s" % stacktrace(), file=sys.stderr)
 
 
 class MockRunComponent(object):
@@ -2592,10 +2466,10 @@ class SocketReader(LogChecker):
             pw = []
             pe = [sock]
             while self.__thread is not None:
-                rd, rw, re = select.select(pr, pw, pe, 0.5)
-                if len(re) != 0:
+                rdat, _, rerr = select.select(pr, pw, pe, 0.5)
+                if len(rerr) != 0:
                     raise Exception("Error on select was detected.")
-                if len(rd) == 0:
+                if len(rdat) == 0:
                     continue
                 # Slurp up waiting packets, return to select if EAGAIN
                 while True:

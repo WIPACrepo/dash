@@ -457,7 +457,7 @@ class TaskManagerTest(unittest.TestCase):
 
         rst.triggerTimers()
 
-        for i in range(20):
+        for _ in range(20):
             waitForThread = False
             for c in compList:
                 if not c.wasUpdated():

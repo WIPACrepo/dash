@@ -8,7 +8,7 @@ import unittest
 
 from locate_pdaq import set_pdaq_config_dir
 from ActiveDOMsTask import ActiveDOMsTask
-from ComponentManager import listComponentRanges
+from ComponentManager import ComponentManager
 from CnCExceptions import CnCServerException, MissingComponentException
 from CnCServer import CnCServer
 from DAQConst import DAQPort
@@ -243,12 +243,6 @@ class MostlyTaskManager(TaskManager):
 
     TIMERS = {}
 
-    def __init__(self, runset, dashlog, liveMoniClient, runDir, runCfg,
-                 moniType):
-        super(MostlyTaskManager, self).__init__(runset, dashlog,
-                                                liveMoniClient,
-                                                runDir, runCfg, moniType)
-
     def createIntervalTimer(self, name, period):
         if name not in self.TIMERS:
             self.TIMERS[name] = MockIntervalTimer(name, self.WAITSECS)
@@ -337,7 +331,7 @@ class MyRunSet(RunSet):
     def cycle_components(cls, compList, configDir, daqDataDir, logger, logPort,
                          livePort, verbose, killWith9, eventCheck,
                          checkExists=True):
-        compStr = listComponentRanges(compList)
+        compStr = ComponentManager.format_component_list(compList)
         logger.error("Cycling components %s" % compStr)
 
     def getTaskManager(self):
@@ -351,9 +345,9 @@ class MyRunSet(RunSet):
         return {}
 
     def set_dash_log(self, logger):
-        self.__dashlog = logger
         if self.__rundata is not None:
-            self.__rundata.set_dash_log(logger)
+            raise SystemExit("RunData cannot be set")
+        self.__dashlog = logger
 
     def setUnresetComponent(self, comp):
         self.__failReset = comp
@@ -828,7 +822,7 @@ class CnCRunSetTest(unittest.TestCase):
 
     @staticmethod
     def __waitForEmptyLog(log, errMsg):
-        for i in range(5):
+        for _ in range(5):
             if log.isEmpty:
                 break
             time.sleep(0.25)

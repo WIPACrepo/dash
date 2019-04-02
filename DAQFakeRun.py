@@ -3,7 +3,6 @@
 from __future__ import print_function
 
 import datetime
-import numbers
 import os
 import select
 import shutil
@@ -582,7 +581,7 @@ class DAQFakeRun(object):
             if cdt.is_fake:
                 if fork_clients:
                     if client.fork() == 0:
-                        return
+                        return None
 
                 client.start()
                 client.register()

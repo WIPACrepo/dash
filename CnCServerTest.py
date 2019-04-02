@@ -13,11 +13,10 @@ import xmlrpclib
 
 from CnCExceptions import CnCServerException
 from CnCServer import CnCServer
-from ComponentManager import listComponentRanges
+from ComponentManager import ComponentManager
 from DAQClient import DAQClient
 from DAQConst import DAQPort
 from DAQRPC import RPCServer
-from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
 from RunSet import RunSet
 from locate_pdaq import set_pdaq_config_dir
@@ -148,7 +147,7 @@ class MostlyRunSet(RunSet):
                          logPort, livePort, verbose, killWith9, eventCheck,
                          checkExists=True):
         logger.error("Cycling components %s" %
-                     (listComponentRanges(compList), ))
+                     (ComponentManager.format_component_list(compList), ))
 
     def final_report(self, comps, runData, had_error=False, switching=False):
         numEvts = 600
@@ -283,6 +282,8 @@ class RealComponent(object):
                                      'xmlrpc.resetLogging')
         self.__cmd.register_function(self.__setFirstGoodTime,
                                      'xmlrpc.setFirstGoodTime')
+        self.__cmd.register_function(self.__setLastGoodTime,
+                                     'xmlrpc.setLastGoodTime')
         self.__cmd.register_function(self.__startRun, 'xmlrpc.startRun')
         self.__cmd.register_function(self.__stopRun, 'xmlrpc.stopRun')
         self.__cmd.register_function(self.__switchToNewRun,
@@ -430,6 +431,9 @@ class RealComponent(object):
         return 'RLOG'
 
     def __setFirstGoodTime(self, payTime):
+        return 'OK'
+
+    def __setLastGoodTime(self, payTime):
         return 'OK'
 
     def __startRun(self, runNum):
@@ -934,7 +938,7 @@ class TestCnCServer(unittest.TestCase):
 
             rateTracker.reset()
 
-        for i in range(5):
+        for _ in range(5):
             rateTracker.updateRunData(self.cnc, setId, self.comps)
 
         for comp in self.comps:

@@ -68,8 +68,7 @@ class RPCServer(DocXMLRPCServer):
         self.__sock_count = 0
         self.__registered = False
 
-        DocXMLRPCServer.__init__(self, ('', portnum),
-                                                 logRequests=False)
+        DocXMLRPCServer.__init__(self, ('', portnum), logRequests=False)
         # note that this has to be AFTER the init above as it can be
         # set to false in the __init__
         self.allow_reuse_address = True

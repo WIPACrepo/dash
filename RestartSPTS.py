@@ -216,7 +216,7 @@ def launchSPTS(run_config, verbose=False):
     logger = ConsoleLogger()
 
     kill(cfgDir, logger, verbose=verbose)
-    launch(cfgDir, dashDir, logger, configName=str(run_config),
+    launch(cfgDir, dashDir, logger, config_name=str(run_config),
            verbose=verbose)
 
 

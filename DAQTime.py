@@ -226,7 +226,7 @@ class PayloadTime(object):
 
         if not cls.TIME_PAT:
             cls.TIME_PAT = re.compile(r"(\S+-\S+-\S+\s+\d+:\d+:\d+)" +
-                                              r"(\.(\d+))?")
+                                      r"(\.(\d+))?")
 
         m = cls.TIME_PAT.match(timestr)
         if not m:

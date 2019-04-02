@@ -504,7 +504,7 @@ class DAQLiveTest(unittest.TestCase):
 
             finished = True
 
-        self.assertTrue(finished == None, "Unexpected value for 'finished'")
+        self.assertTrue(finished is None, "Unexpected value for 'finished'")
 
     def testStopping(self):
         global WARNED

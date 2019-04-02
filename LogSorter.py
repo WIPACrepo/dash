@@ -119,7 +119,7 @@ class BaseLog(object):
 
     LOGSTART_PAT = re.compile(r"Start of log at .*$")
     OLDVERS_PAT = re.compile(r"Version info: \S+ \S+ \S+ \S+Z? \S+ (\S+)"
-                             " (\S+)")
+                             r" (\S+)")
     LOGVERS_PAT = re.compile(r"Version info: (\S+) (\S+) \S+ \S+Z?")
 
     def __init__(self, fileName):
@@ -431,9 +431,10 @@ class LogSorter(object):
             print("    from %s to %s" % \
                 (runXML.getStartTime(), runXML.getEndTime()), file=out)
         log = sorted(self.__processDir(self.__runDir, verbose=verbose,
-                                show_tcal=show_tcal, hide_rates=hide_rates,
-                                hide_sn_gaps=hide_sn_gaps,
-                                show_lbmdebug=show_lbmdebug))
+                                       show_tcal=show_tcal,
+                                       hide_rates=hide_rates,
+                                       hide_sn_gaps=hide_sn_gaps,
+                                       show_lbmdebug=show_lbmdebug))
         for l in log:
             print(str(l), file=out)
         if cond == "ERROR":

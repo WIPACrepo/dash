@@ -7,8 +7,6 @@
 
 from __future__ import print_function
 
-import os
-
 from DefaultDomGeometry import DefaultDomGeometryReader
 from DAQConfig import DAQConfigException, DAQConfigParser
 from RemoveHubs import create_config, get_hub_name
@@ -85,9 +83,8 @@ def __make_partition_config(run_config, partitions, it_key, ii_key,
 
     new_name = "%s_%s_partition.xml" % (basename, cfgname)
     if not dry_run:
-        final_path = create_config(run_config, hub_list, None,
-                                   new_name=new_name, keep_hubs=True,
-                                   force=force, verbose=verbose)
+        _ = create_config(run_config, hub_list, None, new_name=new_name,
+                          keep_hubs=True, force=force, verbose=verbose)
     elif verbose:
         print("  writing to %s" % (new_name, ))
     else:
@@ -245,9 +242,8 @@ def main():
         for comp in run_config.components():
             if comp.isHub:
                 if not args.dryrun:
-                    new_cfg = create_config(run_config, [comp.id, ], None,
-                                            force=args.force,
-                                            verbose=args.verbose)
+                    _ = create_config(run_config, [comp.id, ], None,
+                                      force=args.force, verbose=args.verbose)
                 elif args.verbose:
                     print("  writing to %s-no%s" % \
                         (run_config.basename, get_hub_name(comp.id)))

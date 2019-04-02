@@ -10,12 +10,103 @@ import threading
 import unittest
 
 from CachedConfigName import CachedFile
-from ClusterDescription import ClusterDescription
+from Component import Component
 from ComponentManager import ComponentManager
 from DAQConst import DAQPort
-from DAQMocks import MockParallelShell, MockDeployComponent
+from DAQMocks import MockRemoteManager
 from DAQRPC import RPCServer
 from RunSetState import RunSetState
+
+
+class MockDeployComponent(Component):
+    def __init__(self, name, id, log_level, hs_dir, hs_interval, hs_max_files,
+                 jvm_path, jvm_server, jvm_heap_init, jvm_heap_max, jvm_args,
+                 jvm_extra_args, alert_email, ntp_host, num_replay_files=None,
+                 host=None):
+        self.__hs_dir = hs_dir
+        self.__hs_interval = hs_interval
+        self.__hs_max_files = hs_max_files
+        self.__jvm_path = jvm_path
+        self.__jvm_server = jvm_server is True
+        self.__jvm_heap_init = jvm_heap_init
+        self.__jvm_heap_max = jvm_heap_max
+        self.__jvm_args = jvm_args
+        self.__jvm_extra_args = jvm_extra_args
+        self.__alert_email = alert_email
+        self.__ntp_host = ntp_host
+        self.__num_replay_files = num_replay_files
+        self.__host = host
+
+        super(MockDeployComponent, self).__init__(name, id, log_level)
+
+    @property
+    def alertEMail(self):
+        return self.__alert_email
+
+    @property
+    def hasHitSpoolOptions(self):
+        return self.__hs_dir is not None or self.__hs_interval is not None or \
+            self.__hs_max_files is not None
+
+    @property
+    def hasReplayOptions(self):
+        return self.__num_replay_files is not None
+
+    @property
+    def hitspoolDirectory(self):
+        return self.__hs_dir
+
+    @property
+    def hitspoolInterval(self):
+        return self.__hs_interval
+
+    @property
+    def hitspoolMaxFiles(self):
+        return self.__hs_max_files
+
+    @property
+    def isControlServer(self):
+        return False
+
+    @property
+    def host(self):
+        return self.__host
+
+    @property
+    def isLocalhost(self):
+        return self.__host is not None and self.__host == "localhost"
+
+    @property
+    def jvmArgs(self):
+        return self.__jvm_args
+
+    @property
+    def jvmExtraArgs(self):
+        return self.__jvm_extra_args
+
+    @property
+    def jvmHeapInit(self):
+        return self.__jvm_heap_init
+
+    @property
+    def jvmHeapMax(self):
+        return self.__jvm_heap_max
+
+    @property
+    def jvmPath(self):
+        return self.__jvm_path
+
+    @property
+    def jvmServer(self):
+        return self.__jvm_server
+
+    @property
+    def ntpHost(self):
+        return self.__ntp_host
+
+    @property
+    def numReplayFilesToSkip(self):
+        return self.__num_replay_files
 
 
 class MockNode(object):
@@ -28,14 +119,14 @@ class MockNode(object):
     def __str__(self):
         return "%s[%s]" % (str(self.__hostname), str(self.__comps))
 
-    def addComp(self, compName, compId, logLevel, hsDir, hsInterval,
-                hsMaxFiles, jvmPath, jvmServer, jvmHeapInit, jvmHeapMax,
-                jvmArgs, jvmExtraArgs, alertEMail, ntpHost):
-        comp = MockDeployComponent(compName, compId, logLevel, hsDir,
-                                   hsInterval, hsMaxFiles, jvmPath, jvmServer,
-                                   jvmHeapInit, jvmHeapMax, jvmArgs,
-                                   jvmExtraArgs, alertEMail, ntpHost,
-                                   host=self.__hostname)
+    def add_comp(self, comp_name, comp_id, log_level, hs_dir, hs_interval,
+                 hs_max_files, jvm_path, jvm_server, jvm_heap_init,
+                 jvm_heap_max, jvm_args, jvm_extra_args, alert_email, ntp_host):
+        comp = MockDeployComponent(comp_name, comp_id, log_level, hs_dir,
+                                   hs_interval, hs_max_files, jvm_path,
+                                   jvm_server, jvm_heap_init, jvm_heap_max,
+                                   jvm_args, jvm_extra_args, alert_email,
+                                   ntp_host, host=self.__hostname)
         self.__comps.append(comp)
         return comp
 
@@ -49,10 +140,10 @@ class MockNode(object):
 
 class MockClusterConfig(object):
     def __init__(self, name):
-        self.__configName = name
+        self.__name = name
         self.__nodes = []
 
-    def addNode(self, node):
+    def add_node(self, node):
         self.__nodes.append(node)
 
     @property
@@ -66,71 +157,71 @@ class MockClusterConfig(object):
         pass
 
 
-class MockServer(RPCServer):
+class MockServer(object):
     STATE_KEY = "state"
     COMPS_KEY = "comps"
 
     def __init__(self):
         self.__runsets = {}
         self.__unused = []
-        self.__nextID = 1
+        self.__next_id = 1
 
         self.__server = RPCServer(DAQPort.CNCSERVER)
-        self.__server.register_function(self.__listCompDicts,
+        self.__server.register_function(self.__list_comp_dicts,
                                         'rpc_component_list_dicts')
-        self.__server.register_function(self.__runsetCount,
+        self.__server.register_function(self.__runset_count,
                                         'rpc_runset_count')
-        self.__server.register_function(self.__runsetListIDs,
+        self.__server.register_function(self.__runset_list_ids,
                                         'rpc_runset_list_ids')
-        self.__server.register_function(self.__runsetListComps,
+        self.__server.register_function(self.__runset_list_comps,
                                         'rpc_runset_list')
-        self.__server.register_function(self.__runsetState,
+        self.__server.register_function(self.__runset_state,
                                         'rpc_runset_state')
 
-        t = threading.Thread(name="MockServer",
-                             target=self.__server.serve_forever, args=())
-        t.setDaemon(True)
-        t.start()
+        thrd = threading.Thread(name="MockServer",
+                                target=self.__server.serve_forever, args=())
+        thrd.setDaemon(True)
+        thrd.start()
 
-    def __listCompDicts(self, idList=None, getAll=True):
+    def __list_comp_dicts(self, id_list=None, get_all=True):
         dictlist = []
-        for c in self.__unused:
+        for comp in self.__unused:
             newc = {}
-            for k in c:
-                newc[k] = c[k]
+            for k in comp:
+                newc[k] = comp[k]
             dictlist.append(newc)
         return dictlist
 
-    def __runsetCount(self):
+    def __runset_count(self):
         return len(self.__runsets)
 
-    def __runsetListComps(self, rsid):
+    def __runset_list_comps(self, rsid):
         dictlist = []
 
         if rsid in self.__runsets:
-            for c in self.__runsets[rsid][self.COMPS_KEY]:
+            for comp in self.__runsets[rsid][self.COMPS_KEY]:
                 newc = {}
-                for k in c:
-                    if k == self.STATE_KEY:
+                for key in comp:
+                    if key == self.STATE_KEY:
                         continue
-                    newc[k] = c[k]
+                    newc[key] = comp[key]
                 dictlist.append(newc)
 
         return dictlist
 
-    def __runsetListIDs(self):
+    def __runset_list_ids(self):
         return list(self.__runsets.keys())
 
-    def __runsetState(self, rsid):
+    def __runset_state(self, rsid):
         if rsid not in self.__runsets:
             return RunSetState.DESTROYED
 
         return self.__runsets[rsid][self.STATE_KEY]
 
-    def addUnusedComponent(self, name, num, host):
+    def add_unused_component(self, name, num, host):
         self.__unused.append({"compName": name, "compNum": num, "host": host})
 
-    def addRunset(self, state, complist=None):
+    def add_runset(self, state, complist=None):
         fulldict = {}
         fulldict[self.STATE_KEY] = state
         if complist is not None:
@@ -142,8 +233,8 @@ class MockServer(RPCServer):
                 newlist.append(newdict)
             fulldict[self.COMPS_KEY] = newlist
 
-        rsid = self.__nextID
-        self.__nextID += 1
+        rsid = self.__next_id
+        self.__next_id += 1
         self.__runsets[rsid] = fulldict
 
     def close(self):
@@ -161,354 +252,370 @@ class ComponentManagerTest(unittest.TestCase):
             self.__srvr.close()
         CachedFile.clearActiveConfig()
 
-    def testStartJava(self):
-        dryRun = False
-        configDir = '/foo/cfg'
-        daqDataDir = '/foo/baz'
-        logPort = 1234
+    def test_start_java(self):
+        dry_run = False
+        config_dir = '/foo/cfg'
+        daq_data_dir = '/foo/baz'
+        log_port = 1234
 
-        hsDir = "/mnt/data/testpath"
-        hsInterval = 11.1
-        hsMaxFiles = 12345
+        hs_dir = "/mnt/data/testpath"
+        hs_interval = 11.1
+        hs_max_files = 12345
 
-        jvmPath = "java"
-        jvmServer = False
-        jvmHeapInit = "1m"
-        jvmHeapMax = "12m"
-        jvmArgs = "-Xarg"
-        jvmExtra = "-Xextra"
+        jvm_path = "java"
+        jvm_server = False
+        jvm_heap_init = "1m"
+        jvm_heap_max = "12m"
+        jvm_args = "-Xarg"
+        jvm_extra = "-Xextra"
 
-        alertEMail = "xxx@yyy.zzz"
-        ntpHost = "NtPhOsT"
+        alert_email = "xxx@yyy.zzz"
+        ntp_host = "NtPhOsT"
 
         verbose = False
-        chkExists = False
+        chk_exists = False
 
-        logLevel = 'DEBUG'
+        log_level = 'DEBUG'
 
-        for compName in ComponentManager.listComponents():
-            if compName[-3:] == 'hub':
-                compName = compName[:-3] + "Hub"
-                compId = 17
+        rmtmgr = MockRemoteManager()
+
+        for comp_name in ComponentManager.list_known_component_names():
+            if comp_name[-3:] == 'hub':
+                comp_name = comp_name[:-3] + "Hub"
+                comp_id = 17
             else:
-                compId = 0
-                if compName.endswith("builder"):
-                    compName = compName[:-7] + "Builder"
+                comp_id = 0
+                if comp_name.endswith("builder"):
+                    comp_name = comp_name[:-7] + "Builder"
 
             for host in MockNode.LIST:
                 node = MockNode(host)
-                comp = node.addComp(compName, compId, logLevel, hsDir,
-                                    hsInterval, hsMaxFiles, jvmPath, jvmServer,
-                                    jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra,
-                                    alertEMail, ntpHost)
+                comp = node.add_comp(comp_name, comp_id, log_level, hs_dir,
+                                     hs_interval, hs_max_files, jvm_path,
+                                     jvm_server, jvm_heap_init, jvm_heap_max,
+                                     jvm_args, jvm_extra, alert_email, ntp_host)
 
-                for isLive in (True, False):
-                    if isLive:
-                        livePort = DAQPort.I3LIVE
+                for is_live in (True, False):
+                    if is_live:
+                        live_port = DAQPort.I3LIVE
                     else:
-                        livePort = None
+                        live_port = None
 
-                    for eventCheck in (True, False):
-                        parallel = MockParallelShell()
+                    for event_check in (True, False):
+                        rmtsh = rmtmgr.get(comp.host)
+                        rmtsh.add_expected_java(comp, config_dir, daq_data_dir,
+                                                log_port, live_port, verbose,
+                                                event_check)
 
-                        parallel.addExpectedJava(comp, configDir, daqDataDir,
-                                                 logPort, livePort, verbose,
-                                                 eventCheck, host)
+                        ComponentManager.start_components(node.components(),
+                                                          dry_run, verbose,
+                                                          config_dir,
+                                                          daq_data_dir,
+                                                          log_port, live_port,
+                                                          event_check=event_check,
+                                                          check_exists=chk_exists,
+                                                          rmtmgr=rmtmgr)
 
-                        ComponentManager.startComponents(node.components(),
-                                                         dryRun, verbose,
-                                                         configDir, daqDataDir,
-                                                         logPort, livePort,
-                                                         eventCheck=eventCheck,
-                                                         checkExists=chkExists,
-                                                         parallel=parallel)
+                        rmtmgr.wait()
+                        rmtmgr.check()
 
-                        parallel.check()
+    def test_kill_java(self):
+        rmtmgr = MockRemoteManager()
 
-    def testKillJava(self):
-        for compName in ComponentManager.listComponents():
-            if compName[-3:] == 'hub':
-                compId = 17
+        for comp_name in ComponentManager.list_known_component_names():
+            if comp_name[-3:] == 'hub':
+                comp_id = 17
             else:
-                compId = 0
+                comp_id = 0
 
-            dryRun = False
+            dry_run = False
             verbose = False
 
-            hsDir = "/mnt/data/tstkill"
-            hsInterval = 12.3
-            hsMaxFiles = 12345
+            hs_dir = "/mnt/data/tstkill"
+            hs_interval = 12.3
+            hs_max_files = 12345
 
-            jvmPath = "java"
-            jvmServer = False
-            jvmHeapInit = "1m"
-            jvmHeapMax = "12m"
-            jvmArgs = "-Xarg"
-            jvmExtra = "-Xextra"
+            jvm_path = "java"
+            jvm_server = False
+            jvm_heap_init = "1m"
+            jvm_heap_max = "12m"
+            jvm_args = "-Xarg"
+            jvm_extra = "-Xextra"
 
-            alertEMail = "abc@def"
-            ntpHost = "NTP1"
+            alert_email = "abc@def"
+            ntp_host = "NTP1"
 
-            logLevel = 'DEBUG'
+            log_level = 'DEBUG'
 
             for host in MockNode.LIST:
                 node = MockNode(host)
-                node.addComp(compName, compId, logLevel, hsDir, hsInterval,
-                             hsMaxFiles, jvmPath, jvmServer, jvmHeapInit,
-                             jvmHeapMax, jvmArgs, jvmExtra, alertEMail,
-                             ntpHost)
+                node.add_comp(comp_name, comp_id, log_level, hs_dir,
+                              hs_interval, hs_max_files, jvm_path, jvm_server,
+                              jvm_heap_init, jvm_heap_max, jvm_args, jvm_extra,
+                              alert_email, ntp_host)
 
-                for killWith9 in (True, False):
-                    parallel = MockParallelShell()
+                for kill_with_9 in (True, False):
+                    rmtsh = rmtmgr.get(host)
+                    rmtsh.add_expected_java_kill(comp_name, comp_id,
+                                                 kill_with_9, verbose, host)
 
-                    parallel.addExpectedJavaKill(compName, compId, killWith9,
-                                                 verbose, host)
+                    ComponentManager.kill_components(node.components(),
+                                                     dry_run=dry_run,
+                                                     verbose=verbose,
+                                                     kill_with_9=kill_with_9,
+                                                     rmtmgr=rmtmgr)
 
-                    ComponentManager.killComponents(node.components(),
-                                                    dryRun=dryRun,
-                                                    verbose=verbose,
-                                                    killWith9=killWith9,
-                                                    parallel=parallel)
+                    rmtsh.check()
 
-                    parallel.check()
-
-    def testLaunch(self):
+    def test_launch(self):
         tmpdir = tempfile.mkdtemp()
-        dryRun = False
-        configDir = os.path.join(tmpdir, 'cfg')
-        daqDataDir = os.path.join(tmpdir, 'data')
-        dashDir = os.path.join(tmpdir, 'dash')
-        logDir = os.path.join(tmpdir, 'log')
-        spadeDir = os.path.join(tmpdir, 'spade')
-        copyDir = os.path.join(tmpdir, 'copy')
-        logPort = 1234
+        dry_run = False
+        config_dir = os.path.join(tmpdir, 'cfg')
+        daq_data_dir = os.path.join(tmpdir, 'data')
+        dash_dir = os.path.join(tmpdir, 'dash')
+        log_dir = os.path.join(tmpdir, 'log')
+        spade_dir = os.path.join(tmpdir, 'spade')
+        copy_dir = os.path.join(tmpdir, 'copy')
+        log_port = 1234
         verbose = False
-        chkExists = False
+        chk_exists = False
 
-        compName = 'eventBuilder'
-        compId = 0
+        comp_name = 'eventBuilder'
+        comp_id = 0
 
-        hsDir = "/a/b/c"
-        hsInterval = 1.0
-        hsMaxFiles = 1
+        hs_dir = "/a/b/c"
+        hs_interval = 1.0
+        hs_max_files = 1
 
-        jvmPath = "java"
-        jvmServer = False
-        jvmHeapInit = "1m"
-        jvmHeapMax = "12m"
-        jvmArgs = "-Xarg"
-        jvmExtra = "-Xextra"
+        jvm_path = "java"
+        jvm_server = False
+        jvm_heap_init = "1m"
+        jvm_heap_max = "12m"
+        jvm_args = "-Xarg"
+        jvm_extra = "-Xextra"
 
-        alertEMail = "abc@def.ghi"
-        ntpHost = "tempus"
+        alert_email = "abc@def.ghi"
+        ntp_host = "tempus"
 
-        logLevel = 'DEBUG'
+        log_level = 'DEBUG'
+
+        rmtmgr = MockRemoteManager()
 
         # if there are N targets, range is 2^N
         for targets in range(2):
-            doCnC = (targets & 1) == 1
+            do_cnc = (targets & 1) == 1
 
             for host in MockNode.LIST:
                 node = MockNode(host)
-                comp = node.addComp(compName, compId, logLevel, hsDir,
-                                    hsInterval, hsMaxFiles, jvmPath, jvmServer,
-                                    jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra,
-                                    alertEMail, ntpHost)
+                comp = node.add_comp(comp_name, comp_id, log_level, hs_dir,
+                                     hs_interval, hs_max_files, jvm_path,
+                                     jvm_server, jvm_heap_init, jvm_heap_max,
+                                     jvm_args, jvm_extra, alert_email,
+                                     ntp_host)
 
-                cfgName = 'mockCfg'
+                cfg_name = 'mockCfg'
 
-                config = MockClusterConfig(cfgName)
-                config.addNode(node)
+                config = MockClusterConfig(cfg_name)
+                config.add_node(node)
 
-                for isLive in (True, False):
-                    if isLive:
-                        livePort = DAQPort.I3LIVE
+                for is_live in (True, False):
+                    if is_live:
+                        live_port = DAQPort.I3LIVE
                     else:
-                        livePort = None
+                        live_port = None
 
-                    for evtChk in (True, False):
-                        parallel = MockParallelShell()
+                    for evt_chk in (True, False):
+                        clu_desc = None
 
-                        cluDesc = None
+                        rmtsh = rmtmgr.get(comp.host)
+                        rmtsh.add_expected_python(do_cnc, dash_dir, config_dir,
+                                                  log_dir, daq_data_dir,
+                                                  spade_dir, clu_desc,
+                                                  cfg_name, copy_dir, log_port,
+                                                  live_port)
+                        rmtsh.add_expected_java(comp, config_dir, daq_data_dir,
+                                                DAQPort.CATCHALL, live_port,
+                                                verbose, evt_chk)
 
-                        parallel.addExpectedPython(doCnC, dashDir, configDir,
-                                                   logDir, daqDataDir,
-                                                   spadeDir, cluDesc, cfgName,
-                                                   copyDir, logPort, livePort)
-                        parallel.addExpectedJava(comp, configDir, daqDataDir,
-                                                 DAQPort.CATCHALL, livePort,
-                                                 verbose, evtChk, host)
+                        dry_run = False
+                        log_dir_fallback = None
 
-                        dryRun = False
-                        logDirFallback = None
+                        ComponentManager.launch(do_cnc, dry_run, verbose,
+                                                config, dash_dir, config_dir,
+                                                daq_data_dir, log_dir,
+                                                log_dir_fallback, spade_dir,
+                                                copy_dir, log_port, live_port,
+                                                event_check=evt_chk,
+                                                check_exists=chk_exists,
+                                                start_missing=False,
+                                                rmtmgr=rmtmgr)
 
-                        ComponentManager.launch(doCnC, dryRun, verbose,
-                                                config, dashDir, configDir,
-                                                daqDataDir, logDir,
-                                                logDirFallback, spadeDir,
-                                                copyDir, logPort, livePort,
-                                                eventCheck=evtChk,
-                                                checkExists=chkExists,
-                                                startMissing=False,
-                                                parallel=parallel)
+                        rmtsh.check()
 
-                        parallel.check()
-
-    def testDoKill(self):
-        dryRun = False
+    def test_do_kill(self):
+        dry_run = False
         verbose = False
 
-        compName = 'eventBuilder'
-        compId = 0
+        comp_name = 'eventBuilder'
+        comp_id = 0
 
-        hsDir = "/x/y/z"
-        hsInterval = 2.0
-        hsMaxFiles = 100
+        hs_dir = "/x/y/z"
+        hs_interval = 2.0
+        hs_max_files = 100
 
-        jvmPath = "java"
-        jvmServer = False
-        jvmHeapInit = "1m"
-        jvmHeapMax = "12m"
-        jvmArgs = "-Xarg"
-        jvmExtra = "-Xextra"
+        jvm_path = "java"
+        jvm_server = False
+        jvm_heap_init = "1m"
+        jvm_heap_max = "12m"
+        jvm_args = "-Xarg"
+        jvm_extra = "-Xextra"
 
-        alertEMail = "alert@email"
-        ntpHost = "ntpHost"
+        alert_email = "alert@email"
+        ntp_host = "ntp_host"
 
-        logLevel = 'DEBUG'
-        runLogger = None
+        log_level = 'DEBUG'
+        run_logger = None
+
+        rmtmgr = MockRemoteManager()
 
         # if there are N targets, range is 2^N
         for targets in range(2):
-            doCnC = (targets & 1) == 1
+            do_cnc = (targets & 1) == 1
 
             for host in MockNode.LIST:
                 node = MockNode(host)
-                node.addComp(compName, compId, logLevel, hsDir, hsInterval,
-                             hsMaxFiles, jvmPath, jvmServer, jvmHeapInit,
-                             jvmHeapMax, jvmArgs, jvmExtra, alertEMail,
-                             ntpHost)
+                node.add_comp(comp_name, comp_id, log_level, hs_dir,
+                              hs_interval, hs_max_files, jvm_path, jvm_server,
+                              jvm_heap_init, jvm_heap_max, jvm_args, jvm_extra,
+                              alert_email, ntp_host)
 
-                for killWith9 in (True, False):
-                    parallel = MockParallelShell()
-
-                    parallel.addExpectedPythonKill(doCnC, killWith9)
-                    parallel.addExpectedJavaKill(compName, compId, killWith9,
-                                                 verbose, host)
+                for kill_with_9 in (True, False):
+                    rmtsh = rmtmgr.get(host)
+                    rmtsh.add_expected_python_kill(do_cnc, kill_with_9)
+                    rmtsh.add_expected_java_kill(comp_name, comp_id,
+                                                 kill_with_9, verbose, host)
 
                     ComponentManager.kill(node.components(), verbose=verbose,
-                                          dryRun=dryRun, killCnC=doCnC,
-                                          killWith9=killWith9,
-                                          logger=runLogger, parallel=parallel)
+                                          dry_run=dry_run, kill_cnc=do_cnc,
+                                          kill_with_9=kill_with_9,
+                                          logger=run_logger, rmtmgr=rmtmgr)
 
-                    parallel.check()
+                    rmtsh.check()
 
-    def testCountActiveNoServer(self):
-        (rsDict, num) = ComponentManager.countActiveRunsets()
+    def test_count_active_no_server(self):
+        (_, num) = ComponentManager.count_active_runsets()
         self.assertEqual(num, 0, "Didn't expect any runsets, got %d" % num)
 
-    def testCountActive(self):
+    def test_count_active(self):
         self.__srvr = MockServer()
-        (rsDict, num) = ComponentManager.countActiveRunsets()
+        (_, num) = ComponentManager.count_active_runsets()
         self.assertEqual(num, 0, "Didn't expect any runsets, got %d" % num)
 
-        self.__srvr.addRunset(RunSetState.RUNNING)
-        self.__srvr.addRunset(RunSetState.READY)
-        (rsDict, num) = ComponentManager.countActiveRunsets()
+        self.__srvr.add_runset(RunSetState.RUNNING)
+        self.__srvr.add_runset(RunSetState.READY)
+        (_, num) = ComponentManager.count_active_runsets()
         self.assertEqual(num, 1, "Expected %d runsets, got %d" % (1, num))
 
-    def testGetActiveNothing(self):
-        comps = ComponentManager.getActiveComponents(None)
+    def test_get_active_nothing(self):
+        comps = ComponentManager.get_active_components(None)
         self.assertFalse(comps is None,
-                         "getActiveComponents should not return None")
+                         "get_active_components should not return None")
 
-    def testGetActiveConfig(self):
-        configName = "simpleConfig"
-        CachedFile.writeCacheFile(configName, True)
+    def test_get_active_config(self):
+        config_name = "simpleConfig"
+        CachedFile.writeCacheFile(config_name, True)
 
-        clusterDesc = "spts64"
+        cluster_desc = "spts64"
 
-        comps = ComponentManager.getActiveComponents(clusterDesc,
-                                                     configDir=self.CONFIG_DIR,
-                                                     validate=False)
+        comps = ComponentManager.get_active_components(cluster_desc,
+                                                       config_dir=self.CONFIG_DIR,
+                                                       validate=False)
         self.assertFalse(comps is None,
-                         "getActiveComponents should not return None")
+                         "get_active_components should not return None")
 
-        expComps = ("eventBuilder", "SecondaryBuilders", "globalTrigger",
-                    "inIceTrigger", "stringHub#1001", "stringHub#1002",
-                    "stringHub#1003", "stringHub#1004", "stringHub#1005")
-        self.assertEqual(len(comps), len(expComps),
+        exp_comps = ("eventBuilder", "SecondaryBuilders", "globalTrigger",
+                     "inIceTrigger", "stringHub#1001", "stringHub#1002",
+                     "stringHub#1003", "stringHub#1004", "stringHub#1005")
+        self.assertEqual(len(comps), len(exp_comps),
                          "Expected %d components, got %d (%s)" %
-                         (len(expComps), len(comps), comps))
+                         (len(exp_comps), len(comps), comps))
 
         names = []
-        for c in comps:
-            names.append(c.fullname)
+        for comp in comps:
+            names.append(comp.fullname)
 
-        for c in expComps:
-            self.assertTrue(c in names,
+        for cname in exp_comps:
+            self.assertTrue(cname in names,
                             "Expected component %s is not in (%s)" %
-                            (c, names))
+                            (cname, names))
 
-    def testGetActiveServer(self):
+    def test_get_active_server(self):
         self.__srvr = MockServer()
 
-        expUnused = (("foo", 1, "www.icecube.wisc.edu"),
-                     ("bar", 0, "localhost"))
+        exp_unused = (("foo", 1, "www.icecube.wisc.edu"),
+                      ("bar", 0, "localhost"))
 
-        for uu in expUnused:
-            self.__srvr.addUnusedComponent(uu[0], uu[1], uu[2])
+        for ucomp in exp_unused:
+            self.__srvr.add_unused_component(ucomp[0], ucomp[1], ucomp[2])
 
-        expRSComps = (("abc", 2, "127.0.0.1"),
-                      ("cde", 0, "www.google.com"))
+        exp_rs = (("abc", 2, "127.0.0.1"),
+                  ("cde", 0, "www.google.com"))
 
         compdict = []
-        for rc in expRSComps:
+        for rcomp in exp_rs:
             compdict.append({
-                "compName": rc[0],
-                "compNum": rc[1],
-                "host": rc[2],
+                "compName": rcomp[0],
+                "compNum": rcomp[1],
+                "host": rcomp[2],
             })
-        self.__srvr.addRunset(RunSetState.RUNNING, compdict)
+        self.__srvr.add_runset(RunSetState.RUNNING, compdict)
 
-        clusterDesc = "spts64"
+        cluster_desc = "spts64"
+        cfgdir = self.CONFIG_DIR
 
-        comps = ComponentManager.getActiveComponents(clusterDesc,
-                                                     configDir=self.CONFIG_DIR,
-                                                     validate=False,
-                                                     useCnC=True)
+        comps = ComponentManager.get_active_components(cluster_desc,
+                                                       config_dir=cfgdir,
+                                                       validate=False,
+                                                       use_cnc=True)
         self.assertFalse(comps is None,
-                         "getActiveComponents should not return None")
+                         "get_active_components should not return None")
 
-        totComps = len(expUnused) + len(expRSComps)
-        self.assertEqual(totComps, len(comps),
+        tot_comps = len(exp_unused) + len(exp_rs)
+        self.assertEqual(tot_comps, len(comps),
                          "Expected %d components, got %d (%s)" %
-                         (totComps, len(comps), comps))
+                         (tot_comps, len(comps), comps))
 
         names = []
-        for c in comps:
-            names.append(c.fullname)
+        for comp in comps:
+            names.append(comp.fullname)
 
-        for expList in (expUnused, expRSComps):
-            for c in expList:
-                if c[1] == 0:
-                    expName = c[0]
+        for exp_list in (exp_unused, exp_rs):
+            for cname in exp_list:
+                if cname[1] == 0:
+                    exp_name = cname[0]
                 else:
-                    expName = "%s#%d" % (c[0], c[1])
-                self.assertTrue(expName in names,
+                    exp_name = "%s#%d" % (cname[0], cname[1])
+                self.assertTrue(exp_name in names,
                                 "Expected component %s is not in (%s)" %
-                                (expName, names))
+                                (exp_name, names))
+
+
+
+def main():
+    "Main program"
+    # make sure icecube.wisc.edu is valid
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    for rmt_host in ('localhost', 'icecube.wisc.edu'):
+        try:
+            sock.connect((rmt_host, 7))
+            MockNode.LIST.append(rmt_host)
+        except:
+            print("Warning: May not be able to connect to %s" % (rmt_host, ),
+                  file=sys.stderr)
+
+    unittest.main()
 
 
 if __name__ == '__main__':
-    # make sure icecube.wisc.edu is valid
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-    for rmtHost in ('localhost', 'icecube.wisc.edu'):
-        try:
-            s.connect((rmtHost, 56))
-            MockNode.LIST.append(rmtHost)
-        except:
-            print("Warning: Remote host %s is not valid" % rmtHost, file=sys.stderr)
-
-    unittest.main()
+    main()

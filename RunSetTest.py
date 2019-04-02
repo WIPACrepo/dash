@@ -3,11 +3,11 @@
 import numbers
 import unittest
 
+from ComponentManager import ComponentManager
 from DAQTime import PayloadTime
 from LiveImports import LIVE_IMPORT, Prio
 from RunOption import RunOption
-from RunSet import RunSet, RunSetException, listComponentRanges
-from leapseconds import leapseconds
+from RunSet import RunSet, RunSetException
 from locate_pdaq import set_pdaq_config_dir
 from scmversion import get_scmversion_str
 
@@ -97,7 +97,7 @@ class FakeMoniClient(object):
         if len(self.__expected) == 0:
             raise AssertionError("Received unexpected moni message \"%s\":"
                                  " %s" % (name, value))
-        (xname, xvalue, xprio, xtime) = self.__expected.pop(0)
+        (xname, xvalue, xprio, _) = self.__expected.pop(0)
         if xname != name:
             raise AssertionError("Expected moni message \"%s\", not \"%s\"" %
                                  (xname, name))
@@ -124,14 +124,6 @@ class FakeRunData(object):
 
     def connect_to_live(self):
         pass
-
-    def create_task_manager(self, runset):
-        self.__taskMgr = MostlyTaskManager(runset, self.__dashlog,
-                                           self.moni_client,
-                                           self.run_directory,
-                                           self.run_configuration,
-                                           self.run_options)
-        return self.__taskMgr
 
     def error(self, logmsg):
         if self.__logger is None:
@@ -587,7 +579,7 @@ class TestRunSet(unittest.TestCase):
             estr = str(rse)
             if estr.find("Could not get runset") < 0 or \
                estr.find("latest first time") < 0:
-                self.exception("Unexpected exception during start", rse)
+                self.fail("Unexpected exception during start: " + str(rse))
 
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
@@ -1142,7 +1134,7 @@ class TestRunSet(unittest.TestCase):
 
             nextNum += 1
 
-        compstr = listComponentRanges(compList)
+        compstr = ComponentManager.format_component_list(compList)
 
         expStr = "fooHub#1,3-5,9-10, barHub#2,6-7,11, zabTrigger, bazBuilder"
         self.assertEqual(compstr, expStr,

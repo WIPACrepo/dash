@@ -38,7 +38,7 @@ class TestDAQLog(unittest.TestCase):
 
     def tearDown(self):
         if self.sockLog is not None:
-            self.sockLog.stopServing()
+            self.sockLog.stop_serving()
 
         time.sleep(0.1)
 
@@ -57,13 +57,13 @@ class TestDAQLog(unittest.TestCase):
         logPath = os.path.join(TestDAQLog.DIR_PATH, cname + '.log')
 
         self.sockLog = LogSocketServer(port, cname, logPath, True)
-        self.sockLog.startServing()
+        self.sockLog.start_serving()
         for _ in range(5):
-            if self.sockLog.isServing:
+            if self.sockLog.is_serving:
                 break
             time.sleep(0.1)
         self.assertTrue(os.path.exists(logPath), 'Log file was not created')
-        self.assertTrue(self.sockLog.isServing, 'Log server was not started')
+        self.assertTrue(self.sockLog.is_serving, 'Log server was not started')
 
         now = datetime.datetime.now()
         msg = 'Test 1 2 3'
@@ -73,7 +73,7 @@ class TestDAQLog(unittest.TestCase):
 
         client.close()
 
-        self.sockLog.stopServing()
+        self.sockLog.stop_serving()
 
         self.checkLog(logPath, ('%s - - [%s] %s' % (cname, str(now), msg), ))
 

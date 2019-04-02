@@ -11,7 +11,6 @@ from DAQConst import DAQPort
 from DAQMocks import MockClusterConfig, MockCnCLogger, \
     MockDefaultDomGeometryFile, MockLeapsecondFile, MockLogger, \
     MockRunConfigFile, SocketReaderFactory, SocketWriter
-from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
 from RunSet import RunSet
 from locate_pdaq import set_pdaq_config_dir

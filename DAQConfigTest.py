@@ -89,13 +89,13 @@ class CommonCode(unittest.TestCase):
 
             domnames = cfg.getDomConfigs()
             self.assertEqual(data[1], len(domnames),
-                              "Expected %s dom names in %s, not %s" %
-                              (data[1], n, len(domnames)))
+                             "Expected %s dom names in %s, not %s" %
+                             (data[1], n, len(domnames)))
 
             trigcfg = cfg.getTriggerConfig()
             self.assertEqual(data[2], trigcfg.basename,
-                              "Expected trigger config %s in %s, not %s" %
-                              (data[2], n, trigcfg.basename))
+                             "Expected trigger config %s in %s, not %s" %
+                             (data[2], n, trigcfg.basename))
 
     def runListsSim5Test(self, newFormat):
         cfgDir = self.getConfigDir(newFormat=newFormat)

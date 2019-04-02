@@ -650,28 +650,6 @@ class DAQConfig(ConfigObject):
 
         return xml_dict.toString(omit_dict)
 
-    def dead_replay_rewrite_code(self):
-        # replay hubs
-        # rebin by basedir
-        replay_base_dir = {}
-        for rhub in self.replay_hubs:
-            if (keepList and rhub.hub_id in hubIdList) or \
-                    (not keepList and rhub.hub_id not in hubIdList):
-                if rhub.base_dir not in replay_base_dir:
-                    replay_base_dir[rhub.base_dir] = []
-                replay_base_dir[rhub.base_dir].append(rhub)
-
-        for bdir in replay_base_dir:
-            if 'hubFiles' not in omit_dict['runConfig']['__children__']:
-                omit_dict['runConfig'][
-                    '__children__']['hubFiles'][
-                        '__children__'].append(
-                            {
-                                '__children__': replay_base_dir[bdir],
-                                '__attribs__': {'baseDir': bdir},
-                            }
-                        )
-
     @staticmethod
     def createOmitFileName(config_dir, file_name, hub_id_list, keepList=False):
         """
@@ -1000,8 +978,8 @@ def main():
                  (hostid.is_unknown_host and hostid.is_unknown_cluster))):
             # to run daq launch you should either be a control host or
             # a totally unknown host
-            print(("Are you sure you are running DAQConfig"
-                                  " on the correct host?"), file=sys.stderr)
+            print("Are you sure you are running DAQConfig"
+                  " on the correct host?", file=sys.stderr)
             raise SystemExit
 
     config_dir = find_pdaq_config()

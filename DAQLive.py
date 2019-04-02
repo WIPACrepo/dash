@@ -3,8 +3,6 @@
 import threading
 import time
 
-from datetime import datetime
-
 from CnCExceptions import MissingComponentException
 from DAQConst import DAQPort
 from IntervalTimer import IntervalTimer
@@ -33,7 +31,7 @@ class DAQLive(LiveComponent):
         self.__cnc = cnc
         self.__log = logger
 
-        self.__oldAPI = force_old or INCOMPLETE_STATE_CHANGE == None
+        self.__oldAPI = force_old or INCOMPLETE_STATE_CHANGE is None
 
         self.__runSet = None
 

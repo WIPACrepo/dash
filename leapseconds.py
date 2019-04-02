@@ -352,7 +352,7 @@ class NISTParser(object):
            self.MAX_PRECALCULATE_SPAN:
             first_year = leapseconds.NIST_EPOCH_YEAR
         else:
-            first_year = final_year - MAX_PRECALCULATE_SPAN
+            first_year = final_year - self.MAX_PRECALCULATE_SPAN
 
         base_offset_year = first_year
 

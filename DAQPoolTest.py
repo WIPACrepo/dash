@@ -6,8 +6,6 @@ import unittest
 from locate_pdaq import set_pdaq_config_dir
 from CnCServer import DAQPool
 from DAQClient import DAQClientState
-from DAQTime import PayloadTime
-from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
 from RunSet import RunSet, ConnectionException
 

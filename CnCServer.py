@@ -17,6 +17,7 @@ from CnCExceptions import CnCServerException, MissingComponentException, \
 from CnCLogger import CnCLogger
 from CompOp import ComponentGroup, OpClose, OpGetConnectionInfo, OpGetState, \
     OpResetComponent
+from ComponentManager import ComponentManager
 from DAQClient import ComponentName, DAQClient, DAQClientState
 from DAQConfig import DAQConfigException, DAQConfigParser
 from DAQConst import DAQPort
@@ -25,7 +26,7 @@ from DAQLog import LogSocketServer
 from DAQRPC import RPCClient, RPCServer
 from ListOpenFiles import ListOpenFiles
 from Process import find_python_process
-from RunSet import RunSet, listComponentRanges
+from RunSet import RunSet, SummaryNotReady
 from RunSetState import RunSetState
 from SocketServer import ThreadingMixIn
 from locate_pdaq import find_pdaq_config, find_pdaq_trunk
@@ -134,7 +135,8 @@ class DAQPool(object):
                 if datetime.datetime.now() - tstart >= dt_timeout:
                     break
 
-                logger.info("Waiting for " + listComponentRanges(needed))
+                logger.info("Waiting for %s" %
+                            (ComponentManager.format_component_list(needed)), )
                 time.sleep(5)
 
         if not self.__starting:
@@ -229,9 +231,8 @@ class DAQPool(object):
                     self.restartRunset(runSet, logger)
                 raise
 
-            logger.info("Built runset #%d: %s" %
-                        (runSet.id,
-                         listComponentRanges(runSet.components())))
+            cstr = ComponentManager.format_component_list(runSet.components())
+            logger.info("Built runset #%d: %s" % (runSet.id, cstr))
 
         return runSet
 
@@ -256,10 +257,10 @@ class DAQPool(object):
         else:
             (deadList, missingList) = cluCfg.extractComponents(waitList)
             if len(missingList) > 0:
+                cstr = ComponentManager.format_component_list(missingList)
                 logger.error(("Cannot restart missing %s: Not found in"
                               " cluster config \"%s\"") %
-                             (listComponentRanges(missingList),
-                              cluCfg.configName))
+                             (cstr, cluCfg.configName))
 
             if len(deadList) > 0:
                 self.cycle_components(deadList, runConfig.configdir,

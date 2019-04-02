@@ -6,7 +6,7 @@ import threading
 class Thread(threading.Thread):
     "Thread which is part of a group of threads"
 
-    def __init__(self, target=None, name=None, args=(), kwargs={},
+    def __init__(self, target=None, name=None, args=(), kwargs=None,
                  is_daemon=True):
         """
         Initialize a grouped thread
@@ -18,7 +18,7 @@ class Thread(threading.Thread):
         """
         self.__run_method = target
         self.__args = args
-        self.__kwargs = kwargs
+        self.__kwargs = kwargs if kwargs is not None else {}
 
         self.__result = None
         self.__error = None

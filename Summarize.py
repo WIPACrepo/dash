@@ -12,9 +12,7 @@ from ANSIEscapeCode import ANSIEscapeCode
 from ClusterDescription import ClusterDescription
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
-from DAQTime import PayloadTime
 from LogSorter import BaseLog
-from exc_string import exc_string
 from utils.DashXMLLog import DashXMLLog, DashXMLLogException
 
 
@@ -49,7 +47,7 @@ class DashLog2RunXML(BaseLog):
                            r" (\d+) moni events, (\d+) SN events, (\d+) tcals")
 
     def __init__(self):
-        pass
+        super(DashLog2RunXML, self).__init__(None)
 
     @classmethod
     def parse(cls, dashpath):
@@ -106,7 +104,7 @@ class DashLog2RunXML(BaseLog):
                         has_config = True
                         if not has_version:
                             logging.error("Missing \"Version Info\" line"
-                                          " from %s" % (filename, ))
+                                          " from %s" % (dashpath, ))
                         continue
 
                 if not has_cluster:
@@ -117,7 +115,7 @@ class DashLog2RunXML(BaseLog):
                         has_cluster = True
                         if not has_config:
                             logging.error("Missing \"Run Configuration\" line"
-                                          " from %s" % (filename, ))
+                                          " from %s" % (dashpath, ))
                         continue
 
                 if not has_runnum:
@@ -139,7 +137,7 @@ class DashLog2RunXML(BaseLog):
                         has_runnum = True
                         if not has_cluster:
                             logging.error("Missing \"Cluster\" line"
-                                          " from %s" % (filename, ))
+                                          " from %s" % (dashpath, ))
                         continue
 
                 if dash_text.endswith(" tcals"):
@@ -289,7 +287,7 @@ class Sum(object):
         print(msg)
 
     def report(self, runNum, std_clucfg=None, no_color=False,
-                  use_cnc=False, verbose=False):
+               use_cnc=False, verbose=False):
         if self.__dryRun:
             return
 
@@ -411,7 +409,8 @@ def summarize(args):
             summary.report(num, std_clucfg=std_clucfg, no_color=args.no_color,
                            verbose=args.verbose, use_cnc=args.use_cnc)
         except:
-            import traceback; traceback.print_exc()
+            import traceback
+            traceback.print_exc()
             logging.error("Bad run %d: %s: %s", num, sys.exc_info()[0],
                           sys.exc_info()[1])
 

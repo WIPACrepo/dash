@@ -8,8 +8,7 @@ import traceback
 
 from CachedConfigName import CachedConfigName
 from ClusterDescription import ClusterDescription, HSArgs, HubComponent, \
-    JVMArgs, JavaComponent, ReplayHubComponent
-from Component import Component
+    JVMArgs, ReplayHubComponent
 from DefaultDomGeometry import DefaultDomGeometry
 
 

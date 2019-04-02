@@ -13,7 +13,7 @@ import SpadeQueue
 from ClusterDescription import ClusterDescription
 from CnCThread import CnCThread
 from CompOp import * # we need most of the Op* classes
-from ComponentManager import ComponentManager, listComponentRanges
+from ComponentManager import ComponentManager
 from DAQClient import DAQClientState
 from DAQConfig import DOMNotInConfigException
 from DAQConst import DAQPort
@@ -325,7 +325,7 @@ class GoodTimeThread(CnCThread):
             time.sleep(sleep_secs)
 
         if hanging is not None:
-            hang_str = listComponentRanges(hanging)
+            hang_str = ComponentManager.format_component_list(hanging)
             self.__log.error("%s found %d hanging component%s: %s" %
                              (self.moniname, len(hanging),
                               "" if len(hanging) == 1 else "s", hang_str))
@@ -367,7 +367,8 @@ class GoodTimeThread(CnCThread):
         self.__final_time = self.__good_time
 
         if len(self.__bad_comps) > 0:
-            comp_str = listComponentRanges(list(self.__bad_comps.keys()))
+            keylist = list(self.__bad_comps.keys())
+            comp_str = ComponentManager.format_component_list(keylist)
             self.__log.error("Couldn't find %s for %s" %
                              (self.moniname, comp_str))
 
@@ -759,8 +760,8 @@ class RunData(object):
         "Return monitoring data for the run"
         if self.run_number != run_num:
             self.error("Not getting event counts for run#%s"
-                           ", current run is #%d" %
-                           (run_num, self.run_number))
+                       ", current run is #%d" %
+                       (run_num, self.run_number))
             values = None
         elif run_set.isRunning:
             values = self.update_counts_and_rate(run_set)
@@ -880,7 +881,7 @@ class RunData(object):
             return
 
         first_time = None
-        for idx in range(5):
+        for _ in range(5):
             result = runset.get_first_event_time(eb_comp, self)
             if ComponentGroup.has_value(result):
                 first_time = result
@@ -1063,7 +1064,7 @@ class RunData(object):
             else:
                 ptime = datetime.datetime.utcnow()
                 self.error("Using system time for initial event" +
-                               " counts (no event times available)")
+                           " counts (no event times available)")
 
             self.send_moni("run_update", run_update, prio=prio, time=ptime)
 
@@ -1269,8 +1270,7 @@ class RunData(object):
         # don't continue if the file has already been created
         path = xml_log.getPath()
         if os.path.exists(path):
-            self.error("Run xml log file \"%s\" already exists!" %
-                           (path, ))
+            self.error("Run xml log file \"%s\" already exists!" % (path, ))
             return None
 
         xml_log.setVersionInfo(self.release, self.repo_revision)
@@ -1292,7 +1292,7 @@ class RunData(object):
             xml_log.writeLog()
         except DashXMLLogException:
             self.error("Could not write run xml log file \"%s\"" %
-                           (xml_log.getPath(), ))
+                       (xml_log.getPath(), ))
 
         return path
 
@@ -1383,9 +1383,9 @@ class RunSet(object):
                 plural = ""
             else:
                 plural = "s"
+            cstr = ComponentManager.format_component_list(full_set)
             self.__run_data.error('%s: Forcing %d component%s to stop: %s' %
-                                  (str(self), len(full_set), plural,
-                                   listComponentRanges(full_set)))
+                                  (str(self), len(full_set), plural, cstr))
 
         # stop sources in parallel
         #
@@ -1436,8 +1436,8 @@ class RunSet(object):
     def __bad_state_string(cls, bad_states):
         badlist = []
         for state in bad_states:
-            comp_str = listComponentRanges(bad_states[state])
-            badlist.append(state + "[" + comp_str + "]")
+            cstr = ComponentManager.format_component_list(bad_states[state])
+            badlist.append("%s[%s]" % (state, cstr))
         return ", ".join(badlist)
 
     def __build_start_sets(self):
@@ -1562,8 +1562,9 @@ class RunSet(object):
         else:
             msg = "Failed to transition to %s:" % new_state
             for state_str in state_dict:
-                comp_str = listComponentRanges(state_dict[state_str])
-                msg += " %s[%s]" % (state_str, comp_str)
+                comps = state_dict[state_str]
+                cstr = ComponentManager.format_component_list(comps)
+                msg += " %s[%s]" % (state_str, cstr)
 
             self.__log_error(msg)
 
@@ -1578,7 +1579,7 @@ class RunSet(object):
         """
         if len(waitlist) > 0:
             try:
-                wait_str = listComponentRanges(waitlist)
+                wait_str = ComponentManager.format_component_list(waitlist)
                 err_str = '%s: Could not stop %s' % (self, wait_str)
                 self.__log_error(err_str)
             except:
@@ -2111,9 +2112,8 @@ class RunSet(object):
 
         final_set = src_set + other_set
         if len(final_set) > 0 and run_data is not None:
-            run_data.error("%s failed for %s" %
-                                  (comp_op.name,
-                                   listComponentRanges(final_set)))
+            cstr = ComponentManager.format_component_list(final_set)
+            run_data.error("%s failed for %s" % (comp_op.name, cstr))
 
         if run_data is not None:
             run_data.reset()
@@ -2191,7 +2191,6 @@ class RunSet(object):
                         state_str = self.STATE_ERROR
                     else:
                         state_str = str(result)
-                        is_valid = True
                 if state_str in valid_states and \
                    state_str != self.STATE_HANGING:
                     new_list.remove(comp)
@@ -2210,7 +2209,7 @@ class RunSet(object):
             else:
                 waitlist = new_list
                 if len(waitlist) > 0:
-                    wait_str = listComponentRanges(waitlist)
+                    wait_str = ComponentManager.format_component_list(waitlist)
                     logger.info('%s: Waiting for %s %s' %
                                 (str(self), self.__state, wait_str))
 
@@ -2224,7 +2223,7 @@ class RunSet(object):
                 state_str = valid_states[0]
             else:
                 state_str = "(" + ", ".join(valid_states) + ")"
-            wait_str = listComponentRanges(waitlist)
+            wait_str = ComponentManager.format_component_list(waitlist)
             raise RunSetException(("Still waiting for %d components to" +
                                    " switch to %s after %d seconds (%s)") %
                                   (len(waitlist), state_str, total_secs,
@@ -2374,20 +2373,21 @@ class RunSet(object):
 
     @classmethod
     def cycle_components(cls, comp_list, config_dir, daq_data_dir, logger,
-                         log_port, live_port, verbose, killWith9, eventCheck,
-                         checkExists=True):
+                         log_port, live_port, verbose, killWith9, event_check,
+                         check_exists=True):
 
         # sort list into a predictable order for unit tests
         #
         logger.error("Cycling components %s" %
-                     (listComponentRanges(comp_list), ))
+                     (ComponentManager.format_component_list(comp_list), ))
 
         dry_run = False
-        ComponentManager.killComponents(comp_list, dry_run, verbose, killWith9)
-        ComponentManager.startComponents(comp_list, dry_run, verbose,
-                                         config_dir, daq_data_dir,
-                                         logger.logPort, logger.livePort,
-                                         eventCheck, checkExists=checkExists)
+        ComponentManager.kill_components(comp_list, dry_run, verbose, killWith9)
+        ComponentManager.start_components(comp_list, dry_run, verbose,
+                                          config_dir, daq_data_dir,
+                                          logger.logPort, logger.livePort,
+                                          event_check,
+                                          check_exists=check_exists)
 
     def destroy(self, ignore_components=False):
         if not ignore_components and len(self.__set) > 0:
@@ -2724,10 +2724,9 @@ class RunSet(object):
 
         # complain about missing components
         if len(missing_list) > 0:
-            self.__logger.error(("Cannot restart %s: Not found in" +
-                                 " cluster config %s") %
-                                (listComponentRanges(missing_list),
-                                 cluster_config))
+            cstr = ComponentManager.format_component_list(missing_list)
+            self.__logger.error("Cannot restart %s: Not found in"
+                                " cluster config %s" % (cstr, cluster_config))
 
         # remove remaining components from this runset
         for comp in comp_list:
@@ -3037,8 +3036,8 @@ class RunSet(object):
             raise RunSetException("Couldn't start subrun on any string hubs")
 
         if len(bad_comps) > 0:
-            raise RunSetException("Couldn't start subrun on %s" %
-                                  listComponentRanges(bad_comps))
+            cstr = ComponentManager.format_component_list(bad_comps)
+            raise RunSetException("Couldn't start subrun on %s" % (cstr, ))
 
         for comp in self.__set:
             if comp.isBuilder:

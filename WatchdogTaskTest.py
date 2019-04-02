@@ -230,6 +230,8 @@ class WatchdogTaskTest(unittest.TestCase):
 
         rules = (FooRule(testIn, testOut, testThresh), BarRule(addBarBeans))
 
+        self.__runTest(runset, rules, testIn, testOut, testThresh, False)
+
     def testFooThresholdUnhealthy(self):
         testIn = False
         testOut = False

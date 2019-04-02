@@ -4,7 +4,7 @@ import sys
 
 from CnCTask import CnCTask, TaskException
 from CnCThread import CnCThread
-from ComponentManager import listComponentRanges
+from ComponentManager import ComponentManager
 from reraise import reraise_excinfo
 
 from exc_string import exc_string, set_exc_string_encoding
@@ -83,8 +83,7 @@ class ThresholdWatcher(Watcher):
     def __compare(self, threshold, value):
         if self.__lessThan:
             return value < threshold
-        else:
-            return value > threshold
+        return value > threshold
 
     def check(self, newValue):
         newType = self.typeCategory(newValue)
@@ -185,9 +184,9 @@ class ValueWatcher(Watcher):
         else:
             tmpStag = False
             tmpEx = None
-            for i in range(len(newValue)):
+            for idx in range(len(newValue)):
                 try:
-                    cmpEq = self.__compare(self.__prevValue[i], newValue[i])
+                    cmpEq = self.__compare(self.__prevValue[idx], newValue[idx])
                 except TaskException:
                     if not tmpEx:
                         tmpEx = sys.exc_info()
@@ -196,7 +195,7 @@ class ValueWatcher(Watcher):
                 if cmpEq:
                     tmpStag = True
                 else:
-                    self.__prevValue[i] = newValue[i]
+                    self.__prevValue[idx] = newValue[idx]
 
             if not tmpStag:
                 self.__unchanged = 0
@@ -727,8 +726,9 @@ class WatchdogTask(CnCTask):
         healthy = True
         if len(hanging) > 0:
             if not extra_healthy:
+                hangStr = ComponentManager.format_component_list(hanging)
                 self.logError("%s reports hanging components:\n    %s" %
-                              (self.NAME, listComponentRanges(hanging)))
+                              (self.NAME, hangStr))
             healthy = False
         if len(starved) > 0:
             if not extra_healthy:

@@ -1,8 +1,9 @@
+import unittest
+
 from lxml import etree
 from utils import ip
 from utils.DashXMLLog import DashXMLLog
 from utils.Machineid import Machineid
-import unittest
 
 
 class TestUtils(unittest.TestCase):

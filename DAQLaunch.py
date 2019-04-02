@@ -12,6 +12,7 @@ from __future__ import print_function
 import os
 import subprocess
 import sys
+import traceback
 
 from utils.Machineid import Machineid
 
@@ -28,17 +29,24 @@ PDAQ_HOME = find_pdaq_trunk()
 
 
 class ConsoleLogger(object):
+    "Console logger"
     def __init__(self):
+        "Create a console logger"
         pass
 
-    def error(self, msg):
+    @classmethod
+    def error(cls, msg):
+        "Print an error message"
         print(msg, file=sys.stderr)
 
-    def info(self, msg):
+    @classmethod
+    def info(cls, msg):
+        "Print an informational message"
         print(msg)
 
 
 def add_arguments_both(parser):
+    "Add arguments which apply to both 'pdaq kill' and 'pdaq launch'"
     parser.add_argument("-9", "--kill-kill", dest="killWith9",
                         action="store_true", default=False,
                         help="just kill everything with extreme (-9)"
@@ -61,46 +69,71 @@ def add_arguments_both(parser):
     parser.add_argument("-v", "--verbose", dest="verbose",
                         action="store_true", default=False,
                         help="Log output for all components to terminal")
-    parser.add_argument("-z", "--no-schema-validation", dest="validation",
+    parser.add_argument("-z", "--no-schema-validation", dest="validate",
                         action="store_false", default=True,
                         help=("Disable schema validation of"
                               " xml configuration files"))
 
 
 def add_arguments_kill(_):
+    "Add arguments which only apply to 'pdaq kill'"
     pass
 
 
 def add_arguments_launch(parser, config_as_arg=True):
+    "Add arguments which only apply to 'pdaq launch'"
     if config_as_arg:
         parser.add_argument("-c", "--config-name", dest="configName",
                             help="Configuration name")
     else:
         parser.add_argument("configName", nargs="?",
                             help="Run configuration name")
-    parser.add_argument("-e", "--event-check", dest="eventCheck",
-                        action="store_true", default=False,
-                        help="Event builder will validate events")
+
     parser.add_argument("-F", "--no-force-restart", dest="forceRestart",
                         action="store_false", default=True,
                         help="Do not force healthy components to restart at"
                         " run end")
+    parser.add_argument("-e", "--event-check", dest="eventCheck",
+                        action="store_true", default=False,
+                        help="Event builder will validate events")
+    parser.add_argument("-k", "--kill-only", dest="killOnly",
+                        action="store_true", default=False,
+                        help="Kill pDAQ components, don't restart")
     parser.add_argument("-s", "--skip-kill", dest="skipKill",
                         action="store_true", default=False,
                         help="Don't kill anything, just launch")
 
 
 def add_arguments_old(parser):
-    parser.add_argument("-k", "--kill-only", dest="killOnly",
-                        action="store_true", default=False,
-                        help="Kill pDAQ components, don't restart")
+    "Add backward compatibility arguments"
     parser.add_argument("-l", "--list-configs", dest="doList",
                         action="store_true", default=False,
                         help="List available configs")
 
 
+def check_arguments(args):
+    "Warn about ignored/incompatible arguments"
+    ignored = []
+    if args.killOnly:
+        if args.skipKill:
+            raise SystemExit("Cannot specify both -k(illOnly) and -s(kipKill")
+        if args.configName is not None:
+            ignored.append("--config-name")
+        if args.eventCheck:
+            ignored.append("--event-check")
+    elif args.skipKill:
+        if args.killWith9:
+            ignored.append("--kill-kill")
+        if args.force:
+            ignored.append("--force")
+        if args.serverKill:
+            ignored.append("--server-kill")
+    if len(ignored) > 0:
+        print("Ignoring " + ", ".join(ignored), file=sys.stderr)
+
 def check_detector_state():
-    (runsets, active) = ComponentManager.countActiveRunsets()
+    "If there are active runsets, print them to the console and exit"
+    (runsets, active) = ComponentManager.count_active_runsets()
     if active > 0:
         if len(runsets) == 1:
             plural = ''
@@ -113,122 +146,114 @@ def check_detector_state():
         raise SystemExit('To force a restart, rerun with the --force option')
 
 
-def kill(cfgDir, logger, parallel=None, args=None, clusterDesc=None,
-         validate=None, serverKill=None, verbose=None, dryRun=None,
-         killWith9=None, force=None):
-    if args is not None:
-        if clusterDesc is not None or validate is not None or \
-           serverKill is not None or verbose is not None or \
-           dryRun is not None or killWith9 is not None or \
-           force is not None:
-            errmsg = "DAQLaunch.kill() called with 'args' and" + \
-                     " values for individual parameters"
-            if logger is not None:
-                logger.error(errmsg)
-            else:
-                print(errmsg, file=sys.stderr)
-        clusterDesc = args.clusterDesc
-        validate = args.validation
-        serverKill = args.serverKill
+def kill(config_dir, logger, args=None):
+    "Kill the components specified by the run configuration"
+    if args is None:
+        cluster_desc = None
+        validate = None
+        server_kill = None
+        verbose = None
+        dry_run = None
+        kill_with_9 = None
+        force = None
+    else:
+        cluster_desc = args.clusterDesc
+        validate = args.validate
+        server_kill = args.serverKill
         verbose = args.verbose
-        dryRun = args.dryRun
-        killWith9 = args.killWith9
+        dry_run = args.dryRun
+        kill_with_9 = args.killWith9
         force = args.force
 
-    comps = ComponentManager.getActiveComponents(clusterDesc,
-                                                 configDir=cfgDir,
-                                                 validate=validate,
-                                                 useCnC=serverKill,
-                                                 logger=logger)
+    comps = ComponentManager.get_active_components(cluster_desc,
+                                                   config_dir=config_dir,
+                                                   validate=validate,
+                                                   use_cnc=server_kill,
+                                                   logger=logger)
 
     if comps is not None:
-        killCnC = True
+        kill_cnc = True
 
-        ComponentManager.kill(comps, verbose=verbose, dryRun=dryRun,
-                              killCnC=killCnC, killWith9=killWith9,
-                              logger=logger, parallel=parallel)
+        ComponentManager.kill(comps, verbose=verbose, dry_run=dry_run,
+                              kill_cnc=kill_cnc, kill_with_9=kill_with_9,
+                              logger=logger)
 
     if force:
         print("Remember to run SpadeQueue.py to recover" + \
             " any orphaned data", file=sys.stderr)
 
 
-def launch(cfgDir, dashDir, logger, parallel=None, checkExists=True,
-           args=None, clusterDesc=None, configName=None, validate=None,
-           verbose=None, dryRun=None, eventCheck=None, forceRestart=None):
-    if args is not None:
-        if clusterDesc is not None or configName is not None or \
-           validate is not None or verbose is not None or \
-           dryRun is not None or eventCheck is not None or \
-           forceRestart is not None:
-            errmsg = "DAQLaunch.launch() called with 'args' and" + \
-                     " values for individual parameters"
-            if logger is not None:
-                logger.error(errmsg)
-            else:
-                print(errmsg, file=sys.stderr)
-
-        clusterDesc = args.clusterDesc
-        configName = args.configName
-        validate = args.validation
+def launch(config_dir, dash_dir, logger, rmtmgr=None, check_exists=True,
+           args=None):
+    "Launch the components required by the run configuration"
+    if args is None:
+        cluster_desc = None
+        config_name = None
+        validate = None
+        verbose = None
+        dry_run = None
+        event_check = None
+        force_restart = None
+    else:
+        cluster_desc = args.clusterDesc
+        config_name = args.configName
+        validate = args.validate
         verbose = args.verbose
-        dryRun = args.dryRun
-        eventCheck = args.eventCheck
-        forceRestart = args.forceRestart
+        dry_run = args.dryRun
+        event_check = args.eventCheck
+        force_restart = args.forceRestart
 
-    if configName is None:
-        configName = livecmd_default_config()
+    if config_name is None:
+        config_name = livecmd_default_config()
 
     try:
-        clusterConfig = \
-            DAQConfigParser.getClusterConfiguration(configName,
+        cluster_config = \
+            DAQConfigParser.getClusterConfiguration(config_name,
                                                     useActiveConfig=False,
-                                                    clusterDesc=clusterDesc,
-                                                    configDir=cfgDir,
+                                                    clusterDesc=cluster_desc,
+                                                    configDir=config_dir,
                                                     validate=validate)
-    except DAQConfigException as e:
-        raise SystemExit("DAQ Config exception:\n\t%s" % str(e))
+    except DAQConfigException:
+        raise SystemExit("DAQ Config exception:\n\t%s" %
+                         traceback.format_exc())
 
     if verbose:
         print("Version info: " + get_scmversion_str())
-        if clusterConfig.description is None:
-            print("CLUSTER CONFIG: %s" % (clusterConfig.configName, ))
+        if cluster_config.description is None:
+            print("CLUSTER CONFIG: %s" % (cluster_config.configName, ))
         else:
-            print("CONFIG: %s" % (clusterConfig.configName, ))
-            print("CLUSTER: %s" % clusterConfig.description)
-
-        nodeList = sorted(clusterConfig.nodes())
+            print("CONFIG: %s" % (cluster_config.configName, ))
+            print("CLUSTER: %s" % cluster_config.description)
 
         print("NODES:")
-        for node in nodeList:
+        for node in sorted(cluster_config.nodes()):
             print("  %s(%s)" % (node.hostname, node.location), end=' ')
 
-            compList = sorted(node.components())
-
-            for comp in compList:
+            for comp in sorted(node.components()):
                 print("%s#%d " % (comp.name, comp.id), end=' ')
             print()
 
-    spadeDir = clusterConfig.logDirForSpade
-    copyDir = clusterConfig.logDirCopies
-    logDir = clusterConfig.daqLogDir
-    logDirFallback = os.path.join(PDAQ_HOME, "log")
-    daqDataDir = clusterConfig.daqDataDir
+    spade_dir = cluster_config.logDirForSpade
+    copy_dir = cluster_config.logDirCopies
+    log_dir = cluster_config.daqLogDir
+    log_dir_fallback = os.path.join(PDAQ_HOME, "log")
+    daq_data_dir = cluster_config.daqDataDir
 
-    doCnC = True
+    do_cnc = True
 
-    logPort = None
-    livePort = DAQPort.I3LIVE_ZMQ
+    log_port = None
+    live_port = DAQPort.I3LIVE_ZMQ
 
-    ComponentManager.launch(doCnC, dryRun, verbose, clusterConfig, dashDir,
-                            cfgDir, daqDataDir, logDir, logDirFallback,
-                            spadeDir, copyDir, logPort, livePort,
-                            eventCheck=eventCheck, checkExists=checkExists,
-                            startMissing=True, forceRestart=forceRestart,
-                            logger=logger, parallel=parallel)
+    ComponentManager.launch(do_cnc, dry_run, verbose, cluster_config, dash_dir,
+                            config_dir, daq_data_dir, log_dir, log_dir_fallback,
+                            spade_dir, copy_dir, log_port, live_port,
+                            event_check=event_check, check_exists=check_exists,
+                            start_missing=True, force_restart=force_restart,
+                            logger=logger, rmtmgr=rmtmgr)
 
 
 def livecmd_default_config():
+    "Get the default run configuration from LiveCmd"
     cmd = "livecmd config"
 
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -251,40 +276,21 @@ def livecmd_default_config():
     return config
 
 
-if __name__ == "__main__":
+def main():
+    "Main method"
     import argparse
 
-    LOGMODE_OLD = 1
-    LOGMODE_LIVE = 2
-    LOGMODE_BOTH = LOGMODE_OLD | LOGMODE_LIVE
+    parser = argparse.ArgumentParser()
 
-    p = argparse.ArgumentParser()
+    add_arguments_kill(parser)
+    add_arguments_launch(parser)
+    add_arguments_both(parser)
+    add_arguments_old(parser)
 
-    add_arguments_kill(p)
-    add_arguments_launch(p)
-    add_arguments_both(p)
-    add_arguments_old(p)
-
-    args = p.parse_args()
+    args = parser.parse_args()
 
     # complain about superfluous options
-    ignored = []
-    if args.killOnly:
-        if args.skipKill:
-            raise SystemExit("Cannot specify both -k(illOnly) and -s(kipKill")
-        if args.configName is not None:
-            ignored.append("--config-name")
-        if args.eventCheck:
-            ignored.append("--event-check")
-    elif args.skipKill:
-        if args.killWith9:
-            ignored.append("--kill-kill")
-        if args.force:
-            ignored.append("--force")
-        if args.serverKill:
-            ignored.append("--server-kill")
-    if len(ignored) > 0:
-        print("Ignoring " + ", ".join(ignored), file=sys.stderr)
+    check_arguments(args)
 
     if not args.nohostcheck:
         # exit if not running on expcont
@@ -297,13 +303,17 @@ if __name__ == "__main__":
     if not args.force:
         check_detector_state()
 
-    cfgDir = find_pdaq_config()
-    dashDir = os.path.join(PDAQ_HOME, "dash")
+    config_dir = find_pdaq_config()
+    dash_dir = os.path.join(PDAQ_HOME, "dash")
 
     logger = ConsoleLogger()
 
     if not args.skipKill:
-        kill(cfgDir, logger, args=args)
+        kill(config_dir, logger, args=args)
 
     if not args.killOnly:
-        launch(cfgDir, dashDir, logger, args=args)
+        launch(config_dir, dash_dir, logger, args=args)
+
+
+if __name__ == "__main__":
+    main()

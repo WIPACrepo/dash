@@ -244,8 +244,9 @@ class Summary(object):
             try:
                 tot += int(subStr)
             except ValueError:
-                print(("Couldn't get integer value for '%s'" +
-                     " ('%s' idx %d nxt %d)") % (subStr, valStr, idx, nxt), file=sys.stderr)
+                print("Couldn't get integer value for '%s'"
+                      " ('%s' idx %d nxt %d)" % (subStr, valStr, idx, nxt),
+                      file=sys.stderr)
             idx = nxt + 1
         self.__saveValue(name, time, tot)
 
@@ -541,10 +542,10 @@ if __name__ == "__main__":
 
     if badArg:
         print(('Usage: %s' +
-             ' [-d(ataOnly)]' +
-             ' [-i timeInterval ]' +
-             ' [-v(erbose)]' +
-             ' (moniDir | moniFile [...])') % sys.argv[0], file=sys.stderr)
+               ' [-d(ataOnly)]' +
+               ' [-i timeInterval ]' +
+               ' [-v(erbose)]' +
+               ' (moniDir | moniFile [...])') % sys.argv[0], file=sys.stderr)
         sys.exit(1)
 
     if len(fileList) > 0:

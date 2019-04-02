@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-#
-# DAQ component manager - handle launching and killing a set of components
+"""
+DAQ component manager - handle launching and killing a set of components
+"""
 
 import os
 import signal
@@ -16,8 +17,8 @@ from DAQConfigExceptions import DAQConfigException
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
 from LiveImports import MoniPort
-from ParallelShell import ParallelShell
-from Process import find_python_process, list_processes
+from RemoteShell import RemoteManager
+from Process import find_python_process
 from RunSetState import RunSetState
 from locate_pdaq import find_pdaq_trunk
 from reraise import reraise_excinfo
@@ -26,76 +27,14 @@ from reraise import reraise_excinfo
 SVN_ID = "$Id: DAQLaunch.py 13550 2012-03-08 23:12:05Z dglo $"
 
 
-def listComponentRanges(compList):
-    """
-    Concatenate a list of components into a string showing names and IDs
-    """
-    compDict = {}
-    for c in compList:
-        if c.name not in compDict:
-            compDict[c.name] = [c, ]
-        else:
-            compDict[c.name].append(c)
-
-    hasOrder = True
-
-    pairList = []
-    for k in sorted(list(compDict.keys()), key=lambda nm: len(compDict[nm]),
-                    reverse=True):
-        if len(compDict[k]) == 1 and compDict[k][0].num == 0:
-            if not hasOrder:
-                order = compDict[k][0].name
-            else:
-                try:
-                    order = compDict[k][0].order()
-                except AttributeError:
-                    hasOrder = False
-                    order = compDict[k][0].name
-            pairList.append((compDict[k][0].name, order))
-        else:
-            prevNum = None
-            rangeStr = k + "#"
-            for c in sorted(compDict[k], key=lambda c: c.num):
-                if prevNum is None:
-                    rangeStr += "%d" % c.num
-                elif c.num == prevNum + 1:
-                    if not rangeStr.endswith("-"):
-                        rangeStr += "-"
-                else:
-                    if rangeStr.endswith("-"):
-                        rangeStr += "%d" % prevNum
-                    rangeStr += ",%d" % c.num
-                prevNum = c.num
-
-            if rangeStr.endswith("-"):
-                rangeStr += "%d" % prevNum
-
-            if not hasOrder:
-                order = compDict[k][0].name
-            else:
-                try:
-                    order = compDict[k][0].order()
-                except AttributeError:
-                    hasOrder = False
-                    order = compDict[k][0].name
-            pairList.append((rangeStr, order))
-
-    strList = []
-    for p in sorted(pairList, key=lambda pair: pair[1]):
-        strList.append(p[0])
-
-    return ", ".join(strList)
-
-
-class HostNotFoundForComponent(Exception):
-    pass
-
-
 class ComponentNotFoundInDatabase(Exception):
+    "Thrown when a caller specified an unknown component"
     pass
 
 
 class ComponentManager(object):
+    "Manage pDAQ components"
+
     # the pDAQ release name
     #
     RELEASE = "1.0.0-SNAPSHOT"
@@ -116,27 +55,28 @@ class ComponentManager(object):
         }
 
     @classmethod
-    def __convertDict(cls, compdicts):
+    def ____convert_dict(cls, compdicts):
         """
         Convert a list of CnCServer component dictionaries
         to a list of component objects
         """
         comps = []
-        for c in compdicts:
-            lc = HubComponent(c["compName"], c["compNum"], "??logLevel??",
-                              False)
-            lc.host = c["host"]
-            lc.setJVMOptions(None, "??jvmPath??", "??jvmServer??",
-                             "??jvmHeapInit??", "??jvmHeapMax??",
-                             "??jvmArgs??", "??jvmExtra??")
-            lc.setHitSpoolOptions(None, "??hsDir??", "??hsInterval??",
-                                  "??hsMaxFiles??")
-            lc.setHubOptions(None, "??alertEMail??", "??ntpHost??")
-            comps.append(lc)
+        for cdict in compdicts:
+            # XXX this should use the appropriate Component object
+            comp = HubComponent(cdict["compName"], cdict["compNum"],
+                                "??logLevel??", False)
+            comp.host = cdict["host"]
+            comp.setJVMOptions(None, "??jvmPath??", "??jvmServer??",
+                               "??jvmHeapInit??", "??jvmHeapMax??",
+                               "??jvmArgs??", "??jvmExtra??")
+            comp.setHitSpoolOptions(None, "??hsDir??", "??hsInterval??",
+                                    "??hsMaxFiles??")
+            comp.setHubOptions(None, "??alertEMail??", "??ntpHost??")
+            comps.append(comp)
         return comps
 
     @classmethod
-    def __createAndExpand(cls, dirname, fallbackDir, logger, dryRun=False):
+    def __create_and_expand(cls, dirname, fallback_dir, logger, dry_run=False):
         """
         Create the directory if it doesn't exist.
         Return the fully qualified path
@@ -145,50 +85,54 @@ class ComponentManager(object):
             if not os.path.isabs(dirname):
                 # non-fully-qualified paths are relative
                 # to metaproject top dir:
-                metaDir = find_pdaq_trunk()
-                dirname = os.path.join(metaDir, dirname)
-            if not os.path.exists(dirname) and not dryRun:
+                meta_dir = find_pdaq_trunk()
+                dirname = os.path.join(meta_dir, dirname)
+            if not os.path.exists(dirname) and not dry_run:
                 try:
                     os.makedirs(dirname)
-                except OSError as xxx_todo_changeme:
-                    (_, strerror) = xxx_todo_changeme.args
-                    if fallbackDir is None:
+                except OSError as oserr:
+                    if fallback_dir is None:
                         reraise_excinfo(sys.exc_info())
                     else:
                         if logger is not None:
                             logger.error(("Problem making directory \"%s\"" +
-                                          " (%s)") % (dirname, strerror))
+                                          " (%s)") % (dirname, oserr.strerror))
                             logger.error("Using fallback directory \"%s\"" %
-                                         fallbackDir)
-                        dirname = fallbackDir
+                                         str(fallback_dir))
+                        dirname = fallback_dir
                         if not os.path.exists(dirname):
                             os.mkdir(dirname)
 
         return dirname
 
     @classmethod
-    def __getCnCComponents(cls, cncrpc=None, runSetId=None):
+    def __get_cnc_components(cls, cncrpc=None, runset_id=None):
+        """
+        Fetch the list of all components from CnCServer
+        """
         if cncrpc is None:
             cncrpc = RPCClient('localhost', DAQPort.CNCSERVER)
 
-        if runSetId is None:
-            unused = cls.__getUnused(cncrpc)
-        else:
-            unused = []
-        runsets = cls.__getRunsets(cncrpc)
-
         comps = []
-        if runSetId is not None:
-            if runSetId in runsets:
-                comps += cls.__convertDict(runsets[runSetId][1])
+
+        runsets = cls.__get_runsets(cncrpc)
+        if runset_id is not None:
+            if runset_id in runsets:
+                comps += cls.____convert_dict(runsets[runset_id][1])
         else:
-            comps += cls.__convertDict(unused)
-            for rs in runsets:
-                comps += cls.__convertDict(rs)
+            unused = cls.__get_unused(cncrpc)
+            comps += cls.____convert_dict(unused)
+            for runset in runsets:
+                comps += cls.____convert_dict(runset)
         return comps
 
     @classmethod
-    def __getRunsets(cls, cncrpc):
+    def __get_runsets(cls, cncrpc):
+        """
+        Return a list of dictionaries describing the components in every RunSet
+        Dictionary keys are 'type', 'compName', 'compNum', 'host', 'port', and
+        'state'
+        """
         runsets = []
         ids = cncrpc.rpc_runset_list_ids()
         for runid in ids:
@@ -197,98 +141,270 @@ class ComponentManager(object):
         return runsets
 
     @classmethod
-    def __getUnused(cls, cncrpc):
+    def __get_unused(cls, cncrpc):
         return cncrpc.rpc_component_list_dicts([], False)
 
     @classmethod
-    def __isRunning(cls, procName, procList):
+    def __is_running(cls, proc_name):
         "Is this process running?"
-        pids = list(find_python_process(procName, procList))
-        return len(pids) > 0
+        for _ in find_python_process(proc_name):
+            return True
+        return False
 
     @classmethod
-    def __reportAction(cls, logger, action, actionList, ignored):
+    def __report_action(cls, logger, action, action_list, ignored):
         "Report which daemons were launched/killed and which were ignored"
 
         if logger is not None:
-            if len(actionList) > 0:
+            if len(action_list) > 0:
                 if len(ignored) > 0:
                     logger.info("%s %s, ignored %s" %
-                                (action, ", ".join(actionList),
+                                (action, ", ".join(action_list),
                                  ", ".join(ignored)))
                 else:
-                    logger.info("%s %s" % (action, ", ".join(actionList)))
+                    logger.info("%s %s" % (action, ", ".join(action_list)))
             elif len(ignored) > 0:
                 logger.info("Ignored %s" % ", ".join(ignored))
 
     @classmethod
-    def buildComponentList(cls, clusterConfig):
-        compList = []
-        for node in clusterConfig.nodes():
+    def __generate_kill_cmd(cls, comp, kill_with_9):
+        if comp.isHub:
+            kill_str = "stringhub.componentId=%d " % comp.id
+        else:
+            kill_str = cls.get_component_jar(comp.name)
+
+        fmt_str = "pkill %%s -f \\\"%s\\\"; pgrep -f \\\"%s\\\"" % \
+          (kill_str, kill_str)
+
+        # add '-' on first command
+        if kill_with_9:
+            add9 = 0
+        else:
+            add9 = 1
+
+        # only do one pass if we're using 'kill -9'
+        for i in range(add9 + 1):
+            # set '-9' flag
+            if i == add9:
+                niner = "-9"
+            else:
+                niner = ""
+
+            # sleep for all commands after the first pass
+            if i == 0:
+                sleepr = ""
+            else:
+                sleepr = "sleep 2; "
+
+            yield sleepr + (fmt_str % niner)
+
+    @classmethod
+    def __build_start_cmd(cls, comp, dry_run, verbose, config_dir, daq_data_dir,
+                          bin_dir, log_port, live_port, event_check,
+                          check_exists, logger):
+        """
+        Construct the command to start this component
+        """
+        my_ip_addr = ip.getLocalIpAddr(comp.host)
+        jar_path = os.path.join(bin_dir, cls.get_component_jar(comp.name))
+        if check_exists and not os.path.exists(jar_path) and not dry_run:
+            if logger is not None:
+                logger.error("%s jar file does not exist: %s" %
+                             (comp.name, jar_path))
+            return None
+
+        jvm_path = comp.jvmPath
+
+        jvm_args = "-Dicecube.daq.component.configDir='%s'" % config_dir
+        if comp.jvmServer is not None and comp.jvmServer:
+            jvm_args += " -server"
+        if comp.jvmHeapInit is not None and len(comp.jvmHeapInit) > 0:
+            jvm_args += " -Xms" + comp.jvmHeapInit
+        if comp.jvmHeapMax is not None and len(comp.jvmHeapMax) > 0:
+            jvm_args += " -Xmx" + comp.jvmHeapMax
+        if comp.jvmArgs is not None and len(comp.jvmArgs) > 0:
+            jvm_args += " " + comp.jvmArgs
+        if comp.jvmExtraArgs is not None and len(comp.jvmExtraArgs) > 0:
+            jvm_args += " " + comp.jvmExtraArgs
+
+        if comp.isRealHub:
+            if comp.ntpHost is not None:
+                jvm_args += " -Dicecube.daq.time.monitoring.ntp-host=%s" % \
+                  (comp.ntpHost, )
+            if comp.alertEMail is not None:
+                jvm_args += " -Dicecube.daq.stringhub.alert-email=%s" % \
+                  (comp.alertEMail, )
+        else:
+            if comp.numReplayFilesToSkip > 0:
+                jvm_args += " -Dreplay.skipFiles=%d" % \
+                  (comp.numReplayFilesToSkip, )
+
+        if comp.hasHitSpoolOptions:
+            if comp.hitspoolDirectory is not None:
+                jvm_args += " -Dhitspool.directory=\"%s\"" % \
+                  (comp.hitspoolDirectory, )
+            if comp.hitspoolInterval is not None:
+                jvm_args += " -Dhitspool.interval=%.4f" % \
+                  (comp.hitspoolInterval, )
+            if comp.hitspoolMaxFiles is not None:
+                jvm_args += " -Dhitspool.maxfiles=%d" % \
+                  (comp.hitspoolMaxFiles, )
+
+        switches = "-d %s" % daq_data_dir
+        switches += " -c %s:%d" % (my_ip_addr, DAQPort.CNCSERVER)
+        if log_port is not None:
+            switches += " -l %s:%d,%s" % \
+              (my_ip_addr, log_port, comp.logLevel)
+        if live_port is not None:
+            switches += " -L %s:%d,%s" % \
+              (my_ip_addr, live_port, comp.logLevel)
+            switches += " -M %s:%d" % (my_ip_addr, MoniPort)
+
+        if comp.isHub:
+            jvm_args += " -Dicecube.daq.stringhub.componentId=%d" % comp.id
+
+        if event_check and comp.isBuilder:
+            jvm_args += " -Dicecube.daq.eventBuilder.validateEvents"
+
+        # how are I/O streams handled?
+        if not verbose:
+            shell_redirect = " </dev/null >/dev/null 2>&1"
+        else:
+            shell_redirect = ""
+
+        return "%s %s -jar %s %s %s &" % \
+          (jvm_path, jvm_args, jar_path, switches, shell_redirect)
+
+    @classmethod
+    def __build_component_list(cls, cluster_config):
+        comp_list = []
+        for node in cluster_config.nodes():
             for comp in node.components():
                 if not comp.isControlServer:
                     if comp.hasHitSpoolOptions:
                         if comp.hasReplayOptions:
-                            rc = ReplayHubComponent(comp.name, comp.id,
-                                                    comp.logLevel, False)
-                            rc.setNumberToSkip(comp.numReplayFilesToSkip)
+                            rcomp = ReplayHubComponent(comp.name, comp.id,
+                                                       comp.logLevel, False)
+                            rcomp.setNumberToSkip(comp.numReplayFilesToSkip)
                         else:
-                            rc = HubComponent(comp.name, comp.id,
-                                              comp.logLevel, False)
-                        rc.setHitSpoolOptions(None, comp.hitspoolDirectory,
-                                              comp.hitspoolInterval,
-                                              comp.hitspoolMaxFiles)
+                            rcomp = HubComponent(comp.name, comp.id,
+                                                 comp.logLevel, False)
+                        rcomp.setHitSpoolOptions(None, comp.hitspoolDirectory,
+                                                 comp.hitspoolInterval,
+                                                 comp.hitspoolMaxFiles)
                         if comp.isRealHub:
-                            rc.setHubOptions(None, comp.alertEMail,
-                                             comp.ntpHost)
+                            rcomp.setHubOptions(None, comp.alertEMail,
+                                                comp.ntpHost)
                     else:
-                        rc = JavaComponent(comp.name, comp.id, comp.logLevel,
-                                           False)
+                        rcomp = JavaComponent(comp.name, comp.id,
+                                              comp.logLevel, False)
 
-                    rc.host = node.hostname
-                    rc.setJVMOptions(None, comp.jvmPath, comp.jvmServer,
-                                     comp.jvmHeapInit, comp.jvmHeapMax,
-                                     comp.jvmArgs, comp.jvmExtraArgs)
+                    rcomp.host = node.hostname
+                    rcomp.setJVMOptions(None, comp.jvmPath, comp.jvmServer,
+                                        comp.jvmHeapInit, comp.jvmHeapMax,
+                                        comp.jvmArgs, comp.jvmExtraArgs)
 
-                    compList.append(rc)
-        return compList
+                    comp_list.append(rcomp)
+        return comp_list
 
     @classmethod
-    def countActiveRunsets(cls):
+    def count_active_runsets(cls):
         "Return the number of active runsets"
         # connect to CnCServer
         cnc = RPCClient('localhost', DAQPort.CNCSERVER)
 
         # Get the number of active runsets from CnCServer
         try:
-            numSets = int(cnc.rpc_runset_count())
+            has_sets = cnc.rpc_runset_count() > 0
         except:
-            numSets = 0
+            has_sets = False
 
         runsets = {}
 
         active = 0
-        if numSets > 0:
-            inactiveStates = (RunSetState.READY, RunSetState.IDLE,
-                              RunSetState.DESTROYED, RunSetState.ERROR)
+        if has_sets:
+            inactive = (RunSetState.READY, RunSetState.IDLE,
+                        RunSetState.DESTROYED, RunSetState.ERROR)
 
             for rid in cnc.rpc_runset_list_ids():
                 runsets[rid] = cnc.rpc_runset_state(rid)
-                if runsets[rid] not in inactiveStates:
+                if runsets[rid] not in inactive:
                     active += 1
 
         return (runsets, active)
 
     @classmethod
-    def getActiveComponents(cls, clusterDesc, configDir=None, validate=True,
-                            useCnC=False, logger=None):
-        if not useCnC:
+    def format_component_list(cls, comp_list):
+        """
+        Concatenate a list of components into a string showing names and IDs
+        """
+        comp_dict = {}
+        for comp in comp_list:
+            if comp.name not in comp_dict:
+                comp_dict[comp.name] = [comp, ]
+            else:
+                comp_dict[comp.name].append(comp)
+
+        has_order = True
+
+        pair_list = []
+        for k in sorted(list(comp_dict.keys()),
+                        key=lambda nm: len(comp_dict[nm]), reverse=True):
+            if len(comp_dict[k]) == 1 and comp_dict[k][0].num == 0:
+                if not has_order:
+                    order = comp_dict[k][0].name
+                else:
+                    try:
+                        order = comp_dict[k][0].order()
+                    except AttributeError:
+                        has_order = False
+                        order = comp_dict[k][0].name
+                pair_list.append((comp_dict[k][0].name, order))
+            else:
+                prev_num = None
+                range_str = k + "#"
+                for comp in sorted(comp_dict[k], key=lambda c: c.num):
+                    if prev_num is None:
+                        range_str += "%d" % comp.num
+                    elif comp.num == prev_num + 1:
+                        if not range_str.endswith("-"):
+                            range_str += "-"
+                    else:
+                        if range_str.endswith("-"):
+                            range_str += "%d" % prev_num
+                        range_str += ",%d" % comp.num
+                    prev_num = comp.num
+
+                if range_str.endswith("-"):
+                    range_str += "%d" % prev_num
+
+                if not has_order:
+                    order = comp_dict[k][0].name
+                else:
+                    try:
+                        order = comp_dict[k][0].order()
+                    except AttributeError:
+                        has_order = False
+                        order = comp_dict[k][0].name
+                pair_list.append((range_str, order))
+
+        str_list = []
+        for pair in sorted(pair_list, key=lambda pair: pair[1]):
+            str_list.append(pair[0])
+
+        return ", ".join(str_list)
+
+    @classmethod
+    def get_active_components(cls, cluster_desc, config_dir=None,
+                              validate=True, use_cnc=False, logger=None):
+        "Return a list of objects describing all components known by CnCServer"
+        if not use_cnc:
             comps = None
         else:
             # try to extract component info from CnCServer
             #
             try:
-                comps = cls.__getCnCComponents()
+                comps = cls.__get_cnc_components()
                 if logger is not None:
                     logger.info("Extracted active components from CnCServer")
             except:
@@ -298,215 +414,169 @@ class ComponentManager(object):
                 comps = None
 
         if comps is None:
-            killOnly = False
-
             try:
-                activeConfig = \
+                active_config = \
                     DAQConfigParser.\
                     getClusterConfiguration(None,
                                             useActiveConfig=True,
-                                            clusterDesc=clusterDesc,
-                                            configDir=configDir,
+                                            clusterDesc=cluster_desc,
+                                            configDir=config_dir,
                                             validate=validate)
             except DAQConfigException as dce:
                 if str(dce).find("RELAXNG") >= 0:
-                    reraise_exc_info(sys.exc_info())
-                activeConfig = None
+                    reraise_excinfo(sys.exc_info())
+                active_config = None
 
-            if activeConfig is not None:
-                comps = cls.buildComponentList(activeConfig)
+            if active_config is not None:
+                comps = cls.__build_component_list(active_config)
             else:
-                if killOnly:
-                    raise SystemExit("DAQ is not currently active")
                 comps = []
 
             if logger is not None:
-                if activeConfig is not None:
+                if active_config is not None:
                     logger.info("Extracted component list from %s" %
-                                activeConfig.configName)
+                                active_config.configName)
                 else:
                     logger.info("No active components found")
 
         return comps
 
     @classmethod
-    def getComponentJar(cls, compName):
+    def get_component_jar(cls, comp_name):
         """
         Return the name of the executable jar file for the named component.
         """
 
-        jarParts = cls.__COMP_JAR_MAP.get(compName.lower(), None)
-        if not jarParts:
-            raise ComponentNotFoundInDatabase(compName)
+        parts = cls.__COMP_JAR_MAP.get(comp_name.lower(), None)
+        if not parts:
+            raise ComponentNotFoundInDatabase(comp_name)
 
-        return "%s-%s-%s.jar" % (jarParts[0], cls.RELEASE, jarParts[1])
+        return "%s-%s-%s.jar" % (parts[0], cls.RELEASE, parts[1])
 
     @classmethod
-    def kill(cls, comps, verbose=False, dryRun=False,
-             killCnC=True, killWith9=False, logger=None, parallel=None):
+    def kill(cls, comps, verbose=False, dry_run=False,
+             kill_cnc=True, kill_with_9=False, logger=None, rmtmgr=None):
         "Kill pDAQ python and java components"
 
         killed = []
         ignored = []
 
-        serverName = "CnCServer"
-        if killCnC:
-            if cls.killProcess(serverName, dryRun):
-                killed.append(serverName)
-        elif not dryRun:
-            ignored.append(serverName)
+        server_name = "CnCServer"
+        if kill_cnc:
+            if cls.__kill_process(server_name, dry_run, logger):
+                killed.append(server_name)
+        elif not dry_run:
+            ignored.append(server_name)
 
         # clear the active configuration
-        if not dryRun:
+        if not dry_run:
             CachedFile.clearActiveConfig()
 
-        cls.killComponents(comps, dryRun=dryRun, verbose=verbose,
-                           killWith9=killWith9, logger=logger,
-                           parallel=parallel)
+        cls.kill_components(comps, dry_run=dry_run, verbose=verbose,
+                            kill_with_9=kill_with_9, logger=logger,
+                            rmtmgr=rmtmgr)
 
-        if verbose and not dryRun and logger is not None:
+        if verbose and not dry_run and logger is not None:
             logger.info("DONE killing Java Processes.")
         if len(killed) > 0 or len(ignored) > 0 or len(comps) > 0:
-            jstr = listComponentRanges(comps)
+            jstr = cls.format_component_list(comps)
             jlist = jstr.split(", ")
             try:
                 # CnCServer may be part of the list of launched components
-                jlist.remove(serverName)
+                jlist.remove(server_name)
             except:
                 pass
-            cls.__reportAction(logger, "Killed", killed + jlist, ignored)
+            cls.__report_action(logger, "Killed", killed + jlist, ignored)
 
     @classmethod
-    def killComponents(cls, compList, dryRun=False, verbose=False,
-                       killWith9=False, logger=None, parallel=None):
-        if parallel is None:
-            parallel = ParallelShell(dryRun=dryRun, verbose=verbose,
-                                     trace=verbose, timeout=30)
-        cmdToHostDict = {}
-        for comp in compList:
+    def kill_components(cls, comp_list, dry_run=False, verbose=False,
+                        kill_with_9=False, logger=None, rmtmgr=None):
+        """
+        Kill the processes of the listed components
+        """
+        if rmtmgr is None:
+            rmtmgr = RemoteManager(dry_run=dry_run, verbose=verbose,
+                                   trace=verbose, timeout=30)
+        cmd2host = {}
+        for comp in comp_list:
             if comp.jvmPath is None:
                 continue
 
-            if comp.isHub:
-                killPat = "stringhub.componentId=%d " % comp.id
+            if dry_run:
+                rmtsh = rmtmgr.get(comp.host)
             else:
-                killPat = cls.getComponentJar(comp.name)
+                rmtsh = None
 
-            if comp.isLocalhost:  # Just kill it
-                fmtStr = "pkill %%s -fu %s \"%s\"" % \
-                         (os.environ["USER"], killPat)
-            else:
-                fmtStr = "ssh %s pkill %%s -f \\\"%s\\\"" % \
-                         (comp.host, killPat)
-
-            # add '-' on first command
-            if killWith9:
-                add9 = 0
-            else:
-                add9 = 1
-
-            # only do one pass if we're using 'kill -9'
-            for i in range(add9 + 1):
-                # set '-9' flag
-                if i == add9:
-                    niner = "-9"
-                else:
-                    niner = ""
-
-                # sleep for all commands after the first pass
-                if i == 0:
-                    sleepr = ""
-                else:
-                    sleepr = "sleep 2; "
-
-                cmd = sleepr + fmtStr % niner
-                if verbose or dryRun:
+            for cmd in cls.__generate_kill_cmd(comp, kill_with_9):
+                if verbose or dry_run:
                     if logger is not None:
                         logger.info(cmd)
-                if not dryRun:
-                    parallel.add(cmd)
-                    cmdToHostDict[cmd] = comp.host
+                if rmtsh is not None:
+                    rmtsh.append(cmd, None, None)
+                    cmd2host[cmd] = comp.host
 
-        if not dryRun:
-            parallel.shuffle()
-            parallel.start()
-            parallel.wait()
-
-            # check for ssh failures here
-            cmd_results_dict = parallel.getCmdResults()
-            for cmd in cmd_results_dict:
-                rtn_code, results = cmd_results_dict[cmd]
-                if cmd in cmdToHostDict:
-                    nodeName = cmdToHostDict[cmd]
-                else:
-                    nodeName = "unknown"
-                # pkill return codes
-                # 0 -> killed something
-                # 1 -> no matched process to kill
-                # 1 is okay..  expected if nothing is running
-                if rtn_code > 1 and logger is not None:
-                    logger.error(("Error non-zero return code ( %s ) "
-                                  "for host: %s, cmd: %s") %
-                                 (rtn_code, nodeName, cmd))
-                    logger.error("Results '%s'" % results)
+        if not dry_run:
+            rmtmgr.start()
+            rmtmgr.wait()
 
     @classmethod
-    def killProcess(cls, procName, dryRun=False, logger=None):
+    def __kill_process(cls, proc_name, dry_run=False, logger=None):
         pid = int(os.getpid())
 
-        pids = list(find_python_process(procName))
-
         rtnval = False
-        for p in pids:
-            if pid != p:
-                if dryRun:
+        for xpid in find_python_process(proc_name):
+            if pid != xpid:
+                if dry_run:
                     if logger is not None:
-                        logger.info("kill -KILL %d" % p)
+                        logger.info("kill -KILL %d" % xpid)
                 else:
-                    os.kill(p, signal.SIGKILL)
+                    os.kill(xpid, signal.SIGKILL)
                 rtnval = True
         return rtnval
 
     @classmethod
-    def launch(cls, doCnC, dryRun, verbose, clusterConfig, dashDir,
-               configDir, daqDataDir, logDir, logDirFallback, spadeDir,
-               copyDir, logPort, livePort, eventCheck=False,
-               checkExists=True, startMissing=True, logger=None, parallel=None,
-               forceRestart=True):
+    def launch(cls, do_cnc, dry_run, verbose, cluster_config, dash_dir,
+               config_dir, daq_data_dir, log_dir, log_dir_fallback, spade_dir,
+               copy_dir, log_port, live_port, event_check=False,
+               check_exists=True, start_missing=True, logger=None,
+               rmtmgr=None, force_restart=True):
         """Launch components"""
 
+        if rmtmgr is None:
+            rmtmgr = RemoteManager(dry_run=dry_run, verbose=verbose)
+
         # create missing directories
-        spadeDir = cls.__createAndExpand(spadeDir, None, logger, dryRun)
-        copyDir = cls.__createAndExpand(copyDir, None, logger, dryRun)
-        logDir = cls.__createAndExpand(logDir, logDirFallback, logger, dryRun)
-        daqDataDir = cls.__createAndExpand(daqDataDir, None, logger, dryRun)
+        spade_dir = cls.__create_and_expand(spade_dir, None, logger, dry_run)
+        copy_dir = cls.__create_and_expand(copy_dir, None, logger, dry_run)
+        log_dir = cls.__create_and_expand(log_dir, log_dir_fallback, logger,
+                                          dry_run)
+        daq_data_dir = cls.__create_and_expand(daq_data_dir, None, logger,
+                                               dry_run)
 
         launched = []
         ignored = []
 
-        progBase = "CnCServer"
-        progName = progBase + ".py"
+        prog_base = "CnCServer"
 
-        if startMissing and not doCnC:
+        if start_missing and not do_cnc:
             # get a list of the running processes
-            procList = list_processes()
-            doCnC |= not cls.__isRunning(progName, procList)
+            do_cnc |= not cls.__is_running(prog_base)
 
-        if doCnC:
-            path = os.path.join(dashDir, progName)
+        if do_cnc:
+            path = os.path.join(dash_dir, prog_base + ".py")
             options = " -c %s -o %s -q %s" % \
-                (configDir, logDir, daqDataDir)
-            if spadeDir is not None:
-                options += ' -s ' + spadeDir
-            if clusterConfig.description is not None:
-                options += ' -C ' + clusterConfig.description
-            if logPort is not None:
-                options += ' -l localhost:%d' % logPort
-            if livePort is not None:
-                options += ' -L localhost:%d' % livePort
-            if copyDir is not None:
-                options += " -a %s" % copyDir
-            if not forceRestart:
+                (config_dir, log_dir, daq_data_dir)
+            if spade_dir is not None:
+                options += ' -s ' + spade_dir
+            if cluster_config.description is not None:
+                options += ' -C ' + cluster_config.description
+            if log_port is not None:
+                options += ' -l localhost:%d' % log_port
+            if live_port is not None:
+                options += ' -L localhost:%d' % live_port
+            if copy_dir is not None:
+                options += " -a %s" % copy_dir
+            if not force_restart:
                 options += ' -F'
             if verbose:
                 options += ' &'
@@ -514,169 +584,88 @@ class ComponentManager(object):
                 options += ' -d'
 
             cmd = "%s%s" % (path, options)
-            if verbose or dryRun:
+            if verbose or dry_run:
                 if logger is not None:
                     logger.info(cmd)
-            if not dryRun:
-                if parallel is None:
-                    os.system(cmd)
-                else:
-                    parallel.system(cmd)
-                launched.append(progBase)
-        elif not dryRun:
-            ignored.append(progBase)
+            if not dry_run:
+                rmtsh = rmtmgr.get("localhost")
+                rmtsh.append(cmd, None, None)
+                launched.append(prog_base)
+        elif not dry_run:
+            ignored.append(prog_base)
 
-        comps = cls.buildComponentList(clusterConfig)
+        comps = cls.__build_component_list(cluster_config)
 
-        cls.startComponents(comps, dryRun, verbose, configDir, daqDataDir,
-                            DAQPort.CATCHALL, livePort, eventCheck,
-                            checkExists=checkExists, logger=logger,
-                            parallel=parallel)
+        cls.start_components(comps, dry_run, verbose, config_dir, daq_data_dir,
+                             DAQPort.CATCHALL, live_port, event_check,
+                             check_exists=check_exists, logger=logger,
+                             rmtmgr=rmtmgr)
 
-        if verbose and not dryRun and logger is not None:
+        if verbose and not dry_run and logger is not None:
             logger.info("DONE with starting Java Processes.")
         if len(launched) > 0 or len(ignored) > 0 or len(comps) > 0:
-            jstr = listComponentRanges(comps)
+            jstr = cls.format_component_list(comps)
             jlist = jstr.split(", ")
-            cls.__reportAction(logger, "Launched", launched + jlist, ignored)
+            cls.__report_action(logger, "Launched", launched + jlist, ignored)
 
         # remember the active configuration
-        clusterConfig.writeCacheFile(writeActiveConfig=True)
+        cluster_config.writeCacheFile(writeActiveConfig=True)
 
     @classmethod
-    def listComponents(cls):
+    def list_known_component_names(cls):
+        "Return the list of all components supported by this object"
         return list(cls.__COMP_JAR_MAP.keys())
 
     @classmethod
-    def startComponents(cls, compList, dryRun, verbose, configDir, daqDataDir,
-                        logPort, livePort, eventCheck, checkExists=True,
-                        logger=None, parallel=None):
-        if parallel is None:
-            parallel = ParallelShell(dryRun=dryRun, verbose=verbose,
-                                     trace=verbose, timeout=30)
+    def start_components(cls, comp_list, dry_run, verbose, config_dir,
+                         daq_data_dir, log_port, live_port, event_check,
+                         check_exists=True, logger=None, rmtmgr=None):
+        """
+        Start the components listed in 'comp_list'
+        (All list elements should be Component objects)
+        """
 
-        metaDir = find_pdaq_trunk()
+        if rmtmgr is None:
+            rmtmgr = RemoteManager(dry_run=dry_run, verbose=verbose,
+                                   trace=verbose, timeout=30)
+
+        meta_dir = find_pdaq_trunk()
 
         # The dir where all the "executable" jar files are
-        binDir = os.path.join(metaDir, 'target', 'pDAQ-%s-dist' % cls.RELEASE,
-                              'bin')
-        if checkExists and not os.path.isdir(binDir):
-            binDir = os.path.join(metaDir, 'target',
-                                  'pDAQ-%s-dist.dir' % cls.RELEASE, 'bin')
-            if not os.path.isdir(binDir) and not dryRun:
+        bin_dir = os.path.join(meta_dir, 'target', 'pDAQ-%s-dist' % cls.RELEASE,
+                               'bin')
+        if check_exists and not os.path.isdir(bin_dir):
+            bin_dir = os.path.join(meta_dir, 'target',
+                                   'pDAQ-%s-dist.dir' % cls.RELEASE, 'bin')
+            if not os.path.isdir(bin_dir) and not dry_run:
                 raise SystemExit("Cannot find jar file directory \"%s\"" %
-                                 binDir)
+                                 bin_dir)
 
-        # how are I/O streams handled?
-        if not verbose:
-            quietStr = " </dev/null >/dev/null 2>&1"
-        else:
-            quietStr = ""
-
-        cmdToHostDict = {}
-        for comp in compList:
+        cmd2host = {}
+        for comp in comp_list:
             if comp.jvmPath is None:
                 continue
 
-            myIP = ip.getLocalIpAddr(comp.host)
-            execJar = os.path.join(binDir, cls.getComponentJar(comp.name))
-            if checkExists and not os.path.exists(execJar) and not dryRun:
-                if logger is not None:
-                    logger.error("%s jar file does not exist: %s" %
-                                 (comp.name, execJar))
+            cmd = cls.__build_start_cmd(comp, dry_run, verbose, config_dir,
+                                        daq_data_dir, bin_dir, log_port,
+                                        live_port, event_check, check_exists,
+                                        logger)
+            if cmd is None:
                 continue
 
-            jvmPath = comp.jvmPath
-
-            jvmArgs = "-Dicecube.daq.component.configDir='%s'" % configDir
-            if comp.jvmServer is not None and comp.jvmServer:
-                jvmArgs += " -server"
-            if comp.jvmHeapInit is not None and len(comp.jvmHeapInit) > 0:
-                jvmArgs += " -Xms" + comp.jvmHeapInit
-            if comp.jvmHeapMax is not None and len(comp.jvmHeapMax) > 0:
-                jvmArgs += " -Xmx" + comp.jvmHeapMax
-            if comp.jvmArgs is not None and len(comp.jvmArgs) > 0:
-                jvmArgs += " " + comp.jvmArgs
-            if comp.jvmExtraArgs is not None and len(comp.jvmExtraArgs) > 0:
-                jvmArgs += " " + comp.jvmExtraArgs
-
-            if comp.isRealHub:
-                if comp.ntpHost is not None:
-                    jvmArgs += " -Dicecube.daq.time.monitoring.ntp-host=%s" % \
-                               (comp.ntpHost, )
-                if comp.alertEMail is not None:
-                    jvmArgs += " -Dicecube.daq.stringhub.alert-email=%s" % \
-                               (comp.alertEMail, )
-            else:
-                if comp.numReplayFilesToSkip > 0:
-                    jvmArgs += " -Dreplay.skipFiles=%d" % \
-                               (comp.numReplayFilesToSkip, )
-
-            if comp.hasHitSpoolOptions:
-                if comp.hitspoolDirectory is not None:
-                    jvmArgs += " -Dhitspool.directory=\"%s\"" % \
-                               (comp.hitspoolDirectory, )
-                if comp.hitspoolInterval is not None:
-                    jvmArgs += " -Dhitspool.interval=%.4f" % \
-                               (comp.hitspoolInterval, )
-                if comp.hitspoolMaxFiles is not None:
-                    jvmArgs += " -Dhitspool.maxfiles=%d" % \
-                               (comp.hitspoolMaxFiles, )
-
-            switches = "-d %s" % daqDataDir
-            switches += " -c %s:%d" % (myIP, DAQPort.CNCSERVER)
-            if logPort is not None:
-                switches += " -l %s:%d,%s" % (myIP, logPort, comp.logLevel)
-            if livePort is not None:
-                switches += " -L %s:%d,%s" % (myIP, livePort, comp.logLevel)
-                switches += " -M %s:%d" % (myIP, MoniPort)
-
-            compIO = quietStr
-
-            if comp.isHub:
-                jvmArgs += " -Dicecube.daq.stringhub.componentId=%d" % comp.id
-
-            if eventCheck and comp.isBuilder:
-                jvmArgs += " -Dicecube.daq.eventBuilder.validateEvents"
-
-            baseCmd = "%s %s -jar %s %s %s &" % \
-                (jvmPath, jvmArgs, execJar, switches, compIO)
-            if comp.isLocalhost:
-                # Just run it
-                cmd = baseCmd
-            else:
-                # Have to ssh to run it
-                cmd = """ssh -n %s \'sh -c \"%s\"%s &\'""" % \
-                    (comp.host, baseCmd, quietStr)
-            cmdToHostDict[cmd] = comp.host
-            if verbose or dryRun:
+            cmd2host[cmd] = comp.host
+            if verbose or dry_run:
                 if logger is not None:
                     logger.info(cmd)
-            if not dryRun:
-                parallel.add(cmd)
+            if not dry_run:
+                rmtsh = rmtmgr.get(comp.host)
+                rmtsh.append(cmd, rmtsh.handle_out, rmtsh.handle_err)
 
-        if verbose and not dryRun:
-            parallel.showAll()
-        if not dryRun:
-            parallel.shuffle()
-            parallel.start()
-            if not verbose:
-                # if we wait during verbose mode, the program hangs
-                parallel.wait()
-
-                # check for ssh failures here
-                cmd_results_dict = parallel.getCmdResults()
-                for cmd in cmd_results_dict:
-                    rtn_code, results = cmd_results_dict[cmd]
-                    if cmd in cmdToHostDict:
-                        nodeName = cmdToHostDict[cmd]
-                    else:
-                        nodeName = "unknown"
-                    if rtn_code != 0 and logger is not None:
-                        logger.error(("Error non zero return code ( %s )" +
-                                      " for host: %s, cmd: %s") %
-                                     (rtn_code, nodeName, cmd))
-                        logger.error("Results '%s'" % results)
+        if verbose and not dry_run:
+            rmtmgr.show_all()
+        if not dry_run:
+            rmtmgr.start()
+            rmtmgr.wait()
 
 
 if __name__ == '__main__':

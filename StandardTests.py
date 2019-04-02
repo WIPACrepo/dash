@@ -53,12 +53,12 @@ class PDAQRun(object):
     def __init__(self, runCfgName, duration, numRuns=1, flashData=None):
         self.__runCfgName = runCfgName
         self.__duration = duration
-        self.__numRuns = numRuns
+        self.__num_runs = numRuns
 
         if flashData is None:
-            self.__flashData = None
+            self.__flash_data = None
         else:
-            self.__flashData = []
+            self.__flash_data = []
             for pair in flashData:
                 if pair[0] is None:
                     path = None
@@ -70,14 +70,15 @@ class PDAQRun(object):
                     path = FlasherScript.findDataFile(pair[0],
                                                       basedir=self.TSTRSRC)
 
-                self.__flashData.append((path, pair[1]))
+                self.__flash_data.append((path, pair[1]))
 
-    def clusterConfig(self):
+    @property
+    def cluster_config(self):
         return self.__runCfgName
 
     def run(self, runmgr, quick, clusterDesc=None, ignoreDB=False,
             verbose=False):
-        flasherDelay = 120
+        flasher_delay = 120
         if not quick:
             duration = self.__duration
         else:
@@ -89,13 +90,13 @@ class PDAQRun(object):
             else:
                 duration = self.__duration
 
-            flasherDelay = 30
+            flasher_delay = 30
 
         timeouts = 0
         try:
             runmgr.run(self.__runCfgName, self.__runCfgName, duration,
-                       numRuns=self.__numRuns, flashData=self.__flashData,
-                       flasherDelay=flasherDelay, clusterDesc=clusterDesc,
+                       numRuns=self.__num_runs, flashData=self.__flash_data,
+                       flasherDelay=flasher_delay, clusterDesc=clusterDesc,
                        ignoreDB=ignoreDB, verbose=verbose)
 
             # reset the timeout counter after each set of successful runs
@@ -120,59 +121,57 @@ class Deploy(object):
     VERS_PAT = re.compile(r"^VERSION:\s+(\S+)\s*$")
     CMD_PAT = re.compile(r"^\s\s+.*rsync\s+.*$")
 
-    def __init__(self, showCmd, showCmdOutput, dryRun, clusterDesc):
-        self.__showCmd = showCmd
-        self.__showCmdOutput = showCmdOutput
-        self.__dryRun = dryRun
-        self.__clusterDesc = clusterDesc
+    def __init__(self, show_cmd, show_cmd_output, dry_run, cluster_desc):
+        self.__show_cmd = show_cmd
+        self.__show_cmd_output = show_cmd_output
+        self.__dry_run = dry_run
+        self.__cluster_desc = cluster_desc
 
-    def __checkExists(self, name, path):
+    def XXX__check_exists(self, name, path):
         if not os.path.exists(path):
             raise SystemExit("%s '%s' does not exist" % (name, path))
 
-    def __getCurrentLocation(self, homePath):
-        statTuple = os.lstat(homePath)
-        if not stat.S_ISLNK(statTuple[stat.ST_MODE]):
-            return homePath
-        return os.readlink(homePath)
+    def XXX__get_current_location(self, home_path):
+        stat_tuple = os.lstat(home_path)
+        if not stat.S_ISLNK(stat_tuple[stat.ST_MODE]):
+            return home_path
+        return os.readlink(home_path)
 
-    def deploy(self, clusterCfgName):
+    def deploy(self, cluster_cfg_name):
         "Deploy to the specified cluster"
         try:
-            cluDesc = self.__clusterDesc
-            clusterCfg = \
-                DAQConfigParser.getClusterConfiguration(clusterCfgName,
+            clu_desc = self.__cluster_desc
+            cluster_cfg = \
+                DAQConfigParser.getClusterConfiguration(cluster_cfg_name,
                                                         useActiveConfig=False,
-                                                        clusterDesc=cluDesc,
+                                                        clusterDesc=clu_desc,
                                                         configDir=None,
                                                         validate=False)
         except DAQConfigException:
             raise LaunchException("Cannot load configuration \"%s\": %s" %
-                                  (clusterCfgName, exc_string()))
+                                  (cluster_cfg_name, exc_string()))
 
-        if not self.__showCmd:
-            print("Deploying %s" % clusterCfg)
+        if not self.__show_cmd:
+            print("Deploying %s" % str(cluster_cfg))
 
         subdirs = None
         delete = True
         deep_dry_run = False
         trace_level = 0
 
-        DeployPDAQ.deploy(clusterCfg, PDAQ_HOME, subdirs, delete,
-                          self.__dryRun, deep_dry_run, trace_level)
+        DeployPDAQ.deploy(cluster_cfg, PDAQ_HOME, subdirs, delete,
+                          self.__dry_run, deep_dry_run, trace_level)
 
     @staticmethod
-    def getUniqueClusterConfigs(runList):
+    def get_unique_cluster_configs(runlist):
         "Return a list of the unique elements"
-        ccDict = {}
-        for data in runList:
-            ccDict[data.clusterConfig()] = 1
+        cc_dict = {}
+        for data in runlist:
+            cc_dict[data.cluster_config] = 1
 
-        uniqList = sorted(ccDict.keys())
+        return sorted(cc_dict.keys())
 
-        return uniqList
-
-    def showHome(self):
+    def show_home(self):
         "Print the actual pDAQ home directory name"
         print("===============================================================")
         print("== PDAQ_HOME points to %s" % str(PDAQ_HOME))
@@ -258,10 +257,10 @@ def run_tests(args):
     if args.deploy:
         deploy = Deploy(args.showCmd, args.showCmdOutput, args.dryRun,
                         args.clusterDesc)
-        deploy.showHome()
-        for cfg in Deploy.getUniqueClusterConfigs(RUN_LIST):
+        deploy.show_home()
+        for cfg in Deploy.get_unique_cluster_configs(RUN_LIST):
             deploy.deploy(cfg)
-        deploy.showHome()
+        deploy.show_home()
     if args.run:
         if args.cncrun:
             runmgr = CnCRun(showCmd=args.showCmd,
@@ -281,7 +280,7 @@ def run_tests(args):
         # always kill running components in case they're from a
         # previous release
         #
-        runmgr.killComponents(dryRun=args.dryRun)
+        runmgr.kill_components(dryRun=args.dryRun)
 
         # stop existing runs gracefully on ^C
         #
@@ -292,12 +291,13 @@ def run_tests(args):
                      ignoreDB=args.ignoreDB, verbose=args.verbose)
 
 
+def main():
+    parser = argparse.ArgumentParser()
+    add_arguments(parser)
+    run_tests(parser.parse_args())
+
+
 if __name__ == "__main__":
     import argparse
 
-    op = argparse.ArgumentParser()
-    add_arguments(op)
-
-    args = op.parse_args()
-
-    run_tests(args)
+    main()

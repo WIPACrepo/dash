@@ -89,7 +89,7 @@ class ActiveDOMThread(CnCThread):
         if self.KEY_LBM_OVER in result:
             hub_lbm_overflows = result[self.KEY_LBM_OVER]
         else:
-            hum_lbm_overflows = self.__get_previous_lbm(comp.num)
+            hub_lbm_overflows = self.__get_previous_lbm(comp.num)
             if hub_lbm_overflows is None:
                 self.__dashlog.error("No LBM overflows in result %s<%s>" %
                                      (result, type(result)))
@@ -245,11 +245,6 @@ class ActiveDOMsTask(CnCSingleThreadTask):
     # active DOM periodic report timer
     REPORT_NAME = "ActiveReport"
     REPORT_PERIOD = 600
-
-    def __init__(self, taskMgr, runset, dashlog, liveMoni=None, period=None,
-                 needLiveMoni=True):
-        super(ActiveDOMsTask, self).__init__(taskMgr, runset, dashlog,
-                                             liveMoni, period, needLiveMoni)
 
     def createDetailTimer(self, taskMgr):
         return taskMgr.createIntervalTimer(self.REPORT_NAME,

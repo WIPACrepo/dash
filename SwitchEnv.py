@@ -2,13 +2,12 @@
 
 import logging
 import os
-import sys
-
-from ClusterDescription import ClusterDescription
-from utils.Machineid import Machineid
 
 from paramiko import AutoAddPolicy
 from paramiko.client import SSHClient
+
+from ClusterDescription import ClusterDescription
+from utils.Machineid import Machineid
 
 
 CHOICES = ["26", "27", "2.6", "2.7", "old", "OLD"]
@@ -177,7 +176,7 @@ class VirtualEnvironment(object):
 
             # increment the "revision number" on this file/directory
             logging.info("Renaming \"%s:%s\" to \"%s\"" %
-                        (self.__host, cur_name, new_name))
+                         (self.__host, cur_name, new_name))
             cmd = "mv \"%s\" \"%s\"" % (cur_name, new_name)
             self.run_remote_no_output(cmd, dry_run=dry_run)
 
@@ -318,21 +317,10 @@ class VirtualEnvironment(object):
             yield True, line
         stdout.close()
 
-        if False:
-            # log any errors
-            errstr = None
-            for line in stderr:
-                if errstr is None:
-                    errstr = "'%s' errors from \"%s\":" %  (cmd, self.__host, )
-                errstr += "\n" + line.rstrip()
-            if errstr is not None:
-                logging.error(errstr)
-            stderr.close()
-        else:
-            # sreturn individual error lines
-            for line in stderr:
-                yield False, line
-            stderr.close()
+        # return individual error lines
+        for line in stderr:
+            yield False, line
+        stderr.close()
 
     def run_remote_no_output(self, cmd, dry_run=False):
         "Run a command on the remote host, logging any output as an error"
