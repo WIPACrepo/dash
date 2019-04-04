@@ -183,7 +183,7 @@ def kill(config_dir, logger, args=None):
             " any orphaned data", file=sys.stderr)
 
 
-def launch(config_dir, dash_dir, logger, rmtmgr=None, check_exists=True,
+def launch(config_dir, dash_dir, logger, parallel=None, check_exists=True,
            args=None):
     "Launch the components required by the run configuration"
     if args is None:
@@ -249,7 +249,7 @@ def launch(config_dir, dash_dir, logger, rmtmgr=None, check_exists=True,
                             spade_dir, copy_dir, log_port, live_port,
                             event_check=event_check, check_exists=check_exists,
                             start_missing=True, force_restart=force_restart,
-                            logger=logger, rmtmgr=rmtmgr)
+                            logger=logger, parallel=parallel)
 
 
 def livecmd_default_config():

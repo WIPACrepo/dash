@@ -17,7 +17,7 @@ from DAQConfigExceptions import DAQConfigException
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
 from LiveImports import MoniPort
-from RemoteShell import RemoteManager
+from ParallelShell import ParallelShell
 from Process import find_python_process
 from RunSetState import RunSetState
 from locate_pdaq import find_pdaq_trunk
@@ -173,8 +173,14 @@ class ComponentManager(object):
         else:
             kill_str = cls.get_component_jar(comp.name)
 
-        fmt_str = "pkill %%s -f \\\"%s\\\"; pgrep -f \\\"%s\\\"" % \
-          (kill_str, kill_str)
+        user = os.environ['USER']
+
+        if comp.isLocalhost:
+            kill_opt = "-fu %s" % (user, )
+        else:
+            kill_opt = "-f"
+
+        fmt_str = "pkill %%s %s \"%s\"" % (kill_opt, kill_str)
 
         # add '-' on first command
         if kill_with_9:
@@ -455,7 +461,7 @@ class ComponentManager(object):
 
     @classmethod
     def kill(cls, comps, verbose=False, dry_run=False,
-             kill_cnc=True, kill_with_9=False, logger=None, rmtmgr=None):
+             kill_cnc=True, kill_with_9=False, logger=None, parallel=None):
         "Kill pDAQ python and java components"
 
         killed = []
@@ -474,7 +480,7 @@ class ComponentManager(object):
 
         cls.kill_components(comps, dry_run=dry_run, verbose=verbose,
                             kill_with_9=kill_with_9, logger=logger,
-                            rmtmgr=rmtmgr)
+                            parallel=parallel)
 
         if verbose and not dry_run and logger is not None:
             logger.info("DONE killing Java Processes.")
@@ -490,34 +496,54 @@ class ComponentManager(object):
 
     @classmethod
     def kill_components(cls, comp_list, dry_run=False, verbose=False,
-                        kill_with_9=False, logger=None, rmtmgr=None):
+                        kill_with_9=False, logger=None, parallel=None):
         """
         Kill the processes of the listed components
         """
-        if rmtmgr is None:
-            rmtmgr = RemoteManager(dry_run=dry_run, verbose=verbose,
-                                   trace=verbose, timeout=30)
+        if parallel is None:
+            parallel = ParallelShell(dryRun=dry_run, verbose=verbose,
+                                     trace=verbose, timeout=30)
+
         cmd2host = {}
         for comp in comp_list:
             if comp.jvmPath is None:
                 continue
 
-            if dry_run:
-                rmtsh = rmtmgr.get(comp.host)
+            if comp.isHub:
+                kill_pat = "stringhub.componentId=%d " % comp.id
             else:
-                rmtsh = None
+                kill_pat = cls.get_component_jar(comp.name)
 
             for cmd in cls.__generate_kill_cmd(comp, kill_with_9):
                 if verbose or dry_run:
                     if logger is not None:
                         logger.info(cmd)
-                if rmtsh is not None:
-                    rmtsh.append(cmd, None, None)
+                if not dry_run:
+                    parallel.add(cmd)
                     cmd2host[cmd] = comp.host
 
         if not dry_run:
-            rmtmgr.start()
-            rmtmgr.wait()
+            parallel.shuffle()
+            parallel.start()
+            parallel.wait()
+
+            # check for ssh failures here
+            cmd_results_dict = parallel.getCmdResults()
+            for cmd in cmd_results_dict:
+                rtn_code, results = cmd_results_dict[cmd]
+                if cmd in cmd2host:
+                    nodeName = cmd2host[cmd]
+                else:
+                    nodeName = "unknown"
+                # pkill return codes
+                # 0 -> killed something
+                # 1 -> no matched process to kill
+                # 1 is okay..  expected if nothing is running
+                if rtn_code > 1 and logger is not None:
+                    logger.error(("Error non-zero return code ( %s ) "
+                                  "for host: %s, cmd: %s") %
+                                 (rtn_code, nodeName, cmd))
+                    logger.error("Results '%s'" % results)
 
     @classmethod
     def __kill_process(cls, proc_name, dry_run=False, logger=None):
@@ -539,11 +565,8 @@ class ComponentManager(object):
                config_dir, daq_data_dir, log_dir, log_dir_fallback, spade_dir,
                copy_dir, log_port, live_port, event_check=False,
                check_exists=True, start_missing=True, logger=None,
-               rmtmgr=None, force_restart=True):
+               parallel=None, force_restart=True):
         """Launch components"""
-
-        if rmtmgr is None:
-            rmtmgr = RemoteManager(dry_run=dry_run, verbose=verbose)
 
         # create missing directories
         spade_dir = cls.__create_and_expand(spade_dir, None, logger, dry_run)
@@ -588,8 +611,10 @@ class ComponentManager(object):
                 if logger is not None:
                     logger.info(cmd)
             if not dry_run:
-                rmtsh = rmtmgr.get("localhost")
-                rmtsh.append(cmd, None, None)
+                if parallel is None:
+                    os.system(cmd)
+                else:
+                    parallel.system(cmd)
                 launched.append(prog_base)
         elif not dry_run:
             ignored.append(prog_base)
@@ -599,7 +624,7 @@ class ComponentManager(object):
         cls.start_components(comps, dry_run, verbose, config_dir, daq_data_dir,
                              DAQPort.CATCHALL, live_port, event_check,
                              check_exists=check_exists, logger=logger,
-                             rmtmgr=rmtmgr)
+                             parallel=parallel)
 
         if verbose and not dry_run and logger is not None:
             logger.info("DONE with starting Java Processes.")
@@ -619,15 +644,14 @@ class ComponentManager(object):
     @classmethod
     def start_components(cls, comp_list, dry_run, verbose, config_dir,
                          daq_data_dir, log_port, live_port, event_check,
-                         check_exists=True, logger=None, rmtmgr=None):
+                         check_exists=True, logger=None, parallel=None):
         """
         Start the components listed in 'comp_list'
         (All list elements should be Component objects)
         """
-
-        if rmtmgr is None:
-            rmtmgr = RemoteManager(dry_run=dry_run, verbose=verbose,
-                                   trace=verbose, timeout=30)
+        if parallel is None:
+            parallel = ParallelShell(dryRun=dryRun, verbose=verbose,
+                                     trace=verbose, timeout=30)
 
         meta_dir = find_pdaq_trunk()
 
@@ -658,14 +682,30 @@ class ComponentManager(object):
                 if logger is not None:
                     logger.info(cmd)
             if not dry_run:
-                rmtsh = rmtmgr.get(comp.host)
-                rmtsh.append(cmd, rmtsh.handle_out, rmtsh.handle_err)
+                parallel.add(cmd)
 
         if verbose and not dry_run:
-            rmtmgr.show_all()
+            parallel.showAll()
         if not dry_run:
-            rmtmgr.start()
-            rmtmgr.wait()
+            parallel.shuffle()
+            parallel.start()
+            if not verbose:
+                # if we wait during verbose mode, the program hangs
+                parallel.wait()
+
+                # check for ssh failures here
+                cmd_results_dict = parallel.getCmdResults()
+                for cmd in cmd_results_dict:
+                    rtn_code, results = cmd_results_dict[cmd]
+                    if cmd in cmd2host:
+                        nodeName = cmd2host[cmd]
+                    else:
+                        nodeName = "unknown"
+                    if rtn_code != 0 and logger is not None:
+                        logger.error(("Error non zero return code ( %s )" +
+                                      " for host: %s, cmd: %s") %
+                                     (rtn_code, nodeName, cmd))
+                        logger.error("Results '%s'" % results)
 
 
 if __name__ == '__main__':

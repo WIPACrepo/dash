@@ -9,7 +9,7 @@ from CachedConfigName import CachedConfigName
 from DAQConst import DAQPort
 from DAQLaunch import add_arguments_both, add_arguments_launch, \
      add_arguments_kill, launch, kill
-from DAQMocks import MockClusterConfigFile, MockRemoteManager, \
+from DAQMocks import MockClusterConfigFile, MockParallelShell, \
     MockRunConfigFile
 
 
@@ -99,12 +99,11 @@ class TestDAQLaunch(unittest.TestCase):
         logger = None
         check_exists = False
 
-        shell = MockRemoteManager()
-        lclsh = shell.get("localhost")
-        lclsh.add_expected_python(True, dash_dir, config_dir, log_dir,
-                                  daq_data_dir, spade_dir, clu_cfg_file.name,
-                                  cfg_name, copy_dir, log_port, live_port,
-                                  force_restart=force_restart)
+        shell = MockParallelShell()
+        shell.addExpectedPython(True, dash_dir, config_dir, log_dir,
+                                daq_data_dir, spade_dir, clu_cfg_file.name,
+                                cfg_name, copy_dir, log_port, live_port,
+                                forceRestart=force_restart)
 
         args = MockArguments()
         add_arguments_both(args)
@@ -117,7 +116,7 @@ class TestDAQLaunch(unittest.TestCase):
         args.set_argument("eventCheck", False)
         args.set_argument("forceRestart", force_restart)
 
-        launch(config_dir, dash_dir, logger, args=args, rmtmgr=shell,
+        launch(config_dir, dash_dir, logger, args=args, parallel=shell,
                check_exists=check_exists)
 
     def test_kill_only_cnc(self):
@@ -143,9 +142,8 @@ class TestDAQLaunch(unittest.TestCase):
         kill_with_9 = False
         logger = None
 
-        shell = MockRemoteManager()
-        lclsh = shell.get("localhost")
-        lclsh.add_expected_python_kill(True, kill_with_9=kill_with_9)
+        shell = MockParallelShell()
+        shell.addExpectedPythonKill(True, killWith9=kill_with_9)
 
         run_cfg_file = MockRunConfigFile(config_dir)
         cfg_name = run_cfg_file.create(list(comp_host_dict.keys()), {})
