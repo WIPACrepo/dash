@@ -55,7 +55,7 @@ class ComponentManager(object):
         }
 
     @classmethod
-    def ____convert_dict(cls, compdicts):
+    def __convert_dict(cls, compdicts):
         """
         Convert a list of CnCServer component dictionaries
         to a list of component objects
@@ -118,12 +118,12 @@ class ComponentManager(object):
         runsets = cls.__get_runsets(cncrpc)
         if runset_id is not None:
             if runset_id in runsets:
-                comps += cls.____convert_dict(runsets[runset_id][1])
+                comps += cls.__convert_dict(runsets[runset_id][1])
         else:
             unused = cls.__get_unused(cncrpc)
-            comps += cls.____convert_dict(unused)
+            comps += cls.__convert_dict(unused)
             for runset in runsets:
-                comps += cls.____convert_dict(runset)
+                comps += cls.__convert_dict(runset)
         return comps
 
     @classmethod
