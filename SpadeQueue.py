@@ -310,7 +310,7 @@ def queue_logs(args):
     logging.basicConfig()
 
     logger = logging.getLogger("spadeQueue")
-    logger.setLevel(logging.DEBUG)
+    logger.set_level(logging.DEBUG)
 
     cluster = ClusterDescription()
     spadeDir = cluster.logDirForSpade

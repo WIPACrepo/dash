@@ -15,6 +15,8 @@ import tempfile
 import threading
 import time
 
+import DeployPDAQ
+
 from ClusterDescription import ClusterDescription
 from CnCLogger import CnCLogger
 from Component import Component
@@ -1268,11 +1270,11 @@ class MockClusterNode(object):
 
 
 class MockCnCLogger(CnCLogger):
-    def __init__(self, name, appender=None, quiet=False, extraLoud=False):
+    def __init__(self, name, appender=None, quiet=False, extra_loud=False):
         self.__appender = appender
 
         super(MockCnCLogger, self).__init__(name, appender=appender,
-                                            quiet=quiet, extraLoud=extraLoud)
+                                            quiet=quiet, extraLoud=extra_loud)
 
 
 class MockConnection(object):
@@ -1308,6 +1310,97 @@ class MockConnection(object):
     @property
     def port(self):
         return self.__port
+
+
+class MockDeployComponent(Component):
+    def __init__(self, name, id, logLevel, hsDir, hsInterval, hsMaxFiles,
+                 jvmPath, jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs,
+                 jvmExtraArgs, alertEMail, ntpHost, numReplayFiles=None,
+                 host=None):
+        self.__hsDir = hsDir
+        self.__hsInterval = hsInterval
+        self.__hsMaxFiles = hsMaxFiles
+        self.__jvmPath = jvmPath
+        self.__jvmServer = jvmServer is True
+        self.__jvmHeapInit = jvmHeapInit
+        self.__jvmHeapMax = jvmHeapMax
+        self.__jvmArgs = jvmArgs
+        self.__jvmExtraArgs = jvmExtraArgs
+        self.__alertEMail = alertEMail
+        self.__ntpHost = ntpHost
+        self.__numReplayFiles = numReplayFiles
+        self.__host = host
+
+        super(MockDeployComponent, self).__init__(name, id, logLevel)
+
+    @property
+    def alertEMail(self):
+        return self.__alertEMail
+
+    @property
+    def hasHitSpoolOptions(self):
+        return self.__hsDir is not None or self.__hsInterval is not None or \
+            self.__hsMaxFiles is not None
+
+    @property
+    def hasReplayOptions(self):
+        return self.__numReplayFiles is not None
+
+    @property
+    def hitspoolDirectory(self):
+        return self.__hsDir
+
+    @property
+    def hitspoolInterval(self):
+        return self.__hsInterval
+
+    @property
+    def hitspoolMaxFiles(self):
+        return self.__hsMaxFiles
+
+    @property
+    def isControlServer(self):
+        return False
+
+    @property
+    def host(self):
+        return self.__host
+
+    @property
+    def isLocalhost(self):
+        return self.__host is not None and self.__host == "localhost"
+
+    @property
+    def jvmArgs(self):
+        return self.__jvmArgs
+
+    @property
+    def jvmExtraArgs(self):
+        return self.__jvmExtraArgs
+
+    @property
+    def jvmHeapInit(self):
+        return self.__jvmHeapInit
+
+    @property
+    def jvmHeapMax(self):
+        return self.__jvmHeapMax
+
+    @property
+    def jvmPath(self):
+        return self.__jvmPath
+
+    @property
+    def jvmServer(self):
+        return self.__jvmServer
+
+    @property
+    def ntpHost(self):
+        return self.__ntpHost
+
+    @property
+    def numReplayFilesToSkip(self):
+        return self.__numReplayFiles
 
 
 class MockMBeanClient(object):
@@ -1704,10 +1797,10 @@ class MockDefaultDomGeometryFile(object):
 
 class MockDAQClient(DAQClient):
     def __init__(self, name, num, host, port, mbeanPort, connectors,
-                 appender, outLinks=None, extraLoud=False):
+                 appender, outLinks=None, extra_loud=False):
 
         self.__appender = appender
-        self.__extraLoud = extraLoud
+        self.__extra_loud = extra_loud
 
         self.outLinks = outLinks
         self.__state = 'idle'
@@ -1719,7 +1812,7 @@ class MockDAQClient(DAQClient):
         tmpStr = super(MockDAQClient, self).__str__()
         return 'Mock' + tmpStr
 
-    def closeLog(self):
+    def close_log(self):
         pass
 
     def configure(self, cfgName=None):
@@ -1735,7 +1828,7 @@ class MockDAQClient(DAQClient):
 
     def createLogger(self, quiet):
         return MockCnCLogger(self.fullname, appender=self.__appender,
-                             quiet=quiet, extraLoud=self.__extraLoud)
+                             quiet=quiet, extra_loud=self.__extra_loud)
 
     def createMBeanClient(self, host, port):
         return MockRPCClient(self.name, self.num, self.outLinks)
@@ -1802,7 +1895,7 @@ class MockLogger(LogChecker):
         if self.__err is not None:
             raise Exception(self.__err)
 
-    def addAppender(self, app):
+    def add_appender(self, app):
         print("Not adding appender %s to MockLogger" % app, file=sys.stderr)
 
     def close(self):
@@ -1821,35 +1914,35 @@ class MockLogger(LogChecker):
         self._checkMsg(m)
 
     @property
-    def isDebugEnabled(self):
+    def is_debug_enabled(self):
         return True
 
     @property
-    def isErrorEnabled(self):
+    def is_error_enabled(self):
         return True
 
     @property
-    def isFatalEnabled(self):
+    def is_fatal_enabled(self):
         return True
 
     @property
-    def isInfoEnabled(self):
+    def is_info_enabled(self):
         return True
 
     @property
-    def isTraceEnabled(self):
+    def is_trace_enabled(self):
         return True
 
     @property
-    def isWarnEnabled(self):
+    def is_warn_enabled(self):
         return True
 
     @property
-    def livePort(self):
+    def live_port(self):
         return None
 
     @property
-    def logPort(self):
+    def log_port(self):
         return None
 
     def setError(self, msg):
@@ -1864,6 +1957,252 @@ class MockLogger(LogChecker):
 
     def write(self, m, time=None, level=None):
         self._checkMsg(m)
+
+
+class MockParallelShell(object):
+    BINDIR = os.path.join(find_pdaq_trunk(), 'target', 'pDAQ-%s-dist' %
+                          ComponentManager.RELEASE, 'bin')
+
+    def __init__(self, isParallel=True, debug=False):
+        self.__exp = []
+        self.__rtnCodes = []
+        self.__results = []
+        self.__isParallel = isParallel
+        self.__debug = debug
+
+    def __addExpected(self, cmd):
+        if cmd.find("/bin/StringHub") > 0 and cmd.find(".componentId=") < 0:
+            raise Exception("Missing componentId: %s" % cmd)
+        self.__exp.append(cmd)
+
+    def __checkCmd(self, cmd):
+        expLen = len(self.__exp)
+        if expLen == 0:
+            raise Exception('Did not expect command "%s"' % cmd)
+
+        if self.__debug:
+            print("PSh got: " + cmd, file=sys.stderr)
+
+        found = None
+        for i in range(expLen):
+            if cmd == self.__exp[i]:
+                found = i
+                if self.__debug:
+                    print("PSh found cmd", file=sys.stderr)
+                break
+            if self.__debug:
+                print("PSh not: " + self.__exp[i], file=sys.stderr)
+
+        if found is None:
+            raise Exception("Command not found in expected command list:"
+                            " cmd=\"%s\"" % (cmd, ))
+
+        del self.__exp[found]
+
+    def __isLocalhost(self, host):
+        return host == 'localhost' or host == '127.0.0.1'
+
+    def add(self, cmd):
+        self.__checkCmd(cmd)
+
+    def addExpectedJava(self, comp, configDir, daqDataDir, logPort, livePort,
+                        verbose, eventCheck, host):
+
+        ipAddr = ip.getLocalIpAddr(host)
+        jarPath = os.path.join(MockParallelShell.BINDIR,
+                               ComponentManager.get_component_jar(comp.name))
+
+        if verbose:
+            redir = ''
+        else:
+            redir = ' </dev/null >/dev/null 2>&1'
+
+        cmd = comp.jvmPath
+        cmd += " -Dicecube.daq.component.configDir='%s'" % configDir
+
+        if comp.jvmServer is not None and comp.jvmServer:
+            cmd += " -server"
+        if comp.jvmHeapInit is not None:
+            cmd += " -Xms" + comp.jvmHeapInit
+        if comp.jvmHeapMax is not None:
+            cmd += " -Xmx" + comp.jvmHeapMax
+        if comp.jvmArgs is not None:
+            cmd += " " + comp.jvmArgs
+        if comp.jvmExtraArgs is not None:
+            cmd += " " + comp.jvmExtraArgs
+
+        if comp.isRealHub:
+            if comp.ntpHost is not None:
+                cmd += " -Dicecube.daq.time.monitoring.ntp-host=" + \
+                       comp.ntpHost
+            if comp.alertEMail is not None:
+                cmd += " -Dicecube.daq.stringhub.alert-email=" + \
+                       comp.alertEMail
+
+        if comp.hitspoolDirectory is not None:
+            cmd += " -Dhitspool.directory=\"%s\"" % comp.hitspoolDirectory
+        if comp.hitspoolInterval is not None:
+            cmd += " -Dhitspool.interval=%.4f" % comp.hitspoolInterval
+        if comp.hitspoolMaxFiles is not None:
+            cmd += " -Dhitspool.maxfiles=%d" % comp.hitspoolMaxFiles
+
+        if comp.isHub:
+            cmd += " -Dicecube.daq.stringhub.componentId=%d" % comp.id
+        if eventCheck and comp.isBuilder:
+            cmd += ' -Dicecube.daq.eventBuilder.validateEvents'
+
+        cmd += ' -jar %s' % jarPath
+        if daqDataDir is not None:
+            cmd += ' -d %s' % daqDataDir
+        cmd += ' -c %s:%d' % (ipAddr, DAQPort.CNCSERVER)
+
+        if logPort is not None:
+            cmd += ' -l %s:%d,%s' % (ipAddr, logPort, comp.logLevel)
+        if livePort is not None:
+            cmd += ' -L %s:%d,%s' % (ipAddr, livePort, comp.logLevel)
+            cmd += ' -M %s:%d' % (ipAddr, MoniPort)
+        cmd += ' %s &' % redir
+
+        if not self.__isLocalhost(host):
+            qCmd = "ssh -n %s 'sh -c \"%s\"%s &'" % (host, cmd, redir)
+            cmd = qCmd
+
+        self.__addExpected(cmd)
+
+    def addExpectedJavaKill(self, compName, compId, killWith9, verbose, host):
+        if killWith9:
+            nineArg = '-9'
+        else:
+            nineArg = ''
+
+        user = os.environ['USER']
+
+        if compName.endswith("hub"):
+            killPat = "stringhub.componentId=%d " % compId
+        else:
+            killPat = ComponentManager.get_component_jar(compName)
+
+        if self.__isLocalhost(host):
+            sshCmd = ''
+            pkillOpt = ' -fu %s' % user
+        else:
+            sshCmd = 'ssh %s ' % host
+            pkillOpt = ' -f'
+
+        self.__addExpected('%spkill %s%s \"%s\"' %
+                           (sshCmd, nineArg, pkillOpt, killPat))
+
+        if not killWith9:
+            self.__addExpected('sleep 2; %spkill -9%s \"%s\"' %
+                               (sshCmd, pkillOpt, killPat))
+
+    def addExpectedPython(self, doCnC, dashDir, configDir, logDir, daqDataDir,
+                          spadeDir, cluCfgName, cfgName, copyDir, logPort,
+                          livePort, forceRestart=True):
+        if doCnC:
+            cmd = os.path.join(dashDir, 'CnCServer.py')
+            cmd += ' -c %s' % configDir
+            cmd += ' -o %s' % logDir
+            cmd += ' -q %s' % daqDataDir
+            cmd += ' -s %s' % spadeDir
+            if cluCfgName is not None:
+                if cluCfgName.endswith("-cluster"):
+                    cmd += ' -C %s' % cluCfgName
+                else:
+                    cmd += ' -C %s-cluster' % cluCfgName
+            if logPort is not None:
+                cmd += ' -l localhost:%d' % logPort
+            if livePort is not None:
+                cmd += ' -L localhost:%d' % livePort
+            if copyDir is not None:
+                cmd += ' -a %s' % copyDir
+            if not forceRestart:
+                cmd += ' -F'
+            cmd += ' -d'
+
+            self.__addExpected(cmd)
+
+    def addExpectedPythonKill(self, doCnC, killWith9):
+        pass
+
+    def addExpectedRsync(self, dir, subdirs, delete, dryRun, remoteHost,
+                         rtnCode, result="",
+                         niceAdj=DeployPDAQ.NICE_LEVEL_DEFAULT,
+                         express=DeployPDAQ.EXPRESS_DEFAULT):
+
+        if express:
+            rCmd = "rsync"
+        else:
+            rCmd = 'nice rsync --rsync-path "nice -n %d rsync"' % (niceAdj)
+
+        if not delete:
+            dOpt = ""
+        else:
+            dOpt = " --delete"
+
+        if not dryRun:
+            drOpt = ""
+        else:
+            drOpt = " --dry-run"
+
+        group = "{" + ",".join(subdirs) + "}"
+
+        cmd = "%s -azLC%s%s %s %s:%s" % \
+            (rCmd, dOpt, drOpt, os.path.join(dir, group), remoteHost, dir)
+        self.__addExpected(cmd)
+        self.__rtnCodes.append(rtnCode)
+        self.__results.append(result)
+
+    def addExpectedUndeploy(self, pdaqDir, remoteHost):
+        cmd = "ssh %s \"\\rm -rf ~%s/config %s\"" % \
+            (remoteHost, os.environ["USER"], pdaqDir)
+        self.__addExpected(cmd)
+
+    def check(self):
+        if len(self.__exp) > 0:
+            raise Exception(('ParallelShell did not receive expected commands:'
+                             ' %s') % str(self.__exp))
+
+    def getMetaPath(self, subdir):
+        return os.path.join(find_pdaq_trunk(), subdir)
+
+    def getResult(self, idx):
+        if idx < 0 or idx >= len(self.__results):
+            raise Exception("Cannot return result %d (only %d available)" %
+                            (idx, len(self.__results)))
+
+        return self.__results[idx]
+
+    def getReturnCodes(self):
+        return self.__rtnCodes
+
+    @property
+    def isParallel(self):
+        return self.__isParallel
+
+    def showAll(self):
+        raise Exception('SHOWALL')
+
+    def shuffle(self):
+        pass
+
+    def start(self):
+        pass
+
+    def system(self, cmd):
+        self.__checkCmd(cmd)
+
+    def wait(self, monitorIval=None):
+        pass
+
+    def getCmdResults(self):
+
+        # commands are in self.__exp
+        ret = {}
+        for exp, rtncode in zip(self.__exp, self.__rtnCodes):
+            ret[exp] = (rtncode, "")
+
+        return ret
 
 
 class MockRPCClient(object):
@@ -2506,7 +2845,8 @@ class SocketReader(LogChecker):
         if self.__errMsg is not None:
             raise Exception(self.__errMsg)
 
-    def getPort(self):
+    @property
+    def port(self):
         return self.__port
 
     def serving(self):
@@ -2516,14 +2856,14 @@ class SocketReader(LogChecker):
         if self.__errMsg is None:
             self.__errMsg = msg
 
-    def stopServing(self):
+    def stop_serving(self):
         "Signal listening thread to exit; wait for thread to finish"
         if self.__thread is not None:
             thread = self.__thread
             self.__thread = None
             thread.join()
 
-    def startServing(self):
+    def start_serving(self):
         if self.__thread is not None:
             raise Exception("Socket reader %s is already running" %
                             (self.__name, ))
@@ -2557,13 +2897,13 @@ class SocketReaderFactory(object):
             log.addExpectedTextRegexp(r'Start of log at LOG=(\S+:\d+|' +
                                       r'log\(\S+:\d+\)(\slive\(\S+:\d+\))?)')
         if startServer:
-            log.startServing()
+            log.start_serving()
 
         return log
 
     def tearDown(self):
         for l in self.__logList:
-            l.stopServing()
+            l.stop_serving()
 
         for l in self.__logList:
             l.checkStatus(0)

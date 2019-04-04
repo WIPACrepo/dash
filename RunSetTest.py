@@ -20,7 +20,7 @@ class FakeLogger(object):
     def __init__(self):
         pass
 
-    def stopServing(self):
+    def stop_serving(self):
         pass
 
 
@@ -144,8 +144,8 @@ class FakeRunData(object):
         return self.__logger is not None
 
     @property
-    def isErrorEnabled(self):
-        return self.__logger.isErrorEnabled
+    def is_error_enabled(self):
+        return self.__logger.is_error_enabled
 
     @property
     def log_directory(self):

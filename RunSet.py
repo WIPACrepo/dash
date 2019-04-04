@@ -814,16 +814,16 @@ class RunData(object):
         return self.__dashlog is None
 
     @property
-    def isErrorEnabled(self):
-        return self.__dashlog.isErrorEnabled
+    def is_error_enabled(self):
+        return self.__dashlog.is_error_enabled
 
     @property
-    def isInfoEnabled(self):
-        return self.__dashlog.isInfoEnabled
+    def is_info_enabled(self):
+        return self.__dashlog.is_info_enabled
 
     @property
-    def isWarnEnabled(self):
-        return self.__dashlog.isWarnEnabled
+    def is_warn_enabled(self):
+        return self.__dashlog.is_warn_enabled
 
     @property
     def log_directory(self):
@@ -1376,7 +1376,7 @@ class RunSet(object):
         self.__state = new_state
 
         # self.__run_data is guaranteed to be set here
-        if self.__run_data.isErrorEnabled and src_op == OpForcedStop:
+        if self.__run_data.is_error_enabled and src_op == OpForcedStop:
             full_set = src_set + other_set
             plural = len(full_set) == 1 and "s" or ""
             if len(full_set) == 1:
@@ -1876,7 +1876,7 @@ class RunSet(object):
         # clean up active log thread
         if comp in self.__comp_log:
             try:
-                self.__comp_log[comp].stopServing()
+                self.__comp_log[comp].stop_serving()
             except:
                 pass
             del self.__comp_log[comp]
@@ -2337,7 +2337,7 @@ class RunSet(object):
 
         log_name = os.path.join(run_dir, "%s-%d.log" % (comp.name, comp.num))
         sock = LogSocketServer(port, comp.fullname, log_name, quiet=quiet)
-        sock.startServing()
+        sock.start_serving()
 
         return sock
 

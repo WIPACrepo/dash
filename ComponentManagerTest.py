@@ -28,14 +28,15 @@ class MockNode(object):
     def __str__(self):
         return "%s[%s]" % (str(self.__hostname), str(self.__comps))
 
-    def addComp(self, compName, compId, logLevel, hsDir, hsInterval,
-                hsMaxFiles, jvmPath, jvmServer, jvmHeapInit, jvmHeapMax,
-                jvmArgs, jvmExtraArgs, alertEMail, ntpHost):
-        comp = MockDeployComponent(compName, compId, logLevel, hsDir,
-                                   hsInterval, hsMaxFiles, jvmPath, jvmServer,
-                                   jvmHeapInit, jvmHeapMax, jvmArgs,
-                                   jvmExtraArgs, alertEMail, ntpHost,
-                                   host=self.__hostname)
+    def add_comp(self, comp_name, comp_id, log_level, hs_dir, hs_interval,
+                 hs_max_files, jvm_path, jvm_server, jvm_heap_init,
+                 jvm_heap_max, jvm_args, jvm_extra_args, alert_email,
+                 ntp_host):
+        comp = MockDeployComponent(comp_name, comp_id, log_level, hs_dir,
+                                   hs_interval, hs_max_files, jvm_path,
+                                   jvm_server, jvm_heap_init, jvm_heap_max,
+                                   jvm_args, jvm_extra_args, alert_email,
+                                   ntp_host, host=self.__hostname)
         self.__comps.append(comp)
         return comp
 
@@ -197,10 +198,10 @@ class ComponentManagerTest(unittest.TestCase):
 
             for host in MockNode.LIST:
                 node = MockNode(host)
-                comp = node.addComp(compName, compId, logLevel, hsDir,
-                                    hsInterval, hsMaxFiles, jvmPath, jvmServer,
-                                    jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra,
-                                    alertEMail, ntpHost)
+                comp = node.add_comp(compName, compId, logLevel, hsDir,
+                                     hsInterval, hsMaxFiles, jvmPath, jvmServer,
+                                     jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra,
+                                     alertEMail, ntpHost)
 
                 for isLive in (True, False):
                     if isLive:
@@ -253,10 +254,10 @@ class ComponentManagerTest(unittest.TestCase):
 
             for host in MockNode.LIST:
                 node = MockNode(host)
-                node.addComp(compName, compId, logLevel, hsDir, hsInterval,
-                             hsMaxFiles, jvmPath, jvmServer, jvmHeapInit,
-                             jvmHeapMax, jvmArgs, jvmExtra, alertEMail,
-                             ntpHost)
+                node.add_comp(compName, compId, logLevel, hsDir, hsInterval,
+                              hsMaxFiles, jvmPath, jvmServer, jvmHeapInit,
+                              jvmHeapMax, jvmArgs, jvmExtra, alertEMail,
+                              ntpHost)
 
                 for killWith9 in (True, False):
                     parallel = MockParallelShell()
@@ -310,10 +311,10 @@ class ComponentManagerTest(unittest.TestCase):
 
             for host in MockNode.LIST:
                 node = MockNode(host)
-                comp = node.addComp(compName, compId, logLevel, hsDir,
-                                    hsInterval, hsMaxFiles, jvmPath, jvmServer,
-                                    jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra,
-                                    alertEMail, ntpHost)
+                comp = node.add_comp(compName, compId, logLevel, hsDir,
+                                     hsInterval, hsMaxFiles, jvmPath, jvmServer,
+                                     jvmHeapInit, jvmHeapMax, jvmArgs, jvmExtra,
+                                     alertEMail, ntpHost)
 
                 cfgName = 'mockCfg'
 
@@ -384,10 +385,10 @@ class ComponentManagerTest(unittest.TestCase):
 
             for host in MockNode.LIST:
                 node = MockNode(host)
-                node.addComp(compName, compId, logLevel, hsDir, hsInterval,
-                             hsMaxFiles, jvmPath, jvmServer, jvmHeapInit,
-                             jvmHeapMax, jvmArgs, jvmExtra, alertEMail,
-                             ntpHost)
+                node.add_comp(compName, compId, logLevel, hsDir, hsInterval,
+                              hsMaxFiles, jvmPath, jvmServer, jvmHeapInit,
+                              jvmHeapMax, jvmArgs, jvmExtra, alertEMail,
+                              ntpHost)
 
                 for killWith9 in (True, False):
                     parallel = MockParallelShell()

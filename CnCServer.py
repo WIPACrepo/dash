@@ -655,7 +655,7 @@ class CnCServer(DAQPool):
 
         self.__logServer = \
             self.openLogServer(DAQPort.CATCHALL, self.__defaultLogDir)
-        self.__logServer.startServing()
+        self.__logServer.start_serving()
 
         if logIP is None or logPort is None:
             logIP = "localhost"
@@ -869,7 +869,7 @@ class CnCServer(DAQPool):
 
         self.__log.closeFinal()
         if self.__logServer is not None:
-            self.__logServer.stopServing()
+            self.__logServer.stop_serving()
             self.__logServer = None
 
         return True
@@ -1397,12 +1397,12 @@ class CnCServer(DAQPool):
             return
 
         if self.__logServer is not None:
-            self.__logServer.stopServing()
+            self.__logServer.stop_serving()
 
         os.rename(catchallFile, os.path.join(runDir, "catchall.log"))
 
         if self.__logServer is not None:
-            self.__logServer.startServing()
+            self.__logServer.start_serving()
 
     def server_statistics(self):
         return self.__server.server_statistics()

@@ -325,36 +325,36 @@ class DAQLog(object):
         self._logmsg(DAQLog.INFO, msg)
 
     @property
-    def isDebugEnabled(self):
+    def is_debug_enabled(self):
         "Are DEBUG level messages enabled?"
         return self.__level == DAQLog.DEBUG
 
     @property
-    def isErrorEnabled(self):
+    def is_error_enabled(self):
         "Are ERROR level messages enabled?"
         return self.__level == DAQLog.ERROR
 
     @property
-    def isFatalEnabled(self):
+    def is_fatal_enabled(self):
         "Are FATAL level messages enabled?"
         return self.__level == DAQLog.FATAL
 
     @property
-    def isInfoEnabled(self):
+    def is_info_enabled(self):
         "Are INFO level messages enabled?"
         return self.__level == DAQLog.INFO
 
     @property
-    def isTraceEnabled(self):
+    def is_trace_enabled(self):
         "Are TRACE level messages enabled?"
         return self.__level == DAQLog.TRACE
 
     @property
-    def isWarnEnabled(self):
+    def is_warn_enabled(self):
         "Are WARN level messages enabled?"
         return self.__level == DAQLog.WARN
 
-    def setLevel(self, level):
+    def set_level(self, level):
         "Set logger level"
         self.__level = level
 

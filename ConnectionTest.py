@@ -68,7 +68,7 @@ class Node(object):
 class ConnectionTest(unittest.TestCase):
     EXP_ID = 1
 
-    def buildRunset(self, nodeList, extraLoud=True):
+    def buildRunset(self, nodeList, extra_loud=True):
         if LOUD:
             print('-- Nodes')
             for node in nodeList:
@@ -83,7 +83,7 @@ class ConnectionTest(unittest.TestCase):
             nodeLog[key] = MockLogger('Log-%s' % key)
             pool.add(MockDAQClient(node.name, node.num, None, port, 0,
                                    node.getConnections(), nodeLog[key],
-                                   node.outLinks, extraLoud=extraLoud))
+                                   node.outLinks, extra_loud=extra_loud))
             port -= 1
         self.assertEqual(pool.numComponents(), len(nodeList))
 
@@ -183,7 +183,7 @@ class ConnectionTest(unittest.TestCase):
         if LOUD:
             print('-- SET: ' + str(runset))
 
-        if extraLoud:
+        if extra_loud:
             for key in nodeLog:
                 nodeLog[key].addExpectedExact('End of log')
                 nodeLog[key].addExpectedExact('Reset log to ?LOG?')

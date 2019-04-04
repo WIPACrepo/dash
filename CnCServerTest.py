@@ -44,7 +44,7 @@ class FakeLogger(object):
     def __init__(self):
         pass
 
-    def stopServing(self):
+    def stop_serving(self):
         pass
 
 
@@ -83,8 +83,8 @@ class FakeRunData(object):
         return self.__finished
 
     @property
-    def isErrorEnabled(self):
-        return self.__dashlog.isErrorEnabled
+    def is_error_enabled(self):
+        return self.__dashlog.is_error_enabled
 
     @property
     def log_directory(self):
@@ -712,7 +712,7 @@ class TestCnCServer(unittest.TestCase):
                                    runConfigDir=self.__runConfigDir,
                                    daqDataDir=self.__daqDataDir,
                                    spadeDir=self.__spadeDir,
-                                   logPort=catchall.getPort(),
+                                   logPort=catchall.port,
                                    logFactory=self.__logFactory,
                                    dashlog=dashlog,
                                    forceRestart=forceRestart)

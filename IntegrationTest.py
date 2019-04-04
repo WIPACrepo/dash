@@ -219,7 +219,7 @@ class MostlyRunData(RunData):
 
     def create_dash_log(self):
         self.__dashlog = MockCnCLogger("dash", appender=self.__appender,
-                                       quiet=True, extraLoud=False)
+                                       quiet=True, extra_loud=False)
         return self.__dashlog
 
     def create_moni_client(self, port):
@@ -297,7 +297,7 @@ class MostlyRunSet(RunSet):
     @classmethod
     def closeAllLogs(cls):
         for k in list(cls.LOGDICT.keys()):
-            cls.LOGDICT[k].stopServing()
+            cls.LOGDICT[k].stop_serving()
             del cls.LOGDICT[k]
 
     @classmethod

@@ -182,8 +182,8 @@ class FakeRunData(object):
         return True
 
     @property
-    def isErrorEnabled(self):
-        return self.__logger.isErrorEnabled
+    def is_error_enabled(self):
+        return self.__logger.is_error_enabled
 
     @property
     def log_directory(self):

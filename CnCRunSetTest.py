@@ -29,7 +29,7 @@ class MockComponentLogger(MockLogger):
     def __init__(self, name):
         super(MockComponentLogger, self).__init__(name)
 
-    def stopServing(self):
+    def stop_serving(self):
         pass
 
 
@@ -1016,7 +1016,7 @@ class CnCRunSetTest(unittest.TestCase):
         catchall.addExpectedTextRegexp(r"Built runset #\d+: .*")
 
         liveMoni = SocketReader("liveMoni", DAQPort.I3LIVE, 99)
-        liveMoni.startServing()
+        liveMoni.start_serving()
 
         runNum = 345
 
@@ -1131,8 +1131,8 @@ class CnCRunSetTest(unittest.TestCase):
         dashLog.checkStatus(5)
         liveMoni.checkStatus(5)
 
-        catchall.stopServing()
-        liveMoni.stopServing()
+        catchall.stop_serving()
+        liveMoni.stop_serving()
 
 
 if __name__ == '__main__':

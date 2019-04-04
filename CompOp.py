@@ -172,7 +172,7 @@ class OpStopLogging(VoidOperation):
     def execute(cls, comp, data):
         if comp not in data:
             raise Exception("No log server found for %s" % (comp, ))
-        data[comp].stopServing()
+        data[comp].stop_serving()
 
 
 class OpStopRun(VoidOperation):
