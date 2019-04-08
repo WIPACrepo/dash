@@ -314,9 +314,8 @@ class MyRunSet(RunSet):
 
         super(MyRunSet, self).__init__(parent, runConfig, compList, logger)
 
-    @staticmethod
-    def create_component_log(runDir, comp, host, port, liveHost, livePort,
-                             quiet=True):
+    @classmethod
+    def create_component_log(cls, runDir, comp, host, port, quiet=True):
         return MockComponentLogger(str(comp))
 
     def create_run_data(self, runNum, clusterConfig, runOptions, versionInfo,

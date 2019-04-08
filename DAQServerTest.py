@@ -226,8 +226,7 @@ class MockRunSet(RunSet):
 
         super(MockRunSet, self).__init__(parent, runConfig, compList, logger)
 
-    def create_component_log(self, runDir, comp, host, port, liveHost,
-                             livePort, quiet=True):
+    def create_component_log(self, runDir, comp, host, port, quiet=True):
         return self.__clientLog
 
     def create_run_data(self, runNum, clusterConfig, runOptions, versionInfo,

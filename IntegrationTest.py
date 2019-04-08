@@ -301,8 +301,7 @@ class MostlyRunSet(RunSet):
             del cls.LOGDICT[k]
 
     @classmethod
-    def create_component_log(cls, run_dir, comp, host, port, live_host,
-                             live_port, quiet=True):
+    def create_component_log(cls, run_dir, comp, host, port, quiet=True):
         if comp.fullname in cls.LOGDICT:
             return cls.LOGDICT[comp.fullname]
 
@@ -313,7 +312,7 @@ class MostlyRunSet(RunSet):
         log.addExpectedRegexp(r'Hello from \S+#\d+')
         log.addExpectedTextRegexp(r'Version info: \S+ \S+ \S+ \S+')
 
-        comp.logTo(host, port, live_host, live_port)
+        comp.logTo(host, port, None, None)
 
         return log
 

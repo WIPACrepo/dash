@@ -207,8 +207,7 @@ class MyRunSet(RunSet):
         super(MyRunSet, self).__init__(parent, runConfig, compList, logger)
 
     @classmethod
-    def create_component_log(cls, runDir, comp, host, port, liveHost,
-                             livePort, quiet=True):
+    def create_component_log(cls, runDir, comp, host, port, quiet=True):
         return FakeLogger()
 
     def create_run_data(self, runNum, clusterConfig, runOptions, versionInfo,

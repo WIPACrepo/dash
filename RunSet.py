@@ -1916,7 +1916,7 @@ class RunSet(object):
             self.__comp_log[comp] \
                 = self.create_component_log(self.__run_data.run_directory,
                                             comp, log_host, log_port,
-                                            live_host, live_port, quiet=quiet)
+                                            quiet=quiet)
             args = (log_host, log_port, live_host, live_port)
             tgroup.run_thread(comp, args, logger=self.__run_data)
 
@@ -2329,8 +2329,7 @@ class RunSet(object):
             raise RunSetException(err_msg)
 
     @classmethod
-    def create_component_log(cls, run_dir, comp, host, port, live_host,
-                             live_port, quiet=True):
+    def create_component_log(cls, run_dir, comp, host, port, quiet=True):
         if not os.path.exists(run_dir):
             raise RunSetException("Run directory \"%s\" does not exist" %
                                   run_dir)
