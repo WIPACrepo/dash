@@ -1274,7 +1274,7 @@ class MockCnCLogger(CnCLogger):
         self.__appender = appender
 
         super(MockCnCLogger, self).__init__(name, appender=appender,
-                                            quiet=quiet, extraLoud=extra_loud)
+                                            quiet=quiet, extra_loud=extra_loud)
 
 
 class MockConnection(object):

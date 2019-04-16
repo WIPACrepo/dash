@@ -54,10 +54,10 @@ class LogInfo(object):
 class CnCLogger(DAQLog):
     "CnC logging client"
 
-    def __init__(self, name, appender=None, quiet=False, extraLoud=False):
+    def __init__(self, name, appender=None, quiet=False, extra_loud=False):
         "create a logging client"
         self.__quiet = quiet
-        self.__extraLoud = extraLoud
+        self.__extra_loud = extra_loud
 
         self.__prevInfo = None
         self.__logInfo = None
@@ -109,7 +109,7 @@ class CnCLogger(DAQLog):
 
     def closeLog(self):
         "Close the log socket"
-        if self.hasAppender() and self.__extraLoud:
+        if self.hasAppender() and self.__extra_loud:
             self.info("End of log")
         self.resetLog()
 
@@ -163,5 +163,5 @@ class CnCLogger(DAQLog):
             self.__prevInfo = None
             self.__addAppenders()
 
-        if self.hasAppender() and self.__extraLoud:
+        if self.hasAppender() and self.__extra_loud:
             self.info('Reset log to %s' % str(self))

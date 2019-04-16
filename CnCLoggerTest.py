@@ -37,7 +37,7 @@ class CnCLoggerTest(unittest.TestCase):
 
         for xl in (False, True):
             dc = CnCLogger("xl=%s" % str(xl), appender=self.__appender,
-                           quiet=True, extraLoud=xl)
+                           quiet=True, extra_loud=xl)
 
             # set up default logger
             dfltObj.addExpectedText("Start of log at LOG=log(%s:%d)" %
@@ -89,7 +89,7 @@ class CnCLoggerTest(unittest.TestCase):
 
         for xl in (False, True):
             dc = CnCLogger("xl=%s" % str(xl), appender=self.__appender,
-                           quiet=True, extraLoud=xl)
+                           quiet=True, extra_loud=xl)
 
             dfltObj.addExpectedText("Start of log at LOG=log(%s:%d)" %
                                     (dfltHost, dfltPort))
@@ -148,7 +148,7 @@ class CnCLoggerTest(unittest.TestCase):
 
         for xl in (False, True):
             dc = CnCLogger("xl=%s" % str(xl), appender=self.__appender,
-                           quiet=True, extraLoud=xl)
+                           quiet=True, extra_loud=xl)
 
             dLogObj.addExpectedText(("Start of log at LOG=log(%s:%d)" +
                                      " live(%s:%d)") %
@@ -217,7 +217,7 @@ class CnCLoggerTest(unittest.TestCase):
 
         for xl in (False, True):
             dc = CnCLogger("xl=%s" % str(xl), appender=self.__appender,
-                           quiet=True, extraLoud=xl)
+                           quiet=True, extra_loud=xl)
 
             dLogObj.addExpectedText(("Start of log at LOG=log(%s:%d)" +
                                      " live(%s:%d)") %
@@ -282,7 +282,7 @@ class CnCLoggerTest(unittest.TestCase):
 
         for xl in (False, True):
             dc = CnCLogger("xl=%s" % str(xl), appender=self.__appender,
-                           quiet=True, extraLoud=xl)
+                           quiet=True, extra_loud=xl)
 
             dLogObj.addExpectedText(("Start of log at LOG=log(%s:%d)" +
                                      " live(%s:%d)") %
@@ -345,7 +345,7 @@ class CnCLoggerTest(unittest.TestCase):
 
         for xl in (False, True):
             dc = CnCLogger("xl=%s" % str(xl), appender=self.__appender,
-                           quiet=True, extraLoud=xl)
+                           quiet=True, extra_loud=xl)
 
             dLogObj.addExpectedText(("Start of log at LOG=log(%s:%d)" +
                                      " live(%s:%d)") %
