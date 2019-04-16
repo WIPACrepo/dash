@@ -1439,11 +1439,11 @@ class CnCServer(DAQPool):
         except:
             import traceback
             try:
-                self.__log.error("Cannot start runset#%d: %s" %
+                self.__log.error("Cannot start runset#%s: %s" %
                                  (runSet.id, traceback.format_exc()))
                 runSet.reset()
             except:
-                self.__log.error("Cannot reset runset#%d: %s" %
+                self.__log.error("Cannot reset runset#%s: %s" %
                                  (runSet.id, traceback.format_exc()))
 
         # file leaks are reported after startRun() because dash.log
