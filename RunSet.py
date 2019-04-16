@@ -1654,9 +1654,9 @@ class RunSet(object):
 
         # tell components to switch back to default logger (catchall.log)
         try:
-            self.reset_logging()
+            self.__reset_logging()
         except:
-            self.__logger.error("Could not stop logs for %s (%s): %s" %
+            self.__logger.error("Could not reset logs for %s (%s): %s" %
                                 (self, caller_name, exc_string()))
 
         # stop log servers for all components
@@ -1901,6 +1901,11 @@ class RunSet(object):
 
         moni_client.sendMoni("runstart", data, prio=Prio.SCP,
                              time=start_time)
+
+    def __reset_logging(self):
+        "Reset logging for all components in the runset"
+        ComponentGroup.run_simple(OpResetLogging, self.__set, (), self.__logger,
+                                  report_errors=False)
 
     def __start_components(self, quiet):
         live_host = None
@@ -2698,11 +2703,6 @@ class RunSet(object):
         self.__run_data = None
 
         return bad_comps
-
-    def reset_logging(self):
-        "Reset logging for all components in the runset"
-        ComponentGroup.run_simple(OpResetLogging, self.__set, (), self.__logger,
-                                  report_errors=False)
 
     def restart_all_components(self, cluster_config, config_dir, daq_data_dir,
                                log_port, live_port, verbose=False,
