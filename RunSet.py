@@ -3085,9 +3085,8 @@ class RunSet(object):
 
         # switch logs to new daqrun directory before switching components
         #
-        for comp in self.__comp_log:
-            self.switch_component_log(self.__comp_log[comp],
-                                      new_data.run_directory, comp)
+        for comp, logger in self.__comp_log.items():
+            self.switch_component_log(logger, new_data.run_directory, comp)
 
         try:
             # stop monitoring, watchdog, etc.
