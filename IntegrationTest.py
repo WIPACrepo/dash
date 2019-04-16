@@ -365,13 +365,13 @@ class MostlyCnCServer(CnCServer):
         self.__dash_appender = None
 
         if log_port is None:
-            log_ip = None
+            log_host = None
         else:
-            log_ip = 'localhost'
+            log_host = 'localhost'
         if live_port is None:
-            live_ip = None
+            live_host = None
         else:
-            live_ip = 'localhost'
+            live_host = 'localhost'
 
         super(MostlyCnCServer, self).__init__(name=MostlyCnCServer.SERVER_NAME,
                                               copyDir=copy_dir,
@@ -379,8 +379,10 @@ class MostlyCnCServer(CnCServer):
                                               runConfigDir=run_config_dir,
                                               daqDataDir=daq_data_dir,
                                               spadeDir=spade_dir,
-                                              logIP=log_ip, logPort=log_port,
-                                              liveIP=live_ip, livePort=live_port,
+                                              logIP=log_host,
+                                              logPort=log_port,
+                                              liveIP=live_host,
+                                              livePort=live_port,
                                               forceRestart=False, quiet=True)
 
     def createClient(self, name, num, host, port, mbean_port, connectors):

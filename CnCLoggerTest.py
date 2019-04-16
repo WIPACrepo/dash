@@ -30,10 +30,10 @@ class CnCLoggerTest(unittest.TestCase):
 
         dfltObj = self.createLog("dflt", dfltPort)
 
-        logHost = "localhost"
-        logPort = 12345
+        log_host = "localhost"
+        log_port = 12345
 
-        logObj = self.createLog("file", logPort)
+        logObj = self.createLog("file", log_port)
 
         for xl in (False, True):
             dc = CnCLogger("xl=%s" % str(xl), appender=self.__appender,
@@ -46,13 +46,13 @@ class CnCLoggerTest(unittest.TestCase):
 
             # set up file logger
             logObj.addExpectedText("Start of log at LOG=log(%s:%d)" %
-                                   (logHost, logPort))
-            dc.openLog(logHost, logPort, None, None)
+                                   (log_host, log_port))
+            dc.openLog(log_host, log_port, None, None)
 
-            self.assertEqual(dc.logHost, logHost)
-            self.assertEqual(dc.logPort, logPort)
-            self.assertEqual(dc.liveHost, None)
-            self.assertEqual(dc.livePort, None)
+            self.assertEqual(dc.log_host, log_host)
+            self.assertEqual(dc.log_port, log_port)
+            self.assertEqual(dc.live_host, None)
+            self.assertEqual(dc.live_port, None)
 
             logObj.checkStatus(1000)
             dfltObj.checkStatus(1000)
@@ -62,16 +62,16 @@ class CnCLoggerTest(unittest.TestCase):
                                         (dfltHost, dfltPort))
 
             dc.resetLog()
-            self.assertFalse(dc.liveHost is not None,
+            self.assertFalse(dc.live_host is not None,
                              "logIP was not cleared")
-            self.assertFalse(dc.livePort is not None,
-                             "logPort was not cleared")
-            self.assertEqual(dc.logHost, dfltHost,
-                             "logHost should be %s, not %s" %
-                             (dfltHost, dc.logHost))
-            self.assertEqual(dc.logPort, dfltPort,
-                             "logPort should be %s, not %s" %
-                             (dfltPort, dc.logPort))
+            self.assertFalse(dc.live_port is not None,
+                             "log_port was not cleared")
+            self.assertEqual(dc.log_host, dfltHost,
+                             "log_host should be %s, not %s" %
+                             (dfltHost, dc.log_host))
+            self.assertEqual(dc.log_port, dfltPort,
+                             "log_port should be %s, not %s" %
+                             (dfltPort, dc.log_port))
 
             logObj.checkStatus(1000)
             dfltObj.checkStatus(1000)
@@ -82,10 +82,10 @@ class CnCLoggerTest(unittest.TestCase):
 
         dfltObj = self.createLog("dflt", dfltPort)
 
-        logHost = "localhost"
-        logPort = 6789
+        log_host = "localhost"
+        log_port = 6789
 
-        logObj = self.createLog("log", logPort)
+        logObj = self.createLog("log", log_port)
 
         for xl in (False, True):
             dc = CnCLogger("xl=%s" % str(xl), appender=self.__appender,
@@ -101,13 +101,13 @@ class CnCLoggerTest(unittest.TestCase):
             logObj.checkStatus(1000)
 
             logObj.addExpectedText("Start of log at LOG=log(%s:%d)" %
-                                   (logHost, logPort))
+                                   (log_host, log_port))
 
-            dc.openLog(logHost, logPort, None, None)
-            self.assertEqual(dc.liveHost, None)
-            self.assertEqual(dc.livePort, None)
-            self.assertEqual(dc.logHost, logHost)
-            self.assertEqual(dc.logPort, logPort)
+            dc.openLog(log_host, log_port, None, None)
+            self.assertEqual(dc.live_host, None)
+            self.assertEqual(dc.live_port, None)
+            self.assertEqual(dc.log_host, log_host)
+            self.assertEqual(dc.log_port, log_port)
 
             dfltObj.checkStatus(1000)
             logObj.checkStatus(1000)
@@ -117,16 +117,16 @@ class CnCLoggerTest(unittest.TestCase):
                                         (dfltHost, dfltPort))
 
             dc.resetLog()
-            self.assertEqual(dc.logHost, dfltHost,
-                             "logHost should be %s, not %s" %
-                             (dfltHost, dc.logHost))
-            self.assertEqual(dc.logPort, dfltPort,
-                             "logPort should be %s, not %s" %
-                             (dfltPort, dc.logPort))
-            self.assertFalse(dc.liveHost is not None,
+            self.assertEqual(dc.log_host, dfltHost,
+                             "log_host should be %s, not %s" %
+                             (dfltHost, dc.log_host))
+            self.assertEqual(dc.log_port, dfltPort,
+                             "log_port should be %s, not %s" %
+                             (dfltPort, dc.log_port))
+            self.assertFalse(dc.live_host is not None,
                              "liveIP was not cleared")
-            self.assertFalse(dc.livePort is not None,
-                             "livePort was not cleared")
+            self.assertFalse(dc.live_port is not None,
+                             "live_port was not cleared")
 
             logObj.checkStatus(1000)
             dfltObj.checkStatus(1000)
@@ -140,11 +140,11 @@ class CnCLoggerTest(unittest.TestCase):
         dLiveObj = self.createLog("dLive", dfltLive)
 
         host = "localhost"
-        logPort = 12345
-        livePort = 6789
+        log_port = 12345
+        live_port = 6789
 
-        logObj = self.createLog("file", logPort)
-        liveObj = self.createLog("live", livePort)
+        logObj = self.createLog("file", log_port)
+        liveObj = self.createLog("live", live_port)
 
         for xl in (False, True):
             dc = CnCLogger("xl=%s" % str(xl), appender=self.__appender,
@@ -164,13 +164,13 @@ class CnCLoggerTest(unittest.TestCase):
 
             logObj.addExpectedText(("Start of log at LOG=log(%s:%d)" +
                                     " live(%s:%d)") %
-                                   (host, logPort, host, livePort))
+                                   (host, log_port, host, live_port))
 
-            dc.openLog(host, logPort, host, livePort)
-            self.assertEqual(dc.logHost, host)
-            self.assertEqual(dc.logPort, logPort)
-            self.assertEqual(dc.liveHost, host)
-            self.assertEqual(dc.livePort, livePort)
+            dc.openLog(host, log_port, host, live_port)
+            self.assertEqual(dc.log_host, host)
+            self.assertEqual(dc.log_port, log_port)
+            self.assertEqual(dc.live_host, host)
+            self.assertEqual(dc.live_port, live_port)
 
             dLogObj.checkStatus(1000)
             dLiveObj.checkStatus(1000)
@@ -184,18 +184,18 @@ class CnCLoggerTest(unittest.TestCase):
                                          dfltHost, dfltLive))
 
             dc.resetLog()
-            self.assertEqual(dc.logHost, dfltHost,
-                             "logHost should be %s, not %s" %
-                             (dfltHost, dc.logHost))
-            self.assertEqual(dc.logPort, dfltLog,
-                             "logPort should be %s, not %s" %
-                             (dfltLog, dc.logPort))
-            self.assertEqual(dc.liveHost, dfltHost,
-                             "liveHost should be %s, not %s" %
-                             (dfltHost, dc.liveHost))
-            self.assertEqual(dc.livePort, dfltLive,
-                             "livePort should be %s, not %s" %
-                             (dfltLive, dc.livePort))
+            self.assertEqual(dc.log_host, dfltHost,
+                             "log_host should be %s, not %s" %
+                             (dfltHost, dc.log_host))
+            self.assertEqual(dc.log_port, dfltLog,
+                             "log_port should be %s, not %s" %
+                             (dfltLog, dc.log_port))
+            self.assertEqual(dc.live_host, dfltHost,
+                             "live_host should be %s, not %s" %
+                             (dfltHost, dc.live_host))
+            self.assertEqual(dc.live_port, dfltLive,
+                             "live_port should be %s, not %s" %
+                             (dfltLive, dc.live_port))
 
             logObj.checkStatus(1000)
             liveObj.checkStatus(1000)
@@ -210,10 +210,10 @@ class CnCLoggerTest(unittest.TestCase):
         dLogObj = self.createLog("dLog", dfltLog)
         dLiveObj = self.createLog("dLive", dfltLive)
 
-        logHost = "localhost"
-        logPort = 12345
+        log_host = "localhost"
+        log_port = 12345
 
-        logObj = self.createLog("file", logPort)
+        logObj = self.createLog("file", log_port)
 
         for xl in (False, True):
             dc = CnCLogger("xl=%s" % str(xl), appender=self.__appender,
@@ -230,13 +230,13 @@ class CnCLoggerTest(unittest.TestCase):
             dLiveObj.checkStatus(1000)
 
             logObj.addExpectedText("Start of log at LOG=log(%s:%d)" %
-                                   (logHost, logPort))
+                                   (log_host, log_port))
 
-            dc.openLog(logHost, logPort, None, None)
-            self.assertEqual(dc.logHost, logHost)
-            self.assertEqual(dc.logPort, logPort)
-            self.assertEqual(dc.liveHost, None)
-            self.assertEqual(dc.livePort, None)
+            dc.openLog(log_host, log_port, None, None)
+            self.assertEqual(dc.log_host, log_host)
+            self.assertEqual(dc.log_port, log_port)
+            self.assertEqual(dc.live_host, None)
+            self.assertEqual(dc.live_port, None)
 
             logObj.checkStatus(1000)
             dLogObj.checkStatus(1000)
@@ -250,18 +250,18 @@ class CnCLoggerTest(unittest.TestCase):
                                          dfltHost, dfltLive))
 
             dc.closeLog()
-            self.assertEqual(dc.logHost, dfltHost,
-                             "logHost should be %s, not %s" %
-                             (dfltHost, dc.logHost))
-            self.assertEqual(dc.logPort, dfltLog,
-                             "logPort should be %s, not %s" %
-                             (dfltLog, dc.logPort))
-            self.assertEqual(dc.liveHost, dfltHost,
-                             "liveHost should be %s, not %s" %
-                             (dfltHost, dc.liveHost))
-            self.assertEqual(dc.livePort, dfltLive,
-                             "livePort should be %s, not %s" %
-                             (dfltLive, dc.livePort))
+            self.assertEqual(dc.log_host, dfltHost,
+                             "log_host should be %s, not %s" %
+                             (dfltHost, dc.log_host))
+            self.assertEqual(dc.log_port, dfltLog,
+                             "log_port should be %s, not %s" %
+                             (dfltLog, dc.log_port))
+            self.assertEqual(dc.live_host, dfltHost,
+                             "live_host should be %s, not %s" %
+                             (dfltHost, dc.live_host))
+            self.assertEqual(dc.live_port, dfltLive,
+                             "live_port should be %s, not %s" %
+                             (dfltLive, dc.live_port))
 
             logObj.checkStatus(1000)
             dLogObj.checkStatus(1000)
@@ -275,10 +275,10 @@ class CnCLoggerTest(unittest.TestCase):
         dLogObj = self.createLog("dLog", dfltLog)
         dLiveObj = self.createLog("dLive", dfltLive)
 
-        liveHost = "localhost"
-        livePort = 6789
+        live_host = "localhost"
+        live_port = 6789
 
-        liveObj = self.createLog("live", livePort)
+        liveObj = self.createLog("live", live_port)
 
         for xl in (False, True):
             dc = CnCLogger("xl=%s" % str(xl), appender=self.__appender,
@@ -294,11 +294,11 @@ class CnCLoggerTest(unittest.TestCase):
             dLogObj.checkStatus(1000)
             dLiveObj.checkStatus(1000)
 
-            dc.openLog(None, None, liveHost, livePort)
-            self.assertEqual(dc.logHost, None)
-            self.assertEqual(dc.logPort, None)
-            self.assertEqual(dc.liveHost, liveHost)
-            self.assertEqual(dc.livePort, livePort)
+            dc.openLog(None, None, live_host, live_port)
+            self.assertEqual(dc.log_host, None)
+            self.assertEqual(dc.log_port, None)
+            self.assertEqual(dc.live_host, live_host)
+            self.assertEqual(dc.live_port, live_port)
 
             liveObj.checkStatus(1000)
             dLogObj.checkStatus(1000)
@@ -311,18 +311,18 @@ class CnCLoggerTest(unittest.TestCase):
                                          dfltHost, dfltLive))
 
             dc.closeLog()
-            self.assertEqual(dc.logHost, dfltHost,
-                             "logHost should be %s, not %s" %
-                             (dfltHost, dc.logHost))
-            self.assertEqual(dc.logPort, dfltLog,
-                             "logPort should be %s, not %s" %
-                             (dfltLog, dc.logPort))
-            self.assertEqual(dc.liveHost, dfltHost,
-                             "liveHost should be %s, not %s" %
-                             (dfltHost, dc.liveHost))
-            self.assertEqual(dc.livePort, dfltLive,
-                             "livePort should be %s, not %s" %
-                             (dfltLive, dc.livePort))
+            self.assertEqual(dc.log_host, dfltHost,
+                             "log_host should be %s, not %s" %
+                             (dfltHost, dc.log_host))
+            self.assertEqual(dc.log_port, dfltLog,
+                             "log_port should be %s, not %s" %
+                             (dfltLog, dc.log_port))
+            self.assertEqual(dc.live_host, dfltHost,
+                             "live_host should be %s, not %s" %
+                             (dfltHost, dc.live_host))
+            self.assertEqual(dc.live_port, dfltLive,
+                             "live_port should be %s, not %s" %
+                             (dfltLive, dc.live_port))
 
             liveObj.checkStatus(1000)
             dLogObj.checkStatus(1000)
@@ -336,12 +336,12 @@ class CnCLoggerTest(unittest.TestCase):
         dLogObj = self.createLog("dLog", dfltLog)
         dLiveObj = self.createLog("dLive", dfltLive)
 
-        logHost = "localhost"
-        logPort = 12345
-        liveHost = ""
-        livePort = 0
+        log_host = "localhost"
+        log_port = 12345
+        live_host = ""
+        live_port = 0
 
-        logObj = self.createLog("file", logPort)
+        logObj = self.createLog("file", log_port)
 
         for xl in (False, True):
             dc = CnCLogger("xl=%s" % str(xl), appender=self.__appender,
@@ -358,13 +358,13 @@ class CnCLoggerTest(unittest.TestCase):
             dLiveObj.checkStatus(1000)
 
             logObj.addExpectedText("Start of log at LOG=log(%s:%d)" %
-                                   (logHost, logPort))
+                                   (log_host, log_port))
 
-            dc.openLog(logHost, logPort, liveHost, livePort)
-            self.assertEqual(dc.logHost, logHost)
-            self.assertEqual(dc.logPort, logPort)
-            self.assertEqual(dc.liveHost, liveHost)
-            self.assertEqual(dc.livePort, livePort)
+            dc.openLog(log_host, log_port, live_host, live_port)
+            self.assertEqual(dc.log_host, log_host)
+            self.assertEqual(dc.log_port, log_port)
+            self.assertEqual(dc.live_host, live_host)
+            self.assertEqual(dc.live_port, live_port)
 
             if xl:
                 logObj.addExpectedTextRegexp("End of log")
@@ -374,18 +374,18 @@ class CnCLoggerTest(unittest.TestCase):
                                          dfltHost, dfltLive))
 
             dc.closeLog()
-            self.assertEqual(dc.logHost, dfltHost,
-                             "logHost should be %s, not %s" %
-                             (dfltHost, dc.logHost))
-            self.assertEqual(dc.logPort, dfltLog,
-                             "logPort should be %s, not %s" %
-                             (dfltLog, dc.logPort))
-            self.assertEqual(dc.liveHost, dfltHost,
-                             "liveHost should be %s, not %s" %
-                             (dfltHost, dc.liveHost))
-            self.assertEqual(dc.livePort, dfltLive,
-                             "livePort should be %s, not %s" %
-                             (dfltLive, dc.livePort))
+            self.assertEqual(dc.log_host, dfltHost,
+                             "log_host should be %s, not %s" %
+                             (dfltHost, dc.log_host))
+            self.assertEqual(dc.log_port, dfltLog,
+                             "log_port should be %s, not %s" %
+                             (dfltLog, dc.log_port))
+            self.assertEqual(dc.live_host, dfltHost,
+                             "live_host should be %s, not %s" %
+                             (dfltHost, dc.live_host))
+            self.assertEqual(dc.live_port, dfltLive,
+                             "live_port should be %s, not %s" %
+                             (dfltLive, dc.live_port))
 
             logObj.checkStatus(1000)
             dLogObj.checkStatus(1000)

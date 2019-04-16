@@ -2391,7 +2391,7 @@ class RunSet(object):
                                          kill_with_9=kill_with_9)
         ComponentManager.start_components(comp_list, dry_run, verbose,
                                           config_dir, daq_data_dir,
-                                          logger.logPort, logger.livePort,
+                                          logger.log_port, logger.live_port,
                                           event_check=event_check,
                                           check_exists=check_exists)
 

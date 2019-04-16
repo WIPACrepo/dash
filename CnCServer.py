@@ -264,8 +264,8 @@ class DAQPool(object):
 
             if len(deadList) > 0:
                 self.cycle_components(deadList, runConfig.configdir,
-                                      daqDataDir, logger, logger.logPort,
-                                      logger.livePort)
+                                      daqDataDir, logger, logger.log_port,
+                                      logger.live_port)
 
     def __returnComponents(self, compList, logger):
         ComponentGroup.run_simple(OpResetComponent, compList, (), logger,
@@ -971,8 +971,8 @@ class CnCServer(DAQPool):
                                 event_check=False):
         cluCfg = self.getClusterConfig(runConfig=rs.run_config_data)
         rs.restart_all_components(cluCfg, self.__runConfigDir,
-                                  self.__daqDataDir, self.__log.logPort,
-                                  self.__log.livePort, verbose=verbose,
+                                  self.__daqDataDir, self.__log.log_port,
+                                  self.__log.live_port, verbose=verbose,
                                   kill_with_9=kill_with_9,
                                   event_check=event_check)
 
@@ -980,8 +980,8 @@ class CnCServer(DAQPool):
                                event_check=False):
         cluCfg = self.getClusterConfig(runConfig=rs.run_config_data)
         rs.return_components(self, cluCfg, self.__runConfigDir,
-                             self.__daqDataDir, self.__log.logPort,
-                             self.__log.livePort, verbose=verbose,
+                             self.__daqDataDir, self.__log.log_port,
+                             self.__log.live_port, verbose=verbose,
                              kill_with_9=kill_with_9, event_check=event_check)
 
     def rpc_close_files(self, fdList):
@@ -1071,7 +1071,7 @@ class CnCServer(DAQPool):
         return self.__listComponentDicts(self.__getComponents(idList, getAll))
 
     def rpc_component_register(self, name, num, host, port, mbeanPort,
-                               connArray):
+                                  connArray):
         "register a component with the server"
 
         if not isinstance(name, str) or len(name) == 0:
@@ -1124,9 +1124,9 @@ class CnCServer(DAQPool):
             self.__log.debug("Ignoring previously registered %s" %
                              client.fullname)
 
-        logIP = ip.convertLocalhostToIpAddr(self.__log.logHost)
+        logIP = ip.convertLocalhostToIpAddr(self.__log.log_host)
 
-        logPort = self.__log.logPort
+        logPort = self.__log.log_port
         if logPort is None:
             if self.__logServer is not None:
                 logPort = self.__logServer.port
@@ -1134,9 +1134,9 @@ class CnCServer(DAQPool):
                 logIP = ""
                 logPort = 0
 
-        liveIP = ip.convertLocalhostToIpAddr(self.__log.liveHost)
+        liveIP = ip.convertLocalhostToIpAddr(self.__log.live_host)
 
-        livePort = self.__log.livePort
+        livePort = self.__log.live_port
         if livePort is None:
             liveIP = ""
             livePort = 0

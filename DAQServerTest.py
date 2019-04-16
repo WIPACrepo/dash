@@ -94,13 +94,13 @@ class TinyClient(object):
     def isSource(self):
         return True
 
-    def logTo(self, logIP, logPort, liveIP, livePort):
-        if liveIP is not None and livePort is not None:
+    def logTo(self, log_host, log_port, live_host, live_port):
+        if live_host is not None and live_port is not None:
             raise Exception('Cannot log to I3Live')
 
-        self.__log = SocketWriter(logIP, logPort)
+        self.__log = SocketWriter(log_host, log_port)
         self.__log.write_ts('Start of log at LOG=log(%s:%d)' %
-                            (logIP, logPort))
+                            (log_host, log_port))
         self.__log.write_ts('Version info: BRANCH 0:0 unknown unknown')
 
     def map(self):
@@ -263,7 +263,7 @@ class MockServer(CnCServer):
 
     def __init__(self, clusterConfigObject=None, copyDir=None,
                  runConfigDir=None, daqDataDir=None, spadeDir=None,
-                 logPort=None, livePort=None, forceRestart=False,
+                 log_port=None, live_port=None, forceRestart=False,
                  clientLog=None, logFactory=None):
         self.__clusterConfig = clusterConfigObject
         self.__clientLog = clientLog
@@ -273,8 +273,10 @@ class MockServer(CnCServer):
                                          runConfigDir=runConfigDir,
                                          daqDataDir=daqDataDir,
                                          spadeDir=spadeDir,
-                                         logIP='localhost', logPort=logPort,
-                                         liveIP='localhost', livePort=livePort,
+                                         logIP='localhost',
+                                         logPort=log_port,
+                                         liveIP='localhost',
+                                         livePort=live_port,
                                          forceRestart=forceRestart,
                                          testOnly=True)
 
@@ -312,8 +314,8 @@ class TestDAQServer(unittest.TestCase):
     def __getInternetAddress(self):
         return ip.getLocalIpAddr()
 
-    def __verifyRegArray(self, rtnArray, expId, logHost, logPort,
-                         liveHost, livePort):
+    def __verifyRegArray(self, rtnArray, expId, log_host, log_port,
+                         live_host, live_port):
         numElem = 6
         self.assertEqual(numElem, len(rtnArray),
                          'Expected %d-element array, not %d elements' %
@@ -321,18 +323,18 @@ class TestDAQServer(unittest.TestCase):
         self.assertEqual(expId, rtnArray["id"],
                          'Registration should return client ID#%d, not %d' %
                          (expId, rtnArray["id"]))
-        self.assertEqual(logHost, rtnArray["logIP"],
+        self.assertEqual(log_host, rtnArray["logIP"],
                          'Registration should return loghost %s, not %s' %
-                         (logHost, rtnArray["logIP"]))
-        self.assertEqual(logPort, rtnArray["logPort"],
+                         (log_host, rtnArray["logIP"]))
+        self.assertEqual(log_port, rtnArray["logPort"],
                          'Registration should return logport#%d, not %d' %
-                         (logPort, rtnArray["logPort"]))
-        self.assertEqual(liveHost, rtnArray["liveIP"],
+                         (log_port, rtnArray["logPort"]))
+        self.assertEqual(live_host, rtnArray["liveIP"],
                          'Registration should return livehost %s, not %s' %
-                         (liveHost, rtnArray["liveIP"]))
-        self.assertEqual(livePort, rtnArray["livePort"],
+                         (live_host, rtnArray["liveIP"]))
+        self.assertEqual(live_port, rtnArray["livePort"],
                          'Registration should return liveport#%d, not %d' %
-                         (livePort, rtnArray["livePort"]))
+                         (live_port, rtnArray["livePort"]))
 
     def setUp(self):
         self.__logFactory = SocketReaderFactory()
@@ -360,13 +362,13 @@ class TestDAQServer(unittest.TestCase):
         set_pdaq_config_dir(None, override=True)
 
     def testRegister(self):
-        logPort = 11853
-        logger = self.__createLog('file', logPort)
+        log_port = 11853
+        logger = self.__createLog('file', log_port)
 
-        liveHost = ''
-        livePort = 0
+        live_host = ''
+        live_port = 0
 
-        dc = MockServer(logPort=logPort, logFactory=self.__logFactory)
+        dc = MockServer(log_port=log_port, logFactory=self.__logFactory)
 
         self.assertEqual(dc.rpc_component_list_dicts(), [])
 
@@ -389,8 +391,8 @@ class TestDAQServer(unittest.TestCase):
 
         localAddr = self.__getInternetAddress()
 
-        self.__verifyRegArray(rtnArray, expId, localAddr, logPort,
-                              liveHost, livePort)
+        self.__verifyRegArray(rtnArray, expId, localAddr, log_port,
+                              live_host, live_port)
 
         self.assertEqual(dc.rpc_component_count(), 1)
 
@@ -406,15 +408,15 @@ class TestDAQServer(unittest.TestCase):
         logger.checkStatus(100)
 
     def testRegisterWithLog(self):
-        logPort = 23456
-        logger = self.__createLog('log', logPort)
+        log_port = 23456
+        logger = self.__createLog('log', log_port)
 
-        dc = MockServer(logPort=logPort, logFactory=self.__logFactory)
+        dc = MockServer(log_port=log_port, logFactory=self.__logFactory)
 
         logger.checkStatus(100)
 
-        liveHost = ''
-        livePort = 0
+        live_host = ''
+        live_port = 0
 
         name = 'foo'
         num = 0
@@ -435,17 +437,17 @@ class TestDAQServer(unittest.TestCase):
 
         localAddr = self.__getInternetAddress()
 
-        self.__verifyRegArray(rtnArray, expId, localAddr, logPort,
-                              liveHost, livePort)
+        self.__verifyRegArray(rtnArray, expId, localAddr, log_port,
+                              live_host, live_port)
 
         logger.checkStatus(100)
 
     def testNoRunset(self):
-        logPort = 11545
+        log_port = 11545
 
-        logger = self.__createLog('main', logPort)
+        logger = self.__createLog('main', log_port)
 
-        dc = MockServer(logPort=logPort,
+        dc = MockServer(log_port=log_port,
                         logFactory=self.__logFactory)
 
         logger.checkStatus(100)
@@ -466,9 +468,9 @@ class TestDAQServer(unittest.TestCase):
 
         set_pdaq_config_dir(self.__runConfigDir, override=True)
 
-        logPort = 21765
+        log_port = 21765
 
-        logger = self.__createLog('main', logPort)
+        logger = self.__createLog('main', log_port)
 
         clientPort = DAQPort.RUNCOMP_BASE
 
@@ -488,7 +490,7 @@ class TestDAQServer(unittest.TestCase):
         dc = MockServer(clusterConfigObject=cluCfg, copyDir="copyDir",
                         runConfigDir=self.__runConfigDir,
                         daqDataDir=self.__daqDataDir, spadeDir="/tmp",
-                        logPort=logPort, clientLog=clientLogger,
+                        log_port=log_port, clientLog=clientLogger,
                         logFactory=self.__logFactory)
 
         logger.checkStatus(100)

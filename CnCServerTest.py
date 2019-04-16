@@ -143,7 +143,7 @@ class MostlyRunSet(RunSet):
                            dashlog=self.__dashlog)
 
     def cycle_components(self, compList, configDir, daqDataDir, logger,
-                         logPort, livePort, verbose=False, kill_with_9=False,
+                         log_port, live_port, verbose=False, kill_with_9=False,
                          event_check=False, check_exists=True):
         logger.error("Cycling components %s" %
                      (ComponentManager.format_component_list(compList), ))
@@ -399,23 +399,23 @@ class RealComponent(object):
             return []
         return list(self.__bean.keys())
 
-    def __logTo(self, logHost, logPort, liveHost, livePort):
-        if logHost is not None and logHost == '':
-            logHost = None
-        if logPort is not None and logPort == 0:
-            logPort = None
-        if liveHost is not None and liveHost == '':
-            liveHost = None
-        if livePort is not None and livePort == 0:
-            livePort = None
-        if logPort != self.__expRunPort:
+    def __logTo(self, log_host, log_port, live_host, live_port):
+        if log_host is not None and log_host == '':
+            log_host = None
+        if log_port is not None and log_port == 0:
+            log_port = None
+        if live_host is not None and live_host == '':
+            live_host = None
+        if live_port is not None and live_port == 0:
+            live_port = None
+        if log_port != self.__expRunPort:
             print("Remapping %s runlog port from %s to %s" % \
-                (self, logPort, self.__expRunPort), file=sys.stderr)
-            logPort = self.__expRunPort
-        if liveHost is not None and livePort is not None:
+                (self, log_port, self.__expRunPort), file=sys.stderr)
+            log_port = self.__expRunPort
+        if live_host is not None and live_port is not None:
             raise Exception("Didn't expect I3Live logging")
 
-        self.__logger = SocketWriter(logHost, logPort)
+        self.__logger = SocketWriter(log_host, log_port)
         self.__logger.write('Test msg')
         return 'OK'
 

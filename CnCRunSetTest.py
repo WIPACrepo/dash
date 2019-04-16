@@ -34,18 +34,18 @@ class MockComponentLogger(MockLogger):
 
 
 class MockLoggerPlusPorts(MockLogger):
-    def __init__(self, name, logPort, livePort):
+    def __init__(self, name, log_port, live_port):
         super(MockLoggerPlusPorts, self).__init__(name)
-        self.__logPort = logPort
-        self.__livePort = livePort
+        self.__log_port = log_port
+        self.__live_port = live_port
 
     @property
-    def livePort(self):
-        return self.__livePort
+    def live_port(self):
+        return self.__live_port
 
     @property
-    def logPort(self):
-        return self.__logPort
+    def log_port(self):
+        return self.__log_port
 
 
 class MockConn(object):
@@ -197,7 +197,7 @@ class MockComponent(object):
     def isSource(self):
         return self.__name.lower().endswith("hub")
 
-    def logTo(self, host, port, liveHost, livePort):
+    def logTo(self, host, port, live_host, live_port):
         pass
 
     @property
@@ -327,8 +327,8 @@ class MyRunSet(RunSet):
         return rd
 
     @classmethod
-    def cycle_components(cls, compList, configDir, daqDataDir, logger, logPort,
-                         livePort, verbose=False, kill_with_9=False,
+    def cycle_components(cls, compList, configDir, daqDataDir, logger,
+                         log_port, live_port, verbose=False, kill_with_9=False,
                          event_check=False, check_exists=True):
         compStr = ComponentManager.format_component_list(compList)
         logger.error("Cycling components %s" % compStr)
@@ -371,10 +371,10 @@ class MostlyCnCServer(CnCServer):
         return MyRunSet(self, runConfig, compList, logger)
 
     def cycle_components(self, compList, runConfigDir, daqDataDir, logger,
-                         logPort, livePort, verbose=False, kill_with_9=False,
+                         log_port, live_port, verbose=False, kill_with_9=False,
                          event_check=False):
         MyRunSet.cycle_components(compList, runConfigDir, daqDataDir, logger,
-                                  logPort, livePort, verbose=verbose,
+                                  log_port, live_port, verbose=verbose,
                                   kill_with_9=kill_with_9,
                                   event_check=event_check)
 
