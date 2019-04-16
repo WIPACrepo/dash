@@ -15,12 +15,18 @@ class ComponentOperationException(Exception):
 class ComponentOperation(object):
     "Send a command or query to a component in a runset"
 
+    def __str__(self):
+        "Return the name of this operator"
+        return self.name
+
     @classproperty
     def has_result(cls):
+        "Does this operator return a result?"
         return True
 
     @classproperty
     def name(cls):
+        "Return the name of this operator"
         name = cls.__name__
         if name is not None and name.startswith("Op"):
             return name[2:]
@@ -214,7 +220,7 @@ class ComponentResult(OperationResult):
             astr = str(self.__arguments)
 
         return "%s:%s(%s) => <%s>%s" % \
-            (self.__comp.fullname, self.__operation, astr,
+            (self.__comp.fullname, self.__operation.name, astr,
              type(self.__value).__name__, self.__value)
 
     @property
@@ -255,14 +261,15 @@ class ComponentThread(Thread):
     def report_exception(self, exception):
         if isinstance(exception, BeanTimeoutException):
             self.__logger.error("%s(%s): %s" %
-                                (self.__operation, self.__comp, exc_string()))
+                                (self.__operation.name, self.__comp.fullname,
+                                 exc_string()))
         else:
             if self.__args is None or len(self.__args) != 2:
                 name = self.__comp.name
             else:
                 name = ",".join(map(str, self.__args))
             self.__logger.error("%s(%s): %s" %
-                                (self.__operation, name, exc_string()))
+                                (self.__operation.name, name, exc_string()))
 
     @property
     def result(self):
@@ -318,7 +325,7 @@ class ComponentGroup(ThreadGroup):
                 results[thrd] = result
             elif thrd.component in results:
                 logger.error("Found multiple %s results for %s" %
-                             (self.__op, thrd.component))
+                             (self.__op.name, thrd.component))
             else:
                 results[thrd.component] = result
         return results
