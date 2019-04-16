@@ -2,6 +2,7 @@
 
 from DAQClient import BeanTimeoutException
 from ThreadGroup import Thread, ThreadGroup
+from decorators import classproperty
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -9,18 +10,6 @@ set_exc_string_encoding("ascii")
 
 class ComponentOperationException(Exception):
     pass
-
-
-class classproperty(object):
-    "Decorator for class properties"
-
-    def __init__(self, func):
-        "Save the class method"
-        self.func = func
-
-    def __get__(self, obj, owner):
-        "Execute the class method"
-        return self.func(owner)
 
 
 class ComponentOperation(object):
