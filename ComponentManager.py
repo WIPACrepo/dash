@@ -176,11 +176,13 @@ class ComponentManager(object):
         user = os.environ['USER']
 
         if comp.isLocalhost:
+            ssh_prefix = ""
             kill_opt = "-fu %s" % (user, )
         else:
+            ssh_prefix = "ssh %s " % (comp.host, )
             kill_opt = "-f"
 
-        fmt_str = "pkill %%s %s \"%s\"" % (kill_opt, kill_str)
+        fmt_str = "%spkill %%s %s \"%s\"" % (ssh_prefix, kill_opt, kill_str)
 
         # add '-' on first command
         if kill_with_9:
@@ -650,7 +652,7 @@ class ComponentManager(object):
         (All list elements should be Component objects)
         """
         if parallel is None:
-            parallel = ParallelShell(dryRun=dryRun, verbose=verbose,
+            parallel = ParallelShell(dryRun=dry_run, verbose=verbose,
                                      trace=verbose, timeout=30)
 
         meta_dir = find_pdaq_trunk()
@@ -665,17 +667,29 @@ class ComponentManager(object):
                 raise SystemExit("Cannot find jar file directory \"%s\"" %
                                  bin_dir)
 
+        # how are I/O streams handled?
+        if not verbose:
+            quiet_str = " </dev/null >/dev/null 2>&1"
+        else:
+            quiet_str = ""
+
         cmd2host = {}
         for comp in comp_list:
             if comp.jvmPath is None:
                 continue
 
-            cmd = cls.__build_start_cmd(comp, dry_run, verbose, config_dir,
-                                        daq_data_dir, bin_dir, log_port,
-                                        live_port, event_check, check_exists,
-                                        logger)
-            if cmd is None:
+            basecmd = cls.__build_start_cmd(comp, dry_run, verbose, config_dir,
+                                            daq_data_dir, bin_dir, log_port,
+                                            live_port, event_check,
+                                            check_exists, logger)
+            if basecmd is None:
                 continue
+
+            if comp.isLocalhost:
+                cmd = basecmd
+            else:
+                cmd = "ssh -n %s 'sh -c \"%s\"%s &'" % \
+                    (comp.host, basecmd, quiet_str)
 
             cmd2host[cmd] = comp.host
             if verbose or dry_run:
