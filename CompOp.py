@@ -193,7 +193,7 @@ class OpTerminate(VoidOperation):
 
 class OperationResult(object):
     def __init__(self, name):
-        self.__name = name
+        self.__name = str(name)
 
     def __str__(self):
         return self.__name
@@ -208,14 +208,14 @@ class ComponentResult(OperationResult):
         self.__arguments = arguments
         self.__value = value
 
-        super(ComponentResult, self).__init__(str(operation))
+        super(ComponentResult, self).__init__(operation)
 
     def __str__(self):
         if self.__arguments is None:
             astr = "NONE"
         elif isinstance(self.__arguments, list) or \
              isinstance(self.__arguments, tuple):
-            astr = ",".join(self.__arguments)
+            astr = ",".join(str(arg) for arg in self.__arguments)
         else:
             astr = str(self.__arguments)
 
