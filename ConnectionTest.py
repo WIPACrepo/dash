@@ -69,7 +69,7 @@ class Node(object):
 class ConnectionTest(unittest.TestCase):
     EXP_ID = 1
 
-    def buildRunset(self, nodeList, extra_loud=True):
+    def __build_runset(self, nodeList, extra_loud=True):
         if LOUD:
             print('-- Nodes')
             for node in nodeList:
@@ -224,7 +224,7 @@ class ConnectionTest(unittest.TestCase):
         #
         allNodes = [n1a, n1b, n2, n3, n4]
 
-        self.buildRunset(allNodes)
+        self.__build_runset(allNodes)
 
     def testStandard(self):
         # build nodes
@@ -266,7 +266,7 @@ class ConnectionTest(unittest.TestCase):
         for i in ihList:
             allNodes.append(i)
 
-        self.buildRunset(allNodes)
+        self.__build_runset(allNodes)
 
     def testComplex(self):
         # build nodes
@@ -302,7 +302,7 @@ class ConnectionTest(unittest.TestCase):
         #
         allNodes = [a1, a2, b1, b2, c, d, e, f, g, h, i]
 
-        self.buildRunset(allNodes)
+        self.__build_runset(allNodes)
 
 
 if __name__ == '__main__':
