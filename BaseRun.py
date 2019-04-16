@@ -696,7 +696,7 @@ class BaseRun(object):
         #
         self.__update_db_prog = \
             os.path.join(os.environ["HOME"], "gcd-update", "config-update.sh")
-        if not self.checkExists("GCD update", self.__update_db_prog, False):
+        if not self.__check_exists("GCD update", self.__update_db_prog, False):
             self.__update_db_prog = None
 
         # make sure run-config directory exists
@@ -707,7 +707,7 @@ class BaseRun(object):
                              self.__config_dir)
 
     @staticmethod
-    def checkExists(name, path, fatal=True):
+    def __check_exists(name, path, fatal=True):
         """
         Exit if the specified path does not exist
 
@@ -1059,7 +1059,7 @@ class BaseRun(object):
             return
 
         runCfgPath = os.path.join(self.__config_dir, runCfgName + ".xml")
-        self.checkExists("Run configuration", runCfgPath)
+        self.__check_exists("Run configuration", runCfgPath)
 
         cmd = "%s %s" % (self.__update_db_prog, runCfgPath)
         self.logCmd(cmd)

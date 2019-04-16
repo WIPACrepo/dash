@@ -2006,7 +2006,7 @@ class MockParallelShell(object):
         self.__checkCmd(cmd)
 
     def addExpectedJava(self, comp, configDir, daqDataDir, logPort, livePort,
-                        verbose, eventCheck, host):
+                        verbose, event_check, host):
 
         ipAddr = ip.getLocalIpAddr(host)
         jarPath = os.path.join(MockParallelShell.BINDIR,
@@ -2048,7 +2048,7 @@ class MockParallelShell(object):
 
         if comp.isHub:
             cmd += " -Dicecube.daq.stringhub.componentId=%d" % comp.id
-        if eventCheck and comp.isBuilder:
+        if event_check and comp.isBuilder:
             cmd += ' -Dicecube.daq.eventBuilder.validateEvents'
 
         cmd += ' -jar %s' % jarPath
@@ -2069,8 +2069,8 @@ class MockParallelShell(object):
 
         self.__addExpected(cmd)
 
-    def addExpectedJavaKill(self, compName, compId, killWith9, verbose, host):
-        if killWith9:
+    def addExpectedJavaKill(self, compName, compId, kill_with_9, verbose, host):
+        if kill_with_9:
             nineArg = '-9'
         else:
             nineArg = ''
@@ -2092,7 +2092,7 @@ class MockParallelShell(object):
         self.__addExpected('%spkill %s%s \"%s\"' %
                            (sshCmd, nineArg, pkillOpt, killPat))
 
-        if not killWith9:
+        if not kill_with_9:
             self.__addExpected('sleep 2; %spkill -9%s \"%s\"' %
                                (sshCmd, pkillOpt, killPat))
 
@@ -2122,7 +2122,7 @@ class MockParallelShell(object):
 
             self.__addExpected(cmd)
 
-    def addExpectedPythonKill(self, doCnC, killWith9):
+    def addExpectedPythonKill(self, doCnC, kill_with_9):
         pass
 
     def addExpectedRsync(self, dir, subdirs, delete, dryRun, remoteHost,

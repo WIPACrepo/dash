@@ -13,10 +13,10 @@ LOUD = False
 
 
 class MyDAQPool(DAQPool):
-    def returnRunsetComponents(self, rs, verbose=False, killWith9=True,
-                               eventCheck=False):
-        rs.return_components(self, None, None, None, None, None, None, None,
-                             None)
+    def returnRunsetComponents(self, rs, verbose=False, kill_with_9=True,
+                               event_check=False):
+        rs.return_components(self, None, None, None, None, None, verbose=False,
+                             kill_with_9=False, event_check=False)
 
 
 class Node(object):

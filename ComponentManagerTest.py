@@ -209,18 +209,18 @@ class ComponentManagerTest(unittest.TestCase):
                     else:
                         livePort = None
 
-                    for eventCheck in (True, False):
+                    for event_check in (True, False):
                         parallel = MockParallelShell()
 
                         parallel.addExpectedJava(comp, configDir, daqDataDir,
                                                  logPort, livePort, verbose,
-                                                 eventCheck, host)
+                                                 event_check, host)
 
                         ComponentManager.start_components(node.components(),
                                                           dryRun, verbose,
                                                           configDir, daqDataDir,
                                                           logPort, livePort,
-                                                          event_check=eventCheck,
+                                                          event_check=event_check,
                                                           check_exists=chkExists,
                                                           parallel=parallel)
 
@@ -259,16 +259,16 @@ class ComponentManagerTest(unittest.TestCase):
                               jvmHeapMax, jvmArgs, jvmExtra, alertEMail,
                               ntpHost)
 
-                for killWith9 in (True, False):
+                for kill_with_9 in (True, False):
                     parallel = MockParallelShell()
 
-                    parallel.addExpectedJavaKill(compName, compId, killWith9,
+                    parallel.addExpectedJavaKill(compName, compId, kill_with_9,
                                                  verbose, host)
 
                     ComponentManager.kill_components(node.components(),
                                                      dry_run=dryRun,
                                                      verbose=verbose,
-                                                     kill_with_9=killWith9,
+                                                     kill_with_9=kill_with_9,
                                                      parallel=parallel)
 
                     parallel.check()
@@ -390,16 +390,16 @@ class ComponentManagerTest(unittest.TestCase):
                               jvmHeapMax, jvmArgs, jvmExtra, alertEMail,
                               ntpHost)
 
-                for killWith9 in (True, False):
+                for kill_with_9 in (True, False):
                     parallel = MockParallelShell()
 
-                    parallel.addExpectedPythonKill(doCnC, killWith9)
-                    parallel.addExpectedJavaKill(compName, compId, killWith9,
+                    parallel.addExpectedPythonKill(doCnC, kill_with_9)
+                    parallel.addExpectedJavaKill(compName, compId, kill_with_9,
                                                  verbose, host)
 
                     ComponentManager.kill(node.components(), verbose=verbose,
                                           dry_run=dryRun, kill_cnc=doCnC,
-                                          kill_with_9=killWith9,
+                                          kill_with_9=kill_with_9,
                                           logger=runLogger, parallel=parallel)
 
                     parallel.check()

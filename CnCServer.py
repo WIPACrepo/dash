@@ -302,11 +302,12 @@ class DAQPool(object):
         return RunSet(self, runConfig, compList, logger)
 
     def cycle_components(self, compList, runConfigDir, daqDataDir, logger,
-                         logPort, livePort, verbose=False, killWith9=False,
-                         eventCheck=False):
+                         logPort, livePort, verbose=False, kill_with_9=False,
+                         event_check=False):
         RunSet.cycle_components(compList, runConfigDir, daqDataDir, logger,
-                                logPort, livePort, verbose, killWith9,
-                                eventCheck)
+                                logPort, livePort, verbose=verbose,
+                                kill_with_9=kill_with_9,
+                                event_check=event_check)
 
     def findRunset(self, id):
         "Find the runset with the specified ID"
@@ -438,8 +439,8 @@ class DAQPool(object):
 
         return comp
 
-    def restartRunset(self, rs, logger, verbose=False, killWith9=False,
-                      eventCheck=False):
+    def restartRunset(self, rs, logger, verbose=False, kill_with_9=False,
+                      event_check=False):
         try:
             self.__removeRunset(rs)
         except ValueError:
@@ -448,16 +449,16 @@ class DAQPool(object):
 
         try:
             self.restartRunsetComponents(rs, verbose=verbose,
-                                         killWith9=killWith9,
-                                         eventCheck=eventCheck)
+                                         kill_with_9=kill_with_9,
+                                         event_check=event_check)
         except:
             logger.error("Cannot restart %s (#%d available - %s): %s" %
                          (rs, len(self.__sets), self.__sets, exc_string()))
 
         rs.destroy(ignore_components=True)
 
-    def restartRunsetComponents(self, rs, verbose=False, killWith9=True,
-                                eventCheck=False):
+    def restartRunsetComponents(self, rs, verbose=False, kill_with_9=True,
+                                event_check=False):
         "Placeholder for subclass method"
         raise CnCServerException("Unimplemented for %s" % type(self))
 
@@ -516,8 +517,8 @@ class DAQPool(object):
         if savedEx:
             raise savedEx[0], savedEx[1], savedEx[2]
 
-    def returnRunsetComponents(self, rs, verbose=False, killWith9=True,
-                               eventCheck=False):
+    def returnRunsetComponents(self, rs, verbose=False, kill_with_9=True,
+                               event_check=False):
         "Placeholder for subclass method"
         raise CnCServerException("Unimplemented for %s" % type(self))
 
@@ -966,21 +967,22 @@ class CnCServer(DAQPool):
         logName = os.path.join(logDir, "catchall.log")
         return LogSocketServer(port, "CnCServer", logName, quiet=self.__quiet)
 
-    def restartRunsetComponents(self, rs, verbose=False, killWith9=True,
-                                eventCheck=False):
+    def restartRunsetComponents(self, rs, verbose=False, kill_with_9=True,
+                                event_check=False):
         cluCfg = self.getClusterConfig(runConfig=rs.run_config_data)
         rs.restart_all_components(cluCfg, self.__runConfigDir,
                                   self.__daqDataDir, self.__log.logPort,
                                   self.__log.livePort, verbose=verbose,
-                                  killWith9=killWith9, eventCheck=eventCheck)
+                                  kill_with_9=kill_with_9,
+                                  event_check=event_check)
 
-    def returnRunsetComponents(self, rs, verbose=False, killWith9=True,
-                               eventCheck=False):
+    def returnRunsetComponents(self, rs, verbose=False, kill_with_9=True,
+                               event_check=False):
         cluCfg = self.getClusterConfig(runConfig=rs.run_config_data)
         rs.return_components(self, cluCfg, self.__runConfigDir,
                              self.__daqDataDir, self.__log.logPort,
                              self.__log.livePort, verbose=verbose,
-                             killWith9=killWith9, eventCheck=eventCheck)
+                             kill_with_9=kill_with_9, event_check=event_check)
 
     def rpc_close_files(self, fdList):
         savedEx = None

@@ -143,8 +143,8 @@ class MostlyRunSet(RunSet):
                            dashlog=self.__dashlog)
 
     def cycle_components(self, compList, configDir, daqDataDir, logger,
-                         logPort, livePort, verbose, killWith9, eventCheck,
-                         checkExists=True):
+                         logPort, livePort, verbose=False, kill_with_9=False,
+                         event_check=False, check_exists=True):
         logger.error("Cycling components %s" %
                      (ComponentManager.format_component_list(compList), ))
 

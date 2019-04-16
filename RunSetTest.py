@@ -219,8 +219,8 @@ class MyRunSet(RunSet):
 
     @classmethod
     def cycle_components(cls, compList, configDir, daqDataDir, logger, logPort,
-                         livePort, verbose, killWith9, eventCheck,
-                         checkExists=True):
+                         livePort, verbose=False, kill_with_9=False,
+                         event_check=False, check_exists=True):
         pass
 
     def final_report(self, comps, runData, had_error=False, switching=False):
@@ -885,7 +885,8 @@ class TestRunSet(unittest.TestCase):
             logger.addExpectedExact(errMsg)
 
         runset.restart_components(compList[:], clusterCfg, None, None, None,
-                                  None, False, False, False)
+                                  None, verbose=False, kill_with_9=False,
+                                  event_check=False)
 
     def testRestartExtraComp(self):
         compList = self.__buildCompList(("sleepy", "sneezy", "happy", "grumpy",
@@ -921,8 +922,9 @@ class TestRunSet(unittest.TestCase):
         if errMsg is not None:
             logger.addExpectedExact(errMsg)
 
-        runset.restart_components(longList, clusterCfg, None, None, None,
-                                  None, False, False, False)
+        runset.restart_components(compList[:], clusterCfg, None, None, None,
+                                  None, verbose=False, kill_with_9=False,
+                                  event_check=False)
 
     def testRestart(self):
         compList = self.__buildCompList(("sleepy", "sneezy", "happy", "grumpy",
@@ -947,7 +949,8 @@ class TestRunSet(unittest.TestCase):
             logger.addExpectedExact(errMsg)
 
         runset.restart_components(compList[:], clusterCfg, None, None, None,
-                                  None, False, False, False)
+                                  None, verbose=False, kill_with_9=False,
+                                  event_check=False)
 
     def testRestartAll(self):
         compList = self.__buildCompList(("sleepy", "sneezy", "happy", "grumpy",
@@ -972,7 +975,8 @@ class TestRunSet(unittest.TestCase):
             logger.addExpectedExact(errMsg)
 
         runset.restart_all_components(clusterCfg, None, None, None, None,
-                                      False, False, False)
+                                      verbose=False, kill_with_9=False,
+                                      event_check=False)
 
     def testShortStopWithoutStart(self):
         compList = self.__buildCompList(("one", "two", "three"))

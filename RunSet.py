@@ -2372,8 +2372,8 @@ class RunSet(object):
 
     @classmethod
     def cycle_components(cls, comp_list, config_dir, daq_data_dir, logger,
-                         log_port, live_port, verbose, killWith9, event_check,
-                         check_exists=True):
+                         log_port, live_port, verbose=False, kill_with_9=False,
+                         event_check=False, check_exists=True):
 
         # sort list into a predictable order for unit tests
         #
@@ -2381,11 +2381,13 @@ class RunSet(object):
                      (ComponentManager.format_component_list(comp_list), ))
 
         dry_run = False
-        ComponentManager.kill_components(comp_list, dry_run, verbose, killWith9)
+        ComponentManager.kill_components(comp_list, dry_run=dry_run,
+                                         verbose=verbose,
+                                         kill_with_9=kill_with_9)
         ComponentManager.start_components(comp_list, dry_run, verbose,
                                           config_dir, daq_data_dir,
                                           logger.logPort, logger.livePort,
-                                          event_check,
+                                          event_check=event_check,
                                           check_exists=check_exists)
 
     def destroy(self, ignore_components=False):
@@ -2703,17 +2705,18 @@ class RunSet(object):
                                   report_errors=False)
 
     def restart_all_components(self, cluster_config, config_dir, daq_data_dir,
-                               log_port, live_port, verbose, killWith9,
-                               eventCheck):
+                               log_port, live_port, verbose=False,
+                               kill_with_9=False, event_check=False):
         # restarted components are removed from self.__set, so we need to
         # pass in a copy of self.__set, because we'll need self.__set intact
         self.restart_components(self.__set[:], cluster_config, config_dir,
-                                daq_data_dir, log_port, live_port, verbose,
-                                killWith9, eventCheck)
+                                daq_data_dir, log_port, live_port,
+                                verbose=verbose, kill_with_9=kill_with_9,
+                                event_check=event_check)
 
     def restart_components(self, comp_list, cluster_config, config_dir,
-                           daq_data_dir, log_port, live_port, verbose,
-                           killWith9, eventCheck):
+                           daq_data_dir, log_port, live_port, verbose=False,
+                           kill_with_9=False, event_check=False):
         """
         Remove all components in 'comp_list' (and which are found in
         'cluster_config') from the runset and restart them
@@ -2736,16 +2739,19 @@ class RunSet(object):
                     break
 
         self.cycle_components(clu_cfg_list, config_dir, daq_data_dir,
-                              self.__logger, log_port, live_port, verbose,
-                              killWith9, eventCheck)
+                              self.__logger, log_port, live_port,
+                              verbose=verbose, kill_with_9=kill_with_9,
+                              event_check=event_check)
 
     def return_components(self, pool, cluster_config, config_dir, daq_data_dir,
-                          log_port, live_port, verbose, killWith9, eventCheck):
+                          log_port, live_port, verbose=False,
+                          kill_with_9=False, event_check=False):
         bad_comps = self.reset()
         if len(bad_comps) > 0:
             self.restart_components(bad_comps, cluster_config, config_dir,
-                                    daq_data_dir, log_port, live_port, verbose,
-                                    killWith9, eventCheck)
+                                    daq_data_dir, log_port, live_port,
+                                    verbose=verbose, kill_with_9=kill_with_9,
+                                    event_check=event_check)
 
         # transfer components back to pool
         #

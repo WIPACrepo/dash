@@ -113,7 +113,7 @@ class TestDAQLaunch(unittest.TestCase):
         args.set_argument("validate", False)
         args.set_argument("verbose", False)
         args.set_argument("dryRun", False)
-        args.set_argument("eventCheck", False)
+        args.set_argument("event_check", False)
         args.set_argument("forceRestart", force_restart)
 
         launch(config_dir, dash_dir, logger, args=args, parallel=shell,
@@ -143,7 +143,7 @@ class TestDAQLaunch(unittest.TestCase):
         logger = None
 
         shell = MockParallelShell()
-        shell.addExpectedPythonKill(True, killWith9=kill_with_9)
+        shell.addExpectedPythonKill(True, kill_with_9=kill_with_9)
 
         run_cfg_file = MockRunConfigFile(config_dir)
         cfg_name = run_cfg_file.create(list(comp_host_dict.keys()), {})
@@ -161,7 +161,7 @@ class TestDAQLaunch(unittest.TestCase):
         args.set_argument("serverKill", True)
         args.set_argument("verbose", False)
         args.set_argument("dryRun", False)
-        args.set_argument("killWith9", kill_with_9)
+        args.set_argument("kill_with_9", kill_with_9)
         args.set_argument("force", True)
 
         kill(config_dir, logger, args=args)

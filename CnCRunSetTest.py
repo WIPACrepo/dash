@@ -328,8 +328,8 @@ class MyRunSet(RunSet):
 
     @classmethod
     def cycle_components(cls, compList, configDir, daqDataDir, logger, logPort,
-                         livePort, verbose, killWith9, eventCheck,
-                         checkExists=True):
+                         livePort, verbose=False, kill_with_9=False,
+                         event_check=False, check_exists=True):
         compStr = ComponentManager.format_component_list(compList)
         logger.error("Cycling components %s" % compStr)
 
@@ -371,11 +371,12 @@ class MostlyCnCServer(CnCServer):
         return MyRunSet(self, runConfig, compList, logger)
 
     def cycle_components(self, compList, runConfigDir, daqDataDir, logger,
-                         logPort, livePort, verbose=False, killWith9=False,
-                         eventCheck=False):
+                         logPort, livePort, verbose=False, kill_with_9=False,
+                         event_check=False):
         MyRunSet.cycle_components(compList, runConfigDir, daqDataDir, logger,
                                   logPort, livePort, verbose=verbose,
-                                  killWith9=killWith9, eventCheck=eventCheck)
+                                  kill_with_9=kill_with_9,
+                                  event_check=event_check)
 
     def getClusterConfig(self, runConfig=None):
         return self.__clusterConfig

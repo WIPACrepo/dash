@@ -47,7 +47,7 @@ class ConsoleLogger(object):
 
 def add_arguments_both(parser):
     "Add arguments which apply to both 'pdaq kill' and 'pdaq launch'"
-    parser.add_argument("-9", "--kill-kill", dest="killWith9",
+    parser.add_argument("-9", "--kill-kill", dest="kill_with_9",
                         action="store_true", default=False,
                         help="just kill everything with extreme (-9)"
                         " prejudice")
@@ -93,7 +93,7 @@ def add_arguments_launch(parser, config_as_arg=True):
                         action="store_false", default=True,
                         help="Do not force healthy components to restart at"
                         " run end")
-    parser.add_argument("-e", "--event-check", dest="eventCheck",
+    parser.add_argument("-e", "--event-check", dest="event_check",
                         action="store_true", default=False,
                         help="Event builder will validate events")
     parser.add_argument("-k", "--kill-only", dest="killOnly",
@@ -119,10 +119,10 @@ def check_arguments(args):
             raise SystemExit("Cannot specify both -k(illOnly) and -s(kipKill")
         if args.configName is not None:
             ignored.append("--config-name")
-        if args.eventCheck:
+        if args.event_check:
             ignored.append("--event-check")
     elif args.skipKill:
-        if args.killWith9:
+        if args.kill_with_9:
             ignored.append("--kill-kill")
         if args.force:
             ignored.append("--force")
@@ -162,7 +162,7 @@ def kill(config_dir, logger, args=None):
         server_kill = args.serverKill
         verbose = args.verbose
         dry_run = args.dryRun
-        kill_with_9 = args.killWith9
+        kill_with_9 = args.kill_with_9
         force = args.force
 
     comps = ComponentManager.get_active_components(cluster_desc,
@@ -200,7 +200,7 @@ def launch(config_dir, dash_dir, logger, parallel=None, check_exists=True,
         validate = args.validate
         verbose = args.verbose
         dry_run = args.dryRun
-        event_check = args.eventCheck
+        event_check = args.event_check
         force_restart = args.forceRestart
 
     if config_name is None:
