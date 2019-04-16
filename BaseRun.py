@@ -843,7 +843,7 @@ class BaseRun(object):
 
         doCnC = True
         verbose = False
-        eventCheck = True
+        event_check = True
 
         logPort = None
         livePort = DAQPort.I3LIVE_ZMQ
@@ -855,7 +855,7 @@ class BaseRun(object):
                                 log_dir=logDir, log_dir_fallback=logDirFallback,
                                 spade_dir=spadeDir, copy_dir=copyDir,
                                 log_port=logPort, live_port=livePort,
-                                event_check=eventCheck,
+                                event_check=event_check,
                                 logger=self.__logger)
 
         # give components a chance to start
