@@ -922,7 +922,7 @@ class TestRunSet(unittest.TestCase):
         if errMsg is not None:
             logger.addExpectedExact(errMsg)
 
-        runset.restart_components(compList[:], clusterCfg, None, None, None,
+        runset.restart_components(longList, clusterCfg, None, None, None,
                                   None, verbose=False, kill_with_9=False,
                                   event_check=False)
 
