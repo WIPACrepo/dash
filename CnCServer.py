@@ -1071,7 +1071,7 @@ class CnCServer(DAQPool):
         return self.__listComponentDicts(self.__getComponents(idList, getAll))
 
     def rpc_component_register(self, name, num, host, port, mbeanPort,
-                                  connArray):
+                               connArray):
         "register a component with the server"
 
         if not isinstance(name, str) or len(name) == 0:
