@@ -187,7 +187,8 @@ class BaseAppender(object):
         "Close the appender"
         pass
 
-    def getName(self):
+    @property
+    def name(self):
         "Return this appender's name"
         return self.__name
 
@@ -206,7 +207,7 @@ class BaseFileAppender(BaseAppender):
 
     def _write(self, fdesc, mtime, msg):
         "Format the log message and write it to the file"
-        print("%s [%s] %s" % (self.getName(), mtime, msg), file=fdesc)
+        print("%s [%s] %s" % (self.name, mtime, msg), file=fdesc)
         fdesc.flush()
 
     def close(self):
@@ -222,7 +223,7 @@ class BaseFileAppender(BaseAppender):
     def write(self, msg, mtime=None, level=None):
         "Write log message to local file"
         if self.__fdesc is None:
-            raise LogException('Appender %s has been closed' % self.getName())
+            raise LogException('Appender %s has been closed' % (self.name, ))
 
         if mtime is None:
             mtime = datetime.datetime.now()
@@ -286,7 +287,7 @@ class DAQLog(object):
             for apnd in self.__appender_list:
                 apnd.write(msg, level=level)
 
-    def addAppender(self, appender):
+    def add_appender(self, appender):
         "Add an appender"
         if appender is None:
             raise LogException("Cannot add null appender")
@@ -316,7 +317,7 @@ class DAQLog(object):
         "Log a fatal message"
         self._logmsg(DAQLog.FATAL, msg)
 
-    def hasAppender(self):
+    def has_appender(self):
         "Does this logger have at least one appender?"
         return len(self.__appender_list) > 0
 
@@ -481,7 +482,7 @@ if __name__ == "__main__":
             try:
                 log_server.start_serving()
 
-                log.openLog("localhost", port, live_addr, live_port)
+                log.open_log("localhost", port, live_addr, live_port)
                 for idx in range(100):
                     msg = "Logging test message (%s) %d" % (args.logmsg, idx)
                     log.debug(msg)

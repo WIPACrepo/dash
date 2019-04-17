@@ -328,7 +328,7 @@ class MostlyRunSet(RunSet):
         pass
 
     @classmethod
-    def getComponentLog(cls, comp):
+    def get_component_log(cls, comp):
         if comp.fullname in cls.LOGDICT:
             return cls.LOGDICT[comp.fullname]
         return None
@@ -717,8 +717,8 @@ class RealComponent(object):
         elif self.__name != "eventBuilder":
             for conn in self.__connections:
                 if conn.getState() != 'running':
-                    print(("Comp %s is running before %s" %
-                           (str(conn), str(self))), file=sys.stderr)
+                    print("Comp %s is running before %s" %
+                          (str(conn), str(self)), file=sys.stderr)
 
         self.__state = 'running'
         return 'RUN#%d' % run_num
@@ -736,8 +736,8 @@ class RealComponent(object):
         elif self.__name != "eventBuilder":
             for conn in self.__connections:
                 if conn.getState() == 'stopped':
-                    print(("Comp %s is stopped before %s" %
-                           (str(conn), str(self))), file=sys.stderr)
+                    print("Comp %s is stopped before %s" %
+                          (str(conn), str(self)), file=sys.stderr)
 
         self.__state = 'ready'
         return 'STOP'
@@ -803,12 +803,6 @@ class RealComponent(object):
     def getMBeanPort(self):
         return self.__mbean.portnum
 
-    def getName(self):
-        return self.__name
-
-    def getNumber(self):
-        return self.__num
-
     def getState(self):
         return self.__get_state()
 
@@ -853,6 +847,14 @@ class RealComponent(object):
 
     def logTo(self, log_host, log_port, live_host, live_port):
         return self.__log_to(log_host, log_port, live_host, live_port)
+
+    @property
+    def name(self):
+        return self.__name
+
+    @property
+    def num(self):
+        return self.__num
 
     @property
     def order(self):
@@ -1164,7 +1166,7 @@ class IntegrationTest(unittest.TestCase):
             if live_log is not None and not live_run_only:
                 live_log.addExpectedText('Registered %s' % (comp.fullname, ))
                 live_log.addExpectedText('Hello from %s' % (comp, ))
-            comp.register(self.__get_connection_list(comp.getName()))
+            comp.register(self.__get_connection_list(comp.name))
 
     def __run_test(self, live, cnc, live_log, appender, dash_log, run_options,
                    live_run_only):
@@ -1181,7 +1183,7 @@ class IntegrationTest(unittest.TestCase):
                         value):
         set_data = False
         for comp in self.__comp_list:
-            if comp.getName() == comp_name and comp.getNumber() == comp_num:
+            if comp.name == comp_name and comp.num == comp_num:
                 comp.setMBean(bean_name, field_name, value)
                 set_data = True
                 break
@@ -1193,10 +1195,10 @@ class IntegrationTest(unittest.TestCase):
     def __set_run_data(self, num_evts, start_evt_time, last_evt_time, num_tcal,
                        num_sn, num_moni, first_good, last_good):
         for comp in self.__comp_list:
-            if comp.getName() == "eventBuilder":
+            if comp.name == "eventBuilder":
                 comp.setRunData(num_evts, start_evt_time, last_evt_time,
                                 first_good, last_good)
-            elif comp.getName() == "secondaryBuilders":
+            elif comp.name == "secondaryBuilders":
                 comp.setRunData(num_tcal, num_sn, num_moni)
 
     def __test_body(self, live, cnc, live_log, appender, dash_log,
@@ -1250,7 +1252,7 @@ class IntegrationTest(unittest.TestCase):
 
             for comp in self.__comp_list:
                 msg = 'Component list will require %s#%d' % \
-                    (comp.getName(), comp.getNumber())
+                    (comp.name, comp.num)
                 if live_log:
                     live_log.addExpectedText(msg)
 
@@ -1300,7 +1302,7 @@ class IntegrationTest(unittest.TestCase):
             for comp in keys:
                 live_log.addExpectedText('Hello from %s' % str(comp))
                 live_log.addExpectedTextRegexp(r'Version info: %s \S+ \S+ \S+' %
-                                               comp.getName())
+                                               comp.name)
 
         if runlog_info:
             msg = 'Configuring run set...'
@@ -1315,7 +1317,7 @@ class IntegrationTest(unittest.TestCase):
                 for comp in self.__comp_list:
                     msg = ('Creating moni output file %s/%s-%d.moni' +
                            ' (remote is localhost:%d)') % \
-                           (run_dir, comp.getName(), comp.getNumber(),
+                           (run_dir, comp.name, comp.num,
                             comp.getMBeanPort())
                     if appender and not live_run_only:
                         appender.addExpectedExact(msg)
@@ -1384,7 +1386,7 @@ class IntegrationTest(unittest.TestCase):
             active_dom_map = {}
             for comp in self.__comp_list:
                 if comp.isComponent("stringHub"):
-                    active_dom_map[str(comp.getNumber())] = 0
+                    active_dom_map[str(comp.num)] = 0
             live_log.addExpectedLiveMoni("activeDOMs", 0)
             live_log.addExpectedLiveMoni("expectedDOMs", 0)
             live_log.addExpectedLiveMoni("activeStringDOMs", active_dom_map,
@@ -1465,26 +1467,26 @@ class IntegrationTest(unittest.TestCase):
             if not appender or live_run_only:
                 clog = None
             else:
-                clog = MostlyRunSet.getComponentLog(comp)
+                clog = MostlyRunSet.get_component_log(comp)
                 if clog is None:
                     raise Exception('No log for %s#%d' %
-                                    (comp.getName(), comp.getNumber()))
+                                    (comp.name, comp.num))
 
-            if comp.getName() == 'eventBuilder':
+            if comp.name == 'eventBuilder':
                 msg = 'Prep subrun %d' % sub_run_id
                 if clog:
                     clog.addExpectedExact(msg)
                 if live_log:
                     live_log.addExpectedText(msg)
 
-            if comp.getName() == 'stringHub':
+            if comp.name == 'stringHub':
                 msg = 'Start subrun %s' % str(rpc_flash_list)
                 if clog:
                     clog.addExpectedExact(msg)
                 if live_log:
                     live_log.addExpectedText(msg)
 
-            if comp.getName() == 'eventBuilder':
+            if comp.name == 'eventBuilder':
                 pat_str = r'Commit subrun %d: \d+' % sub_run_id
                 if clog:
                     clog.addExpectedRegexp(pat_str)
@@ -1519,26 +1521,26 @@ class IntegrationTest(unittest.TestCase):
             if not appender or live_run_only:
                 clog = None
             else:
-                clog = MostlyRunSet.getComponentLog(comp)
+                clog = MostlyRunSet.get_component_log(comp)
                 if clog is None:
                     raise Exception('No log for %s#%d' %
-                                    (comp.getName(), comp.get_number()))
+                                    (comp.name, comp.get_number()))
 
-            if comp.getName() == 'eventBuilder':
+            if comp.name == 'eventBuilder':
                 msg = 'Prep subrun %d' % sub_run_id
                 if clog:
                     clog.addExpectedExact(msg)
                 if live_log:
                     live_log.addExpectedText(msg)
 
-            if comp.getName() == 'stringHub':
+            if comp.name == 'stringHub':
                 msg = 'Start subrun %s' % str([])
                 if clog:
                     clog.addExpectedExact(msg)
                 if live_log:
                     live_log.addExpectedText(msg)
 
-            if comp.getName() == 'eventBuilder':
+            if comp.name == 'eventBuilder':
                 pat_str = r'Commit subrun %d: \d+' % sub_run_id
                 if clog:
                     clog.addExpectedRegexp(pat_str)
@@ -1607,12 +1609,12 @@ class IntegrationTest(unittest.TestCase):
             if not appender or live_run_only:
                 clog = None
             else:
-                clog = MostlyRunSet.getComponentLog(comp)
+                clog = MostlyRunSet.get_component_log(comp)
                 if clog is None:
                     raise Exception('No log for %s#%d' %
-                                    (comp.getName(), comp.getNumber()))
+                                    (comp.name, comp.num))
 
-            msg = 'Stop %s#%d' % (comp.getName(), comp.getNumber())
+            msg = 'Stop %s#%d' % (comp.name, comp.num)
             if clog:
                 clog.addExpectedExact(msg)
             if live_log:
@@ -1816,7 +1818,7 @@ class IntegrationTest(unittest.TestCase):
 
                 need_hdr = True
                 for thrd in threading.enumerate():
-                    if thrd.getName() == "MainThread":
+                    if thrd.name == "MainThread":
                         continue
 
                     if need_hdr:

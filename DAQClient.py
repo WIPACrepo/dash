@@ -496,7 +496,7 @@ class DAQClient(ComponentName):
 
     def logTo(self, logIP, logPort, liveIP, livePort):
         "Send log messages to the specified host and port"
-        self.__log.openLog(logIP, logPort, liveIP, livePort)
+        self.__log.open_log(logIP, logPort, liveIP, livePort)
 
         if logIP is None:
             logIP = ''
@@ -549,12 +549,12 @@ class DAQClient(ComponentName):
 
     def reset(self):
         "Reset component back to the idle state"
-        self.__log.closeLog()
+        self.__log.close_log()
         return self.__client.xmlrpc.reset()
 
     def resetLogging(self):
         "Reset component back to the idle state"
-        self.__log.resetLog()
+        self.__log.reset_log()
         return self.__client.xmlrpc.resetLogging()
 
     def setFirstGoodTime(self, payTime):
@@ -652,7 +652,7 @@ class DAQClient(ComponentName):
                 state != DAQClientState.DEAD:
             raise DAQClientException("%s state is %s" % (self, state))
 
-        self.__log.closeFinal()
+        self.__log.close_final()
         try:
             self.__client.xmlrpc.terminate()
         except:

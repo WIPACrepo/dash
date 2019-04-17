@@ -662,7 +662,7 @@ class CnCServer(DAQPool):
             logIP = "localhost"
             logPort = DAQPort.CATCHALL
 
-        self.__log.openLog(logIP, logPort, liveIP, livePort)
+        self.__log.open_log(logIP, logPort, liveIP, livePort)
 
         if testOnly:
             self.__server = None
@@ -868,7 +868,7 @@ class CnCServer(DAQPool):
         ComponentGroup.run_simple(OpClose, self.components(), (), self.__log,
                                   report_errors=True)
 
-        self.__log.closeFinal()
+        self.__log.close_final()
         if self.__logServer is not None:
             self.__logServer.stop_serving()
             self.__logServer = None

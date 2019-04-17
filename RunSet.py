@@ -678,13 +678,13 @@ class RunData(object):
                 raise RunSetException("Run directory has not been specified")
             app = FileAppender("dashlog", os.path.join(self.__run_dir,
                                                        "dash.log"))
-            log.addAppender(app)
+            log.add_appender(app)
             added = True
 
         if RunOption.isLogToLive(self.__run_options):
             app = LiveSocketAppender("localhost", DAQPort.I3LIVE_ZMQ,
                                      priority=Prio.EMAIL)
-            log.addAppender(app)
+            log.add_appender(app)
             added = True
 
         if not added:
@@ -3066,7 +3066,7 @@ class RunSet(object):
                                   run_dir)
 
         log_name = os.path.join(run_dir, "%s-%d.log" % (comp.name, comp.num))
-        sock.setOutput(log_name)
+        sock.set_output(log_name)
 
     def switch_run(self, new_num):
         "Switch all components in the runset to a new run"

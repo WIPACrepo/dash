@@ -25,14 +25,14 @@ class LogInfo(object):
         return val
 
     def __str__(self):
-        outStr = ''
+        outstr = ''
         if self.__log_host is not None and self.__log_port is not None:
-            outStr += ' log(%s:%d)' % (self.__log_host, self.__log_port)
+            outstr += ' log(%s:%d)' % (self.__log_host, self.__log_port)
         if self.__live_host is not None and self.__live_port is not None:
-            outStr += ' live(%s:%d)' % (self.__live_host, self.__live_port)
-        if len(outStr) == 0:
+            outstr += ' live(%s:%d)' % (self.__live_host, self.__live_port)
+        if outstr == "":
             return 'NoInfo'
-        return outStr[1:]
+        return outstr[1:]
 
     @property
     def live_host(self):
@@ -59,109 +59,106 @@ class CnCLogger(DAQLog):
         self.__quiet = quiet
         self.__extra_loud = extra_loud
 
-        self.__prevInfo = None
-        self.__logInfo = None
+        self.__prev_info = None
+        self.__log_info = None
 
         super(CnCLogger, self).__init__(name, appender=appender)
 
     def __str__(self):
-        return self.__getName()
-
-    def __addAppenders(self):
-        if self.__logInfo.log_host is not None and \
-                self.__logInfo.log_port is not None:
-            self.addAppender(LogSocketAppender(self.__logInfo.log_host,
-                                               self.__logInfo.log_port))
-
-        if self.__logInfo.live_host is not None and \
-                self.__logInfo.live_port is not None:
-            self.addAppender(LiveSocketAppender(self.__logInfo.live_host,
-                                                self.__logInfo.live_port))
-        if not self.hasAppender():
-            raise LogException("Not logging to socket or I3Live")
-
-    def __getName(self):
-        if self.__logInfo is not None:
-            return 'LOG=%s' % str(self.__logInfo)
-        if self.__prevInfo is not None:
-            return 'PREV=%s' % str(self.__prevInfo)
+        if self.__log_info is not None:
+            return 'LOG=%s' % str(self.__log_info)
+        if self.__prev_info is not None:
+            return 'PREV=%s' % str(self.__prev_info)
         return '?LOG?'
 
-    def _logmsg(self, level, s, retry=True):
+    def __add_appenders(self):
+        if self.__log_info.log_host is not None and \
+                self.__log_info.log_port is not None:
+            self.add_appender(LogSocketAppender(self.__log_info.log_host,
+                                                self.__log_info.log_port))
+
+        if self.__log_info.live_host is not None and \
+                self.__log_info.live_port is not None:
+            self.add_appender(LiveSocketAppender(self.__log_info.live_host,
+                                                 self.__log_info.live_port))
+        if not self.has_appender():
+            raise LogException("Not logging to socket or I3Live")
+
+    def _logmsg(self, level, msg, retry=True):
         """
         Log a string to stdout and, if available, to the socket logger
         stdout of course will not appear if daemonized.
         """
         if not self.__quiet:
-            print(s)
+            print(msg)
 
         try:
-            super(CnCLogger, self)._logmsg(level, s)
+            super(CnCLogger, self)._logmsg(level, msg)
         except Exception as ex:
             if not isinstance(ex, LogException):
                 if str(ex).find('Connection refused') < 0:
                     raise
                 print('Lost logging connection to %s' % \
-                      str(self.__logInfo), file=sys.stderr)
-            self.resetLog()
-            if retry and self.hasAppender():
-                self._logmsg(level, s, False)
+                      str(self.__log_info), file=sys.stderr)
+            self.reset_log()
+            if retry and self.has_appender():
+                self._logmsg(level, msg, False)
 
-    def closeLog(self):
+    def close_log(self):
         "Close the log socket"
-        if self.hasAppender() and self.__extra_loud:
+        if self.has_appender() and self.__extra_loud:
             self.info("End of log")
-        self.resetLog()
+        self.reset_log()
 
-    def closeFinal(self):
+    def close_final(self):
         self.close()
-        self.__logInfo = None
-        self.__prevInfo = None
+        self.__log_info = None
+        self.__prev_info = None
 
     @property
     def live_host(self):
-        if self.__logInfo is None:
+        if self.__log_info is None:
             return None
-        return self.__logInfo.live_host
+        return self.__log_info.live_host
 
     @property
     def live_port(self):
-        if self.__logInfo is None:
+        if self.__log_info is None:
             return None
-        return self.__logInfo.live_port
+        return self.__log_info.live_port
 
     @property
     def log_host(self):
-        if self.__logInfo is None:
+        if self.__log_info is None:
             return None
-        return self.__logInfo.log_host
+        return self.__log_info.log_host
 
     @property
     def log_port(self):
-        if self.__logInfo is None:
+        if self.__log_info is None:
             return None
-        return self.__logInfo.log_port
+        return self.__log_info.log_port
 
-    def openLog(self, log_host, log_port, live_host, live_port):
+    def open_log(self, log_host, log_port, live_host, live_port):
         "initialize socket logger"
-        if self.__prevInfo is None:
-            self.__prevInfo = self.__logInfo
+        if self.__prev_info is None:
+            self.__prev_info = self.__log_info
 
         self.close()
 
-        self.__logInfo = LogInfo(log_host, log_port, live_host, live_port)
-        self.__addAppenders()
+        self.__log_info = LogInfo(log_host, log_port, live_host, live_port)
+        self.__add_appenders()
 
         self.debug('Start of log at %s' % str(self))
 
-    def resetLog(self):
+    def reset_log(self):
         "close current log and reset to initial state"
 
-        if self.__prevInfo is not None and self.__logInfo != self.__prevInfo:
+        if self.__prev_info is not None and self.__log_info != self.__prev_info:
             self.close()
-            self.__logInfo = self.__prevInfo
-            self.__prevInfo = None
-            self.__addAppenders()
+            self.__log_info = self.__prev_info
+            self.__prev_info = None
+            self.__add_appenders()
 
-        if self.hasAppender() and self.__extra_loud:
+        if self.has_appender() and self.__extra_loud:
             self.info('Reset log to %s' % str(self))
