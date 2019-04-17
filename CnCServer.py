@@ -110,21 +110,21 @@ class DAQPool(object):
 
             self.__poolLock.acquire()
             try:
-                for cn in needed:
+                for cobj in needed:
                     found = False
-                    if cn.name in self.__pool and \
-                            len(self.__pool[cn.name]) > 0:
-                        for comp in self.__pool[cn.name]:
-                            if comp.num == cn.num and not comp.is_dying:
-                                self.__pool[cn.name].remove(comp)
-                                if len(self.__pool[cn.name]) == 0:
-                                    del self.__pool[cn.name]
+                    if cobj.name in self.__pool and \
+                            len(self.__pool[cobj.name]) > 0:
+                        for comp in self.__pool[cobj.name]:
+                            if comp.num == cobj.num and not comp.is_dying:
+                                self.__pool[cobj.name].remove(comp)
+                                if len(self.__pool[cobj.name]) == 0:
+                                    del self.__pool[cobj.name]
                                 compList.append(comp)
                                 found = True
                                 break
 
                     if not found:
-                        waitList.append(cn)
+                        waitList.append(cobj)
             finally:
                 self.__poolLock.release()
 
@@ -164,8 +164,8 @@ class DAQPool(object):
         logger.info("Loaded run configuration \"%s\"" % runConfigName)
 
         nameList = []
-        for c in runConfig.components():
-            nameList.append(c.fullname)
+        for comp in runConfig.components():
+            nameList.append(comp.fullname)
 
         if nameList is None or len(nameList) == 0:
             raise CnCServerException("No components found in" +
@@ -782,16 +782,16 @@ class CnCServer(DAQPool):
 
         states = ComponentGroup.run_simple(OpGetState, compList, (),
                                            self.__log)
-        for c in compList:
-            if c in states:
-                stateStr = str(states[c])
+        for comp in compList:
+            if comp in states:
+                stateStr = str(states[comp])
             else:
                 stateStr = DAQClientState.DEAD
 
-            cDict = c.map()
-            cDict["state"] = stateStr
+            cdict = comp.map()
+            cdict["state"] = stateStr
 
-            slst.append(cDict)
+            slst.append(cdict)
 
         return slst
 
@@ -1008,20 +1008,20 @@ class CnCServer(DAQPool):
                                             self.__log)
 
         slst = []
-        for c in compList:
-            if c in results:
-                result = results[c]
+        for comp in compList:
+            if comp in results:
+                result = results[comp]
             else:
                 result = DAQClientState.DEAD
 
-            cDict = c.map()
+            cdict = comp.map()
 
             if not isinstance(result, list):
-                cDict["error"] = str(result)
+                cdict["error"] = str(result)
             else:
-                cDict["conn"] = result
+                cdict["conn"] = result
 
-            slst.append(cDict)
+            slst.append(cdict)
 
         return slst
 
