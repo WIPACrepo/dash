@@ -83,17 +83,21 @@ class CnCLogger(DAQLog):
         return '?LOG?'
 
     def __add_appenders(self):
-        if self.__log_info.log_host is not None and \
-                self.__log_info.log_port is not None:
+        if self.__log_info.log_host is not None:
             self.add_appender(LogSocketAppender(self.__log_info.log_host,
                                                 self.__log_info.log_port))
 
-        if self.__log_info.live_host is not None and \
-                self.__log_info.live_port is not None:
+        if self.__log_info.live_host is not None:
             self.add_appender(LiveSocketAppender(self.__log_info.live_host,
                                                  self.__log_info.live_port))
         if not self.has_appender():
             raise LogException("Not logging to socket or I3Live")
+
+    def __reset_and_retry(self, level, msg, retry=False):
+        "Reset logging config and retry log message if 'retry' is True"
+        self.reset_log()
+        if retry and self.has_appender():
+            self._logmsg(level, msg, False)
 
     def _logmsg(self, level, msg, retry=True):
         """
@@ -105,15 +109,14 @@ class CnCLogger(DAQLog):
 
         try:
             super(CnCLogger, self)._logmsg(level, msg)
+        except LogException:
+            self.__reset_and_retry(level, msg, retry=retry)
         except Exception as ex:
-            if not isinstance(ex, LogException):
-                if str(ex).find('Connection refused') < 0:
-                    raise
-                print('Lost logging connection to %s' % \
-                      str(self.__log_info), file=sys.stderr)
-            self.reset_log()
-            if retry and self.has_appender():
-                self._logmsg(level, msg, False)
+            if str(ex).find('Connection refused') < 0:
+                raise
+            print('Lost logging connection to %s' %
+                  str(self.__log_info), file=sys.stderr)
+            self.__reset_and_retry(level, msg, retry=retry)
 
     def close_log(self):
         "Close the active log socket and reset to the previous logging config"

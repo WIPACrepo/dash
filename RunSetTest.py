@@ -4,6 +4,7 @@ import numbers
 import unittest
 
 from ComponentManager import ComponentManager
+from DAQLog import LogSocketServer
 from DAQTime import PayloadTime
 from LiveImports import LIVE_IMPORT, Prio
 from RunOption import RunOption
@@ -17,8 +18,15 @@ CAUGHT_WARNING = True
 
 
 class FakeLogger(object):
-    def __init__(self):
-        pass
+    def __init__(self, port):
+        if port is None:
+            port = LogSocketServer.next_log_port
+
+        self.__port = port
+
+    @property
+    def port(self):
+        return self.__port
 
     def stop_serving(self):
         pass
@@ -208,7 +216,7 @@ class MyRunSet(RunSet):
 
     @classmethod
     def create_component_log(cls, runDir, comp, host, port, quiet=True):
-        return FakeLogger()
+        return FakeLogger(port)
 
     def create_run_data(self, runNum, clusterConfig, runOptions, versionInfo,
                         spadeDir, copyDir=None, logDir=None):

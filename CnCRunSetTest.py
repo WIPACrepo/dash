@@ -12,6 +12,7 @@ from ComponentManager import ComponentManager
 from CnCExceptions import CnCServerException, MissingComponentException
 from CnCServer import CnCServer
 from DAQConst import DAQPort
+from DAQLog import LogSocketServer
 from DAQMocks import MockClusterConfig, MockDefaultDomGeometryFile, \
     MockIntervalTimer, MockLeapsecondFile, MockLogger, MockRunConfigFile, \
     RunXMLValidator, SocketReader
@@ -26,8 +27,17 @@ from WatchdogTask import WatchdogTask
 
 
 class MockComponentLogger(MockLogger):
-    def __init__(self, name):
+    def __init__(self, name, port):
+        if port is None:
+            port = LogSocketServer.next_log_port
+
+        self.__port = port
+
         super(MockComponentLogger, self).__init__(name)
+
+    @property
+    def port(self):
+        return self.__port
 
     def stop_serving(self):
         pass
@@ -316,7 +326,7 @@ class MyRunSet(RunSet):
 
     @classmethod
     def create_component_log(cls, runDir, comp, host, port, quiet=True):
-        return MockComponentLogger(str(comp))
+        return MockComponentLogger(str(comp), port)
 
     def create_run_data(self, runNum, clusterConfig, runOptions, versionInfo,
                         spadeDir, copyDir=None, logDir=None):

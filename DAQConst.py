@@ -19,5 +19,7 @@ class DAQPort(object):
     DAQRUN = 9000
     "DAQRun catchall logging port"
     CATCHALL = 9001
-    "First port used by DAQRun for individual component logging"
-    RUNCOMP_BASE = 9002
+    "First ephemeral socket port"
+    EPHEMERAL_BASE = 49152
+    "First ephemeral socket port"
+    EPHEMERAL_MAX = 65535

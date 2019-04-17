@@ -472,7 +472,7 @@ class TestDAQServer(unittest.TestCase):
 
         logger = self.__createLog('main', log_port)
 
-        clientPort = DAQPort.RUNCOMP_BASE
+        clientPort = DAQPort.EPHEMERAL_BASE
 
         clientLogger = self.__createLog('client', clientPort)
 

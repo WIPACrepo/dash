@@ -15,7 +15,9 @@ import socket
 import sys
 import threading
 
+from DAQConst import DAQPort
 from LiveImports import LIVE_IMPORT, MoniClient, Prio, SERVICE_NAME
+from decorators import classproperty
 from reraise import reraise_excinfo
 
 
@@ -29,6 +31,10 @@ class LogSocketServer(object):
     Log requests from a remote object to a file.
     Works nonblocking in a separate thread to guarantee concurrency
     """
+
+    NEXT_PORT = DAQPort.EPHEMERAL_BASE
+    NEXT_LOCK = threading.Lock()
+
     def __init__(self, port, cname, logpath, quiet=False):
         "Logpath should be fully qualified in case I'm a Daemon"
         if not os.path.isabs(logpath):
@@ -56,11 +62,21 @@ class LogSocketServer(object):
             sock.setblocking(0)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-        try:
-            sock.bind(("", self.__port))
-        except socket.error:
-            raise LogException('Cannot bind %s log server to port %d' %
-                               (self.__cname, self.__port))
+        if self.__port is not None:
+            try:
+                sock.bind(("", self.__port))
+            except socket.error:
+                raise LogException('Cannot bind %s log server to port %d' %
+                                   (self.__cname, self.__port))
+        else:
+            while True:
+                self.__port = self.next_log_port
+
+                try:
+                    sock.bind(("", self.__port))
+                    break
+                except socket.error:
+                    pass
 
         self.__outfile = self.__open_path(self.__logpath)
         self.__serving = True
@@ -133,6 +149,16 @@ class LogSocketServer(object):
     def is_serving(self):
         "Is this object actively processing data?"
         return self.__serving
+
+    @classproperty
+    def next_log_port(cls):
+        with cls.NEXT_LOCK:
+            port = cls.NEXT_PORT
+            cls.NEXT_PORT += 1
+            if cls.NEXT_PORT > DAQPort.EPHEMERAL_MAX:
+                cls.NEXT_PORT = DAQPort.EPHEMERAL_BASE
+            return port
+
 
     @property
     def port(self):
@@ -378,6 +404,9 @@ class FileAppender(BaseFileAppender):
 class LogSocketAppender(BaseFileAppender):
     "Write log messages to a DAQ logging socket"
     def __init__(self, node, port):
+        if port is None:
+            raise Exception("Port cannot be None")
+
         self.__loc = '%s:%d' % (node, port)
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

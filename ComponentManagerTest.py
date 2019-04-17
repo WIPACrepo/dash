@@ -515,7 +515,7 @@ def main():
 
     for rmt_host in ('localhost', 'icecube.wisc.edu'):
         try:
-            sock.connect((rmt_host, 56))
+            sock.connect((rmt_host, 7))
             MockNode.LIST.append(rmt_host)
         except:
             print("Warning: Remote host %s is not valid" % rmt_host,

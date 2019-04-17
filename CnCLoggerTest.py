@@ -26,8 +26,13 @@ class CnCLoggerTest(unittest.TestCase):
 
         self.__appender.checkStatus(10)
 
-    def test_open_reset(self):
+    def test_no_appenders(self):
         "Test opening and resetting pDAQ logger"
+        clog = CnCLogger("NoAppenders", appender=None, quiet=True)
+        # this message will get dropped
+        clog.error("Test")
+
+    def test_open_reset(self):
         "Test opening and resetting pDAQ logger"
         dflt_host = "localhost"
         dflt_port = 54321

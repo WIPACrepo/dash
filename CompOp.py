@@ -161,7 +161,7 @@ class OpStartSubrun(ComponentOperation):
         return comp.startSubrun(data[0])
 
 
-class OpStopLogging(VoidOperation):
+class OpStopLocalLogger(VoidOperation):
     "Stop the component's logging"
     @classmethod
     def execute(cls, comp, data):

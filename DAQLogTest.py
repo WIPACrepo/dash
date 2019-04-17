@@ -55,6 +55,34 @@ class TestDAQLog(unittest.TestCase):
         os.rmdir(TestDAQLog.DIR_PATH)
         TestDAQLog.DIR_PATH = None
 
+    def test_log_socket_server_no_port(self):
+        "Test LogSocketServer with unassigned port number"
+        cname = 'portless'
+        log_path = os.path.join(TestDAQLog.DIR_PATH, cname + '.log')
+
+        self.__sock_log = LogSocketServer(None, cname, log_path, True)
+        self.__sock_log.start_serving()
+        for _ in range(5):
+            if self.__sock_log.is_serving:
+                break
+            time.sleep(0.1)
+        self.assertTrue(os.path.exists(log_path), 'Log file was not created')
+        self.assertTrue(self.__sock_log.is_serving,
+                        'Log server was not started')
+
+        now = datetime.datetime.now()
+        msg = 'Test 1 2 3'
+
+        client = SocketWriter('localhost', self.__sock_log.port)
+        client.write_ts(msg, now)
+
+        client.close()
+
+        self.__sock_log.stop_serving()
+
+        self.__check_log(log_path, ('%s - - [%s] %s' % (cname, now, msg), ))
+
+
     def test_log_socket_server(self):
         "Test LogSocketServer"
         port = 5432
