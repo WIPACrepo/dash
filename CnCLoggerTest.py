@@ -8,7 +8,9 @@ from DAQMocks import MockLogger, SocketReaderFactory
 
 
 class CnCLoggerTest(unittest.TestCase):
+    "Test CnCLogger class"
     def __create_log(self, name, port):
+        "Create a socket reader"
         return self.__log_factory.createLog(name, port, False)
 
     def setUp(self):
@@ -25,6 +27,7 @@ class CnCLoggerTest(unittest.TestCase):
         self.__appender.checkStatus(10)
 
     def test_open_reset(self):
+        "Test opening and resetting pDAQ logger"
         "Test opening and resetting pDAQ logger"
         dflt_host = "localhost"
         dflt_port = 54321
@@ -78,6 +81,7 @@ class CnCLoggerTest(unittest.TestCase):
             dflt_obj.checkStatus(1000)
 
     def test_open_reset_live(self):
+        "Test opening and resetting Live logger"
         dflt_host = "localhost"
         dflt_port = 54321
 
@@ -133,6 +137,7 @@ class CnCLoggerTest(unittest.TestCase):
             dflt_obj.checkStatus(1000)
 
     def test_open_reset_both(self):
+        "Test opening and resetting both pDAQ and Live loggers"
         dflt_host = "localhost"
         dflt_log = 54321
         dflt_live = 9876
@@ -205,6 +210,7 @@ class CnCLoggerTest(unittest.TestCase):
             dlive_obj.checkStatus(1000)
 
     def test_open_close(self):
+        "Test opening and closing pDAQ logger"
         dflt_host = "localhost"
         dflt_log = 54321
         dflt_live = 9876
@@ -271,6 +277,7 @@ class CnCLoggerTest(unittest.TestCase):
             dlive_obj.checkStatus(1000)
 
     def test_open_close_live(self):
+        "Test opening and closing Live logger"
         dflt_host = "localhost"
         dflt_log = 54321
         dflt_live = 9876
@@ -333,6 +340,7 @@ class CnCLoggerTest(unittest.TestCase):
             dlive_obj.checkStatus(1000)
 
     def test_open_close_both(self):
+        "Test opening and closing both pDAQ and Live loggers"
         dflt_host = "localhost"
         dflt_log = 54321
         dflt_live = 9876

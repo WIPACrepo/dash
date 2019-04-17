@@ -11,9 +11,11 @@ from DAQMocks import SocketWriter
 
 
 class TestDAQLog(unittest.TestCase):
+    "Test DAQLog class"
     DIR_PATH = None
 
     def __check_log(self, log_path, msg_list):
+        "Compare log file lines against original log messages"
         lines = self.__read_log(log_path)
         self.assertEqual(len(msg_list), len(lines), 'Expected %d line, not %d' %
                          (len(msg_list), len(lines)))
@@ -26,6 +28,7 @@ class TestDAQLog(unittest.TestCase):
 
     @classmethod
     def __read_log(cls, log_path):
+        "Return log file contents as a list of strings"
         lines = []
         with open(log_path, 'r') as fin:
             for line in fin:
@@ -53,6 +56,7 @@ class TestDAQLog(unittest.TestCase):
         TestDAQLog.DIR_PATH = None
 
     def test_log_socket_server(self):
+        "Test LogSocketServer"
         port = 5432
         cname = 'foo'
         log_path = os.path.join(TestDAQLog.DIR_PATH, cname + '.log')

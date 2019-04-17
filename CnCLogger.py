@@ -8,7 +8,14 @@ from DAQLog import DAQLog, LiveSocketAppender, LogException, LogSocketAppender
 
 
 class LogInfo(object):
+    "Paired pDAQ+Live logging information"
     def __init__(self, log_host, log_port, live_host, live_port):
+        """
+        log_host - pDAQ logging socket hostname
+        log_port - pDAQ logging socket port
+        log_host - I3Live logging socket hostname
+        log_port - I3Live logging socket port
+        """
         self.__log_host = log_host
         self.__log_port = log_port
         self.__live_host = live_host
@@ -36,18 +43,22 @@ class LogInfo(object):
 
     @property
     def live_host(self):
+        "I3Live logging host"
         return self.__live_host
 
     @property
     def live_port(self):
+        "I3Live logging port"
         return self.__live_port
 
     @property
     def log_host(self):
+        "pDAQ logging host"
         return self.__log_host
 
     @property
     def log_port(self):
+        "pDAQ logging port"
         return self.__log_port
 
 
@@ -105,36 +116,41 @@ class CnCLogger(DAQLog):
                 self._logmsg(level, msg, False)
 
     def close_log(self):
-        "Close the log socket"
+        "Close the active log socket and reset to the previous logging config"
         if self.has_appender() and self.__extra_loud:
             self.info("End of log")
         self.reset_log()
 
     def close_final(self):
+        "Close everything and clear all cached logging information"
         self.close()
         self.__log_info = None
         self.__prev_info = None
 
     @property
     def live_host(self):
+        "I3Live logging host"
         if self.__log_info is None:
             return None
         return self.__log_info.live_host
 
     @property
     def live_port(self):
+        "I3Live logging port"
         if self.__log_info is None:
             return None
         return self.__log_info.live_port
 
     @property
     def log_host(self):
+        "pDAQ logging host"
         if self.__log_info is None:
             return None
         return self.__log_info.log_host
 
     @property
     def log_port(self):
+        "pDAQ logging port"
         if self.__log_info is None:
             return None
         return self.__log_info.log_port

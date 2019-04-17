@@ -509,6 +509,7 @@ class ComponentManagerTest(unittest.TestCase):
 
 
 def main():
+    "Main program"
     # make sure icecube.wisc.edu is valid
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
