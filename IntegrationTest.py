@@ -791,9 +791,6 @@ class RealComponent(object):
     def getCommandPort(self):
         return self.__cmd.portnum
 
-    def getId(self):
-        return 999
-
     def getMBean(self, bean, fld):
         if self.__mbean_data is None:
             self.__mbean_data = DAQMBeans.build(self.__name)
