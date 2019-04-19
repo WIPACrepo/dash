@@ -583,7 +583,7 @@ class RunData(object):
         self.__finished = False
         self.__task_mgr = None
 
-        if not RunOption.isLogToFile(self.__run_options):
+        if not RunOption.is_log_to_file(self.__run_options):
             self.__log_dir = None
             self.__run_dir = None
         else:
@@ -673,7 +673,7 @@ class RunData(object):
         log = DAQLog("dash", level=DAQLog.ERROR)
 
         added = False
-        if RunOption.isLogToFile(self.__run_options):
+        if RunOption.is_log_to_file(self.__run_options):
             if self.__run_dir is None:
                 raise RunSetException("Run directory has not been specified")
             app = FileAppender("dashlog", os.path.join(self.__run_dir,
@@ -681,7 +681,7 @@ class RunData(object):
             log.add_appender(app)
             added = True
 
-        if RunOption.isLogToLive(self.__run_options):
+        if RunOption.is_log_to_live(self.__run_options):
             app = LiveSocketAppender("localhost", DAQPort.I3LIVE_ZMQ,
                                      priority=Prio.EMAIL)
             log.add_appender(app)

@@ -1015,7 +1015,7 @@ class IntegrationTest(unittest.TestCase):
         return (self.__live, log)
 
     def __create_loggers(self, run_options, live_run_only):
-        if not RunOption.isLogToFile(run_options) and not live_run_only:
+        if not RunOption.is_log_to_file(run_options) and not live_run_only:
             appender = None
         else:
             appender = MockLogger('main',
@@ -1037,11 +1037,11 @@ class IntegrationTest(unittest.TestCase):
             clu_cfg.addComponent(comp.fullname, comp.jvmPath, comp.jvmArgs,
                                  "localhost")
 
-        if RunOption.isLogToFile(run_options) or live_run_only:
+        if RunOption.is_log_to_file(run_options) or live_run_only:
             log_port = DAQPort.CATCHALL
         else:
             log_port = None
-        if RunOption.isLogToLive(run_options) and not live_run_only:
+        if RunOption.is_log_to_live(run_options) and not live_run_only:
             live_port = DAQPort.I3LIVE
         else:
             live_port = None
@@ -1322,7 +1322,7 @@ class IntegrationTest(unittest.TestCase):
             if live_log:
                 live_log.addExpectedText(msg)
 
-            if RunOption.isMoniToFile(run_options):
+            if RunOption.is_moni_to_file(run_options):
                 run_dir = os.path.join(IntegrationTest.LOG_DIR,
                                        str(run_num))
                 for comp in self.__comp_list:
@@ -1387,7 +1387,7 @@ class IntegrationTest(unittest.TestCase):
         if log_server:
             log_server.checkStatus(10)
 
-        if RunOption.isMoniToLive(run_options):
+        if RunOption.is_moni_to_live(run_options):
             # monitoring values can potentially come in any order
             live_log.setCheckDepth(32)
             for comp in self.__comp_list:
@@ -1435,7 +1435,7 @@ class IntegrationTest(unittest.TestCase):
         if log_server:
             log_server.checkStatus(10)
 
-        if RunOption.isMoniToLive(run_options):
+        if RunOption.is_moni_to_live(run_options):
             live_log.setCheckDepth(5)
 
         sub_run_id = 1

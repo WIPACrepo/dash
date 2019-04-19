@@ -71,14 +71,14 @@ class MBeanThread(MonitorThread):
         super(MBeanThread, self).__init__(comp.fullname, dashlog)
 
     def __create_reporter(self):
-        if RunOption.isMoniToBoth(self.__runOptions) and \
+        if RunOption.is_moni_to_both(self.__runOptions) and \
                self.__liveMoni is not None:
             return MonitorToBoth(self.__runDir, self.__comp.filename,
                                  self.__liveMoni)
-        if RunOption.isMoniToFile(self.__runOptions):
+        if RunOption.is_moni_to_file(self.__runOptions):
             if self.__runDir is not None:
                 return MonitorToFile(self.__runDir, self.__comp.filename)
-        if RunOption.isMoniToLive(self.__runOptions) and \
+        if RunOption.is_moni_to_live(self.__runOptions) and \
            self.__liveMoni is not None:
             return MonitorToLive(self.__comp.filename, self.__liveMoni)
 
@@ -333,7 +333,7 @@ class MonitorTask(CnCTask):
     def __createThreads(self, runset, dashlog, liveMoni, runDir, runOptions):
         threadList = {}
 
-        if not RunOption.isMoniToNone(runOptions):
+        if not RunOption.is_moni_to_none(runOptions):
             for c in runset.components():
                 # refresh MBean info to pick up any new MBeans
                 c.mbean.reload()
@@ -342,7 +342,7 @@ class MonitorTask(CnCTask):
                                                   runOptions, dashlog)
 
             if self.MONITOR_CNCSERVER:
-                toFile = RunOption.isMoniToFile(runOptions)
+                toFile = RunOption.is_moni_to_file(runOptions)
                 threadList["CnCServer"] \
                     = self.createCnCMoniThread(runset, runDir, toFile, dashlog)
 

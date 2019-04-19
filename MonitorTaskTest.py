@@ -119,7 +119,7 @@ class MonitorTaskTest(unittest.TestCase):
         # from DAQMocks import LogChecker; LogChecker.DEBUG = True
 
         for i in range(-1, 5):
-            if RunOption.isMoniToLive(runOpt):
+            if RunOption.is_moni_to_live(runOpt):
                 for c in compList:
                     if isinstance(c, BadComponent):
                         c.mbean.clearConditions()
@@ -162,7 +162,7 @@ class MonitorTaskTest(unittest.TestCase):
 
     def __validateFiles(self, runOpt, compList):
         files = os.listdir(self.__temp_dir)
-        if not RunOption.isMoniToFile(runOpt):
+        if not RunOption.is_moni_to_file(runOpt):
             self.assertFalse(len(files) > 0,
                              "Found unexpected monitoring files: " +
                              str(files))
