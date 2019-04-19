@@ -45,15 +45,15 @@ class CnCTask(object):
 
         timer = self.__timer
 
-        timeLeft = timer.timeLeft()
-        if timeLeft > 0.0:
-            return timeLeft
+        time_left = timer.time_left()
+        if time_left > 0.0:
+            return time_left
 
         timer.reset()
 
         self._check()
 
-        return timer.timeLeft()
+        return timer.time_left()
 
     def close(self):
         "Handle task-specific cleanup when the task is stopped"

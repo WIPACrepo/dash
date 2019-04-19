@@ -81,7 +81,7 @@ class TaskManager(threading.Thread):
     def __run(self):
         self.__running = True
         while not self.__stopping:
-            waitSecs = CnCTask.MAX_TASK_SECS
+            wait_secs = CnCTask.MAX_TASK_SECS
             for t in self.__tasks:
                 # don't do remaining tasks if stop() has been called
                 if self.__stopping:
@@ -94,13 +94,13 @@ class TaskManager(threading.Thread):
                         self.__dashlog.error("%s exception: %s" %
                                              (str(t), exc_string()))
                     taskSecs = CnCTask.MAX_TASK_SECS
-                if waitSecs > taskSecs:
-                    waitSecs = taskSecs
+                if wait_secs > taskSecs:
+                    wait_secs = taskSecs
 
             if not self.__stopping:
                 self.__flag.acquire()
                 try:
-                    self.__flag.wait(waitSecs)
+                    self.__flag.wait(wait_secs)
                 finally:
                     self.__flag.release()
 
@@ -121,7 +121,7 @@ class TaskManager(threading.Thread):
 
     @classmethod
     def createIntervalTimer(cls, name, period):
-        return IntervalTimer(name, period, startTriggered=True)
+        return IntervalTimer(name, period, start_triggered=True)
 
     @property
     def isRunning(self):

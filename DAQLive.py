@@ -251,12 +251,12 @@ class DAQLive(LiveComponent):
                                  (self.__runSet, exc_string()))
 
         # give runset a bit of time to finish stopping
-        waitSecs = 5
+        wait_secs = 5
         numTries = 12
         for _ in range(numTries):
             if not self.__runSet.stopping():
                 break
-            time.sleep(waitSecs)
+            time.sleep(wait_secs)
 
         # report final state
         rtnVal = False
@@ -314,7 +314,7 @@ class DAQLive(LiveComponent):
             raise LiveException("%s is not running (state = %s)" %
                                 (self.__runSet, self.__runSet.state))
 
-        if self.__moniTimer.isTime():
+        if self.__moniTimer.is_time():
             self.__moniTimer.reset()
             self.__runSet.send_event_counts()
 

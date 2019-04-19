@@ -186,7 +186,7 @@ class RunCluster(CachedConfigName):
         alertEMail = clusterDesc.defaultAlertEMail("StringHub")
         ntpHost = clusterDesc.defaultNTPHost("StringHub")
 
-        logLevel = clusterDesc.defaultLogLevel("StringHub")
+        log_level = clusterDesc.defaultLogLevel("StringHub")
 
         if runCfg is None:
             numToSkip = None
@@ -205,10 +205,10 @@ class RunCluster(CachedConfigName):
                 raise RunClusterError("Cannot find %s for replay in %s" %
                                       (hub.host, clusterDesc.name))
 
-            if hub.logLevel is not None:
-                lvl = hub.logLevel
+            if hub.log_level is not None:
+                lvl = hub.log_level
             else:
-                lvl = logLevel
+                lvl = log_level
 
             comp = ReplayHubComponent(hub.name, hub.id, lvl, False)
             comp.host = hub.host
@@ -293,7 +293,7 @@ class RunCluster(CachedConfigName):
         jvmArgs = clusterDesc.defaultJVMArgs("StringHub")
         jvmExtra = clusterDesc.defaultJVMExtraArgs("StringHub")
 
-        logLevel = clusterDesc.defaultLogLevel("StringHub")
+        log_level = clusterDesc.defaultLogLevel("StringHub")
 
         if False:
             print()
@@ -308,10 +308,10 @@ class RunCluster(CachedConfigName):
         for host in hosts:
             for _ in range(hubAlloc[host].allocated):
                 hubComp = hubList[hubNum]
-                if hubComp.logLevel is not None:
-                    lvl = hubComp.logLevel
+                if hubComp.log_level is not None:
+                    lvl = hubComp.log_level
                 else:
-                    lvl = logLevel
+                    lvl = log_level
 
                 comp = HubComponent(hubComp.name, hubComp.id, lvl, False)
                 comp.host = host
@@ -567,4 +567,4 @@ if __name__ == '__main__':
                 (node.location, node.hostname, node.defaultLogLevel))
             comps = sorted(node.components())
             for comp in comps:
-                print('    %s %s' % (comp, comp.logLevel))
+                print('    %s %s' % (comp, comp.log_level))

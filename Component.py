@@ -2,10 +2,10 @@
 
 
 class Component(object):
-    def __init__(self, name, id, logLevel=None, host=None):
+    def __init__(self, name, id, log_level=None, host=None):
         self.__name = name
         self.__id = id
-        self.__logLevel = logLevel
+        self.__log_level = log_level
         self.__host = host
 
     def __lt__(self, other):
@@ -65,8 +65,8 @@ class Component(object):
         return self.__name.lower().find("trigger") >= 0
 
     @property
-    def logLevel(self):
-        return self.__logLevel
+    def log_level(self):
+        return self.__log_level
 
     @property
     def name(self):
@@ -77,4 +77,4 @@ class Component(object):
         return self.__id
 
     def setLogLevel(self, lvl):
-        self.__logLevel = lvl
+        self.__log_level = lvl

@@ -170,7 +170,7 @@ class CnCRun(BaseRun):
 
         proc.wait()
 
-    def __waitForState(self, expState, numTries, numErrors=0, waitSecs=10,
+    def __waitForState(self, expState, numTries, numErrors=0, wait_secs=10,
                        verbose=False):
         """
         Wait for the specified state
@@ -179,7 +179,7 @@ class CnCRun(BaseRun):
         numTries - number of tries before ceasing to wait
         numErrors - number of ERROR states allowed before assuming
                     there is a problem
-        waitSecs - number of seconds to wait on each "try"
+        wait_secs - number of seconds to wait on each "try"
         """
         if self.__runSetId is None:
             return False
@@ -224,7 +224,7 @@ class CnCRun(BaseRun):
                 raise StateException("DAQ state should be RESETTING, not %s" %
                                      curState)
 
-            time.sleep(waitSecs)
+            time.sleep(wait_secs)
 
         if curState != expState:
             totTime = int(time.time() - startTime)

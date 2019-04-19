@@ -75,10 +75,10 @@ class ConfigXMLBase(XMLParser):
 
 
 class ClusterComponent(Component):
-    def __init__(self, name, num, logLevel=None, required=False):
+    def __init__(self, name, num, log_level=None, required=False):
         self.__required = required
 
-        super(ClusterComponent, self).__init__(name, num, logLevel=logLevel)
+        super(ClusterComponent, self).__init__(name, num, log_level=log_level)
 
     def __str__(self):
         if self.__required:
@@ -93,7 +93,7 @@ class ClusterComponent(Component):
             iStr = "(%s)" % iStr
 
         return "%s@%s%s%s" % \
-            (self.fullname, str(self.logLevel), iStr, rStr)
+            (self.fullname, str(self.log_level), iStr, rStr)
 
     @property
     def hasHitSpoolOptions(self):
@@ -189,8 +189,8 @@ class JVMArgs(object):
 
 
 class JavaComponent(ClusterComponent):
-    def __init__(self, name, num, logLevel=None, required=False):
-        super(JavaComponent, self).__init__(name, num, logLevel=logLevel,
+    def __init__(self, name, num, log_level=None, required=False):
+        super(JavaComponent, self).__init__(name, num, log_level=log_level,
                                             required=required)
 
         self.__jvm = None
@@ -341,8 +341,8 @@ class HSArgs(object):
 
 
 class HubComponent(JavaComponent):
-    def __init__(self, name, num, logLevel=None, required=False):
-        super(HubComponent, self).__init__(name, num, logLevel=logLevel,
+    def __init__(self, name, num, log_level=None, required=False):
+        super(HubComponent, self).__init__(name, num, log_level=log_level,
                                            required=required)
 
         self.__hs = None
@@ -422,8 +422,8 @@ class HubComponent(JavaComponent):
 
 
 class ReplayHubComponent(HubComponent):
-    def __init__(self, name, num, logLevel=None, required=False):
-        super(ReplayHubComponent, self).__init__(name, num, logLevel=logLevel,
+    def __init__(self, name, num, log_level=None, required=False):
+        super(ReplayHubComponent, self).__init__(name, num, log_level=log_level,
                                                  required=required)
 
         self.__numToSkip = None
@@ -459,7 +459,7 @@ class SimHubComponent(JavaComponent):
         self.__priority = priority
         self.__ifUnused = ifUnused
 
-        super(SimHubComponent, self).__init__("SimHub", 0, logLevel=None,
+        super(SimHubComponent, self).__init__("SimHub", 0, log_level=None,
                                               required=False)
 
     def __str__(self):
@@ -504,13 +504,13 @@ class ClusterHost(object):
     def __str__(self):
         return self.name
 
-    def addComponent(self, name, num, logLevel, required=False):
+    def addComponent(self, name, num, log_level, required=False):
         if name.endswith("Hub"):
-            comp = HubComponent(name, num, logLevel, required)
+            comp = HubComponent(name, num, log_level, required)
         elif name == ControlComponent.NAME:
-            comp = ControlComponent(name, num, logLevel, required)
+            comp = ControlComponent(name, num, log_level, required)
         else:
-            comp = JavaComponent(name, num, logLevel, required)
+            comp = JavaComponent(name, num, log_level, required)
 
         return self.addComponentObject(comp)
 

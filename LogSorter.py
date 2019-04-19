@@ -66,17 +66,17 @@ class LogLevel(object):
 
 
 class LogLine(object):
-    def __init__(self, component, className, logLevel, date, text):
+    def __init__(self, component, className, log_level, date, text):
         self.__component = component
         self.__className = className
-        self.__logLevel = LogLevel(logLevel)
+        self.__log_level = LogLevel(log_level)
         self.__date = date
         self.__text = text
 
     def __cmp__(self, other):
         val = cmp(self.__date, other.__date)
         if val == 0:
-            val = cmp(self.__logLevel, other.__logLevel)
+            val = cmp(self.__log_level, other.__log_level)
             if val == 0:
                 val = cmp(self.__component, other.__component)
                 if val == 0:
@@ -88,7 +88,7 @@ class LogLine(object):
         rtnstr = self.__component
         if self.__className is not None:
             rtnstr += " " + self.__className
-        rtnstr += " " + str(self.__logLevel)
+        rtnstr += " " + str(self.__log_level)
         rtnstr += " [" + str(self.__date) + "] " + self.__text
         return rtnstr
 
@@ -146,12 +146,12 @@ class BaseLog(object):
     def __parseLine(self, line):
         m = self.LINE_PAT.match(line)
         if m is not None:
-            (component, className, logLevel, dateStr, text) = m.groups()
+            (component, className, log_level, dateStr, text) = m.groups()
         else:
             m = self.DASH_PAT.match(line)
             if m is not None:
                 (component, dateStr, text) = m.groups()
-                (className, logLevel) = ("-", "-")
+                (className, log_level) = ("-", "-")
             else:
                 return None
 
@@ -160,7 +160,7 @@ class BaseLog(object):
         except ValueError:
             return BadLine(line)
 
-        return LogLine(component, className, logLevel, date, text)
+        return LogLine(component, className, log_level, date, text)
 
     def _isNoise(self, _):
         raise Exception("Unimplemented for " + self.__fileName)

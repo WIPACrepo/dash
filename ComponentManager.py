@@ -262,10 +262,10 @@ class ComponentManager(object):
         switches += " -c %s:%d" % (my_ip_addr, DAQPort.CNCSERVER)
         if log_port is not None:
             switches += " -l %s:%d,%s" % \
-              (my_ip_addr, log_port, comp.logLevel)
+              (my_ip_addr, log_port, comp.log_level)
         if live_port is not None:
             switches += " -L %s:%d,%s" % \
-              (my_ip_addr, live_port, comp.logLevel)
+              (my_ip_addr, live_port, comp.log_level)
             switches += " -M %s:%d" % (my_ip_addr, MoniPort)
 
         if comp.isHub:
@@ -292,11 +292,11 @@ class ComponentManager(object):
                     if comp.hasHitSpoolOptions:
                         if comp.hasReplayOptions:
                             rcomp = ReplayHubComponent(comp.name, comp.id,
-                                                       comp.logLevel, False)
+                                                       comp.log_level, False)
                             rcomp.setNumberToSkip(comp.numReplayFilesToSkip)
                         else:
                             rcomp = HubComponent(comp.name, comp.id,
-                                                 comp.logLevel, False)
+                                                 comp.log_level, False)
                         rcomp.setHitSpoolOptions(None, comp.hitspoolDirectory,
                                                  comp.hitspoolInterval,
                                                  comp.hitspoolMaxFiles)
@@ -305,7 +305,7 @@ class ComponentManager(object):
                                                 comp.ntpHost)
                     else:
                         rcomp = JavaComponent(comp.name, comp.id,
-                                              comp.logLevel, False)
+                                              comp.log_level, False)
 
                     rcomp.host = node.hostname
                     rcomp.setJVMOptions(None, comp.jvmPath, comp.jvmServer,

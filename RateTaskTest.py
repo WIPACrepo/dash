@@ -35,9 +35,9 @@ class RateTaskTest(unittest.TestCase):
 
         timer.trigger()
         left = tsk.check()
-        self.assertEqual(timer.waitSecs(), left,
+        self.assertEqual(timer.wait_secs(), left,
                          "Expected %d seconds, not %d" %
-                         (timer.waitSecs(), left))
+                         (timer.wait_secs(), left))
 
         tsk.waitUntilFinished()
 

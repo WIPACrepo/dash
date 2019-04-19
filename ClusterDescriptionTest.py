@@ -31,10 +31,10 @@ class TestClusterDescription(unittest.TestCase):
         self.assertEqual(mock.isSimHub, c.isSimHub,
                          "Expected %s simHub to be %s, not %s for %s<%s>" %
                          (mock.name, mock.isSimHub, c.isSimHub, c, type(c)))
-        self.assertEqual(mock.logLevel, c.logLevel,
+        self.assertEqual(mock.log_level, c.log_level,
                          "Expected %s log level \"%s\", not \"%s\""
                          " for %s<%s>" %
-                         (mock.name, mock.logLevel, c.logLevel, c, type(c)))
+                         (mock.name, mock.log_level, c.log_level, c, type(c)))
         self.assertEqual(mock.required, c.required,
                          "Expected %s required to be %s, not %s for %s<%s>" %
                          (mock.name, mock.required, c.required, c, type(c)))
@@ -385,7 +385,7 @@ class TestClusterDescription(unittest.TestCase):
         jvmServer = False
         jvmExtraArgs = "xxxArgs"
 
-        logLevel = "logLvl"
+        log_level = "logLvl"
 
         mock.setDefaultHSDirectory(hsDir)
         mock.setDefaultHSInterval(hsInterval)
@@ -396,14 +396,14 @@ class TestClusterDescription(unittest.TestCase):
         mock.setDefaultJVMHeapMax(jvmHeapMax)
         mock.setDefaultJVMPath(jvmPath)
         mock.setDefaultJVMServer(jvmServer)
-        mock.setDefaultLogLevel(logLevel)
+        mock.setDefaultLogLevel(log_level)
 
         acomp = MockCluCfgFileComp("foo", 1, hitspoolDirectory="hsDir",
                                    hitspoolInterval=21.0, hitspoolMaxFiles=10,
                                    jvmPath="abc", jvmHeapInit="1g",
                                    jvmHeapMax="3g", jvmServer=True,
                                    jvmArgs="def", jvmExtraArgs="ghi",
-                                   logLevel="xyz")
+                                   log_level="xyz")
         mock.addDefaultComponent(acomp)
 
         bcomp = MockCluCfgFileComp("bar")
@@ -495,9 +495,9 @@ class TestClusterDescription(unittest.TestCase):
                          "Expected %s default JVMServer \"%s\", not \"%s\"" %
                          (acomp.name, acomp.jvmServer,
                           cd.defaultJVMServer(acomp.name)))
-        self.assertEqual(acomp.logLevel, cd.defaultLogLevel(acomp.name),
+        self.assertEqual(acomp.log_level, cd.defaultLogLevel(acomp.name),
                          "Expected %s default LogLevel \"%s\", not \"%s\"" %
-                         (acomp.name, acomp.logLevel,
+                         (acomp.name, acomp.log_level,
                           cd.defaultLogLevel(acomp.name)))
 
         self.assertEqual(mock.defaultJVMArgs(),
@@ -664,7 +664,7 @@ class TestClusterDescription(unittest.TestCase):
                                        jvmHeapMax=tmpHMax,
                                        jvmServer=tmpServer,
                                        jvmArgs=tmpArgs, jvmExtraArgs=tmpExtra,
-                                       logLevel=tmpLogLvl)
+                                       log_level=tmpLogLvl)
             mock.addDefaultComponent(acomp)
 
             # add unaltered component
@@ -798,13 +798,13 @@ class TestClusterDescription(unittest.TestCase):
             for comp in cd.host(hostname).getComponents():
                 if comp.name == plainName:
                     (hsDir, hsIval, hsMaxF, args, extra, heapInit, heapMax,
-                     path, server, logLevel) \
+                     path, server, log_level) \
                      = (plainHSDir, plainIval, plainMaxF, plainArgs,
                         plainExtra, plainHeapInit, plainHeapMax, plainPath,
                         plainServer, plainLogLvl)
                 else:
                     (hsDir, hsIval, hsMaxF, args, extra, heapInit, heapMax,
-                     path, server, logLevel) \
+                     path, server, log_level) \
                      = (instHSDir, instIval, instMaxF, instArgs, instExtra,
                         instHeapInit, instHeapMax, instPath, instServer,
                         instLogLvl)
@@ -848,10 +848,11 @@ class TestClusterDescription(unittest.TestCase):
                                      " JVMServer \"%s\", not \"%s\"" %
                                      (comp.name, type(comp), server,
                                       comp.jvmServer))
-                    self.assertEqual(logLevel, comp.logLevel, "Expected %s<%s>"
-                                     " LogLevel \"%s\", not \"%s\"" %
-                                     (comp.name, type(comp), logLevel,
-                                      comp.logLevel))
+                    self.assertEqual(log_level, comp.log_level,
+                                     "Expected %s<%s> LogLevel \"%s\","
+                                     " not \"%s\"" %
+                                     (comp.name, type(comp), log_level,
+                                      comp.log_level))
 
                 if comp.isRealHub:
                     self.assertEqual(hsDir, comp.hitspoolDirectory,

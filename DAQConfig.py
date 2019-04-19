@@ -1037,7 +1037,7 @@ def main():
             if not args.quiet:
                 comps.sort()
                 for comp in comps:
-                    print('Comp %s log %s' % (str(comp), str(comp.logLevel)))
+                    print('Comp %s log %s' % (str(comp), str(comp.log_level)))
 
             start_time = datetime.datetime.now()
             dc = DAQConfigParser.parse(config_dir, config_name,

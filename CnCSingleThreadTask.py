@@ -62,7 +62,7 @@ class CnCSingleThreadTask(CnCTask):
             # if we have a detail timer, check if it's gone off
             send_details = False
             if self.__detailTimer is not None and \
-                    self.__detailTimer.isTime():
+                    self.__detailTimer.is_time():
                 send_details = True
                 self.__detailTimer.reset()
 

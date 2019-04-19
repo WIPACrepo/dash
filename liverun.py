@@ -453,7 +453,7 @@ class LiveRun(BaseRun):
                                  showCheckOutput=showCheckOutput,
                                  logger=self.logger(), dryRun=self.__dryRun)
 
-    def __controlPDAQ(self, waitSecs, attempts=3):
+    def __controlPDAQ(self, wait_secs, attempts=3):
         """
         Connect I3Live to pDAQ
 
@@ -491,13 +491,13 @@ class LiveRun(BaseRun):
 
         proc.wait()
 
-        if controlled or waitSecs < 0:
+        if controlled or wait_secs < 0:
             return controlled
 
         if attempts <= 0:
             return False
 
-        time.sleep(waitSecs)
+        time.sleep(wait_secs)
         return self.__controlPDAQ(0, attempts=attempts - 1)
 
     def __refreshState(self):
@@ -544,7 +544,7 @@ class LiveRun(BaseRun):
         return not problem
 
     def __waitForState(self, initStates, expState, numTries, numErrors=0,
-                       waitSecs=10, verbose=False):
+                       wait_secs=10, verbose=False):
         """
         Wait for the specified state
 
@@ -553,7 +553,7 @@ class LiveRun(BaseRun):
         numTries - number of tries before ceasing to wait
         numErrors - number of ERROR states allowed before assuming
                     there is a problem
-        waitSecs - number of seconds to wait on each "try"
+        wait_secs - number of seconds to wait on each "try"
         """
         prevState = self.state
         curState = prevState
@@ -589,7 +589,7 @@ class LiveRun(BaseRun):
                                       " RECOVERING, not %s") %
                                      (", ".join(initStates), curState))
 
-            time.sleep(waitSecs)
+            time.sleep(wait_secs)
 
         if curState != expState:
             totTime = int(time.time() - startTime)
@@ -774,7 +774,7 @@ class LiveRun(BaseRun):
             if not self.__runBasicCommand("LightMode", cmd):
                 return False
 
-        waitSecs = 10
+        wait_secs = 10
         numTries = 10
 
         for _ in range(numTries):
@@ -786,7 +786,7 @@ class LiveRun(BaseRun):
                 raise LightModeException("I3Live lightMode should not be %s" %
                                          self.__state.lightMode())
 
-            time.sleep(waitSecs)
+            time.sleep(wait_secs)
 
         if not self.__dryRun and self.__state.lightMode() != expMode:
             raise LightModeException("I3Live lightMode should be %s, not %s" %

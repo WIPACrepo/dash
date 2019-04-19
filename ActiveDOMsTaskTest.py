@@ -53,9 +53,9 @@ class ActiveDOMsTaskTest(unittest.TestCase):
 
         rptTimer.trigger()
         left = tsk.check()
-        self.assertEqual(rptTimer.waitSecs(), left,
+        self.assertEqual(rptTimer.wait_secs(), left,
                          "Expected %d seconds, not %d" %
-                         (rptTimer.waitSecs(), left))
+                         (rptTimer.wait_secs(), left))
 
         tsk.waitUntilFinished()
 
@@ -75,9 +75,9 @@ class ActiveDOMsTaskTest(unittest.TestCase):
 
         domTimer.trigger()
         left = tsk.check()
-        self.assertEqual(rptTimer.waitSecs(), left,
+        self.assertEqual(rptTimer.wait_secs(), left,
                          "Expected %d seconds, not %d" %
-                         (rptTimer.waitSecs(), left))
+                         (rptTimer.wait_secs(), left))
 
         tsk.waitUntilFinished()
 
@@ -162,9 +162,9 @@ class ActiveDOMsTaskTest(unittest.TestCase):
 
         rptTimer.trigger()
         left = tsk.check()
-        self.assertEqual(rptTimer.waitSecs(), left,
+        self.assertEqual(rptTimer.wait_secs(), left,
                          "Expected %d seconds, not %d" %
-                         (rptTimer.waitSecs(), left))
+                         (rptTimer.wait_secs(), left))
 
         tsk.waitUntilFinished()
 
@@ -177,9 +177,9 @@ class ActiveDOMsTaskTest(unittest.TestCase):
 
         domTimer.trigger()
         left = tsk.check()
-        self.assertEqual(rptTimer.waitSecs(), left,
+        self.assertEqual(rptTimer.wait_secs(), left,
                          "Expected %d seconds, not %d" %
-                         (rptTimer.waitSecs(), left))
+                         (rptTimer.wait_secs(), left))
 
         tsk.waitUntilFinished()
 

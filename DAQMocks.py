@@ -567,7 +567,7 @@ class MockCluCfgCtlSrvr(object):
         return False
 
     @property
-    def logLevel(self):
+    def log_level(self):
         return None
 
     @property
@@ -591,7 +591,7 @@ class MockCluCfgFileComp(MockClusterWriter):
     def __init__(self, name, num=0, required=False, hitspoolDirectory=None,
                  hitspoolInterval=None, hitspoolMaxFiles=None, jvmPath=None,
                  jvmServer=None, jvmHeapInit=None, jvmHeapMax=None,
-                 jvmArgs=None, jvmExtraArgs=None, logLevel=None):
+                 jvmArgs=None, jvmExtraArgs=None, log_level=None):
         self.__name = name
         self.__num = num
         self.__required = required
@@ -607,7 +607,7 @@ class MockCluCfgFileComp(MockClusterWriter):
         self.__jvmArgs = jvmArgs
         self.__jvmExtraArgs = jvmExtraArgs
 
-        self.__logLevel = logLevel
+        self.__log_level = log_level
 
     def __str__(self):
         return "%s#%s" % (self.__name, self.__num)
@@ -657,9 +657,9 @@ class MockCluCfgFileComp(MockClusterWriter):
         return self.__jvmServer
 
     @property
-    def logLevel(self):
-        if self.__logLevel is not None:
-            return self.__logLevel
+    def log_level(self):
+        if self.__log_level is not None:
+            return self.__log_level
 
         return ClusterDescription.DEFAULT_LOG_LEVEL
 
@@ -703,7 +703,7 @@ class MockCluCfgFileComp(MockClusterWriter):
         self.__jvmPath = value
 
     def setLogLevel(self, value):
-        self.__logLevel = value
+        self.__log_level = value
 
     def write(self, fd, indent):
         if self.__num == 0:
@@ -725,7 +725,7 @@ class MockCluCfgFileComp(MockClusterWriter):
                        self.__jvmHeapInit is not None or \
                        self.__jvmHeapMax is not None or \
                        self.__jvmServer is not None
-        multiline = hasHSFields or hasJVMFields or self.__logLevel is not None
+        multiline = hasHSFields or hasJVMFields or self.__log_level is not None
 
         if multiline:
             endstr = ""
@@ -747,8 +747,8 @@ class MockCluCfgFileComp(MockClusterWriter):
                                  self.__jvmHeapInit, self.__jvmHeapMax,
                                  self.__jvmArgs, self.__jvmExtraArgs)
 
-            if self.__logLevel is not None:
-                self.writeLine(fd, indent2, "logLevel", self.__logLevel)
+            if self.__log_level is not None:
+                self.writeLine(fd, indent2, "logLevel", self.__log_level)
 
             print("%s</component>" % indent, file=fd)
 
@@ -803,7 +803,7 @@ class MockCluCfgFileCtlSrvr(object):
         return False
 
     @property
-    def logLevel(self):
+    def log_level(self):
         return None
 
     @property
@@ -926,7 +926,7 @@ class MockCluCfgFileSimHubs(MockClusterWriter):
         return False
 
     @property
-    def logLevel(self):
+    def log_level(self):
         return None
 
     @property
@@ -1315,7 +1315,7 @@ class MockConnection(object):
 
 
 class MockDeployComponent(Component):
-    def __init__(self, name, id, logLevel, hsDir, hsInterval, hsMaxFiles,
+    def __init__(self, name, id, log_level, hsDir, hsInterval, hsMaxFiles,
                  jvmPath, jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs,
                  jvmExtraArgs, alertEMail, ntpHost, numReplayFiles=None,
                  host=None):
@@ -1333,7 +1333,7 @@ class MockDeployComponent(Component):
         self.__numReplayFiles = numReplayFiles
         self.__host = host
 
-        super(MockDeployComponent, self).__init__(name, id, logLevel)
+        super(MockDeployComponent, self).__init__(name, id, log_level)
 
     @property
     def alertEMail(self):
@@ -1849,42 +1849,42 @@ class MockDAQClient(DAQClient):
 
 
 class MockIntervalTimer(object):
-    def __init__(self, name, waitSecs=1.0):
+    def __init__(self, name, wait_secs=1.0):
         self.__name = name
-        self.__isTime = False
-        self.__gotTime = False
-        self.__waitSecs = waitSecs
+        self.__is_time = False
+        self.__got_time = False
+        self.__wait_secs = wait_secs
 
     def __str__(self):
         return "Timer#%s%s" % \
-            (self.__name, self.__isTime and "!isTime!" or "")
+            (self.__name, self.__is_time and "!is_time!" or "")
 
     def gotTime(self):
-        return self.__gotTime
+        return self.__got_time
 
-    def isTime(self, now=None):
-        self.__gotTime = True
-        return self.__isTime
+    def is_time(self, now=None):
+        self.__got_time = True
+        return self.__is_time
 
     @property
     def name(self):
         return self.__name
 
     def reset(self):
-        self.__isTime = False
-        self.__gotTime = False
+        self.__is_time = False
+        self.__got_time = False
 
-    def timeLeft(self):
-        if self.__isTime:
+    def time_left(self):
+        if self.__is_time:
             return 0.0
-        return self.__waitSecs
+        return self.__wait_secs
 
     def trigger(self):
-        self.__isTime = True
-        self.__gotTime = False
+        self.__is_time = True
+        self.__got_time = False
 
-    def waitSecs(self):
-        return self.__waitSecs
+    def wait_secs(self):
+        return self.__wait_secs
 
 
 class MockLogger(LogChecker):
@@ -2059,9 +2059,9 @@ class MockParallelShell(object):
         cmd += ' -c %s:%d' % (ipAddr, DAQPort.CNCSERVER)
 
         if logPort is not None:
-            cmd += ' -l %s:%d,%s' % (ipAddr, logPort, comp.logLevel)
+            cmd += ' -l %s:%d,%s' % (ipAddr, logPort, comp.log_level)
         if livePort is not None:
-            cmd += ' -L %s:%d,%s' % (ipAddr, livePort, comp.logLevel)
+            cmd += ' -L %s:%d,%s' % (ipAddr, livePort, comp.log_level)
             cmd += ' -M %s:%d' % (ipAddr, MoniPort)
         cmd += ' %s &' % redir
 
@@ -2283,9 +2283,9 @@ class MockRemoteRunner(object):
         cmd += ' -c %s:%d' % (ip_addr, DAQPort.CNCSERVER)
 
         if log_port is not None:
-            cmd += ' -l %s:%d,%s' % (ip_addr, log_port, comp.logLevel)
+            cmd += ' -l %s:%d,%s' % (ip_addr, log_port, comp.log_level)
         if live_port is not None:
-            cmd += ' -L %s:%d,%s' % (ip_addr, live_port, comp.logLevel)
+            cmd += ' -L %s:%d,%s' % (ip_addr, live_port, comp.log_level)
             cmd += ' -M %s:%d' % (ip_addr, MoniPort)
         cmd += ' %s &' % redir
 

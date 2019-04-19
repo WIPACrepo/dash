@@ -570,19 +570,19 @@ class Run(object):
 
         logger = self.__mgr.logger()
 
-        # wake up every 'waitSecs' seconds to check run state
+        # wake up every 'wait_secs' seconds to check run state
         #
-        waitSecs = 10
-        if waitSecs > self.__duration:
-            waitSecs = self.__duration
+        wait_secs = 10
+        if wait_secs > self.__duration:
+            wait_secs = self.__duration
 
-        numTries = self.__duration / waitSecs
+        numTries = self.__duration / wait_secs
         numWaits = 0
 
         runs = 1
         while True:
             if not self.__mgr.isRunning():
-                runTime = numWaits * waitSecs
+                runTime = numWaits * wait_secs
                 if runTime < self.__duration:
                     logger.error(("WARNING: Expected %d second run, " +
                                   "but run %d ended after %d seconds") %
@@ -619,7 +619,7 @@ class Run(object):
                 logger.info("Switched from run %d to %d" %
                             (self.__run_num, curRunNum))
 
-                runTime = numWaits * waitSecs
+                runTime = numWaits * wait_secs
                 if runTime < self.__duration:
                     logger.error(("WARNING: Expected %d second run, " +
                                   "but run %d ended after %d seconds") %
@@ -640,7 +640,7 @@ class Run(object):
                               curRunNum))
                 break
 
-            time.sleep(waitSecs)
+            time.sleep(wait_secs)
 
 
 class RunLogger(object):
