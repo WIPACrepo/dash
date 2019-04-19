@@ -478,7 +478,7 @@ class ComponentManager(object):
 
         # clear the active configuration
         if not dry_run:
-            CachedFile.clearActiveConfig()
+            CachedFile.clear_active_config()
 
         cls.kill_components(comps, dry_run=dry_run, verbose=verbose,
                             kill_with_9=kill_with_9, logger=logger,
@@ -636,7 +636,7 @@ class ComponentManager(object):
             cls.__report_action(logger, "Launched", launched + jlist, ignored)
 
         # remember the active configuration
-        cluster_config.writeCacheFile(writeActiveConfig=True)
+        cluster_config.write_cache_file(write_active_config=True)
 
     @classmethod
     def list_known_component_names(cls):

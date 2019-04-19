@@ -475,7 +475,7 @@ class DAQConfig(ConfigObject):
                                      config_dir)
 
         if config_name is None:
-            config_name = CachedConfigName.getConfigToUse(None, False, True)
+            config_name = CachedConfigName.get_config_to_use(None, False, True)
 
         cfgs = []
 
@@ -920,7 +920,7 @@ class DAQConfigParser(object):
 
         if configName is None:
             configName = \
-                CachedConfigName.getConfigToUse(None, False, useActiveConfig)
+                CachedConfigName.get_config_to_use(None, False, useActiveConfig)
             if configName is None:
                 raise ConfigNotSpecifiedException("No configuration specified")
 

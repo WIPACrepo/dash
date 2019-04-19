@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-#
-# Deal with the various configuration name caches
+"Deal with the various run configuration name caches"
 
 from __future__ import print_function
 
@@ -10,79 +9,87 @@ from locate_pdaq import find_pdaq_config
 
 
 class NoNameException(Exception):
+    "No configuration name has been set"
     pass
 
 
 class CachedFile(object):
+    """
+    Manage pDAQ's run configuration name, in either ~/.active or
+    in $PDAQ_CONFIG/.config
+    """
 
-    @staticmethod
-    def __getCachedNamePath(useActiveConfig):
+    @classmethod
+    def __get_cached_name_path(cls, use_active_config):
         "get the active or default cluster configuration"
-        if useActiveConfig:
+        if use_active_config:
             return os.path.join(os.environ["HOME"], ".active")
-        configDir = find_pdaq_config()
-        return os.path.join(configDir, ".config")
+        return os.path.join(find_pdaq_config(), ".config")
 
-    @staticmethod
-    def __readCacheFile(useActiveConfig):
-        "read the cached cluster name"
-        clusterFile = CachedFile.__getCachedNamePath(useActiveConfig)
+    @classmethod
+    def __read_cache_file(cls, use_active_config):
+        "read the single line of cached text"
+        cluster_file = cls.__get_cached_name_path(use_active_config)
         try:
-            with open(clusterFile, 'r') as f:
-                ret = f.readline()
+            with open(cluster_file, 'r') as fin:
+                ret = fin.readline()
                 if ret is not None:
                     ret = ret.rstrip('\r\n')
-                if ret is None or len(ret) == 0:
+                if ret is None or ret == "":
                     return None
                 return ret
         except:
             return None
 
-    @staticmethod
-    def clearActiveConfig():
+    @classmethod
+    def clear_active_config(cls):
         "delete the active cluster name"
-        activeName = CachedFile.__getCachedNamePath(True)
-        if os.path.exists(activeName):
-            os.remove(activeName)
+        active_name = cls.__get_cached_name_path(True)
+        if os.path.exists(active_name):
+            os.remove(active_name)
 
-    @staticmethod
-    def getConfigToUse(cmdlineConfig, useFallbackConfig, useActiveConfig):
+    @classmethod
+    def get_config_to_use(cls, cmdline_config, use_fallback_config,
+                          use_active_config):
         "Determine the name of the configuration to use"
-        if cmdlineConfig is not None:
-            cfg = cmdlineConfig
+        if cmdline_config is not None:
+            cfg = cmdline_config
         else:
-            cfg = CachedFile.__readCacheFile(useActiveConfig)
-            if cfg is None and useFallbackConfig:
+            cfg = cls.__read_cache_file(use_active_config)
+            if cfg is None and use_fallback_config:
                 cfg = 'sim-localhost'
 
         return cfg
 
-    @staticmethod
-    def writeCacheFile(name, writeActiveConfig=False):
+    @classmethod
+    def write_name_to_cache_file(cls, name, write_active_config=False):
         "write this config name to the appropriate cache file"
-        cachedNamePath = CachedFile.__getCachedNamePath(writeActiveConfig)
+        cached_name_path \
+          = cls.__get_cached_name_path(write_active_config)
 
-        with open(cachedNamePath, 'w') as fd:
-            print(name, file=fd)
+        with open(cached_name_path, 'w') as fin:
+            print(name, file=fin)
 
 
 class CachedConfigName(CachedFile):
+    "Manage a file which caches a configuration name"
+
     def __init__(self):
         "Initialize instance variables"
-        self.__configName = None
+        self.__config_name = None
 
     @property
-    def configName(self):
+    def config_name(self):
         "get the configuration name to write to the cache file"
-        return self.__configName
+        return self.__config_name
 
-    def setConfigName(self, name):
-        self.__configName = name
+    def set_name(self, name):
+        "Set the configuration name"
+        self.__config_name = name
 
-    def writeCacheFile(self, writeActiveConfig=False):
+    def write_cache_file(self, write_active_config=False):
         "write this config name to the appropriate cache file"
-        if self.__configName is None:
+        if self.__config_name is None:
             raise NoNameException("Configuration name has not been set")
 
-        super(CachedConfigName, self).writeCacheFile(self.__configName,
-                                                     writeActiveConfig)
+        self.write_name_to_cache_file(self.__config_name, write_active_config)

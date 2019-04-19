@@ -145,10 +145,10 @@ class RunClusterTest(unittest.TestCase):
 
         cluster = RunCluster(cfg, "localhost", RunClusterTest.CONFIG_DIR)
 
-        cluster.clearActiveConfig()
+        cluster.clear_active_config()
 
-        cluster.writeCacheFile(writeActiveConfig=False)
-        cluster.writeCacheFile(writeActiveConfig=True)
+        cluster.write_cache_file(write_active_config=False)
+        cluster.write_cache_file(write_active_config=True)
 
     def testDeployLocalhost(self):
         cfgName = 'simpleConfig'

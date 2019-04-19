@@ -134,7 +134,7 @@ class RunCluster(CachedConfigName):
         if self.__clusterDesc.name != "sps" and \
            self.__clusterDesc.name != "spts":
             name += "@" + self.__clusterDesc.name
-        self.setConfigName(name)
+        self.set_name(name)
 
         self.__nodes = self.__buildNodeMap(self.__clusterDesc, self.__hubList,
                                            cfg)

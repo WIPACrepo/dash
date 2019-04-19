@@ -65,7 +65,7 @@ class TestDAQLaunch(unittest.TestCase):
 
     def tearDown(self):
         # clear cached config directory
-        CachedConfigName.clearActiveConfig()
+        CachedConfigName.clear_active_config()
 
     def test_launch_only_cnc(self):
         tmp_dir = tempfile.mkdtemp()
@@ -150,8 +150,8 @@ class TestDAQLaunch(unittest.TestCase):
 
         # set the cached config name
         ccfg = CachedConfigName()
-        ccfg.setConfigName(cfg_name)
-        ccfg.writeCacheFile(writeActiveConfig=True)
+        ccfg.set_name(cfg_name)
+        ccfg.write_cache_file(write_active_config=True)
 
         args = MockArguments()
         add_arguments_both(args)

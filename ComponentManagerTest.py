@@ -63,7 +63,7 @@ class MockClusterConfig(object):
     def nodes(self):
         return self.__nodes[:]
 
-    def writeCacheFile(self, writeActiveConfig=False):
+    def write_cache_file(self, write_active_config=False):
         pass
 
 
@@ -160,7 +160,7 @@ class ComponentManagerTest(unittest.TestCase):
     def tearDown(self):
         if self.__srvr is not None:
             self.__srvr.close()
-        CachedFile.clearActiveConfig()
+        CachedFile.clear_active_config()
 
     def test_start_java(self):
         dry_run = False
@@ -431,12 +431,13 @@ class ComponentManagerTest(unittest.TestCase):
 
     def test_get_active_config(self):
         config_name = "simpleConfig"
-        CachedFile.writeCacheFile(config_name, True)
+        CachedFile.write_name_to_cache_file(config_name, True)
 
         cluster_desc = "spts64"
+        cfg_dir = self.CONFIG_DIR
 
         comps = ComponentManager.get_active_components(cluster_desc,
-                                                       config_dir=self.CONFIG_DIR,
+                                                       config_dir=cfg_dir,
                                                        validate=False)
         self.assertFalse(comps is None,
                          "get_active_components should not return None")

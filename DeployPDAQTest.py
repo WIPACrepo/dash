@@ -26,7 +26,7 @@ class MockClusterConfig(object):
     def nodes(self):
         return self.__nodes[:]
 
-    def writeCacheFile(self):
+    def write_cache_file(self):
         pass
 
 

@@ -285,7 +285,7 @@ def deploy(config, pdaq_dir, subdirs, delete, dry_run, deep_dry_run,
     # record the configuration being deployed so
     # it gets copied along with everything else
     if not dry_run:
-        config.writeCacheFile()
+        config.write_cache_file()
 
     # if user or unit tests didn't specify a command runner, create one
     if rsync_runner is None:
