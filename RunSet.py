@@ -2280,14 +2280,14 @@ class RunSet(object):
         return self.__set[:]
 
     @property
-    def configName(self):
+    def config_name(self):
         return self.__cfg.basename
 
     def configure(self):
         "Configure all components in the runset"
         self.__state = RunSetState.CONFIGURING
 
-        data = (self.configName, )
+        data = (self.config_name, )
         ComponentGroup.run_simple(OpConfigureComponent, self.__set, data,
                                   self.__logger, report_errors=True)
 

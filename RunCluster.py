@@ -119,13 +119,13 @@ class SimAlloc(object):
 
 class RunCluster(CachedConfigName):
     "Cluster->component mapping generated from a run configuration file"
-    def __init__(self, cfg, descrName=None, configDir=None):
+    def __init__(self, cfg, descrName=None, config_dir=None):
         "Create a cluster->component mapping from a run configuration file"
         super(RunCluster, self).__init__()
 
         self.__hubList = self.__extractHubs(cfg)
 
-        self.__clusterDesc = ClusterDescription(configDir, descrName)
+        self.__clusterDesc = ClusterDescription(config_dir, descrName)
 
         # set the name to the run config plus cluster config
         name = os.path.basename(cfg.fullpath)
@@ -145,7 +145,7 @@ class RunCluster(CachedConfigName):
             if len(nodeStr) > 0:
                 nodeStr += " "
             nodeStr += "%s*%d" % (n.hostname, len(n.components()))
-        return self.configName + "[" + nodeStr + "]"
+        return self.config_name + "[" + nodeStr + "]"
 
     @classmethod
     def __addComponent(cls, hostMap, host, comp):
@@ -430,7 +430,7 @@ class RunCluster(CachedConfigName):
 
     @property
     def description(self):
-        return self.__clusterDesc.configName
+        return self.__clusterDesc.config_name
 
     def extractComponents(self, masterList):
         return self.extractComponentsFromNodes(self.__nodes, masterList)
@@ -533,10 +533,10 @@ if __name__ == '__main__':
     for name in nameList:
         (ndir, nbase) = os.path.split(name)
         if ndir is None or len(ndir) == 0:
-            configDir = pdaqDir
+            config_dir = pdaqDir
         else:
-            configDir = ndir
-        cfg = DAQConfigParser.parse(configDir, nbase)
+            config_dir = ndir
+        cfg = DAQConfigParser.parse(config_dir, nbase)
         try:
             runCluster = RunCluster(cfg, clusterDesc)
         except NotImplementedError:
@@ -551,7 +551,7 @@ if __name__ == '__main__':
             continue
 
         print('RunCluster: %s (%s)' % \
-            (runCluster.configName, runCluster.description))
+            (runCluster.config_name, runCluster.description))
         print('--------------------')
         if runCluster.logDirForSpade is not None:
             print('SPADE logDir: %s' % runCluster.logDirForSpade)

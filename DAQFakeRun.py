@@ -974,7 +974,7 @@ def main():
 
     try:
         DAQConfigParser.getClusterConfiguration(None, useActiveConfig=True,
-                                                configDir=run_cfg_dir,
+                                                config_dir=run_cfg_dir,
                                                 validate=False)
     except:
         DAQFakeRun.hack_active_config("sim-localhost")

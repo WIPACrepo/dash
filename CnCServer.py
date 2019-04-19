@@ -260,7 +260,7 @@ class DAQPool(object):
                 cstr = ComponentManager.format_component_list(missingList)
                 logger.error(("Cannot restart missing %s: Not found in"
                               " cluster config \"%s\"") %
-                             (cstr, cluCfg.configName))
+                             (cstr, cluCfg.config_name))
 
             if len(deadList) > 0:
                 self.cycle_components(deadList, runConfig.configdir,
@@ -712,7 +712,7 @@ class CnCServer(DAQPool):
             DumpThreadsOnSignal(fd=sys.stderr, logger=self.__log)
 
     def __str__(self):
-        return "%s<%s>" % (self.__name, self.getClusterConfig().configName)
+        return "%s<%s>" % (self.__name, self.getClusterConfig().config_name)
 
     def __closeOnSIGINT(self, signum, frame):
         if self.closeServer(False):
@@ -891,7 +891,7 @@ class CnCServer(DAQPool):
                 cc = DAQConfigParser.\
                      getClusterConfiguration(None, useActiveConfig=True,
                                              clusterDesc=cdesc,
-                                             configDir=cfgDir, validate=False)
+                                             config_dir=cfgDir, validate=False)
                 self.__clusterConfig = cc
             except XMLBadFileError:
                 if cdesc is None:
@@ -1210,8 +1210,8 @@ class CnCServer(DAQPool):
 
         clucfg = runSet.cluster_config()
         if clucfg is None:
-            return runSet.configName
-        return "%s@%s" % (runSet.configName, clucfg)
+            return runSet.config_name
+        return "%s@%s" % (runSet.config_name, clucfg)
 
     def rpc_runset_count(self):
         "return number of existing run sets"
@@ -1487,7 +1487,7 @@ if __name__ == "__main__":
                    help="Directory for copies of files sent to SPADE")
     p.add_argument("-C", "--cluster-desc", dest="clusterDesc",
                    help="Cluster description name")
-    p.add_argument("-c", "--config-dir", dest="configDir",
+    p.add_argument("-c", "--config-dir", dest="config_dir",
                    help="Directory where run configurations are stored")
     p.add_argument("-d", "--daemon", dest="daemon",
                    action="store_true", default=False,
@@ -1591,13 +1591,13 @@ if __name__ == "__main__":
     if args.daemon:
         Daemon.Daemon().Daemonize()
 
-    if args.configDir is not None:
-        configDir = args.configDir
+    if args.config_dir is not None:
+        config_dir = args.config_dir
     else:
-        configDir = find_pdaq_config()
+        config_dir = find_pdaq_config()
     cnc = CnCServer(clusterDesc=args.clusterDesc, name="CnCServer",
                     copyDir=args.copyDir, dashDir=args.dashDir,
-                    runConfigDir=configDir, daqDataDir=args.daqDataDir,
+                    runConfigDir=config_dir, daqDataDir=args.daqDataDir,
                     spadeDir=args.spadeDir, defaultLogDir=args.defaultLogDir,
                     logIP=logIP, logPort=logPort, liveIP=liveIP,
                     livePort=livePort, forceRestart=args.forceRestart,

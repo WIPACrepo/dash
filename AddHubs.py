@@ -13,7 +13,9 @@ from DAQConfig import DAQConfigException
 
 # find pDAQ's run configuration directory
 from locate_pdaq import find_pdaq_config
-configDir = find_pdaq_config()
+
+# save path to configuration directory
+CONFIG_DIR = find_pdaq_config()
 
 
 def getHubName(num):
@@ -33,7 +35,7 @@ def parseArgs():
         the run configuration name
         the list of hub IDs to be removed
     """
-    if not os.path.exists(configDir):
+    if not os.path.exists(CONFIG_DIR):
         print("Cannot find configuration directory", file=sys.stderr)
 
     cluCfgName = None
@@ -59,7 +61,7 @@ def parseArgs():
             continue
 
         if runCfgName is None:
-            path = os.path.join(configDir, a)
+            path = os.path.join(CONFIG_DIR, a)
             if not path.endswith(".xml"):
                 path += ".xml"
 
@@ -111,12 +113,13 @@ if __name__ == "__main__":
     hostid = Machineid()
     if not hostid.is_build_host:
         print("-" * 60, file=sys.stderr)
-        print("Warning: AddHubs.py should be run on the build machine", file=sys.stderr)
+        print("Warning: AddHubs.py should be run on the build machine",
+              file=sys.stderr)
         print("-" * 60, file=sys.stderr)
 
     (forceCreate, runCfgName, cluCfgName, hubIdList) = parseArgs()
 
-    newPath = DAQConfig.createOmitFileName(configDir, runCfgName, hubIdList,
+    newPath = DAQConfig.createOmitFileName(CONFIG_DIR, runCfgName, hubIdList,
                                            keepList=True)
     if os.path.exists(newPath):
         if forceCreate:
@@ -127,7 +130,7 @@ if __name__ == "__main__":
             raise SystemExit()
 
     try:
-        runCfg = DAQConfigParser.parse(configDir, runCfgName)
+        runCfg = DAQConfigParser.parse(CONFIG_DIR, runCfgName)
     except DAQConfigException as config_exp:
         print("WARNING: Error parsing %s" % runCfgName, file=sys.stderr)
         raise SystemExit(config_exp)

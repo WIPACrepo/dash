@@ -145,7 +145,7 @@ class Deploy(object):
                 DAQConfigParser.getClusterConfiguration(cluster_cfg_name,
                                                         useActiveConfig=False,
                                                         clusterDesc=clu_desc,
-                                                        configDir=None,
+                                                        config_dir=None,
                                                         validate=False)
         except DAQConfigException:
             raise LaunchException("Cannot load configuration \"%s\": %s" %

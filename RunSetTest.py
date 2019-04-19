@@ -226,7 +226,7 @@ class MyRunSet(RunSet):
         return fake
 
     @classmethod
-    def cycle_components(cls, compList, configDir, daqDataDir, logger, logPort,
+    def cycle_components(cls, compList, config_dir, daqDataDir, logger, logPort,
                          livePort, verbose=False, kill_with_9=False,
                          event_check=False, check_exists=True):
         pass

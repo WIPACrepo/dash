@@ -368,7 +368,7 @@ class FlasherScript(object):
 
 
 class Run(object):
-    def __init__(self, mgr, clusterCfgName, runCfgName, configDir=None,
+    def __init__(self, mgr, clusterCfgName, runCfgName, config_dir=None,
                  clusterDesc=None, flashData=None, dryRun=False):
         """
         Manage a single run
@@ -421,7 +421,8 @@ class Run(object):
             self.__cluster_cfg \
                 = DAQConfigParser.getClusterConfiguration\
                 (clusterCfgName, useActiveConfig=False,
-                 clusterDesc=clusterDesc, configDir=configDir, validate=False)
+                 clusterDesc=clusterDesc, config_dir=config_dir,
+                 validate=False)
         except DAQConfigException:
             raise LaunchException("Cannot load configuration \"%s\": %s" %
                                   (clusterCfgName, exc_string()))

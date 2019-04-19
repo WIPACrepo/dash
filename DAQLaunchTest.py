@@ -109,7 +109,7 @@ class TestDAQLaunch(unittest.TestCase):
         add_arguments_both(args)
         add_arguments_launch(args)
         args.set_argument("clusterDesc", clu_cfg_file.name)
-        args.set_argument("configName", cfg_name)
+        args.set_argument("config_name", cfg_name)
         args.set_argument("validate", False)
         args.set_argument("verbose", False)
         args.set_argument("dryRun", False)

@@ -178,7 +178,7 @@ class MostlyRunSet(RunSet):
         return FakeRunData(run_num, self.__run_config, cluster_config,
                            dashlog=self.__dashlog)
 
-    def cycle_components(self, comp_list, configDir, daqDataDir, logger,
+    def cycle_components(self, comp_list, config_dir, daqDataDir, logger,
                          log_port, live_port, verbose=False, kill_with_9=False,
                          event_check=False, check_exists=True):
         logger.error("Cycling components %s" %

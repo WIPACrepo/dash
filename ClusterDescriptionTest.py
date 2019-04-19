@@ -424,9 +424,9 @@ class TestClusterDescription(unittest.TestCase):
         if self.DEBUG:
             cd.dump()
 
-        self.assertEqual(name + "-cluster", cd.configName,
+        self.assertEqual(name + "-cluster", cd.config_name,
                          "Expected cfgname \"%s-cluster\", not \"%s\"" %
-                         (name, cd.configName))
+                         (name, cd.config_name))
 
         self.assertEqual(mock.dataDir, cd.daqDataDir,
                          "Expected data dir \"%s\", not \"%s\"" %
@@ -743,9 +743,9 @@ class TestClusterDescription(unittest.TestCase):
             if self.DEBUG:
                 cd.dump()
 
-            self.assertEqual(name + "-cluster", cd.configName,
+            self.assertEqual(name + "-cluster", cd.config_name,
                              "Expected cfgname \"%s-cluster\", not \"%s\"" %
-                             (name, cd.configName))
+                             (name, cd.config_name))
 
             self.assertEqual(dataDir, cd.daqDataDir,
                              "Expected data dir \"%s\", not \"%s\"" %

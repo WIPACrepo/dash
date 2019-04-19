@@ -25,13 +25,13 @@ class XMLFileCache(object):
         return fileName
 
     @classmethod
-    def load(cls, cfgName, configDir, strict=True):
+    def load(cls, cfgName, config_dir, strict=True):
         "Load the XML file"
 
-        fileName = cls.buildPath(configDir, cfgName)
+        fileName = cls.buildPath(config_dir, cfgName)
         if fileName is None:
             raise XMLBadFileError("'%s' not found in directory %s" %
-                                  (cfgName, configDir))
+                                  (cfgName, config_dir))
 
         try:
             fileStat = os.stat(fileName)
@@ -53,7 +53,7 @@ class XMLFileCache(object):
                                  fileName)
 
         try:
-            data = cls.parse(dom, configDir, cfgName, strict)
+            data = cls.parse(dom, config_dir, cfgName, strict)
         except XMLError:
             from exc_string import exc_string
             raise XMLFormatError("%s: %s" % (fileName, exc_string()))
@@ -65,6 +65,6 @@ class XMLFileCache(object):
         return data
 
     @classmethod
-    def parse(cls, dom, configDir, fileName, strict=True):
+    def parse(cls, dom, config_dir, fileName, strict=True):
         raise NotImplementedError("parse() method has not been" +
                                   " implemented for %s" % cls)

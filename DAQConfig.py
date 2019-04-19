@@ -218,16 +218,16 @@ class RunDom(dict):
         return "%s" % self['mbid']
 
     @classmethod
-    def __load_dom_id_map(cls, configDir):
+    def __load_dom_id_map(cls, config_dir):
         if cls.DEFAULT_DOM_GEOMETRY is None:
-            cls.__load_geometry(configDir)
+            cls.__load_geometry(config_dir)
 
         return cls.DEFAULT_DOM_GEOMETRY.getDomIdToDomDict()
 
     @classmethod
-    def __load_geometry(cls, configDir):
+    def __load_geometry(cls, config_dir):
         cls.DEFAULT_DOM_GEOMETRY = \
-                DefaultDomGeometryReader.parse(configDir=configDir,
+                DefaultDomGeometryReader.parse(config_dir=config_dir,
                                                translateDoms=True)
 
     def __getitem__(self, key):
@@ -245,9 +245,9 @@ class RunDom(dict):
             raise attr_err
 
     @classmethod
-    def doms_on_string(cls, configDir, strnum):
+    def doms_on_string(cls, config_dir, strnum):
         if cls.DEFAULT_DOM_GEOMETRY is None:
-            cls.__load_geometry(configDir)
+            cls.__load_geometry(config_dir)
 
         return cls.DEFAULT_DOM_GEOMETRY.getDomsOnString(strnum)
 
@@ -327,14 +327,14 @@ class DomConfig(ConfigObject):
 
 
 class RandomConfig(object):
-    def __init__(self, xdict, configDir=None):
+    def __init__(self, xdict, config_dir=None):
         self.string_map = {}
         self.hub_id = None
 
         str_id, excluded = self.__parseRandomHub(xdict)
 
         # fetch the list of DOMs for this string
-        doms = RunDom.doms_on_string(configDir, str_id)
+        doms = RunDom.doms_on_string(config_dir, str_id)
         if doms is None or len(doms) == 0:
             msg = "Unknown random hub %d" % str_id
             raise DAQConfigException(msg)
@@ -911,37 +911,37 @@ class DAQConfigParser(object):
                          shallow=shallow)
 
     @classmethod
-    def getClusterConfiguration(cls, configName, useActiveConfig=False,
-                                clusterDesc=None, configDir=None, strict=False,
+    def getClusterConfiguration(cls, config_name, useActiveConfig=False,
+                                clusterDesc=None, config_dir=None, strict=False,
                                 validate=True):
         """
         Find and parse the cluster configuration
         """
 
-        if configName is None:
-            configName = \
+        if config_name is None:
+            config_name = \
                 CachedConfigName.get_config_to_use(None, False, useActiveConfig)
-            if configName is None:
+            if config_name is None:
                 raise ConfigNotSpecifiedException("No configuration specified")
 
-        sep_index = configName.find('@')
+        sep_index = config_name.find('@')
         if sep_index > 0:
-            clusterDesc = configName[sep_index + 1:]
-            configName = configName[:sep_index]
+            clusterDesc = config_name[sep_index + 1:]
+            config_name = config_name[:sep_index]
 
-        if configDir is None:
-            configDir = find_pdaq_config()
+        if config_dir is None:
+            config_dir = find_pdaq_config()
 
         if validate:
-            (valid, reason) = validate_configs(clusterDesc, configName)
+            (valid, reason) = validate_configs(clusterDesc, config_name)
 
             if not valid:
                 raise DAQConfigException(reason)
 
         # load the run configuration
-        runCfg = DAQConfigParser.parse(configDir, configName, strict=strict)
+        runCfg = DAQConfigParser.parse(config_dir, config_name, strict=strict)
 
-        return RunCluster(runCfg, clusterDesc, configDir)
+        return RunCluster(runCfg, clusterDesc, config_dir)
 
 
 def main():

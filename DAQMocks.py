@@ -998,12 +998,12 @@ class MockClusterComponent(Component):
 class MockClusterConfig(object):
     """Simulate a cluster config object"""
     def __init__(self, name, descName="test-cluster"):
-        self.__configName = name
+        self.__config_name = name
         self.__nodes = {}
         self.__descName = descName
 
     def __repr__(self):
-        return "MockClusterConfig(%s)" % self.__configName
+        return "MockClusterConfig(%s)" % self.__config_name
 
     def addComponent(self, comp, jvmPath, jvmArgs, host):
         if host not in self.__nodes:
@@ -1011,8 +1011,8 @@ class MockClusterConfig(object):
         self.__nodes[host].add(comp, jvmPath, jvmArgs, host)
 
     @property
-    def configName(self):
-        return self.__configName
+    def config_name(self):
+        return self.__config_name
 
     @property
     def description(self):
@@ -1025,7 +1025,7 @@ class MockClusterConfig(object):
 
     @property
     def name(self):
-        return self.__configName
+        return self.__config_name
 
     def nodes(self):
         return list(self.__nodes.values())
@@ -1033,8 +1033,8 @@ class MockClusterConfig(object):
 
 class MockClusterConfigFile(MockClusterWriter):
     """Write a cluster config file"""
-    def __init__(self, configDir, name):
-        self.__configDir = configDir
+    def __init__(self, config_dir, name):
+        self.__config_dir = config_dir
         self.__name = name
 
         self.__dataDir = None
@@ -1076,10 +1076,10 @@ class MockClusterConfigFile(MockClusterWriter):
         return h
 
     def create(self, split_hosts=False):
-        path = os.path.join(self.__configDir, "%s-cluster.cfg" % self.__name)
+        path = os.path.join(self.__config_dir, "%s-cluster.cfg" % self.__name)
 
-        if not os.path.exists(self.__configDir):
-            os.makedirs(self.__configDir)
+        if not os.path.exists(self.__config_dir):
+            os.makedirs(self.__config_dir)
 
         with open(path, 'w') as fd:
             print("<cluster name=\"%s\">" % self.__name, file=fd)
@@ -1551,7 +1551,7 @@ class MockComponent(object):
     def commitSubrun(self, id, startTime):
         pass
 
-    def configure(self, configName=None):
+    def configure(self, config_name=None):
         if not self.__connected:
             self.__connected = True
         self.__configured = True
@@ -2007,7 +2007,7 @@ class MockParallelShell(object):
     def add(self, cmd):
         self.__checkCmd(cmd)
 
-    def addExpectedJava(self, comp, configDir, daqDataDir, logPort, livePort,
+    def addExpectedJava(self, comp, config_dir, daqDataDir, logPort, livePort,
                         verbose, event_check, host):
 
         ipAddr = ip.getLocalIpAddr(host)
@@ -2020,7 +2020,7 @@ class MockParallelShell(object):
             redir = ' </dev/null >/dev/null 2>&1'
 
         cmd = comp.jvmPath
-        cmd += " -Dicecube.daq.component.configDir='%s'" % configDir
+        cmd += " -Dicecube.daq.component.configDir='%s'" % config_dir
 
         if comp.jvmServer is not None and comp.jvmServer:
             cmd += " -server"
@@ -2098,12 +2098,12 @@ class MockParallelShell(object):
             self.__addExpected('sleep 2; %spkill -9%s \"%s\"' %
                                (sshCmd, pkillOpt, killPat))
 
-    def addExpectedPython(self, doCnC, dashDir, configDir, logDir, daqDataDir,
+    def addExpectedPython(self, doCnC, dashDir, config_dir, logDir, daqDataDir,
                           spadeDir, cluCfgName, cfgName, copyDir, logPort,
                           livePort, forceRestart=True):
         if doCnC:
             cmd = os.path.join(dashDir, 'CnCServer.py')
-            cmd += ' -c %s' % configDir
+            cmd += ' -c %s' % config_dir
             cmd += ' -o %s' % logDir
             cmd += ' -q %s' % daqDataDir
             cmd += ' -s %s' % spadeDir
@@ -2535,8 +2535,8 @@ class MockAlgorithm(object):
 
 
 class MockLeapsecondFile(object):
-    def __init__(self, configDir):
-        self.__configDir = configDir
+    def __init__(self, config_dir):
+        self.__config_dir = config_dir
 
     def create(self):
         known_times = (
@@ -2549,7 +2549,7 @@ class MockLeapsecondFile(object):
         expiration = MJD.now().ntp + \
                      ((RunSet.LEAPSECOND_FILE_EXPIRY + 1) * 24 * 3600)
 
-        nist_path = os.path.join(self.__configDir, "nist")
+        nist_path = os.path.join(self.__config_dir, "nist")
         if not os.path.isdir(nist_path):
             os.mkdir(nist_path)
 
@@ -2573,8 +2573,8 @@ class MockTriggerConfig(object):
         self.__algorithms.append(algo)
         return algo
 
-    def create(self, configDir, debug=False):
-        cfgDir = os.path.join(configDir, "trigger")
+    def create(self, config_dir, debug=False):
+        cfgDir = os.path.join(config_dir, "trigger")
         if not os.path.exists(cfgDir):
             os.makedirs(cfgDir)
 
@@ -2608,11 +2608,11 @@ class MockTriggerConfig(object):
 
 
 class MockRunConfigFile(object):
-    def __init__(self, configDir):
-        self.__configDir = configDir
+    def __init__(self, config_dir):
+        self.__config_dir = config_dir
 
     def __makeDomConfig(self, cfgName, domList, debug=False):
-        cfgDir = os.path.join(self.__configDir, "domconfigs")
+        cfgDir = os.path.join(self.__config_dir, "domconfigs")
         if not os.path.exists(cfgDir):
             os.makedirs(cfgDir)
 
@@ -2637,13 +2637,13 @@ class MockRunConfigFile(object):
                     print(line, end=' ')
 
     def create(self, compList, hubDomDict, trigCfg=None, debug=False):
-        path = tempfile.mktemp(suffix=".xml", dir=self.__configDir)
-        if not os.path.exists(self.__configDir):
-            os.makedirs(self.__configDir)
+        path = tempfile.mktemp(suffix=".xml", dir=self.__config_dir)
+        if not os.path.exists(self.__config_dir):
+            os.makedirs(self.__config_dir)
 
         if trigCfg is None:
             trigCfg = MockTriggerConfig("empty-trigger")
-        trigCfg.create(self.__configDir, debug=debug)
+        trigCfg.create(self.__config_dir, debug=debug)
 
         with open(path, 'w') as fd:
             print("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", file=fd)

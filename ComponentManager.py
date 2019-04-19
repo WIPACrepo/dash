@@ -428,7 +428,7 @@ class ComponentManager(object):
                     getClusterConfiguration(None,
                                             useActiveConfig=True,
                                             clusterDesc=cluster_desc,
-                                            configDir=config_dir,
+                                            config_dir=config_dir,
                                             validate=validate)
             except DAQConfigException as dce:
                 if str(dce).find("RELAXNG") >= 0:
@@ -443,7 +443,7 @@ class ComponentManager(object):
             if logger is not None:
                 if active_config is not None:
                     logger.info("Extracted component list from %s" %
-                                active_config.configName)
+                                active_config.config_name)
                 else:
                     logger.info("No active components found")
 

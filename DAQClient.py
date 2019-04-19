@@ -393,13 +393,13 @@ class DAQClient(ComponentName):
             self.__log.error(exc_string())
             return None
 
-    def configure(self, configName=None):
+    def configure(self, config_name=None):
         "Configure this component"
         try:
-            if not configName:
+            if not config_name:
                 return self.__client.xmlrpc.configure()
             else:
-                return self.__client.xmlrpc.configure(configName)
+                return self.__client.xmlrpc.configure(config_name)
         except:
             self.__log.error(exc_string())
             return None

@@ -21,8 +21,8 @@ class XMLBadFileError(XMLError):
 class XMLParser(object):
 
     @staticmethod
-    def buildPath(configDir, configName, suffix='.xml'):
-        fileName = os.path.join(configDir, configName)
+    def buildPath(config_dir, config_name, suffix='.xml'):
+        fileName = os.path.join(config_dir, config_name)
         if os.path.exists(fileName):
             return fileName
         if not fileName.endswith(suffix):

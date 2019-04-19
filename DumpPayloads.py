@@ -6,7 +6,7 @@ from RunJava import runJava
 
 
 def add_arguments(parser):
-    parser.add_argument("-D", "--configDir", dest="configDir",
+    parser.add_argument("-D", "--config_dir", dest="config_dir",
                         help="Configuration directory")
     parser.add_argument("-f", "--fullDump", dest="fullDump",
                         action="store_true", default=False,
@@ -17,7 +17,7 @@ def add_arguments(parser):
     parser.add_argument("-n", "--numToDump", type=int, dest="numToDump",
                         default=None,
                         help="Maximum number of payloads to dump")
-    parser.add_argument("-r", "--configName", dest="configName",
+    parser.add_argument("-r", "--config_name", dest="config_name",
                         help="Run configuration name")
     parser.add_argument(dest="fileList", nargs="+")
 
@@ -29,8 +29,8 @@ def dump_payloads(args):
                  ("commons-logging", "commons-logging", "1.0.3")]
 
     arglist = []
-    if args.configDir is not None:
-        arglist += ["-D", args.configDir]
+    if args.config_dir is not None:
+        arglist += ["-D", args.config_dir]
     if args.fullDump:
         arglist.append("-f")
     if args.hexDump:
@@ -38,8 +38,8 @@ def dump_payloads(args):
         arglist.append("-h")
     if args.numToDump is not None:
         arglist += ["-n", str(args.numToDump)]
-    if args.configName is not None:
-        arglist += ["-r", args.configName]
+    if args.config_name is not None:
+        arglist += ["-r", args.config_name]
 
     arglist += args.fileList
 

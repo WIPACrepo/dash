@@ -25,23 +25,23 @@ class ClusterDescriptionException(Exception):
 
 
 class ConfigXMLBase(XMLParser):
-    def __init__(self, configDir, configName, suffix='.xml'):
+    def __init__(self, config_dir, config_name, suffix='.xml'):
         self.name = None
-        fileName = self.buildPath(configDir, configName, suffix=suffix)
-        if not os.path.exists(configDir):
+        fileName = self.buildPath(config_dir, config_name, suffix=suffix)
+        if not os.path.exists(config_dir):
             raise XMLBadFileError("Config directory \"%s\" does not exist" %
-                                  configDir)
+                                  config_dir)
         if fileName is None:
             raise XMLBadFileError('Cannot find "%s" in "%s"' %
-                                  (configName, configDir))
-        if configName.endswith(suffix):
-            configName = configName[:-len(suffix)]
+                                  (config_name, config_dir))
+        if config_name.endswith(suffix):
+            config_name = config_name[:-len(suffix)]
 
         self.__load_xml(fileName)
 
         self.__path = fileName
         self.__mtime = os.stat(self.__path).st_mtime
-        self.__configName = configName
+        self.__config_name = config_name
 
     def __load_xml(self, path):
         try:
@@ -52,8 +52,8 @@ class ConfigXMLBase(XMLParser):
         self.extractFrom(dom)
 
     @property
-    def configName(self):
-        return self.__configName
+    def config_name(self):
+        return self.__config_name
 
     def extractFrom(self, dom):
         raise NotImplementedError('extractFrom method is not implemented')
@@ -662,7 +662,7 @@ class ClusterDescription(ConfigXMLBase):
     DEFAULT_PKGSTAGE_DIR = "/software/stage/pdaq/dependencies/tar"
     DEFAULT_PKGINSTALL_DIR = "/software/pdaq"
 
-    def __init__(self, configDir=None, configName=None, suffix='.cfg'):
+    def __init__(self, config_dir=None, config_name=None, suffix='.cfg'):
         self.name = None
         self.__host_map = None
         self.__defaults = None
@@ -678,34 +678,34 @@ class ClusterDescription(ConfigXMLBase):
         self.__default_jvm = JVMArgs(None, None, None, None, None, None)
         self.__default_log_level = self.DEFAULT_LOG_LEVEL
 
-        if configName is None:
-            configName = self.getClusterName()
+        if config_name is None:
+            config_name = self.getClusterName()
 
-        if configDir is None:
-            configDir = find_pdaq_config()
+        if config_dir is None:
+            config_dir = find_pdaq_config()
 
         try:
-            super(ClusterDescription, self).__init__(configDir, configName,
+            super(ClusterDescription, self).__init__(config_dir, config_name,
                                                      suffix)
         except XMLBadFileError:
             saved_ex = sys.exc_info()
 
-            if not configName.endswith('.cfg'):
-                retryName = configName
+            if not config_name.endswith('.cfg'):
+                retryName = config_name
             else:
-                retryName = configName[:-4]
+                retryName = config_name[:-4]
 
             if not retryName.endswith('-cluster'):
                 retryName += '-cluster'
 
             try:
-                super(ClusterDescription, self).__init__(configDir, retryName,
+                super(ClusterDescription, self).__init__(config_dir, retryName,
                                                          suffix)
-                configName = retryName
+                config_name = retryName
             except XMLBadFileError:
                 reraise_excinfo(saved_ex)
 
-        derivedName, ext = os.path.splitext(os.path.basename(configName))
+        derivedName, ext = os.path.splitext(os.path.basename(config_name))
         if derivedName.endswith("-cluster"):
             derivedName = derivedName[:-8]
         if derivedName != self.name:
@@ -1285,13 +1285,13 @@ class ClusterDescription(ConfigXMLBase):
 
 
 if __name__ == '__main__':
-    def tryCluster(configDir, path=None):
+    def tryCluster(config_dir, path=None):
         if path is None:
-            cluster = ClusterDescription(configDir)
+            cluster = ClusterDescription(config_dir)
         else:
             dirName = os.path.dirname(path)
             if dirName is None or len(dirName) == 0:
-                dirName = configDir
+                dirName = config_dir
                 baseName = path
             else:
                 baseName = os.path.basename(path)
@@ -1312,9 +1312,9 @@ if __name__ == '__main__':
         print('Saw description %s' % cluster.name)
         cluster.dump()
 
-    configDir = find_pdaq_config()
+    config_dir = find_pdaq_config()
 
     if len(sys.argv) == 1:
-        tryCluster(configDir)
+        tryCluster(config_dir)
     for name in sys.argv[1:]:
-        tryCluster(configDir, name)
+        tryCluster(config_dir, name)

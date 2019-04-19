@@ -911,12 +911,12 @@ class DefaultDomGeometryReader(XMLParser):
             raise XMLFormatError("String is missing number")
 
     @classmethod
-    def parse(cls, configDir=None, fileName=None, translateDoms=False):
-        if configDir is None:
-            configDir = find_pdaq_config()
+    def parse(cls, config_dir=None, fileName=None, translateDoms=False):
+        if config_dir is None:
+            config_dir = find_pdaq_config()
 
         if fileName is None:
-            fileName = os.path.join(configDir, DefaultDomGeometry.FILENAME)
+            fileName = os.path.join(config_dir, DefaultDomGeometry.FILENAME)
 
         if not os.path.exists(fileName):
             raise XMLBadFileError("Cannot read default dom geometry file"
@@ -964,8 +964,8 @@ class DomsTxtReader(object):
     def parse(fileName=None, defDomGeom=None):
         "Parse a doms.txt file"
         if fileName is None:
-            configDir = find_pdaq_config()
-            fileName = os.path.join(configDir, "doms.txt")
+            config_dir = find_pdaq_config()
+            fileName = os.path.join(config_dir, "doms.txt")
 
         if not os.path.exists(fileName):
             raise XMLBadFileError("Cannot read doms.txt file \"%s\"" %
@@ -1035,8 +1035,8 @@ class NicknameReader(object):
     @staticmethod
     def parse(fileName=None, defDomGeom=None):
         if fileName is None:
-            configDir = find_pdaq_config()
-            fileName = os.path.join(configDir, "nicknames.txt")
+            config_dir = find_pdaq_config()
+            fileName = os.path.join(config_dir, "nicknames.txt")
 
         if not os.path.exists(fileName):
             raise XMLBadFileError("Cannot read nicknames file \"%s\"" %

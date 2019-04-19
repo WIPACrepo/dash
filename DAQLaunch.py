@@ -83,10 +83,10 @@ def add_arguments_kill(_):
 def add_arguments_launch(parser, config_as_arg=True):
     "Add arguments which only apply to 'pdaq launch'"
     if config_as_arg:
-        parser.add_argument("-c", "--config-name", dest="configName",
+        parser.add_argument("-c", "--config-name", dest="config_name",
                             help="Configuration name")
     else:
-        parser.add_argument("configName", nargs="?",
+        parser.add_argument("config_name", nargs="?",
                             help="Run configuration name")
 
     parser.add_argument("-F", "--no-force-restart", dest="forceRestart",
@@ -117,7 +117,7 @@ def check_arguments(args):
     if args.killOnly:
         if args.skipKill:
             raise SystemExit("Cannot specify both -k(illOnly) and -s(kipKill")
-        if args.configName is not None:
+        if args.config_name is not None:
             ignored.append("--config-name")
         if args.event_check:
             ignored.append("--event-check")
@@ -196,7 +196,7 @@ def launch(config_dir, dash_dir, logger, parallel=None, check_exists=True,
         force_restart = None
     else:
         cluster_desc = args.clusterDesc
-        config_name = args.configName
+        config_name = args.config_name
         validate = args.validate
         verbose = args.verbose
         dry_run = args.dryRun
@@ -211,7 +211,7 @@ def launch(config_dir, dash_dir, logger, parallel=None, check_exists=True,
             DAQConfigParser.getClusterConfiguration(config_name,
                                                     useActiveConfig=False,
                                                     clusterDesc=cluster_desc,
-                                                    configDir=config_dir,
+                                                    config_dir=config_dir,
                                                     validate=validate)
     except DAQConfigException:
         raise SystemExit("DAQ Config exception:\n\t%s" %
@@ -220,9 +220,9 @@ def launch(config_dir, dash_dir, logger, parallel=None, check_exists=True,
     if verbose:
         print("Version info: " + get_scmversion_str())
         if cluster_config.description is None:
-            print("CLUSTER CONFIG: %s" % (cluster_config.configName, ))
+            print("CLUSTER CONFIG: %s" % (cluster_config.config_name, ))
         else:
-            print("CONFIG: %s" % (cluster_config.configName, ))
+            print("CONFIG: %s" % (cluster_config.config_name, ))
             print("CLUSTER: %s" % cluster_config.description)
 
         print("NODES:")

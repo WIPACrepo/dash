@@ -337,7 +337,7 @@ class MyRunSet(RunSet):
         return rd
 
     @classmethod
-    def cycle_components(cls, compList, configDir, daqDataDir, logger,
+    def cycle_components(cls, compList, config_dir, daqDataDir, logger,
                          log_port, live_port, verbose=False, kill_with_9=False,
                          event_check=False, check_exists=True):
         compStr = ComponentManager.format_component_list(compList)

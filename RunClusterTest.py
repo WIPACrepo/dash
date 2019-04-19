@@ -49,7 +49,7 @@ class RunClusterTest(unittest.TestCase):
         sortedNodes = sorted(cluCfg.nodes())
 
         if verbose:
-            print("=== RC -> %s" % (cluCfg.configName, ))
+            print("=== RC -> %s" % (cluCfg.config_name, ))
             for n in sortedNodes:
                 print("::  " + str(n))
                 sortedComps = sorted(n.components())
@@ -120,7 +120,7 @@ class RunClusterTest(unittest.TestCase):
         cfg = DAQConfigParser.parse(RunClusterTest.CONFIG_DIR, cfgName)
 
         cluster = RunCluster(cfg, clusterName,
-                             configDir=RunClusterTest.CONFIG_DIR)
+                             config_dir=RunClusterTest.CONFIG_DIR)
 
         if not clusterName.endswith("-cluster"):
             fixedName = clusterName
@@ -131,9 +131,9 @@ class RunClusterTest(unittest.TestCase):
         else:
             fullName = "%s@%s" % (cfgName, fixedName)
 
-        self.assertEqual(cluster.configName, fullName,
+        self.assertEqual(cluster.config_name, fullName,
                          'Expected config name %s, not %s' %
-                         (fullName, cluster.configName))
+                         (fullName, cluster.config_name))
 
         return (cfg, cluster)
 
