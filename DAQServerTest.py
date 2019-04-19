@@ -378,7 +378,7 @@ class TestDAQServer(unittest.TestCase):
         port = 666
         mPort = 667
 
-        expId = DAQClient.ID.peekNext()
+        expId = DAQClient.ID.peek_next()
 
         if num == 0:
             fullName = name
@@ -424,7 +424,7 @@ class TestDAQServer(unittest.TestCase):
         port = 666
         mPort = 667
 
-        expId = DAQClient.ID.peekNext()
+        expId = DAQClient.ID.peek_next()
 
         if num == 0:
             fullName = name
@@ -476,7 +476,7 @@ class TestDAQServer(unittest.TestCase):
 
         clientLogger = self.__createLog('client', clientPort)
 
-        compId = DAQClient.ID.peekNext()
+        compId = DAQClient.ID.peek_next()
         compName = 'stringHub'
         compNum = self.HUB_NUMBER
         compHost = 'localhost'

@@ -515,7 +515,7 @@ class TestRunSet(unittest.TestCase):
 
         runConfig = FakeRunConfig(None, "XXXrunCfgXXX")
 
-        expId = RunSet.ID_SOURCE.peekNext()
+        expId = RunSet.ID_SOURCE.peek_next()
 
         cluCfg = FakeCluster("cluster-foo")
 

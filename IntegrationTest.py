@@ -1241,7 +1241,7 @@ class IntegrationTest(unittest.TestCase):
         if log_server:
             log_server.checkStatus(10)
 
-        set_id = RunSet.ID_SOURCE.peekNext()
+        set_id = RunSet.ID_SOURCE.peek_next()
         run_num = 654
         config_name = IntegrationTest.CONFIG_NAME
 
