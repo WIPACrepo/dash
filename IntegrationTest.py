@@ -326,7 +326,7 @@ class MostlyRunSet(RunSet):
         log.addExpectedRegexp(r'Hello from \S+#\d+')
         log.addExpectedTextRegexp(r'Version info: \S+ \S+ \S+ \S+')
 
-        comp.logTo(host, port, None, None)
+        comp.log_to(host, port, None, None)
 
         return log
 
@@ -361,7 +361,7 @@ class MostlyDAQClient(DAQClient):
                                               mbean_port, connectors,
                                               quiet=True)
 
-    def createLogger(self, quiet):
+    def create_logger(self, quiet):
         return MockCnCLogger(self.fullname, appender=self.__appender,
                              quiet=quiet)
 
@@ -587,7 +587,7 @@ class RealComponent(object):
         if conn_list is not None:
             for cdict in conn_list:
                 for comp in self.__comp_list:
-                    if comp.isComponent(cdict["compName"], cdict["compNum"]):
+                    if comp.is_component(cdict["compName"], cdict["compNum"]):
                         tmp_dict[comp] = 1
                         break
 
@@ -829,7 +829,7 @@ class RealComponent(object):
     def hitspoolMaxFiles(self):
         return self.__hs_max_files
 
-    def isComponent(self, name, num=-1):
+    def is_component(self, name, num=-1):
         return self.__name == name and (num < 0 or self.__num == num)
 
     @property
@@ -856,7 +856,7 @@ class RealComponent(object):
     def jvmServer(self):
         return self.__jvm_server
 
-    def logTo(self, log_host, log_port, live_host, live_port):
+    def log_to(self, log_host, log_port, live_host, live_port):
         return self.__log_to(log_host, log_port, live_host, live_port)
 
     @property
@@ -1061,7 +1061,7 @@ class IntegrationTest(unittest.TestCase):
             for comp in self.__comp_list:
                 comp.addI3LiveMonitoring(live_moni)
 
-        task_mgr.triggerTimer(MonitorTask.NAME)
+        task_mgr.triggerTimer(MonitorTask.name)
         time.sleep(MostlyTaskManager.WAITSECS)
         task_mgr.waitForTasks()
 
@@ -1082,7 +1082,7 @@ class IntegrationTest(unittest.TestCase):
         dash_log.addExpectedRegexp(r"\s*0 physics events, 0 moni events," +
                                    r" 0 SN events, 0 tcals")
 
-        task_mgr.triggerTimer(RateTask.NAME)
+        task_mgr.triggerTimer(RateTask.name)
         time.sleep(MostlyTaskManager.WAITSECS)
         task_mgr.waitForTasks()
 
@@ -1108,7 +1108,7 @@ class IntegrationTest(unittest.TestCase):
         dash_log.addExpectedExact(("	%d physics events%s, 0 moni events," +
                                    " 0 SN events, 0 tcals") % (num_evts, hz_str))
 
-        task_mgr.triggerTimer(RateTask.NAME)
+        task_mgr.triggerTimer(RateTask.name)
         time.sleep(MostlyTaskManager.WAITSECS)
         task_mgr.waitForTasks()
 
@@ -1128,7 +1128,7 @@ class IntegrationTest(unittest.TestCase):
                 dash_log.addExpectedRegexp(r"Watchdog reports threshold"
                                            r" components.*")
 
-            task_mgr.triggerTimer(WatchdogTask.NAME)
+            task_mgr.triggerTimer(WatchdogTask.name)
             time.sleep(MostlyTaskManager.WAITSECS)
             task_mgr.waitForTasks()
 
@@ -1396,7 +1396,7 @@ class IntegrationTest(unittest.TestCase):
         if live_log:
             active_dom_map = {}
             for comp in self.__comp_list:
-                if comp.isComponent("stringHub"):
+                if comp.is_component("stringHub"):
                     active_dom_map[str(comp.num)] = 0
             live_log.addExpectedLiveMoni("activeDOMs", 0)
             live_log.addExpectedLiveMoni("expectedDOMs", 0)

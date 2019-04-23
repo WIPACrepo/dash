@@ -202,7 +202,7 @@ class DashXMLLog:
         """Get the end time for this run"""
         return self.__parseDateTime(self.getField("EndTime"))
 
-    def setFirstGoodTime(self, first_time):
+    def set_first_good_time(self, first_time):
         """Set the first good time for this run
 
         Args:
@@ -214,7 +214,7 @@ class DashXMLLog:
         """Get the first good time for this run"""
         return self.__parseDateTime(self.getField("FirstGoodTime"))
 
-    def setLastGoodTime(self, last_time):
+    def set_last_good_time(self, last_time):
         """Set the last time for this run
 
         Args:
@@ -489,8 +489,8 @@ if __name__ == "__main__":
     a.setConfig("sps-IC79-Erik-Changed-TriggerIDs-V151")
     a.setStartTime(55584.113903)
     a.setEndTime(55584.227695)
-    a.setFirstGoodTime(55584.113903)
-    a.setLastGoodTime(55584.227695)
+    a.set_first_good_time(55584.113903)
+    a.set_last_good_time(55584.227695)
     a.setTermCond(False)
     a.setEvents(24494834)
     a.setMoni(60499244)

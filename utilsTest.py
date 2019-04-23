@@ -86,8 +86,8 @@ class TestUtils(unittest.TestCase):
         a.setMoni(60499244)
         a.setTcal(4653819)
         a.setSN(47624256)
-        a.setFirstGoodTime(55584.123456)
-        a.setLastGoodTime(55584.210987)
+        a.set_first_good_time(55584.123456)
+        a.set_last_good_time(55584.210987)
         a.setVersionInfo("RelName", "revA:revB")
 
         docStr = a.documentToString(indent="")

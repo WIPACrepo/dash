@@ -141,7 +141,7 @@ class MockCnC(object):
     def setMissingComponents(self, compList):
         self.__missingComps = compList
 
-    def startRun(self, rs, runNum, runOpts):
+    def start_run(self, rs, runNum, runOpts):
         if self.__expRunCfg is None:
             raise Exception("Expected run configuration has not been set")
         if self.__expRunCfg != rs.runConfig():

@@ -395,7 +395,7 @@ class HubComponent(JavaComponent):
         return istr
 
     @property
-    def isRealHub(self):
+    def is_real_hub(self):
         return True
 
     @property
@@ -440,7 +440,7 @@ class ReplayHubComponent(HubComponent):
         return istr
 
     @property
-    def isRealHub(self):
+    def is_real_hub(self):
         return False
 
     @property
@@ -750,7 +750,7 @@ class ClusterDescription(ConfigXMLBase):
         comp.setJVMOptions(defaults, jvmPath, jvmServer, jvmHeapInit,
                            jvmHeapMax, jvmArgs, jvmExtraArgs)
 
-        if comp.isRealHub:
+        if comp.is_real_hub:
             alertEMail = cls.getValue(node, 'alertEMail')
             ntpHost = cls.getValue(node, 'ntpHost')
 

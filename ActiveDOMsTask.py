@@ -6,6 +6,7 @@ from CnCSingleThreadTask import CnCSingleThreadTask
 from CnCThread import CnCThread
 from CompOp import ComponentGroup, OpGetMultiBeanFields
 from LiveImports import Prio
+from decorators import classproperty
 
 
 from exc_string import exc_string, set_exc_string_encoding
@@ -23,11 +24,11 @@ class ActiveDOMThread(CnCThread):
     KEY_ACTIVE = "active_doms"
     KEY_TOTAL = "total_doms"
 
-    def __init__(self, runset, dashlog, liveMoni, lbm_start_time=None,
+    def __init__(self, runset, dashlog, live_moni, lbm_start_time=None,
                  send_details=False):
         self.__runset = runset
         self.__dashlog = dashlog
-        self.__live_moni_client = liveMoni
+        self.__live_moni_client = live_moni
         self.__lbm_start_time = lbm_start_time
         self.__send_details = send_details
 
@@ -105,7 +106,7 @@ class ActiveDOMThread(CnCThread):
         # build a list of hubs
         src_set = []
         for comp in self.__runset.components():
-            if comp.isSource:
+            if comp.is_source:
                 src_set.append(comp)
 
         # save the current time
@@ -150,7 +151,7 @@ class ActiveDOMThread(CnCThread):
         # report hanging components
         if len(hanging) > 0:
             errmsg = "Cannot get %s bean data from hanging components (%s)" % \
-                     (ActiveDOMsTask.NAME, hanging)
+                     (ActiveDOMsTask.name, hanging)
             self.__dashlog.error(errmsg)
 
         # if the run isn't stopped and we have data from one or more hubs...
@@ -222,6 +223,7 @@ class ActiveDOMThread(CnCThread):
         }
 
     def get_new_thread(self, send_details=False):
+        "Create a new copy of this thread"
         thrd = ActiveDOMThread(self.__runset, self.__dashlog,
                                self.__live_moni_client, self.__lbm_start_time,
                                send_details)
@@ -239,20 +241,30 @@ class ActiveDOMsTask(CnCSingleThreadTask):
     'LBMOverflows' which is a dictionary relating string number to the total
     number of lbm overflows for a given string
     """
-    NAME = "ActiveDOMs"
-    PERIOD = 60
+    __NAME = "ActiveDOMs"
+    __PERIOD = 60
 
     # active DOM periodic report timer
     REPORT_NAME = "ActiveReport"
     REPORT_PERIOD = 600
 
-    def createDetailTimer(self, taskMgr):
-        return taskMgr.createIntervalTimer(self.REPORT_NAME,
-                                           self.REPORT_PERIOD)
+    def create_detail_timer(self, task_mgr):
+        return task_mgr.createIntervalTimer(self.REPORT_NAME,
+                                            self.REPORT_PERIOD)
 
-    def initializeThread(self, runset, dashlog, liveMoni):
-        return ActiveDOMThread(runset, dashlog, liveMoni)
+    def initialize_thread(self, runset, dashlog, live_moni):
+        return ActiveDOMThread(runset, dashlog, live_moni)
 
-    def taskFailed(self):
-        self.logError("ERROR: %s thread seems to be stuck,"
-                      " monitoring will not be done" % self.NAME)
+    @classproperty
+    def name(cls):
+        "Name of this task"
+        return cls.__NAME
+
+    @classproperty
+    def period(cls):
+        "Number of seconds between tasks"
+        return cls.__PERIOD
+
+    def task_failed(self):
+        self.log_error("ERROR: %s thread seems to be stuck,"
+                       " monitoring will not be done" % self.name)

@@ -69,7 +69,7 @@ def __findExecutable(cmd, dryRun=False):
     return None
 
 
-def __getRunData(runDir):
+def __get_run_data(runDir):
     time = None
     duration = 0
 
@@ -251,7 +251,7 @@ def queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
         return
 
     try:
-        (runTime, runDuration) = __getRunData(runDir)
+        (runTime, runDuration) = __get_run_data(runDir)
     except FileNotFoundException:
         if __in_progress(logger, runNum):
             # don't try to queue log files from current run
@@ -264,11 +264,11 @@ def queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
             logger.error("Not writing combined log for run %d" % runNum)
         else:
             logger.error("Writing combined log for run %d" % runNum)
-            ls = LogSorter(runDir, runNum)
+            lsrt = LogSorter(runDir, runNum)
             # write to dotfile in case thread dies before it's finished
             tmppath = os.path.join(runDir, "." + COMBINED_LOG)
             with open(tmppath, "w") as fd:
-                ls.dumpRun(fd)
+                lsrt.dump_run(fd)
             # it's now safe to rename the combined log file
             os.rename(tmppath, path)
             try:

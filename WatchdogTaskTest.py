@@ -9,7 +9,7 @@ from DAQMocks import MockComponent, MockIntervalTimer, MockLogger, \
 
 
 class BadMatchRule(WatchdogRule):
-    def initData(self, data, thisComp, components):
+    def init_data(self, data, thisComp, components):
         pass
 
     def matches(self, comp):
@@ -17,7 +17,7 @@ class BadMatchRule(WatchdogRule):
 
 
 class BadInitRule(WatchdogRule):
-    def initData(self, data, thisComp, components):
+    def init_data(self, data, thisComp, components):
         raise Exception("FAIL")
 
     def matches(self, comp):
@@ -28,9 +28,9 @@ class BarRule(WatchdogRule):
     def __init__(self, checkVal):
         self.__checkVal = checkVal
 
-    def initData(self, data, thisComp, components):
+    def init_data(self, data, thisComp, components):
         if self.__checkVal:
-            data.addInputValue(thisComp, "barBean", "barFld")
+            data.add_input_value(thisComp, "barBean", "barFld")
 
     def matches(self, comp):
         return comp.name == "bar"
@@ -42,7 +42,7 @@ class FooRule(WatchdogRule):
         self.__testOut = testOut
         self.__testThresh = testThresh
 
-    def initData(self, data, thisComp, components):
+    def init_data(self, data, thisComp, components):
         foo = None
         for c in components:
             if c.name == "foo":
@@ -52,11 +52,11 @@ class FooRule(WatchdogRule):
             raise Exception("Cannot find \"foo\" component")
 
         if self.__testIn:
-            data.addInputValue(foo, "inBean", "inFld")
+            data.add_input_value(foo, "inBean", "inFld")
         if self.__testOut:
-            data.addOutputValue(foo, "outBean", "outFld")
+            data.add_output_value(foo, "outBean", "outFld")
         if self.__testThresh:
-            data.addThresholdValue("threshBean", "threshFld", 10)
+            data.add_threshold_value("threshBean", "threshFld", 10)
 
     def matches(self, comp):
         return comp.name == "foo"
@@ -65,7 +65,7 @@ class FooRule(WatchdogRule):
 class WatchdogTaskTest(unittest.TestCase):
     def __buildFoo(self):
         foo = MockComponent("foo", 1)
-        foo.setOrder(1)
+        foo.set_order(1)
         foo.mbean.addData("inBean", "inFld", 0)
         foo.mbean.addData("outBean", "outFld", 0)
         foo.mbean.addData("threshBean", "threshFld", 0)
@@ -73,7 +73,7 @@ class WatchdogTaskTest(unittest.TestCase):
 
     def __buildBar(self, addBarBeans=False):
         bar = MockComponent("bar", 0)
-        bar.setOrder(2)
+        bar.set_order(2)
         if addBarBeans:
             bar.mbean.addData("barBean", "barFld", 0)
 
@@ -85,7 +85,7 @@ class WatchdogTaskTest(unittest.TestCase):
         return MockRunSet(comps)
 
     def __runTest(self, runset, rules, testIn, testOut, testThresh, testBoth):
-        timer = MockIntervalTimer(WatchdogTask.NAME)
+        timer = MockIntervalTimer(WatchdogTask.name)
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(timer)
 
@@ -97,7 +97,7 @@ class WatchdogTaskTest(unittest.TestCase):
 
         timer.trigger()
         tsk.check()
-        tsk.waitUntilFinished()
+        tsk.wait_until_finished()
 
         endVal = WatchdogTask.HEALTH_METER_FULL
         if not testThresh:
@@ -127,7 +127,7 @@ class WatchdogTaskTest(unittest.TestCase):
                                                 " (%d checks left)" % health)
 
             tsk.check()
-            tsk.waitUntilFinished()
+            tsk.wait_until_finished()
 
             logger.checkStatus(4)
 
@@ -144,12 +144,12 @@ class WatchdogTaskTest(unittest.TestCase):
         pass
 
     def testUnknownComp(self):
-        timer = MockIntervalTimer(WatchdogTask.NAME)
+        timer = MockIntervalTimer(WatchdogTask.name)
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(timer)
 
         foo = MockComponent("foo", 1)
-        foo.setOrder(1)
+        foo.set_order(1)
 
         runset = MockRunSet([foo, ])
 
@@ -162,12 +162,12 @@ class WatchdogTaskTest(unittest.TestCase):
         logger.checkStatus(1)
 
     def testBadMatchRule(self):
-        timer = MockIntervalTimer(WatchdogTask.NAME)
+        timer = MockIntervalTimer(WatchdogTask.name)
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(timer)
 
         foo = MockComponent("foo", 1)
-        foo.setOrder(1)
+        foo.set_order(1)
 
         runset = MockRunSet([foo, ])
 
@@ -185,7 +185,7 @@ class WatchdogTaskTest(unittest.TestCase):
 
         rules = (BadInitRule(), )
 
-        timer = MockIntervalTimer(WatchdogTask.NAME)
+        timer = MockIntervalTimer(WatchdogTask.name)
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(timer)
 
@@ -204,7 +204,7 @@ class WatchdogTaskTest(unittest.TestCase):
 
             timer.trigger()
             tsk.check()
-            tsk.waitUntilFinished()
+            tsk.wait_until_finished()
 
             logger.checkStatus(5)
 
@@ -300,7 +300,7 @@ class WatchdogTaskTest(unittest.TestCase):
 
         num = 1
         for c in compList:
-            c.setOrder(num)
+            c.set_order(num)
             num += 1
 
         runset = MockRunSet(compList)
@@ -308,7 +308,7 @@ class WatchdogTaskTest(unittest.TestCase):
         self.__runTest(runset, None, True, True, True, True)
 
     def testLongStartup(self):
-        timer = MockIntervalTimer(WatchdogTask.NAME)
+        timer = MockIntervalTimer(WatchdogTask.name)
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(timer)
 
@@ -327,7 +327,7 @@ class WatchdogTaskTest(unittest.TestCase):
 
         timer.trigger()
         tsk.check()
-        tsk.waitUntilFinished()
+        tsk.wait_until_finished()
 
         for health in range(max_health - 1, 0, -1):
             if health <= WatchdogTask.HEALTH_METER_FULL:
@@ -344,7 +344,7 @@ class WatchdogTaskTest(unittest.TestCase):
             timer.trigger()
 
             tsk.check()
-            tsk.waitUntilFinished()
+            tsk.wait_until_finished()
 
             logger.checkStatus(5)
 

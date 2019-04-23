@@ -18,7 +18,7 @@ set_exc_string_encoding("ascii")
 class TaskManager(threading.Thread):
     "Manage RunSet tasks"
 
-    def __init__(self, runset, dashlog, liveMoni, runDir, runCfg, runOptions):
+    def __init__(self, runset, dashlog, live_moni, runDir, runCfg, runOptions):
         if dashlog is None:
             raise TaskException("Dash logfile cannot be None")
 
@@ -32,10 +32,10 @@ class TaskManager(threading.Thread):
         super(TaskManager, self).__init__(name="TaskManager")
         self.setDaemon(True)
 
-        self.__tasks = self.__createAllTasks(liveMoni, runDir, runCfg,
+        self.__tasks = self.__createAllTasks(live_moni, runDir, runCfg,
                                              runOptions)
 
-    def __createAllTasks(self, liveMoni, runDir, runCfg, runOptions):
+    def __createAllTasks(self, live_moni, runDir, runCfg, runOptions):
         """
         This method exists solely to make it easy to detect
         errors in the task constructors.
@@ -45,7 +45,7 @@ class TaskManager(threading.Thread):
         taskNum = 0
         while True:
             try:
-                task = self.__createTask(taskNum, liveMoni, runDir,
+                task = self.__createTask(taskNum, live_moni, runDir,
                                          runCfg, runOptions)
                 if task is None:
                     break
@@ -57,21 +57,21 @@ class TaskManager(threading.Thread):
 
         return taskList
 
-    def __createTask(self, taskNum, liveMoni, runDir, runCfg, runOptions):
+    def __createTask(self, taskNum, live_moni, runDir, runCfg, runOptions):
         """
         Create a single task.  There's nothing magic about 'taskNum',
         it's just a convenient way to iterate through all the task
         constructors.
         """
         if taskNum == 0:
-            return MonitorTask(self, self.__runset, self.__dashlog, liveMoni,
+            return MonitorTask(self, self.__runset, self.__dashlog, live_moni,
                                runDir, runOptions,
                                period=runCfg.monitorPeriod)
         elif taskNum == 1:
             return RateTask(self, self.__runset, self.__dashlog)
         elif taskNum == 2:
             return ActiveDOMsTask(self, self.__runset, self.__dashlog,
-                                  liveMoni)
+                                  live_moni)
         elif taskNum == 3:
             return WatchdogTask(self, self.__runset, self.__dashlog,
                                 initial_health=12, period=runCfg.watchdogPeriod)
@@ -142,8 +142,8 @@ class TaskManager(threading.Thread):
             if self.__dashlog is not None:
                 self.__dashlog.error(exc_string())
 
-    def setError(self, callerName):
-        self.__runset.set_run_error(callerName)
+    def set_error(self, caller_name):
+        self.__runset.set_run_error(caller_name)
 
     def stop(self):
         if self.__running and not self.__stopping:
@@ -156,4 +156,4 @@ class TaskManager(threading.Thread):
 
     def waitForTasks(self):
         for t in self.__tasks:
-            t.waitUntilFinished()
+            t.wait_until_finished()

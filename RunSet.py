@@ -333,7 +333,7 @@ class GoodTimeThread(CnCThread):
         if updated:
             try:
                 for comp in self.__other_set:
-                    if comp.isBuilder or comp.isComponent("globalTrigger"):
+                    if comp.is_builder or comp.is_component("globalTrigger"):
                         self.notify_component(comp, self.__good_time)
             except:
                 self.__log.error("Cannot send %s to builders: %s" %
@@ -391,7 +391,7 @@ class GoodTimeThread(CnCThread):
         "Return True if 'newval' is better than 'oldval'"
         raise NotImplementedError("Unimplemented")
 
-    def logError(self, msg):
+    def log_error(self, msg):
         self.__log.error(msg)
 
     @property
@@ -446,9 +446,9 @@ class FirstGoodTimeThread(GoodTimeThread):
     def notify_component(self, comp, pay_time):
         "Notify the builder of the good time"
         if pay_time is None:
-            self.logError("Cannot set first good time to None")
+            self.log_error("Cannot set first good time to None")
         else:
-            comp.setFirstGoodTime(pay_time)
+            comp.set_first_good_time(pay_time)
 
     def wait_for_all(self):
         "Wait for all threads to finish before checking results?"
@@ -487,9 +487,9 @@ class LastGoodTimeThread(GoodTimeThread):
     def notify_component(self, comp, pay_time):
         "Notify the builder of the good time"
         if pay_time is None:
-            self.logError("Cannot set last good time to None")
+            self.log_error("Cannot set last good time to None")
         else:
-            comp.setLastGoodTime(pay_time)
+            comp.set_last_good_time(pay_time)
 
     def wait_for_all(self):
         "Wait for all threads to finish before checking results?"
@@ -872,7 +872,7 @@ class RunData(object):
     def report_first_good_time(self, runset):
         eb_comp = None
         for comp in runset.components():
-            if comp.isComponent("eventBuilder"):
+            if comp.is_component("eventBuilder"):
                 eb_comp = comp
                 break
 
@@ -1140,16 +1140,16 @@ class RunData(object):
         # start threads to query components
         tgroup = ComponentGroup(OpGetSingleBeanField)
         for comp in run_set.components():
-            if not comp.isBuilder:
+            if not comp.is_builder:
                 continue
 
-            if comp.isComponent("eventBuilder"):
+            if comp.is_component("eventBuilder"):
                 # save eventBuilder in case we need to get the first event time
                 evtBldr = comp
 
                 tgroup.run_thread(comp, ("backEnd", "EventData"),
                                   logger=self)
-            elif comp.isComponent("secondaryBuilders"):
+            elif comp.is_component("secondaryBuilders"):
                 for bldr in ("moni", "sn", "tcal"):
                     tgroup.run_thread(comp, (bldr + "Builder", "EventData"),
                                       logger=self)
@@ -1170,7 +1170,7 @@ class RunData(object):
                            (evt_data, type(evt_data).__name__))
                 continue
 
-            if comp.isComponent("eventBuilder"):
+            if comp.is_component("eventBuilder"):
                 if len(evt_data) != 3:
                     self.error("Got bad event data %s (expected 3 entries)" %
                                (evt_data, ))
@@ -1188,7 +1188,7 @@ class RunData(object):
                 wall_time = datetime.datetime.utcnow()
                 last_pay_time = int(evt_data[2])
 
-            elif comp.isComponent("secondaryBuilders"):
+            elif comp.is_component("secondaryBuilders"):
                 if len(evt_data) != 3:
                     self.error("Got bad event data %s (expected 3 entries)" %
                                (evt_data, ))
@@ -1279,8 +1279,8 @@ class RunData(object):
         xml_log.setCluster(self.cluster_configuration.description)
         xml_log.setStartTime(PayloadTime.toDateTime(first_time))
         xml_log.setEndTime(PayloadTime.toDateTime(last_time))
-        xml_log.setFirstGoodTime(PayloadTime.toDateTime(first_good))
-        xml_log.setLastGoodTime(PayloadTime.toDateTime(last_good))
+        xml_log.set_first_good_time(PayloadTime.toDateTime(first_good))
+        xml_log.set_last_good_time(PayloadTime.toDateTime(last_good))
         xml_log.setEvents(num_evts)
         xml_log.setMoni(num_moni)
         xml_log.setSN(num_sn)
@@ -1453,10 +1453,10 @@ class RunSet(object):
 
         fail_str = None
         for comp in self.__set:
-            if comp.order() is not None:
-                if comp.isSource:
+            if comp.order is not None:
+                if comp.is_source:
                     src_set.append(comp)
-                elif comp.isBuilder:
+                elif comp.is_builder:
                     bldr_set.append(comp)
                 else:
                     middle_set.append(comp)
@@ -1467,7 +1467,7 @@ class RunSet(object):
                     fail_str += ', ' + str(comp)
         if fail_str:
             raise RunSetException(fail_str)
-        middle_set.sort(key=lambda x: x.order())
+        middle_set.sort(key=lambda x: x.order)
 
         return src_set, middle_set, bldr_set
 
@@ -1696,7 +1696,7 @@ class RunSet(object):
         "Return the list of replay hubs in this runset"
         replay_hubs = []
         for comp in self.__set:
-            if comp.isReplayHub:
+            if comp.is_replay_hub:
                 replay_hubs.append(comp)
         return replay_hubs
 
@@ -1735,7 +1735,7 @@ class RunSet(object):
                                (comp.fullname, result))
                 continue
 
-            if comp.isComponent("eventBuilder"):
+            if comp.is_component("eventBuilder"):
                 exp_num = 5
                 if len(result) == exp_num:
                     (physics_count, first_time, last_time, first_good,
@@ -1745,7 +1745,7 @@ class RunSet(object):
                                     " %s, got %d (%s)") %
                                    (exp_num, comp.fullname, len(result),
                                     result))
-            elif comp.isComponent("secondaryBuilders"):
+            elif comp.is_component("secondaryBuilders"):
                 if len(result) == 6:
                     (tcal_count, tcal_ticks, sn_count, sn_ticks, moni_count,
                      moni_ticks) = result
@@ -2072,14 +2072,14 @@ class RunSet(object):
         other_set = []
 
         for comp in self.__set:
-            if comp.isSource:
+            if comp.is_source:
                 src_set.append(comp)
             else:
                 other_set.append(comp)
 
         # stop from front to back
         #
-        other_set.sort(key=lambda x: x.order())
+        other_set.sort(key=lambda x: x.order)
 
         # start thread to find earliest last time from hubs
         #
@@ -2433,7 +2433,7 @@ class RunSet(object):
         # build list of endpoints (eventBuilder and secondaryBuilders)
         bldrs = []
         for comp in comps:
-            if comp.isBuilder:
+            if comp.is_builder:
                 bldrs.append(comp)
 
         (physics_count, first_time, last_time, first_good, last_good,
@@ -2799,7 +2799,7 @@ class RunSet(object):
         return self.__parent.server_statistics()
 
     def set_order(self, conn_map, logger):
-        "set the order in which components are started/stopped"
+        "Set the order in which components are started/stopped"
 
         # build initial lists of source components
         #
@@ -2814,7 +2814,7 @@ class RunSet(object):
 
             # clear order
             #
-            comp.setOrder(None)
+            comp.set_order(None)
 
             # add component to the list
             #
@@ -2822,7 +2822,7 @@ class RunSet(object):
 
             # if component is a source, save it to the initial list
             #
-            if comp.isSource:
+            if comp.is_source:
                 cur_level.append(comp)
 
         if len(cur_level) == 0:
@@ -2843,16 +2843,16 @@ class RunSet(object):
 
                 del all_comps[comp]
 
-                comp.setOrder(level)
+                comp.set_order(level)
 
                 if comp not in conn_map:
-                    if comp.isSource:
+                    if comp.is_source:
                         logger.warn('No connection map entry for %s' %
                                     (comp, ))
                 else:
                     for conn in conn_map[comp]:
                         # XXX hack -- ignore source->builder links
-                        if not comp.isSource or \
+                        if not comp.is_source or \
                              conn.comp.name.lower() != "eventBuilder":
                             tmp[conn.comp] = 1
 
@@ -2867,7 +2867,7 @@ class RunSet(object):
 
         for comp in self.__set:
             fail_str = None
-            if not comp.order():
+            if not comp.order:
                 if not fail_str:
                     fail_str = 'No order set for ' + str(comp)
                 else:
@@ -3016,14 +3016,14 @@ class RunSet(object):
         else:
             self.__run_data.error("Subrun %d: stopping flashers" % sub_id)
         for comp in self.__set:
-            if comp.isBuilder:
-                comp.prepareSubrun(sub_id)
+            if comp.is_builder:
+                comp.prepare_subrun(sub_id)
 
         self.__run_data.set_subrun_number(-sub_id)
 
         hubs = []
         for comp in self.__set:
-            if comp.isSource:
+            if comp.is_source:
                 hubs.append(comp)
 
         times = ComponentGroup.run_simple(OpStartSubrun, hubs, (data, ),
@@ -3057,16 +3057,16 @@ class RunSet(object):
             raise RunSetException("Couldn't start subrun on %s" % (cstr, ))
 
         for comp in self.__set:
-            if comp.isBuilder:
-                comp.commitSubrun(sub_id, latest_time)
+            if comp.is_builder:
+                comp.commit_subrun(sub_id, latest_time)
 
         self.__run_data.set_subrun_number(sub_id)
 
     def subrun_events(self, subrun_number):
         "Get the number of events in the specified subrun"
         for comp in self.__set:
-            if comp.isBuilder:
-                return comp.subrunEvents(subrun_number)
+            if comp.is_builder:
+                return comp.subrun_events(subrun_number)
 
         raise RunSetException('RunSet #%s does not contain an event builder' %
                               self.__id)
@@ -3117,12 +3117,12 @@ class RunSet(object):
         # switch builders first
         #
         for comp in bldr_set:
-            comp.switchToNewRun(new_num)
+            comp.switch_to_new_run(new_num)
 
         # switch non-builders in order
         #
         for comp in middle_set:
-            comp.switchToNewRun(new_num)
+            comp.switch_to_new_run(new_num)
 
         # switch sources in parallel
         #
@@ -3135,7 +3135,7 @@ class RunSet(object):
         bldr_max_sleep = 30   # wait up to 30 seconds
         for i in range(int(bldr_max_sleep / bldr_sleep)):
             for comp in bldr_set:
-                num = comp.getRunNumber()
+                num = comp.get_run_number()
                 if num == new_num:
                     bldr_set.remove(comp)
 

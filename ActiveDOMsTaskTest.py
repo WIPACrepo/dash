@@ -18,7 +18,7 @@ class ActiveDOMsTaskTest(unittest.TestCase):
 
     def testGood(self):
         rptTimer = MockIntervalTimer(ActiveDOMsTask.REPORT_NAME)
-        domTimer = MockIntervalTimer(ActiveDOMsTask.NAME)
+        domTimer = MockIntervalTimer(ActiveDOMsTask.name)
 
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(rptTimer)
@@ -57,7 +57,7 @@ class ActiveDOMsTaskTest(unittest.TestCase):
                          "Expected %d seconds, not %d" %
                          (rptTimer.wait_secs(), left))
 
-        tsk.waitUntilFinished()
+        tsk.wait_until_finished()
 
         logger.checkStatus(4)
         live.hasAllMoni()
@@ -79,7 +79,7 @@ class ActiveDOMsTaskTest(unittest.TestCase):
                          "Expected %d seconds, not %d" %
                          (rptTimer.wait_secs(), left))
 
-        tsk.waitUntilFinished()
+        tsk.wait_until_finished()
 
         logger.checkStatus(4)
         live.hasAllMoni()
@@ -88,7 +88,7 @@ class ActiveDOMsTaskTest(unittest.TestCase):
 
     def testNoLive(self):
         rptTimer = MockIntervalTimer(ActiveDOMsTask.REPORT_NAME)
-        domTimer = MockIntervalTimer(ActiveDOMsTask.NAME)
+        domTimer = MockIntervalTimer(ActiveDOMsTask.name)
 
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(rptTimer)
@@ -116,7 +116,7 @@ class ActiveDOMsTaskTest(unittest.TestCase):
                          "Expected %d seconds, not %d" %
                          (tsk.MAX_TASK_SECS, left))
 
-        tsk.waitUntilFinished()
+        tsk.wait_until_finished()
 
         logger.checkStatus(4)
 
@@ -126,7 +126,7 @@ class ActiveDOMsTaskTest(unittest.TestCase):
                          "Expected %d seconds, not %d" %
                          (tsk.MAX_TASK_SECS, left))
 
-        tsk.waitUntilFinished()
+        tsk.wait_until_finished()
 
         logger.checkStatus(4)
 
@@ -136,7 +136,7 @@ class ActiveDOMsTaskTest(unittest.TestCase):
 
     def testFail(self):
         rptTimer = MockIntervalTimer(ActiveDOMsTask.REPORT_NAME)
-        domTimer = MockIntervalTimer(ActiveDOMsTask.NAME)
+        domTimer = MockIntervalTimer(ActiveDOMsTask.name)
 
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(rptTimer)
@@ -166,7 +166,7 @@ class ActiveDOMsTaskTest(unittest.TestCase):
                          "Expected %d seconds, not %d" %
                          (rptTimer.wait_secs(), left))
 
-        tsk.waitUntilFinished()
+        tsk.wait_until_finished()
 
         logger.checkStatus(4)
         live.hasAllMoni()
@@ -181,7 +181,7 @@ class ActiveDOMsTaskTest(unittest.TestCase):
                          "Expected %d seconds, not %d" %
                          (rptTimer.wait_secs(), left))
 
-        tsk.waitUntilFinished()
+        tsk.wait_until_finished()
 
         logger.checkStatus(4)
         live.hasAllMoni()

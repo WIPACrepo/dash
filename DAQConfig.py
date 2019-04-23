@@ -437,12 +437,12 @@ class DAQConfig(ConfigObject):
             ice_top_hub, ice_top_trig = (False, False, False, False)
 
         for c in self.comps:
-            if c.isHub:
+            if c.is_hub:
                 if c.isInIce:
                     in_ice_hub = True
                 else:
                     ice_top_hub = True
-            elif c.isTrigger:
+            elif c.is_trigger:
                 lname = c.name.lower()
                 if lname.startswith("inice"):
                     in_ice_trig = True

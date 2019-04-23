@@ -447,7 +447,7 @@ def run_deploy(args):
 
             for comp in sorted(node.components()):
                 print(comp.fullname, end=' ')
-                if comp.isHub:
+                if comp.is_hub:
                     print("[%s]" % hub_type(comp.id), end=' ')
                 print(" ", end=' ')
             print()

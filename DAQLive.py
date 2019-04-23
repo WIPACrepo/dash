@@ -104,7 +104,7 @@ class DAQLive(LiveComponent):
 
         if self.__starting:
             runOptions = RunOption.LOG_TO_BOTH | RunOption.MONI_TO_FILE
-            self.__cnc.startRun(runSet, runNum, runOptions)
+            self.__cnc.start_run(runSet, runNum, runOptions)
 
         # we successfully started!
         if self.__starting:
@@ -114,9 +114,9 @@ class DAQLive(LiveComponent):
             # darn, we're being asked to stop so undo all that work :-(
             self.__cnc.breakRunset(runSet)
 
-    def __startRun(self, runCfg, runNum):
+    def __start_run(self, runCfg, runNum):
         """
-        Method used by the startRun thread.
+        Method used by the starting() thread.
         Guarantees that self.__starting is set to False before it exits
         """
 
@@ -166,9 +166,9 @@ class DAQLive(LiveComponent):
         if got_error:
             raise LiveException("Encountered ERROR while stopping run")
 
-    def __stopRun(self):
+    def __stop_run(self):
         """
-        Method used by the stopRun thread.
+        Method used by the stopping() thread.
         Guarantees that self.__stopping is set to False before it exits
         """
 
@@ -365,7 +365,7 @@ class DAQLive(LiveComponent):
                                     (key, ))
 
             # start DAQ in a thread so we can return immediately
-            self.__startThrd = threading.Thread(target=self.__startRun,
+            self.__startThrd = threading.Thread(target=self.__start_run,
                                                 args=(runCfg, runNum))
             self.__startThrd.start()
 
@@ -393,7 +393,7 @@ class DAQLive(LiveComponent):
         if not self.__stopping:
             if self.__runSet is not None and self.__runSet.isRunning:
                 # stop in a thread so we can return immediately
-                self.__stopThrd = threading.Thread(target=self.__stopRun)
+                self.__stopThrd = threading.Thread(target=self.__stop_run)
                 self.__stopThrd.start()
         else:
             # if we're stopping, try to join with the thread

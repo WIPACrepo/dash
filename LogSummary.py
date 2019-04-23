@@ -20,7 +20,7 @@ class ComponentLog(object):
         self.__releaseRev = None
         self.__logMsgs = []
 
-    def logError(self, msg):
+    def log_error(self, msg):
         if DEBUG:
             print(msg, file=sys.stderr)
         self.__logMsgs.append(msg)
@@ -46,7 +46,7 @@ class ComponentLog(object):
         return self.__fileName
 
     def parse(self, path):
-        self.logError("Not parsing \"%s\"" % path)
+        self.log_error("Not parsing \"%s\"" % path)
 
     def report(self, fd, verbose):
         raise Exception("Unimplemented by %s" % str(type(self)))
@@ -150,8 +150,8 @@ class CatchallLog(ComponentLog):
                         id = int(m.group(2))
                         comp = m.group(3)
                         addr = m.group(4)
-                        rpcPort = int(m.group(5))
-                        mbeanPort = int(m.group(6))
+                        rpc_port = int(m.group(5))
+                        mbean_port = int(m.group(6))
                         continue
 
                     m = self.NEWREG_COMP.match(line)
@@ -188,8 +188,8 @@ class CatchallLog(ComponentLog):
                         id = int(m.group(2))
                         comp = m.group(3)
                         addr = m.group(4)
-                        rpcPort = int(m.group(5))
-                        mbeanPort = int(m.group(6))
+                        rpc_port = int(m.group(5))
+                        mbean_port = int(m.group(6))
                         continue
 
                     m = self.NEWREG_COMP.match(line)
@@ -208,8 +208,8 @@ class CatchallLog(ComponentLog):
                         id = int(m.group(2))
                         comp = m.group(3)
                         addr = m.group(4)
-                        rpcPort = int(m.group(5))
-                        mbeanPort = int(m.group(6))
+                        rpc_port = int(m.group(5))
+                        mbean_port = int(m.group(6))
                         continue
 
                     m = self.CREATED.match(line)
@@ -227,8 +227,8 @@ class CatchallLog(ComponentLog):
                     if m:
                         continue
 
-                self.logError("State %s: %s" %
-                              (self.__stateString(state), line))
+                self.log_error("State %s: %s" %
+                               (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         pass
@@ -277,8 +277,8 @@ class CnCServerLog(ComponentLog):
                         waitState = m.group(4)
                         continue
 
-                self.logError("State %s: %s" %
-                              (self.__stateString(state), line))
+                self.log_error("State %s: %s" %
+                               (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         pass
@@ -382,9 +382,9 @@ class DashLog(ComponentLog):
                     if m:
                         tmpNum = int(m.group(2))
                         if runNum != tmpNum:
-                            self.logError(("Expected run#%d, "
-                                           "not #%d in line \"%s\"") %
-                                          (runNum, tmpNum, line))
+                            self.log_error("Expected run#%d, "
+                                           "not #%d in line \"%s\"" %
+                                           (runNum, tmpNum, line))
                         runsetId = int(m.group(3))
                         state = self.STATE_RUNNING
                         continue
@@ -394,9 +394,9 @@ class DashLog(ComponentLog):
                     if m:
                         tmpNum = int(m.group(2))
                         if runNum != tmpNum:
-                            self.logError(("Expected run#%d, "
-                                           "not #%d in line \"%s\"") %
-                                          (runNum, tmpNum, line))
+                            self.log_error("Expected run#%d, "
+                                           "not #%d in line \"%s\"" %
+                                           (runNum, tmpNum, line))
                             state = self.STATE_ENDING
                             continue
 
@@ -416,52 +416,53 @@ class DashLog(ComponentLog):
                     if m:
                         tmpNum = int(m.group(2))
                         if runNum != tmpNum:
-                            self.logError(("Expected run#%d, "
-                                           "not #%d in line \"%s\"") %
-                                          (runNum, tmpNum, line))
+                            self.log_error("Expected run#%d, "
+                                           "not #%d in line \"%s\"" %
+                                           (runNum, tmpNum, line))
                         state = self.STATE_STOPPING
                         continue
 
                     m = self.WATCHDOG_TIMEOUT.match(line)
                     if m:
-                        self.logError("%s RunWatchdog timeout for %s %s" %
-                                      (m.group(1).rstrip(), m.group(2),
-                                       m.group(3)))
+                        self.log_error("%s RunWatchdog timeout for %s %s" %
+                                       (m.group(1).rstrip(), m.group(2),
+                                        m.group(3)))
                         continue
 
                     m = self.WATCHDOG_RESET.match(line)
                     if m:
-                        self.logError(("%s RunWatchdog connection reset "
-                                       "for %s %s") %
-                                      (m.group(1).rstrip(),
-                                       m.group(2), m.group(3)))
+                        self.log_error("%s RunWatchdog connection reset "
+                                       "for %s %s" %
+                                       (m.group(1).rstrip(),
+                                        m.group(2), m.group(3)))
                         continue
 
                     m = self.WATCHDOG_REFUSED.match(line)
                     if m:
-                        self.logError(("%s RunWatchdog connection "
-                                       "refused for %s %s") %
-                                      (m.group(1).rstrip(),
-                                       m.group(2), m.group(3)))
+                        self.log_error("%s RunWatchdog connection "
+                                       "refused for %s %s" %
+                                       (m.group(1).rstrip(),
+                                        m.group(2), m.group(3)))
                         continue
 
                     m = self.MONI_TIMEOUT.match(line)
                     if m:
-                        self.logError("%s Monitoring timeout for %s" %
-                                      (m.group(1).rstrip(), m.group(2)))
+                        self.log_error("%s Monitoring timeout for %s" %
+                                       (m.group(1).rstrip(), m.group(2)))
                         continue
 
                     m = self.MONI_RESET.match(line)
                     if m:
-                        self.logError("%s Monitoring connection reset for %s" %
-                                      (m.group(1).rstrip(), m.group(2)))
+                        self.log_error("%s Monitoring connection reset"
+                                       " for %s" %
+                                       (m.group(1).rstrip(), m.group(2)))
                         continue
 
                     m = self.MONI_REFUSED.match(line)
                     if m:
-                        self.logError(("%s Monitoring connection refused "
-                                       "for %s") %
-                                      (m.group(1).rstrip(), m.group(2)))
+                        self.log_error("%s Monitoring connection refused "
+                                       "for %s" %
+                                       (m.group(1).rstrip(), m.group(2)))
                         continue
 
                 if state == self.STATE_STOPPING:
@@ -490,8 +491,8 @@ class DashLog(ComponentLog):
                         state = self.STATE_INITIAL
                         continue
 
-                self.logError("State %s: %s" % (self.__stateString(state),
-                                                line))
+                self.log_error("State %s: %s" %
+                               (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         pass
@@ -555,8 +556,8 @@ class EventBuilderLog(ComponentLog):
                     if m:
                         if m.group(2) != "STARTING" or \
                                 m.group(3) != "Start":
-                            self.logError(("Bad STARTING boundary "
-                                           "message: %s") % line)
+                            self.log_error("Bad STARTING boundary "
+                                           "message: %s" % line)
                         self.__runNum = int(m.group(4))
                         continue
 
@@ -585,13 +586,13 @@ class EventBuilderLog(ComponentLog):
                     if m:
                         if m.group(2) != "STOPPED" or \
                                 m.group(3) != "Stop":
-                            self.logError(("Bad STOPPED boundary "
-                                           "message: %s") % line)
+                            self.log_error("Bad STOPPED boundary "
+                                           "message: %s" % line)
                         runNum = int(m.group(4))
                         if self.__runNum != runNum:
-                            self.logError("Expected data boundary run "
-                                          "number %s, not %s" %
-                                          (self.__runNum, runNum))
+                            self.log_error("Expected data boundary run "
+                                           "number %s, not %s" %
+                                           (self.__runNum, runNum))
                         continue
 
                     if line.find(" was not moved to the dispatch storage") > 0:
@@ -601,8 +602,8 @@ class EventBuilderLog(ComponentLog):
                         state = self.STATE_INITIAL
                         continue
 
-                self.logError("State %s: %s" % (self.__stateString(state),
-                                                line))
+                self.log_error("State %s: %s" %
+                               (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         pass
@@ -790,8 +791,8 @@ class GlobalTriggerLog(ComponentLog):
                             line.find("Resetting logging") >= 0:
                         continue
 
-                self.logError("State %s: %s" %
-                              (self.__stateString(state), line))
+                self.log_error("State %s: %s" %
+                               (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         if verbose:
@@ -966,8 +967,8 @@ class LocalTriggerLog(ComponentLog):
                             line.find("Resetting logging") >= 0:
                         continue
 
-                self.logError("State %s: %s" % (self.__stateString(state),
-                                                line))
+                self.log_error("State %s: %s" %
+                               (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         if verbose:
@@ -1110,8 +1111,8 @@ class SecondaryBuildersLog(ComponentLog):
                         name = m.group(2)
                         bldrState = m.group(3)
                         if bldrState != "starting":
-                            self.logError("Bad %s builder STARTING state: %s" %
-                                          (name, line))
+                            self.log_error("Bad %s builder STARTING"
+                                           " state: %s" % (name, line))
                             continue
 
                         if name not in self.__builder:
@@ -1124,8 +1125,8 @@ class SecondaryBuildersLog(ComponentLog):
                         name = m.group(2)
                         splState = m.group(3)
                         if splState != "STARTED":
-                            self.logError("Bad %s splicer STARTING state: %s" %
-                                          (name, line))
+                            self.log_error("Bad %s splicer STARTING"
+                                           " state: %s" % (name, line))
                             continue
 
                         if name not in self.__builder:
@@ -1147,8 +1148,8 @@ class SecondaryBuildersLog(ComponentLog):
                         name = m.group(2)
                         splState = m.group(3)
                         if splState != "STOPPING":
-                            self.logError("Bad %s splicer STOPPING state: %s" %
-                                          (name, line))
+                            self.log_error("Bad %s splicer STOPPING"
+                                           " state: %s" % (name, line))
                             continue
 
                         if name not in self.__builder:
@@ -1161,8 +1162,8 @@ class SecondaryBuildersLog(ComponentLog):
                         name = m.group(2)
                         bldrState = m.group(3)
                         if bldrState != "stopped":
-                            self.logError("Bad %s builder STOPPING state: %s" %
-                                          (name, line))
+                            self.log_error("Bad %s builder STOPPING"
+                                           " state: %s" % (name, line))
                             continue
 
                         if name not in self.__builder:
@@ -1182,7 +1183,7 @@ class SecondaryBuildersLog(ComponentLog):
                         state = self.STATE_INITIAL
                         continue
 
-                self.logError("State %s: %s" %
+                self.log_error("State %s: %s" %
                               (self.__stateString(state), line))
 
     def report(self, fd, verbose):
@@ -1504,8 +1505,8 @@ class StringHubLog(ComponentLog):
                     if m:
                         num = int(m.group(2))
                         if num != totalDOMs:
-                            self.logError("Found %d DOMs (should be %d)" %
-                                          (num, totalDOMs))
+                            self.log_error("Found %d DOMs (should be %d)" %
+                                           (num, totalDOMs))
                             totalDOMs = num
                         state = self.STATE_CONFIG
                         continue
@@ -1525,9 +1526,9 @@ class StringHubLog(ComponentLog):
                             continue
                     else:
                         if line.find("XML parsing completed - took ") < 0:
-                            self.logError(("While loading config "
-                                           "\"%s\", got: %s") %
-                                          (loadCfg, line))
+                            self.log_error("While loading config "
+                                            "\"%s\", got: %s" %
+                                           (loadCfg, line))
                             loadCfg = None
                             continue
 
@@ -1537,9 +1538,9 @@ class StringHubLog(ComponentLog):
                         if totalDOMs == 0:
                             totalDOMs = num
                         elif num != totalDOMs:
-                            self.logError(("Expected to configure "
-                                           "%d DOMS, not %d") %
-                                          (totalDOMs, num))
+                            self.log_error("Expected to configure "
+                                           "%d DOMS, not %d" %
+                                           (totalDOMs, num))
                         state = self.STATE_DCTHREAD
                         continue
 
@@ -1579,64 +1580,64 @@ class StringHubLog(ComponentLog):
                             continue
 
                         if cardLoc not in self.__domMap:
-                            self.logError("Got unknown card \"%s\"" % cardLoc)
+                            self.log_error("Got unknown card \"%s\"" % cardLoc)
                             continue
 
                         if msg.find("Got CONFIGURE signal") >= 0:
                             try:
                                 self.__domMap[cardLoc].setConfigSignal()
                             except LogParseException as lpe:
-                                self.logError(("WARNING: %s configure" +
-                                               " signal: %s") %
-                                              (str(self.__domMap[cardLoc]),
-                                               str(lpe)))
+                                self.log_error("WARNING: %s configure" +
+                                               " signal: %s" %
+                                               (str(self.__domMap[cardLoc]),
+                                                str(lpe)))
                             continue
 
                         m = self.CONFIG_DOM.match(msg)
                         if m:
                             if cardLoc != m.group(1):
-                                self.logError(("Got configure msg for DOM %s" +
-                                               " from DataCollector %s") %
-                                              (m.group(1), cardLoc))
+                                self.log_error("Got configure msg for DOM %s" +
+                                               " from DataCollector %s" %
+                                               (m.group(1), cardLoc))
                             try:
                                 self.__domMap[cardLoc].setConfiguring()
                             except LogParseException as lpe:
-                                self.logError("WARNING: %s configuring: %s" %
-                                              (str(self.__domMap[cardLoc]),
-                                               str(lpe)))
+                                self.log_error("WARNING: %s configuring: %s" %
+                                               (str(self.__domMap[cardLoc]),
+                                                str(lpe)))
                             continue
 
                         m = self.FINISH_CFG.match(msg)
                         if m:
                             if cardLoc != m.group(1):
-                                self.logError(("Got finishCfg msg for DOM %s" +
-                                               " from DataCollector %s") %
-                                              (m.group(1), cardLoc))
+                                self.log_error("Got finishCfg msg for DOM %s" +
+                                               " from DataCollector %s" %
+                                               (m.group(1), cardLoc))
                             try:
                                 val = int(m.group(2))
                                 self.__domMap[cardLoc].setConfigFinished(val)
                             except LogParseException as lpe:
-                                self.logError("WARNING: %s finished cfg: %s" %
-                                              (str(self.__domMap[cardLoc]),
-                                               str(lpe)))
+                                self.log_error("WARNING: %s finished cfg: %s" %
+                                               (str(self.__domMap[cardLoc]),
+                                                str(lpe)))
                             continue
 
                         if msg.find("DOM is configured") >= 0:
                             try:
                                 self.__domMap[cardLoc].setReady()
                             except LogParseException as lpe:
-                                self.logError("WARNING: %s ready: %s" %
-                                              (str(self.__domMap[cardLoc]),
-                                               str(lpe)))
+                                self.log_error("WARNING: %s ready: %s" %
+                                               (str(self.__domMap[cardLoc]),
+                                                str(lpe)))
                             continue
 
                         if msg.find("DOM is now configured") >= 0:
                             try:
                                 self.__domMap[cardLoc].setSimReady()
                             except LogParseException as lpe:
-                                self.logError("WARNING: %s ready: %s" %
-                                              (str(self.__domMap[cardLoc]),
-                                               str(lpe)))
+                                self.log_error("WARNING: %s ready: %s" %
+                                               (str(self.__domMap[cardLoc]),
+                                                str(lpe)))
                             continue
 
                     if line.find(("Data collector ensemble "
@@ -1674,7 +1675,7 @@ class StringHubLog(ComponentLog):
                         # stack trace is done, keep looking for matches
 
                     if line.find("IOException: Broken pipe") >= 0:
-                        self.logError(line)
+                        self.log_error(line)
                         inPipeException = True
                         continue
 
@@ -1692,16 +1693,16 @@ class StringHubLog(ComponentLog):
                         msg = m.group(3)
 
                         if cardLoc not in self.__domMap:
-                            self.logError("Got unknown card \"%s\"" % cardLoc)
+                            self.log_error("Got unknown card \"%s\"" % cardLoc)
                             continue
 
                         if msg.find("DOM is running") >= 0:
                             try:
                                 self.__domMap[cardLoc].setRunning()
                             except LogParseException as lpe:
-                                self.logError("WARNING: %s running: %s" %
-                                              (str(self.__domMap[cardLoc]),
-                                               str(lpe)))
+                                self.log_error("WARNING: %s running: %s" %
+                                               (str(self.__domMap[cardLoc]),
+                                                str(lpe)))
                             continue
 
                         if msg.find("Got STOP RUN signal") >= 0 or \
@@ -1710,9 +1711,9 @@ class StringHubLog(ComponentLog):
                             try:
                                 self.__domMap[cardLoc].setStopping()
                             except LogParseException as lpe:
-                                self.logError("WARNING: %s stopping: %s" %
-                                              (str(self.__domMap[cardLoc]),
-                                               str(lpe)))
+                                self.log_error("WARNING: %s stopping: %s" %
+                                               (str(self.__domMap[cardLoc]),
+                                                str(lpe)))
                             state = self.STATE_STOPPING
                             continue
 
@@ -1731,17 +1732,17 @@ class StringHubLog(ComponentLog):
                         m = self.START_RUN.match(msg)
                         if m:
                             if cardLoc != m.group(1):
-                                self.logError(("Got start run for DOM %s" +
-                                               " from DataCollector %s") %
-                                              (m.group(1), cardLoc))
+                                self.log_error("Got start run for DOM %s" +
+                                               " from DataCollector %s" %
+                                               (m.group(1), cardLoc))
                                 try:
                                     self.__domMap[cardLoc].setStartRun()
                                 except LogParseException as lpe:
-                                    self.logError(("WARNING: %s(%s) "
-                                                   "start run: %s") %
-                                                  (cardLoc,
-                                                   self.__domMap[cardLoc],
-                                                   lpe))
+                                    self.log_error("WARNING: %s(%s) "
+                                                   "start run: %s" %
+                                                   (cardLoc,
+                                                    self.__domMap[cardLoc],
+                                                    lpe))
                                 continue
 
                 elif state == self.STATE_STOPPING:
@@ -1769,7 +1770,7 @@ class StringHubLog(ComponentLog):
                         # stack trace is done, keep looking for matches
 
                     if line.find("IOException: Broken pipe") >= 0:
-                        self.logError(line)
+                        self.log_error(line)
                         inPipeException = True
                         continue
 
@@ -1779,7 +1780,7 @@ class StringHubLog(ComponentLog):
                         msg = m.group(3)
 
                         if cardLoc not in self.__domMap:
-                            self.logError("Got unknown card \"%s\"" % cardLoc)
+                            self.log_error("Got unknown card \"%s\"" % cardLoc)
                             continue
 
                         if msg.find("Got STOP RUN signal") >= 0 or \
@@ -1788,18 +1789,18 @@ class StringHubLog(ComponentLog):
                             try:
                                 self.__domMap[cardLoc].setStopping()
                             except LogParseException as lpe:
-                                self.logError("WARNING: %s stopping: %s" %
-                                              (str(self.__domMap[cardLoc]),
-                                               str(lpe)))
+                                self.log_error("WARNING: %s stopping: %s" %
+                                               (str(self.__domMap[cardLoc]),
+                                                str(lpe)))
                             continue
 
                         if msg.find("Wrote EOS to streams.") >= 0:
                             try:
                                 self.__domMap[cardLoc].setStopped()
                             except LogParseException as lpe:
-                                self.logError("WARNING: %s stopped: %s" %
-                                              (str(self.__domMap[cardLoc]),
-                                               str(lpe)))
+                                self.log_error("WARNING: %s stopped: %s" %
+                                               (str(self.__domMap[cardLoc]),
+                                                str(lpe)))
                             continue
 
                 elif state == self.STATE_STOPPED:
@@ -1807,8 +1808,8 @@ class StringHubLog(ComponentLog):
                                  "- shutting down"):
                         continue
 
-                self.logError("State %s: %s" %
-                              (self.__stateString(state), line))
+                self.log_error("State %s: %s" %
+                               (self.__stateString(state), line))
 
     def report(self, fd, verbose):
         if verbose:

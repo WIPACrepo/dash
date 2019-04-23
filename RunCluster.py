@@ -158,7 +158,7 @@ class RunCluster(CachedConfigName):
     def __addRealHubs(cls, clusterDesc, hubList, hostMap):
         "Add hubs with hard-coded locations to hostMap"
         for (host, comp) in clusterDesc.listHostComponentPairs():
-            if not comp.isHub:
+            if not comp.is_hub:
                 continue
             for h in range(0, len(hubList)):
                 if comp.id == hubList[h].id:
@@ -382,7 +382,7 @@ class RunCluster(CachedConfigName):
         "build a list of hub components used by the run configuration"
         hubList = []
         for comp in runcfg.components():
-            if comp.isHub:
+            if comp.is_hub:
                 hubList.append(comp)
         return hubList
 
@@ -460,7 +460,7 @@ class RunCluster(CachedConfigName):
         for node in self.__nodes:
             addHost = False
             for comp in node.components():
-                if comp.isHub:
+                if comp.is_hub:
                     addHost = True
                     break
 

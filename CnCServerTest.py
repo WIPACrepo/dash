@@ -37,7 +37,7 @@ class MostlyDAQClient(DAQClient):
                                               mbean_port, connectors,
                                               quiet=True)
 
-    def createLogger(self, quiet):
+    def create_logger(self, quiet):
         return MockCnCLogger(self.fullname, appender=self.__appender,
                              quiet=quiet)
 
@@ -169,7 +169,7 @@ class MostlyRunSet(RunSet):
 
         #log.addExpectedRegexp(r'Howdy from \S+#\d+')
 
-        comp.logTo(host, port, None, None)
+        comp.log_to(host, port, None, None)
 
         return log
 
@@ -767,7 +767,7 @@ class CnCServerTest(unittest.TestCase):
 
         comp_list = []
         for comp in self.comps:
-            if not comp.isHub:
+            if not comp.is_hub:
                 comp_list.append(comp.fullname)
 
         hub2dom = {

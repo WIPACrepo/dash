@@ -107,19 +107,19 @@ class MockTMMBeanClient(object):
 
         return self.__beanData[beanName][fieldName]
 
-    def getAttributes(self, beanName, fieldList):
+    def get_attributes(self, beanName, fieldList):
         rtnMap = {}
         for f in fieldList:
             rtnMap[f] = self.get(beanName, f)
         return rtnMap
 
-    def getBeanFields(self, beanName):
+    def get_bean_fields(self, beanName):
         return list(self.__beanData[beanName].keys())
 
-    def getBeanNames(self):
+    def get_bean_names(self):
         return list(self.__beanData.keys())
 
-    def getDictionary(self):
+    def get_dictionary(self):
         return copy.deepcopy(self.__beanData)
 
     def reload(self):
@@ -139,7 +139,7 @@ class MockTMComponent(object):
     def __str__(self):
         return self.fullname
 
-    def createMBeanClient(self):
+    def create_mbean_client(self):
         return self.__mbean
 
     @property
@@ -153,11 +153,11 @@ class MockTMComponent(object):
         return "%s#%d" % (self.__name, self.__num)
 
     @property
-    def isBuilder(self):
+    def is_builder(self):
         return self.__name.lower().endswith("builder")
 
     @property
-    def isSource(self):
+    def is_source(self):
         return self.__name.lower().endswith("hub")
 
     @property
@@ -172,10 +172,11 @@ class MockTMComponent(object):
     def num(self):
         return self.__num
 
+    @property
     def order(self):
         return self.__order
 
-    def setOrder(self, num):
+    def set_order(self, num):
         self.__order = num
 
     def updateRates(self):
@@ -306,7 +307,7 @@ class TaskManagerTest(unittest.TestCase):
 
         orderNum = 1
         for c in compList:
-            c.setOrder(orderNum)
+            c.set_order(orderNum)
 
         runset = MockRunSet(compList)
 
@@ -349,7 +350,7 @@ class TaskManagerTest(unittest.TestCase):
 
         orderNum = 1
         for c in compList:
-            c.setOrder(orderNum)
+            c.set_order(orderNum)
 
         runset = MockRunSet(compList)
         runset.startRunning()
@@ -403,7 +404,7 @@ class TaskManagerTest(unittest.TestCase):
 
         orderNum = 1
         for c in compList:
-            c.setOrder(orderNum)
+            c.set_order(orderNum)
 
         runset = MockRunSet(compList)
         runset.startRunning()

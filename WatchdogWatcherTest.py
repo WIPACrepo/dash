@@ -24,13 +24,14 @@ class MockComponent(object):
         return self.__name + "#%d" % self.__num
 
     @property
-    def isBuilder(self):
+    def is_builder(self):
         return self.__builder
 
     @property
-    def isSource(self):
+    def is_source(self):
         return self.__source
 
+    @property
     def order(self):
         return self.__order
 
@@ -82,16 +83,16 @@ class WatchdogWatcherTest(unittest.TestCase):
                     self.fail("Expected \"%s\", not \"%s\"" % (str(tw), nm))
 
                 uval = 16
-                urec = tw.unhealthyRecord(uval)
+                urec = tw.unhealthy_record(uval)
 
-                self.assertEqual(urec.order(), compOrder,
+                self.assertEqual(urec.order, compOrder,
                                  "Expected order %d, not %d" %
-                                 (compOrder, urec.order()))
+                                 (compOrder, urec.order))
 
                 umsg = "%s (value=%s)" % (nm, uval)
-                self.assertEqual(urec.message(), umsg,
+                self.assertEqual(urec.message, umsg,
                                  "Expected message %s, not %s" %
-                                 (umsg, urec.message()))
+                                 (umsg, urec.message))
 
     def testThresholdBadType(self):
         comp = MockComponent("foo", 1, 1)
@@ -165,16 +166,16 @@ class WatchdogWatcherTest(unittest.TestCase):
                 self.fail("Expected \"%s\", not \"%s\"" % (str(vw), nm))
 
             uval = 16
-            urec = vw.unhealthyRecord(uval)
+            urec = vw.unhealthy_record(uval)
 
-            self.assertEqual(urec.order(), uorder,
+            self.assertEqual(urec.order, uorder,
                              "Expected order %d, not %d" %
-                             (uorder, urec.order()))
+                             (uorder, urec.order))
 
             umsg = "%s not changing from %s" % (nm, None)
-            self.assertEqual(urec.message(), umsg,
+            self.assertEqual(urec.message, umsg,
                              "Expected message %s, not %s" %
-                             (umsg, urec.message()))
+                             (umsg, urec.message))
 
     def testValueBadType(self):
         (fcomp, tcomp, uorder) = \

@@ -94,7 +94,7 @@ class FlasherThread(threading.Thread):
             self.__sem.release()
 
         try:
-            self.__run.stopRun()
+            self.__run.stop_run()
         except:
             pass
 
@@ -435,7 +435,7 @@ class Run(object):
     def finish(self, verbose=False):
         "clean up after run has ended"
         if not self.__mgr.isStopped(True):
-            self.__mgr.stopRun()
+            self.__mgr.stop_run()
 
         if not self.__dry_run and not self.__mgr.isStopped(True) and \
            not self.__mgr.waitForStopped(verbose=verbose):
@@ -452,8 +452,8 @@ class Run(object):
         try:
             rtnval = self.__mgr.summarize(self.__run_num)
         except:
-            self.__mgr.logError("Cannot summarize run %d: %s" %
-                                (self.__run_num, exc_string()))
+            self.__mgr.log_error("Cannot summarize run %d: %s" %
+                                 (self.__run_num, exc_string()))
             rtnval = False
 
         self.__run_num = 0
@@ -492,9 +492,9 @@ class Run(object):
                                                         flasherDelay)
             if flashDur > duration:
                 if duration > 0:
-                    self.__mgr.logError(("Run length was %d secs, but" +
-                                         " need %d secs for flashers") %
-                                        (duration, flashDur))
+                    self.__mgr.log_error("Run length was %d secs, but"
+                                         " need %d secs for flashers" %
+                                         (duration, flashDur))
                 duration = flashDur
 
             if flasherDelay is None:
@@ -525,18 +525,18 @@ class Run(object):
 
         # start the run
         #
-        if not self.__mgr.startRun(self.__run_cfg_name, duration, numRuns,
-                                   ignoreDB, runMode=runMode,
-                                   filterMode=filterMode, verbose=verbose):
+        if not self.__mgr.start_run(self.__run_cfg_name, duration, numRuns,
+                                    ignoreDB, runMode=runMode,
+                                    filterMode=filterMode, verbose=verbose):
             raise RunException("Could not start run #%d: %s" %
                                (self.__run_num, self.__run_cfg_name))
 
         # make sure we've got the correct run number
         #
-        curNum = self.__mgr.getRunNumber()
+        curNum = self.__mgr.get_run_number()
         if curNum != self.__run_num:
-            self.__mgr.logError(("Expected run number %d, but actual number" +
-                                 " is %s") % (self.__run_num, curNum))
+            self.__mgr.log_error("Expected run number %d, but actual number"
+                                 " is %s" % (self.__run_num, curNum))
             self.__run_num = curNum
 
         # print run info
@@ -607,7 +607,7 @@ class Run(object):
                                  (self.__run_num + 1))
                     break
 
-            curRunNum = self.__mgr.getRunNumber()
+            curRunNum = self.__mgr.get_run_number()
             while self.__run_num < curRunNum:
                 try:
                     self.__mgr.summarize(self.__run_num)
@@ -780,7 +780,7 @@ class BaseRun(object):
         "Return the last used run and subrun numbers as a tuple"
         raise NotImplementedError()
 
-    def getRunNumber(self):
+    def get_run_number(self):
         "Return the current run number"
         raise NotImplementedError()
 
@@ -870,7 +870,7 @@ class BaseRun(object):
         if self.__show_cmd_output:
             self.__logger.info("%%% " + msg)
 
-    def logError(self, msg):
+    def log_error(self, msg):
         self.__logger.error(msg)
 
     def logInfo(self, msg):
@@ -938,8 +938,8 @@ class BaseRun(object):
         """Set the number of continuous runs between restarts"""
         raise NotImplementedError()
 
-    def startRun(self, runCfgName, duration, numRuns=1, ignoreDB=False,
-                 runMode=None, filterMode=None, verbose=False):
+    def start_run(self, runCfgName, duration, numRuns=1, ignoreDB=False,
+                  runMode=None, filterMode=None, verbose=False):
         """
         Start a run
 
@@ -964,12 +964,12 @@ class BaseRun(object):
         self.__user_stopped = True
         print("Caught signal, stopping run")
         if self.isRunning(True):
-            self.stopRun()
+            self.stop_run()
             self.waitForStopped(verbose=True)
         print("Exiting")
         raise SystemExit
 
-    def stopRun(self):
+    def stop_run(self):
         """Stop the run"""
         raise NotImplementedError()
 
@@ -1056,7 +1056,7 @@ class BaseRun(object):
             return
 
         if self.__update_db_prog is None:
-            self.logError("Not updating database with \"%s\"" % runCfgName)
+            self.log_error("Not updating database with \"%s\"" % runCfgName)
             return
 
         runCfgPath = os.path.join(self.__config_dir, runCfgName + ".xml")
@@ -1086,7 +1086,7 @@ class BaseRun(object):
             if line.find("No new documents to commit") >= 0:
                 continue
 
-            self.logError("UpdateDB: %s" % line)
+            self.log_error("UpdateDB: %s" % line)
         proc.stdout.close()
 
         proc.wait()

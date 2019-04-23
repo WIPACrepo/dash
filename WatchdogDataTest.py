@@ -106,7 +106,7 @@ class MockMBeanClient(object):
         self.check(beanName, fldName)
         return self.__beanData[beanName][fldName].nextValue()
 
-    def getAttributes(self, beanName, fldList):
+    def get_attributes(self, beanName, fldList):
         rtnMap = {}
         for f in fldList:
             rtnMap[f] = self.get(beanName, f)
@@ -133,13 +133,14 @@ class MockComponent(object):
         return self.__name + "#%d" % self.__num
 
     @property
-    def isBuilder(self):
+    def is_builder(self):
         return self.__builder
 
     @property
-    def isSource(self):
+    def is_source(self):
         return self.__source
 
+    @property
     def order(self):
         return self.__order
 
@@ -149,9 +150,9 @@ class WatchdogDataTest(unittest.TestCase):
         comp = MockComponent("foo", 1, 1, MockMBeanClient())
 
         wd = WatchData(comp, None, None)
-        self.assertEqual(comp.order(), wd.order(),
+        self.assertEqual(comp.order, wd.order,
                          "Expected WatchData order %d, not %d" %
-                         (comp.order(), wd.order()))
+                         (comp.order, wd.order))
 
     def testCheckValuesGood(self):
         beanName = "bean"
@@ -173,10 +174,10 @@ class WatchdogDataTest(unittest.TestCase):
 
         wd = WatchData(comp, mbeanClient, None)
 
-        wd.addInputValue(other, beanName, inName)
-        wd.addOutputValue(other, beanName, outName)
-        wd.addThresholdValue(beanName, ltName, threshVal, True)
-        wd.addThresholdValue(beanName, gtName, threshVal, False)
+        wd.add_input_value(other, beanName, inName)
+        wd.add_output_value(other, beanName, outName)
+        wd.add_threshold_value(beanName, ltName, threshVal, True)
+        wd.add_threshold_value(beanName, gtName, threshVal, False)
 
         starved = []
         stagnant = []
@@ -215,14 +216,14 @@ class WatchdogDataTest(unittest.TestCase):
 
             if f == 0:
                 mbeanClient.addStagnant(beanName, inName, starveVal, failNum)
-                wd.addInputValue(other, beanName, inName)
+                wd.add_input_value(other, beanName, inName)
             elif f == 1:
                 mbeanClient.addStagnant(beanName, outName, stagnantVal,
                                         failNum)
-                wd.addOutputValue(other, beanName, outName)
+                wd.add_output_value(other, beanName, outName)
 
             mbeanClient.addIncreasing(beanName, gtName, threshVal - failNum, 1)
-            wd.addThresholdValue(beanName, gtName, threshVal, False)
+            wd.add_threshold_value(beanName, gtName, threshVal, False)
 
             for i in range(5):
                 starved = []
@@ -260,7 +261,7 @@ class WatchdogDataTest(unittest.TestCase):
                     msg = UnhealthyRecord(
                         ("%s->%s %s.%s not changing from %d") %
                         (other, comp, beanName, inName,
-                         starveVal + failNum), other.order())
+                         starveVal + failNum), other.order)
                     self.assertEqual(msg, starved[0],
                                      ("Check #%d starved#1 should be" +
                                       " \"%s\" not \"%s\"") %
@@ -271,7 +272,7 @@ class WatchdogDataTest(unittest.TestCase):
                                            " from %d") %
                                           (comp, other, beanName, outName,
                                            stagnantVal + failNum),
-                                          comp.order())
+                                          comp.order)
                     self.assertEqual(msg, stagnant[0],
                                      ("Check #%d stagnant#1 should be" +
                                       " \"%s\" not \"%s\"") %
@@ -282,7 +283,7 @@ class WatchdogDataTest(unittest.TestCase):
                                           (comp, beanName, gtName,
                                            threshVal,
                                            threshVal + i - (failNum - 1)),
-                                          comp.order())
+                                          comp.order)
                     self.assertEqual(msg, threshold[0],
                                      ("Check #%d threshold#1 should be" +
                                       " \"%s\" not \"%s\"") %
@@ -308,13 +309,13 @@ class WatchdogDataTest(unittest.TestCase):
 
             if f == 0:
                 mbeanClient.addTimeBomb(beanName, inName, tVal, 1, bombTicks)
-                wd.addInputValue(other, beanName, inName)
+                wd.add_input_value(other, beanName, inName)
             elif f == 1:
                 mbeanClient.addTimeBomb(beanName, outName, tVal, 1, bombTicks)
-                wd.addOutputValue(other, beanName, outName)
+                wd.add_output_value(other, beanName, outName)
             elif f == 2:
                 mbeanClient.addTimeBomb(beanName, gtName, tVal, 1, bombTicks)
-                wd.addThresholdValue(beanName, gtName, tVal, ltThresh)
+                wd.add_threshold_value(beanName, gtName, tVal, ltThresh)
 
             for i in range(bombTicks + 1):
                 starved = []
@@ -367,7 +368,7 @@ class WatchdogDataTest(unittest.TestCase):
                                     "No UnhealthyRecord found for " + front)
 
                     front += ': Exception("TimeBomb")'
-                    if badRec.message().find(front) != 0:
+                    if badRec.message.find(front) != 0:
                         self.fail(("Expected UnhealthyRecord %s to start" +
                                    " with \"%s\"") % (badRec, front))
 

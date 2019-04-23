@@ -44,7 +44,7 @@ class BaseChecker(object):
     def __init__(self):
         pass
 
-    def check(self, checker, msg, debug, setError=True):
+    def check(self, checker, msg, debug, set_error=True):
         raise NotImplementedError()
 
 
@@ -57,7 +57,7 @@ class BaseLiveChecker(BaseChecker):
         return '%s:%s=%s' % \
             (self._getShortName(), self.__varName, self._getValue())
 
-    def _checkText(self, checker, msg, debug, setError):
+    def _checkText(self, checker, msg, debug, set_error):
         raise NotImplementedError()
 
     def _getShortName(self):
@@ -69,15 +69,15 @@ class BaseLiveChecker(BaseChecker):
     def _getValueType(self):
         raise NotImplementedError()
 
-    def check(self, checker, msg, debug, setError=True):
+    def check(self, checker, msg, debug, set_error=True):
         m = BaseChecker.PAT_LIVELOG.match(msg)
         if m is None:
-            if setError:
+            if set_error:
                 name = str(checker)
                 if debug:
                     print('*** %s:LFMT: %s' % (name, msg), file=sys.stderr)
-                checker.setError('Bad format for %s I3Live message "%s"' %
-                                 (name, msg))
+                checker.set_error('Bad format for %s I3Live message "%s"' %
+                                  (name, msg))
             return False
 
         svcName = m.group(1)
@@ -88,42 +88,43 @@ class BaseLiveChecker(BaseChecker):
         msgText = m.group(6)
 
         if svcName != SERVICE_NAME:
-            if setError:
+            if set_error:
                 name = str(checker)
                 if debug:
                     print('*** %s:SVC: %s (%s)' % \
                         (name, SERVICE_NAME, self._getValue()), file=sys.stderr)
-                checker.setError(('Expected %s I3Live service "%s", not "%s"' +
-                                  ' in "%s"') %
-                                 (name, SERVICE_NAME, svcName, msg))
+                checker.set_error('Expected %s I3Live service "%s", not "%s"'
+                                  ' in "%s"' %
+                                  (name, SERVICE_NAME, svcName, msg))
             return False
 
         if varName != self.__varName:
-            if setError:
+            if set_error:
                 name = str(checker)
                 if debug:
                     print('*** %s:VAR: %s (%s)' % \
-                        (name, self.__varName, self._getValue()), file=sys.stderr)
-                    checker.setError(('Expected %s I3Live varName "%s",' +
-                                      ' not "%s" in "%s"') %
-                                     (name, self.__varName, varName, msg))
+                          (name, self.__varName, self._getValue()),
+                          file=sys.stderr)
+                    checker.set_error('Expected %s I3Live varName "%s",'
+                                      ' not "%s" in "%s"' %
+                                      (name, self.__varName, varName, msg))
             return False
 
         typeStr = self._getValueType()
         if varType != typeStr:
-            if setError:
+            if set_error:
                 name = str(checker)
                 if debug:
                     print('*** %s:TYPE: %s (%s)' % \
                         (name, typeStr, self._getValue()), file=sys.stderr)
-                checker.setError(('Expected %s I3Live type "%s", not "%s"' +
-                                  ' in %s') % (name, typeStr, varType, msg))
+                checker.set_error('Expected %s I3Live type "%s", not "%s"'
+                                  ' in %s' % (name, typeStr, varType, msg))
             return False
 
         # ignore priority
         # ignore time
 
-        if not self._checkText(checker, msgText, debug, setError):
+        if not self._checkText(checker, msgText, debug, set_error):
             return False
 
         return True
@@ -137,14 +138,14 @@ class ExactChecker(BaseChecker):
     def __str__(self):
         return 'EXACT:%s' % self.__text
 
-    def check(self, checker, msg, debug, setError=True):
+    def check(self, checker, msg, debug, set_error=True):
         if msg != self.__text:
-            if setError:
+            if set_error:
                 name = str(checker)
                 if debug:
                     print('*** %s:XACT: %s' % (name, self.__text), file=sys.stderr)
-                checker.setError(('Expected %s exact log message "%s",' +
-                                  ' not "%s"') % (name, self.__text, msg))
+                checker.set_error('Expected %s exact log message "%s",'
+                                  ' not "%s"' % (name, self.__text, msg))
             return False
 
         return True
@@ -172,7 +173,7 @@ class LiveChecker(BaseLiveChecker):
 
         return str(val)
 
-    def _checkText(self, checker, msg, debug, setError):
+    def _checkText(self, checker, msg, debug, set_error):
         if self.__type is None or self.__type != "json":
             valStr = str(self.__value)
         elif isinstance(self.__value, (list, tuple)):
@@ -195,12 +196,12 @@ class LiveChecker(BaseLiveChecker):
             valStr = str(self.__value)
 
         if msg != valStr:
-            if setError:
+            if set_error:
                 name = str(checker)
                 if debug:
                     print('*** %s:LIVE: %s' % (name, valStr), file=sys.stderr)
-                checker.setError('Expected %s live log message '
-                                 '"%s", not "%s"' % (name, valStr, msg))
+                checker.set_error('Expected %s live log message '
+                                  '"%s", not "%s"' % (name, valStr, msg))
             return False
 
         return True
@@ -222,17 +223,17 @@ class LiveRegexpChecker(BaseLiveChecker):
         self.__regexp = re.compile(pattern)
         super(LiveRegexpChecker, self).__init__(varName)
 
-    def _checkText(self, checker, msg, debug, setError):
+    def _checkText(self, checker, msg, debug, set_error):
         m = self.__regexp.search(msg)
         if m is None:
-            if setError:
+            if set_error:
                 name = str(checker)
                 if debug:
                     print('*** %s:RLIV: %s' % \
                         (name, self.__regexp.pattern), file=sys.stderr)
-                checker.setError(('Expected %s I3Live regexp message "%s",' +
-                                  ' not "%s"') %
-                                 (name, self.__regexp.pattern, msg))
+                checker.set_error('Expected %s I3Live regexp message "%s",'
+                                  ' not "%s"' %
+                                  (name, self.__regexp.pattern, msg))
             return False
 
         return True
@@ -255,17 +256,17 @@ class RegexpChecker(BaseChecker):
     def __str__(self):
         return 'REGEXP:%s' % self.__regexp.pattern
 
-    def check(self, checker, msg, debug, setError=True):
+    def check(self, checker, msg, debug, set_error=True):
         m = self.__regexp.match(msg)
         if m is None:
-            if setError:
+            if set_error:
                 name = str(checker)
                 if debug:
                     print('*** %s:REXP: %s' % \
                         (name, self.__regexp.pattern), file=sys.stderr)
-                checker.setError(('Expected %s regexp log message of "%s",' +
-                                  ' not "%s"') %
-                                 (name, self.__regexp.pattern, msg))
+                checker.set_error('Expected %s regexp log message of "%s",'
+                                  ' not "%s"' %
+                                  (name, self.__regexp.pattern, msg))
             return False
 
         return True
@@ -279,28 +280,28 @@ class RegexpTextChecker(BaseChecker):
     def __str__(self):
         return 'RETEXT:%s' % self.__regexp.pattern
 
-    def check(self, checker, msg, debug, setError=True):
+    def check(self, checker, msg, debug, set_error=True):
         m = BaseChecker.PAT_DAQLOG.match(msg)
         if m is None:
-            if setError:
+            if set_error:
                 name = str(checker)
                 if debug:
                     print('*** %s:RFMT: %s' % \
                         (name, BaseChecker.PAT_DAQLOG.pattern), file=sys.stderr)
-                checker.setError('Bad format for %s log message "%s"' %
-                                 (name, msg))
+                checker.set_error('Bad format for %s log message "%s"' %
+                                  (name, msg))
             return False
 
         m = self.__regexp.search(m.group(3))
         if m is None:
-            if setError:
+            if set_error:
                 name = str(checker)
                 if debug:
                     print('*** %s:RTXT: %s' % \
                         (name, self.__regexp.pattern), file=sys.stderr)
-                checker.setError(('Expected %s regexp text log message,' +
-                                  ' of "%s" not "%s"') %
-                                 (name, self.__regexp.pattern, msg))
+                checker.set_error('Expected %s regexp text log message,'
+                                  ' of "%s" not "%s"' %
+                                  (name, self.__regexp.pattern, msg))
             return False
 
         return True
@@ -314,26 +315,27 @@ class TextChecker(BaseChecker):
     def __str__(self):
         return 'TEXT:%s' % self.__text
 
-    def check(self, checker, msg, debug, setError=True):
+    def check(self, checker, msg, debug, set_error=True):
         m = BaseChecker.PAT_DAQLOG.match(msg)
         if m is None:
-            if setError:
+            if set_error:
                 name = str(checker)
                 if debug:
                     print('*** %s:TFMT: %s' % \
                         (name, BaseChecker.PAT_DAQLOG.pattern), file=sys.stderr)
-                checker.setError('Bad format for %s log message "%s"' %
-                                 (name, msg))
+                checker.set_error('Bad format for %s log message "%s"' %
+                                  (name, msg))
             return False
 
         if m.group(3).find(self.__text) == -1:
-            if setError:
+            if set_error:
                 name = str(checker)
                 if debug:
-                    print('*** %s:TEXT: %s' % (name, self.__text), file=sys.stderr)
-                checker.setError(('Expected %s partial log message of "%s",' +
-                                  ' not "%s"') %
-                                 (name, self.__text, m.group(3)))
+                    print('*** %s:TEXT: %s' % (name, self.__text),
+                          file=sys.stderr)
+                checker.set_error('Expected %s partial log message of "%s",'
+                                  ' not "%s"' %
+                                  (name, self.__text, m.group(3)))
             return False
 
         return True
@@ -380,7 +382,7 @@ class LogChecker(object):
         if len(self.__expMsgs) == 0:
             if LogChecker.DEBUG:
                 print('*** %s:UNEX(%s)' % (self, msg), file=sys.stderr)
-            self.setError('Unexpected %s log message: %s' % (self, msg))
+            self.set_error('Unexpected %s log message: %s' % (self, msg))
             return False
 
         found = None
@@ -395,14 +397,15 @@ class LogChecker(object):
             print('--- Missing %s log msg ---' % (self, ), file=sys.stderr)
             print(msg, file=sys.stderr)
             if len(self.__expMsgs) > 0:
-                print('--- Expected %s messages ---' % (self, ), file=sys.stderr)
+                print('--- Expected %s messages ---' % (self, ),
+                      file=sys.stderr)
                 for i in range(len(self.__expMsgs)):
                     if i >= self.__depth:
                         break
                     print("--- %s" % str(self.__expMsgs[i]), file=sys.stderr)
                     self.__expMsgs[i].check(self, msg, LogChecker.DEBUG, True)
             print('----------------------------', file=sys.stderr)
-            self.setError('Missing %s log message: %s' % (self, msg))
+            self.set_error('Missing %s log message: %s' % (self, msg))
             return False
 
         del self.__expMsgs[found]
@@ -462,7 +465,7 @@ class LogChecker(object):
     def setCheckDepth(self, depth):
         self.__depth = depth
 
-    def setError(self, msg):
+    def set_error(self, msg):
         raise NotImplementedError()
 
     @staticmethod
@@ -702,7 +705,7 @@ class MockCluCfgFileComp(MockClusterWriter):
     def setJVMPath(self, value):
         self.__jvmPath = value
 
-    def setLogLevel(self, value):
+    def set_log_level(self, value):
         self.__log_level = value
 
     def write(self, fd, indent):
@@ -985,7 +988,7 @@ class MockClusterComponent(Component):
         return self.__host
 
     @property
-    def isLocalhost(self):
+    def is_localhost(self):
         return True
 
     def jvmPath(self):
@@ -1369,7 +1372,7 @@ class MockDeployComponent(Component):
         return self.__host
 
     @property
-    def isLocalhost(self):
+    def is_localhost(self):
         return self.__host is not None and self.__host == "localhost"
 
     @property
@@ -1445,7 +1448,7 @@ class MockMBeanClient(object):
 
         return self.__beanData[beanName][fieldName]
 
-    def getAttributes(self, beanName, fieldList):
+    def get_attributes(self, beanName, fieldList):
         rtnMap = {}
         for f in fieldList:
             rtnMap[f] = self.get(beanName, f)
@@ -1454,13 +1457,13 @@ class MockMBeanClient(object):
                 raise rtnMap[f]
         return rtnMap
 
-    def getBeanFields(self, beanName):
+    def get_bean_fields(self, beanName):
         return list(self.__beanData[beanName].keys())
 
-    def getBeanNames(self):
+    def get_bean_names(self):
         return list(self.__beanData.keys())
 
-    def getDictionary(self):
+    def get_dictionary(self):
         return copy.deepcopy(self.__beanData)
 
     def reload(self):
@@ -1528,7 +1531,7 @@ class MockComponent(object):
             outStr += '[' + ','.join(extra) + ']'
         return outStr
 
-    def addDeadCount(self):
+    def add_dead_count(self):
         self.__deadCount += 1
 
     def addInput(self, name, port, optional=False):
@@ -1548,7 +1551,7 @@ class MockComponent(object):
     def close(self):
         pass
 
-    def commitSubrun(self, id, startTime):
+    def commit_subrun(self, id, startTime):
         pass
 
     def configure(self, config_name=None):
@@ -1564,15 +1567,15 @@ class MockComponent(object):
     def connectors(self):
         return self.__connectors[:]
 
-    def _createMBeanClient(self):
+    def _create_mbean_client(self):
         return MockMBeanClient(self.fullname)
 
-    def createMBeanClient(self):
+    def create_mbean_client(self):
         if self.__mbeanClient is None:
-            self.__mbeanClient = self._createMBeanClient()
+            self.__mbeanClient = self._create_mbean_client()
         return self.__mbeanClient
 
-    def forcedStop(self):
+    def forced_stop(self):
         if self.__stopFail:
             pass
         elif self.__stopping == 1:
@@ -1595,9 +1598,9 @@ class MockComponent(object):
     def getConfigureWait(self):
         return self.__configWait
 
-    def getRunData(self, runnum):
+    def get_run_data(self, runnum):
         if self.__mbeanClient is None:
-            self.__mbeanClient = self.createMBeanClient()
+            self.__mbeanClient = self.create_mbean_client()
 
         if self.__num == 0:
             if self.__name.startswith("event"):
@@ -1636,10 +1639,10 @@ class MockComponent(object):
         return False
 
     @property
-    def isBuilder(self):
+    def is_builder(self):
         return self.__isBldr
 
-    def isComponent(self, name, num=-1):
+    def is_component(self, name, num=-1):
         return self.__name == name
 
     @property
@@ -1651,23 +1654,23 @@ class MockComponent(object):
         return self.__hangType != 0
 
     @property
-    def isReplayHub(self):
+    def is_replay_hub(self):
         return self.__replayHub
 
     @property
-    def isSource(self):
+    def is_source(self):
         return self.__isSrc
 
-    def listConnectorStates(self):
+    def list_connector_states(self):
         return ""
 
-    def logTo(self, logIP, logPort, liveIP, livePort):
+    def log_to(self, logIP, logPort, liveIP, livePort):
         pass
 
     @property
     def mbean(self):
         if self.__mbeanClient is None:
-            self.__mbeanClient = self.createMBeanClient()
+            self.__mbeanClient = self.create_mbean_client()
 
         return self.__mbeanClient
 
@@ -1682,10 +1685,11 @@ class MockComponent(object):
     def num(self):
         return self.__num
 
+    @property
     def order(self):
         return self.__cmdOrder
 
-    def prepareSubrun(self, id):
+    def prepare_subrun(self, id):
         pass
 
     def reset(self):
@@ -1694,7 +1698,7 @@ class MockComponent(object):
         self.__updatedRates = False
         self.runNum = None
 
-    def resetLogging(self):
+    def reset_logging(self):
         pass
 
     def setBadHub(self):
@@ -1706,28 +1710,28 @@ class MockComponent(object):
     def setStopFail(self):
         self.__stopFail = True
 
-    def setFirstGoodTime(self, time):
+    def set_first_good_time(self, time):
         self.__firstGoodTime = time
 
     def setHangType(self, hangType):
         self.__hangType = hangType
 
-    def setLastGoodTime(self, time):
+    def set_last_good_time(self, time):
         self.__lastGoodTime = time
 
     def setMonitorState(self, newState):
         self.__monitorState = newState
 
-    def setOrder(self, num):
+    def set_order(self, num):
         self.__cmdOrder = num
 
-    def startRun(self, runNum):
+    def start_run(self, runNum):
         if not self.__configured:
             raise Exception(self.__name + ' has not been configured')
 
         self.runNum = runNum
 
-    def startSubrun(self, data):
+    def start_subrun(self, data):
         if self.__isBadHub:
             return None
         return 100
@@ -1753,7 +1757,7 @@ class MockComponent(object):
 
         return 'running'
 
-    def stopRun(self):
+    def stop_run(self):
         if self.runNum is None:
             raise Exception(self.__name + ' is not running')
 
@@ -1798,7 +1802,7 @@ class MockDefaultDomGeometryFile(object):
 
 
 class MockDAQClient(DAQClient):
-    def __init__(self, name, num, host, port, mbeanPort, connectors,
+    def __init__(self, name, num, host, port, mbean_port, connectors,
                  appender, outLinks=None, extra_loud=False):
 
         self.__appender = appender
@@ -1807,7 +1811,7 @@ class MockDAQClient(DAQClient):
         self.outLinks = outLinks
         self.__state = 'idle'
 
-        super(MockDAQClient, self).__init__(name, num, host, port, mbeanPort,
+        super(MockDAQClient, self).__init__(name, num, host, port, mbean_port,
                                             connectors, True)
 
     def __str__(self):
@@ -1825,23 +1829,23 @@ class MockDAQClient(DAQClient):
         self.__state = 'connected'
         return super(MockDAQClient, self).connect(links)
 
-    def createClient(self, host, port):
+    def create_client(self, host, port):
         return MockRPCClient(self.name, self.num, self.outLinks)
 
-    def createLogger(self, quiet):
+    def create_logger(self, quiet):
         return MockCnCLogger(self.fullname, appender=self.__appender,
                              quiet=quiet, extra_loud=self.__extra_loud)
 
-    def createMBeanClient(self, host, port):
+    def create_mbean_client(self, host, port):
         return MockRPCClient(self.name, self.num, self.outLinks)
 
     def reset(self):
         self.__state = 'idle'
         return super(MockDAQClient, self).reset()
 
-    def startRun(self, runNum):
+    def start_run(self, runNum):
         self.__state = 'running'
-        return super(MockDAQClient, self).startRun(runNum)
+        return super(MockDAQClient, self).start_run(runNum)
 
     @property
     def state(self):
@@ -1947,7 +1951,7 @@ class MockLogger(LogChecker):
     def log_port(self):
         return None
 
-    def setError(self, msg):
+    def set_error(self, msg):
         self.__err = msg
         raise Exception(msg)
 
@@ -2001,7 +2005,7 @@ class MockParallelShell(object):
 
         del self.__exp[found]
 
-    def __isLocalhost(self, host):
+    def __is_localhost(self, host):
         return host == 'localhost' or host == '127.0.0.1'
 
     def add(self, cmd):
@@ -2033,7 +2037,7 @@ class MockParallelShell(object):
         if comp.jvmExtraArgs is not None:
             cmd += " " + comp.jvmExtraArgs
 
-        if comp.isRealHub:
+        if comp.is_real_hub:
             if comp.ntpHost is not None:
                 cmd += " -Dicecube.daq.time.monitoring.ntp-host=" + \
                        comp.ntpHost
@@ -2048,9 +2052,9 @@ class MockParallelShell(object):
         if comp.hitspoolMaxFiles is not None:
             cmd += " -Dhitspool.maxfiles=%d" % comp.hitspoolMaxFiles
 
-        if comp.isHub:
+        if comp.is_hub:
             cmd += " -Dicecube.daq.stringhub.componentId=%d" % comp.id
-        if event_check and comp.isBuilder:
+        if event_check and comp.is_builder:
             cmd += ' -Dicecube.daq.eventBuilder.validateEvents'
 
         cmd += ' -jar %s' % jarPath
@@ -2065,7 +2069,7 @@ class MockParallelShell(object):
             cmd += ' -M %s:%d' % (ipAddr, MoniPort)
         cmd += ' %s &' % redir
 
-        if not self.__isLocalhost(host):
+        if not self.__is_localhost(host):
             qCmd = "ssh -n %s 'sh -c \"%s\"%s &'" % (host, cmd, redir)
             cmd = qCmd
 
@@ -2084,7 +2088,7 @@ class MockParallelShell(object):
         else:
             killPat = ComponentManager.get_component_jar(compName)
 
-        if self.__isLocalhost(host):
+        if self.__is_localhost(host):
             sshCmd = ''
             pkillOpt = ' -fu %s' % user
         else:
@@ -2257,7 +2261,7 @@ class MockRemoteRunner(object):
         if comp.jvmExtraArgs is not None:
             cmd += " " + comp.jvmExtraArgs
 
-        if comp.isRealHub:
+        if comp.is_real_hub:
             if comp.ntpHost is not None:
                 cmd += " -Dicecube.daq.time.monitoring.ntp-host=" + \
                        comp.ntpHost
@@ -2272,9 +2276,9 @@ class MockRemoteRunner(object):
         if comp.hitspoolMaxFiles is not None:
             cmd += " -Dhitspool.maxfiles=%d" % comp.hitspoolMaxFiles
 
-        if comp.isHub:
+        if comp.is_hub:
             cmd += " -Dicecube.daq.stringhub.componentId=%d" % comp.id
-        if event_check and comp.isBuilder:
+        if event_check and comp.is_builder:
             cmd += ' -Dicecube.daq.eventBuilder.validateEvents'
 
         cmd += ' -jar %s' % jar_path
@@ -2423,12 +2427,12 @@ class MockRemoteManager(RemoteManager):
 
 
 class MockRunComponent(object):
-    def __init__(self, name, id, inetAddr, rpcPort, mbeanPort):
+    def __init__(self, name, id, inetAddr, rpcPort, mbean_port):
         self.__name = name
         self.__id = id
         self.__inetAddr = inetAddr
         self.__rpcPort = rpcPort
-        self.__mbeanPort = mbeanPort
+        self.__mbean_port = mbean_port
 
     def __str__(self):
         return "%s#%s" % (self.__name, self.__id)
@@ -2441,16 +2445,16 @@ class MockRunComponent(object):
         return self.__inetAddr
 
     @property
-    def isHub(self):
+    def is_hub(self):
         return self.__name.endswith("Hub")
 
     @property
     def isReplay(self):
-        return self.isHub and self.__name.lower().find("replay") >= 0
+        return self.is_hub and self.__name.lower().find("replay") >= 0
 
     @property
-    def mbeanPort(self):
-        return self.__mbeanPort
+    def mbean_port(self):
+        return self.__mbean_port
 
     @property
     def name(self):
@@ -2878,7 +2882,7 @@ class SocketReader(LogChecker):
     def serving(self):
         return self.__serving
 
-    def setError(self, msg):
+    def set_error(self, msg):
         if self.__errMsg is None:
             self.__errMsg = msg
 
@@ -3129,7 +3133,7 @@ class MockTaskManager(object):
     def hasError(self):
         return self.__error
 
-    def setError(self, callerName):
+    def set_error(self, caller_name):
         self.__error = True
 
 

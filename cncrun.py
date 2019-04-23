@@ -252,7 +252,7 @@ class CnCRun(BaseRun):
         Return True if there was a problem
         """
         if self.__runSetId is None:
-            self.logError("No active runset!")
+            self.log_error("No active runset!")
             return True
 
         if not self.__dryRun:
@@ -262,7 +262,7 @@ class CnCRun(BaseRun):
             try:
                 data = FlasherDataParser.load(dataPath)
             except:
-                self.logError("Cannot flash: " + exc_string())
+                self.log_error("Cannot flash: " + exc_string())
                 return True
 
             (run, subrun) = self.getLastRunNumber()
@@ -292,7 +292,7 @@ class CnCRun(BaseRun):
         "Return the last used run and subrun numbers as a tuple"
         return RunNumber.getLast()
 
-    def getRunNumber(self):
+    def get_run_number(self):
         "Return the current run number"
         if self.__runSetId is None:
             return None
@@ -347,15 +347,15 @@ class CnCRun(BaseRun):
         Return True if the light mode was set successfully
         """
         if isLID:
-            self.logError("Not setting light mode!!!")
+            self.log_error("Not setting light mode!!!")
         return True
 
     def setRunsPerRestart(self, num):
         """Set the number of continuous runs between restarts"""
         pass  # for non-Live runs, this is driven by BaseRun.waitForRun()
 
-    def startRun(self, runCfg, duration, numRuns=1, ignoreDB=False,
-                 runMode=None, filterMode=None, verbose=False):
+    def start_run(self, runCfg, duration, numRuns=1, ignoreDB=False,
+                  runMode=None, filterMode=None, verbose=False):
         """
         Start a run
 
@@ -401,12 +401,12 @@ class CnCRun(BaseRun):
 
         if runMode is not None:
             if filterMode is not None:
-                self.logError("Ignoring run mode %s, filter mode %s" %
-                              (runMode, filterMode))
+                self.log_error("Ignoring run mode %s, filter mode %s" %
+                               (runMode, filterMode))
             else:
-                self.logError("Ignoring run mode %s" % runMode)
+                self.log_error("Ignoring run mode %s" % runMode)
         elif filterMode is not None:
-            self.logError("Ignoring filter mode %s" % filterMode)
+            self.log_error("Ignoring filter mode %s" % filterMode)
 
         runOptions = RunOption.LOG_TO_FILE | RunOption.MONI_TO_FILE
 
@@ -432,7 +432,7 @@ class CnCRun(BaseRun):
         except:
             return "ERROR"
 
-    def stopRun(self):
+    def stop_run(self):
         """Stop the run"""
         if self.__runSetId is None:
             raise RunException("No active run")

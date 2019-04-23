@@ -168,14 +168,14 @@ class ComponentManager(object):
 
     @classmethod
     def __generate_kill_cmd(cls, comp, kill_with_9):
-        if comp.isHub:
+        if comp.is_hub:
             kill_str = "stringhub.componentId=%d " % comp.id
         else:
             kill_str = cls.get_component_jar(comp.name)
 
         user = os.environ['USER']
 
-        if comp.isLocalhost:
+        if comp.is_localhost:
             ssh_prefix = ""
             kill_opt = "-fu %s" % (user, )
         else:
@@ -235,7 +235,7 @@ class ComponentManager(object):
         if comp.jvmExtraArgs is not None and len(comp.jvmExtraArgs) > 0:
             jvm_args += " " + comp.jvmExtraArgs
 
-        if comp.isRealHub:
+        if comp.is_real_hub:
             if comp.ntpHost is not None:
                 jvm_args += " -Dicecube.daq.time.monitoring.ntp-host=%s" % \
                   (comp.ntpHost, )
@@ -268,10 +268,10 @@ class ComponentManager(object):
               (my_ip_addr, live_port, comp.log_level)
             switches += " -M %s:%d" % (my_ip_addr, MoniPort)
 
-        if comp.isHub:
+        if comp.is_hub:
             jvm_args += " -Dicecube.daq.stringhub.componentId=%d" % comp.id
 
-        if event_check and comp.isBuilder:
+        if event_check and comp.is_builder:
             jvm_args += " -Dicecube.daq.eventBuilder.validateEvents"
 
         # how are I/O streams handled?
@@ -300,7 +300,7 @@ class ComponentManager(object):
                         rcomp.setHitSpoolOptions(None, comp.hitspoolDirectory,
                                                  comp.hitspoolInterval,
                                                  comp.hitspoolMaxFiles)
-                        if comp.isRealHub:
+                        if comp.is_real_hub:
                             rcomp.setHubOptions(None, comp.alertEMail,
                                                 comp.ntpHost)
                     else:
@@ -363,7 +363,7 @@ class ComponentManager(object):
                     order = comp_dict[k][0].name
                 else:
                     try:
-                        order = comp_dict[k][0].order()
+                        order = comp_dict[k][0].order
                     except AttributeError:
                         has_order = False
                         order = comp_dict[k][0].name
@@ -390,7 +390,7 @@ class ComponentManager(object):
                     order = comp_dict[k][0].name
                 else:
                     try:
-                        order = comp_dict[k][0].order()
+                        order = comp_dict[k][0].order
                     except AttributeError:
                         has_order = False
                         order = comp_dict[k][0].name
@@ -511,7 +511,7 @@ class ComponentManager(object):
             if comp.jvmPath is None:
                 continue
 
-            if comp.isHub:
+            if comp.is_hub:
                 kill_pat = "stringhub.componentId=%d " % comp.id
             else:
                 kill_pat = cls.get_component_jar(comp.name)
@@ -685,7 +685,7 @@ class ComponentManager(object):
             if basecmd is None:
                 continue
 
-            if comp.isLocalhost:
+            if comp.is_localhost:
                 cmd = basecmd
             else:
                 cmd = "ssh -n %s 'sh -c \"%s\"%s &'" % \

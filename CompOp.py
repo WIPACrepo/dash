@@ -57,7 +57,7 @@ class OpConfigureLogging(VoidOperation):
     "Configure logging for the component"
     @classmethod
     def execute(cls, comp, data):
-        return comp.logTo(data[0], data[1], data[2], data[3])
+        return comp.log_to(data[0], data[1], data[2], data[3])
 
 
 class OpConnect(VoidOperation):
@@ -74,42 +74,42 @@ class OpForcedStop(VoidOperation):
     "Force the running component to stop"
     @classmethod
     def execute(cls, comp, _):
-        return comp.forcedStop()
+        return comp.forced_stop()
 
 
 class OpGetConnectionInfo(ComponentOperation):
     "Get the component's connector information"
     @classmethod
     def execute(cls, comp, _):
-        return comp.listConnectorStates()
+        return comp.list_connector_states()
 
 
 class OpGetGoodTime(ComponentOperation):
     "Get the component's good hit time"
     @classmethod
     def execute(cls, comp, data):
-        return comp.mbean.getAttributes("stringhub", data)
+        return comp.mbean.get_attributes("stringhub", data)
 
 
 class OpGetMultiBeanFields(ComponentOperation):
     "Get the component's good hit time"
     @classmethod
     def execute(cls, comp, data):
-        return comp.mbean.getAttributes(data[0], data[1])
+        return comp.mbean.get_attributes(data[0], data[1])
 
 
 class OpGetReplayTime(ComponentOperation):
     "Get the replay hub's first hit time"
     @classmethod
     def execute(cls, comp, _):
-        return comp.getReplayStartTime()
+        return comp.get_replay_start_time()
 
 
 class OpGetRunData(ComponentOperation):
     "Get the builder's run data"
     @classmethod
     def execute(cls, comp, data):
-        return comp.getRunData(data[0])
+        return comp.get_run_data(data[0])
 
 
 class OpGetSingleBeanField(ComponentOperation):
@@ -137,28 +137,28 @@ class OpResetLogging(VoidOperation):
     "Reset the component's logging"
     @classmethod
     def execute(cls, comp, _):
-        return comp.resetLogging()
+        return comp.reset_logging()
 
 
 class OpSetReplayOffset(VoidOperation):
     "Set time offset for replay hubs"
     @classmethod
     def execute(cls, comp, data):
-        return comp.setReplayOffset(data[0])
+        return comp.set_replay_offset(data[0])
 
 
 class OpStartRun(VoidOperation):
     "Start the component"
     @classmethod
     def execute(cls, comp, data):
-        return comp.startRun(data[0])
+        return comp.start_run(data[0])
 
 
 class OpStartSubrun(ComponentOperation):
     "Start the component"
     @classmethod
     def execute(cls, comp, data):
-        return comp.startSubrun(data[0])
+        return comp.start_subrun(data[0])
 
 
 class OpStopLocalLogger(VoidOperation):
@@ -174,14 +174,14 @@ class OpStopRun(VoidOperation):
     "Stop running components"
     @classmethod
     def execute(cls, comp, _):
-        comp.stopRun()
+        comp.stop_run()
 
 
 class OpSwitchRun(VoidOperation):
     "Switch the component to a new run number"
     @classmethod
     def execute(cls, comp, data):
-        comp.switchToNewRun(data[0])
+        comp.switch_to_new_run(data[0])
 
 
 class OpTerminate(VoidOperation):

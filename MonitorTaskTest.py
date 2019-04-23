@@ -34,14 +34,14 @@ class BadMBeanClient(MockMBeanClient):
             raise Exception("Mock exception")
         return super(BadMBeanClient, self).get(beanName, fieldName)
 
-    def getDictionary(self):
+    def get_dictionary(self):
         if self.__raiseSocketError:
             self.__raiseSocketError = False
             raise BeanTimeoutException("Mock exception")
         if self.__raiseException:
             self.__raiseException = False
             raise Exception("Mock exception")
-        return super(BadMBeanClient, self).getDictionary()
+        return super(BadMBeanClient, self).get_dictionary()
 
     def raiseException(self):
         self.__raiseException = True
@@ -54,7 +54,7 @@ class BadComponent(MockComponent):
     def __init__(self, name, num=0):
         super(BadComponent, self).__init__(name, num)
 
-    def _createMBeanClient(self):
+    def _create_mbean_client(self):
         return BadMBeanClient(self.fullname)
 
 
@@ -77,12 +77,12 @@ class BadCloseThread(object):
 
 
 class BadMonitorTask(MonitorTask):
-    def __init__(self, taskMgr, runset, logger, live, rundir, runOpts):
-        super(BadMonitorTask, self).__init__(taskMgr, runset, logger, live,
+    def __init__(self, task_mgr, runset, logger, live, rundir, runOpts):
+        super(BadMonitorTask, self).__init__(task_mgr, runset, logger, live,
                                              rundir, runOpts)
 
     @classmethod
-    def createThread(cls, comp, runDir, live, runOptions, dashlog):
+    def create_thread(cls, comp, rundir, live, run_options, dashlog):
         return BadCloseThread()
 
 
@@ -100,7 +100,7 @@ class MonitorTaskTest(unittest.TestCase):
         return [foo, bar, ]
 
     def __createStandardObjects(self):
-        timer = MockIntervalTimer(MonitorTask.NAME)
+        timer = MockIntervalTimer(MonitorTask.name)
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(timer)
 
@@ -123,8 +123,8 @@ class MonitorTaskTest(unittest.TestCase):
                 for c in compList:
                     if isinstance(c, BadComponent):
                         c.mbean.clearConditions()
-                    for b in c.mbean.getBeanNames():
-                        for f in c.mbean.getBeanFields(b):
+                    for b in c.mbean.get_bean_names():
+                        for f in c.mbean.get_bean_fields(b):
                             live.addExpected(c.filename + "*" + b + "+" + f,
                                              c.mbean.get(b, f),
                                              Prio.ITS)
@@ -150,7 +150,7 @@ class MonitorTaskTest(unittest.TestCase):
                              "Expected %d seconds, not %d" %
                              (timer.wait_secs(), left))
 
-            tsk.waitUntilFinished()
+            tsk.wait_until_finished()
 
             logger.checkStatus(4)
 
@@ -269,8 +269,8 @@ class MonitorTaskTest(unittest.TestCase):
         except Exception as ex:
             if not str(ex).endswith("Forced exception"):
                 raise
-        self.assertTrue(tsk.numOpen() == 0, "%d threads were not closed" %
-                        tsk.numOpen())
+        self.assertTrue(tsk.open_threads == 0,
+                        "%d threads were not closed" % (tsk.open_threads, ))
 
 
 if __name__ == '__main__':

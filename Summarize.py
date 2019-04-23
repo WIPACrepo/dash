@@ -1,7 +1,9 @@
 #!/usr/bin/env python
+"Summarize each run as a single line of text"
 
 from __future__ import print_function
 
+import argparse
 import logging
 import os
 import re
@@ -17,6 +19,7 @@ from utils.DashXMLLog import DashXMLLog, DashXMLLogException
 
 
 def add_arguments(parser):
+    "Add all arguments"
     parser.add_argument("-c", "--use-cnc", dest="use_cnc",
                         action="store_true", default=False,
                         help="Query CnCServer for run details")
@@ -37,6 +40,8 @@ def add_arguments(parser):
 
 
 class DashLog2RunXML(BaseLog):
+    "Recreate run.xml from the information in dash.log"
+
     DATE_STR = r"(\d+-\d+-\d+ \d+:\d+:\d+\.\d+)"
     DASH_PAT = re.compile(r"^\S+\s+\[" + DATE_STR + r"\]\s+(.*)$")
 
@@ -50,7 +55,7 @@ class DashLog2RunXML(BaseLog):
         super(DashLog2RunXML, self).__init__(None)
 
     @classmethod
-    def parse(cls, dashpath):
+    def parse(cls, dashpath, verbose=False):
         has_version = False
         has_config = False
         has_cluster = False
@@ -69,8 +74,8 @@ class DashLog2RunXML(BaseLog):
             xmlname = "fake.xml"
 
         runxml = DashXMLLog(dirname, file_name=xmlname)
-        runxml.setFirstGoodTime(0)
-        runxml.setLastGoodTime(0)
+        runxml.set_first_good_time(0)
+        runxml.set_last_good_time(0)
         runxml.setTermCond(None)
 
         with open(dashpath, "r") as rdr:
@@ -104,7 +109,7 @@ class DashLog2RunXML(BaseLog):
                         has_config = True
                         if not has_version:
                             logging.error("Missing \"Version Info\" line"
-                                          " from %s" % (dashpath, ))
+                                          " from %s", dashpath)
                         continue
 
                 if not has_cluster:
@@ -115,7 +120,7 @@ class DashLog2RunXML(BaseLog):
                         has_cluster = True
                         if not has_config:
                             logging.error("Missing \"Run Configuration\" line"
-                                          " from %s" % (dashpath, ))
+                                          " from %s", dashpath)
                         continue
 
                 if not has_runnum:
@@ -137,7 +142,7 @@ class DashLog2RunXML(BaseLog):
                         has_runnum = True
                         if not has_cluster:
                             logging.error("Missing \"Cluster\" line"
-                                          " from %s" % (dashpath, ))
+                                          " from %s", dashpath)
                         continue
 
                 if dash_text.endswith(" tcals"):
@@ -188,10 +193,11 @@ class DashLog2RunXML(BaseLog):
 class Sum(object):
     def __init__(self, logdir):
         self.__logdir = logdir
-        self.__dryRun = False
+        self.__dry_run = False
         self.__cnc = None
 
-    def __compute_duration_and_rate(self, runxml, verbose=False):
+    @classmethod
+    def __compute_duration_and_rate(cls, runxml, verbose=False):
         rate = ""
         duration = "???"
 
@@ -226,7 +232,7 @@ class Sum(object):
 
         return duration, rate
 
-    def __get_run_xml(self, runNum, use_cnc=True):
+    def __get_run_xml(self, run_num, use_cnc=True):
         cnc = None
         if use_cnc:
             try:
@@ -237,21 +243,21 @@ class Sum(object):
 
             if cnc is not None:
                 try:
-                    summary = cnc.rpc_run_summary(runNum)
+                    summary = cnc.rpc_run_summary(run_num)
                     return DashLog2RunXML.from_summary(summary)
                 except DashXMLLogException:
                     pass
 
         try:
-            return self.__read_daq_run_dir(runNum)
+            return self.__read_daq_run_dir(run_num)
         except:
             # couldn't find any details about this run!
             return None
 
-    def __read_daq_run_dir(self, runNum):
-        rundir = os.path.join(self.__logdir, "daqrun%05d" % runNum)
+    def __read_daq_run_dir(self, run_num):
+        rundir = os.path.join(self.__logdir, "daqrun%05d" % run_num)
         if not os.path.isdir(rundir):
-            raise ValueError("Cannot see run %d data" % runNum)
+            raise ValueError("Cannot see run %d data" % run_num)
 
         xmlpath = os.path.join(rundir, "run.xml")
         if os.path.exists(xmlpath):
@@ -262,12 +268,13 @@ class Sum(object):
                 runxml = DashLog2RunXML.parse(dashpath)
             else:
                 logging.error("Cannot construct fake run.xml file for run %d",
-                              runNum)
+                              run_num)
                 return None
 
         return runxml
 
-    def cnc_connection(self, abortOnFail=True):
+    def cnc_connection(self, abort_on_fail=True):
+        "Get a connection to CnCServer"
         if self.__cnc is None:
             self.__cnc = RPCClient("localhost", DAQPort.CNCSERVER)
             try:
@@ -278,20 +285,23 @@ class Sum(object):
                 else:
                     raise
 
-        if self.__cnc is None and abortOnFail:
+        if self.__cnc is None and abort_on_fail:
             raise ValueError("Cannot connect to CnCServer")
 
         return self.__cnc
 
-    def log_info(self, msg):
+    @classmethod
+    def log_info(cls, msg):
+        "Log an INFO message"
         print(msg)
 
-    def report(self, runNum, std_clucfg=None, no_color=False,
+    def report(self, run_num, std_clucfg=None, no_color=False,
                use_cnc=False, verbose=False):
-        if self.__dryRun:
+        "Report the details of a run"
+        if self.__dry_run:
             return
 
-        runxml = self.__get_run_xml(runNum, use_cnc=use_cnc)
+        runxml = self.__get_run_xml(run_num, use_cnc=use_cnc)
         if runxml is None:
             return
 
@@ -325,7 +335,7 @@ class Sum(object):
                 cfgstr = runxml.getConfig()
             else:
                 cfgstr = runxml.getCluster()
-                if cfgstr is None or len(cfgstr) == 0:
+                if cfgstr is None or cfgstr == "":
                     cfgstr = std_clucfg
 
             self.log_info("Run %s  %s  %8.8s  %-27.27s : %s" %
@@ -372,6 +382,7 @@ def strip_clucfg(cluster):
 
 
 def summarize(args):
+    "Summarize all pDAQ runs found in the log directory"
     if not args.show_clucfg:
         std_clucfg = None
     else:
@@ -382,9 +393,9 @@ def summarize(args):
         files = args.files[:]
     else:
         files = []
-        for d in os.listdir(args.log_directory):
-            if d.startswith("daqrun"):
-                files.append(d)
+        for entry in os.listdir(args.log_directory):
+            if entry.startswith("daqrun"):
+                files.append(entry)
         if len(files) == 0:
             raise SystemExit("No 'daqrun' directories found in \"%s\"" %
                              (args.log_directory, ))
@@ -415,11 +426,14 @@ def summarize(args):
                           sys.exc_info()[1])
 
 
-if __name__ == "__main__":
-    import argparse
-
+def main():
+    "Main program"
     argp = argparse.ArgumentParser()
     add_arguments(argp)
     args = argp.parse_args()
 
     summarize(args)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,7 +1,9 @@
 #!/usr/bin/env python
+"A task which is run at regular intervals"
 
 
 class TaskException(Exception):
+    "Base CnCTask exception"
     pass
 
 
@@ -11,9 +13,9 @@ class CnCTask(object):
     # maximum seconds to wait for tasks
     MAX_TASK_SECS = 10.0
 
-    def __init__(self, name, taskMgr, logger, timerName, timerPeriod):
+    def __init__(self, name, task_mgr, logger, timerName, timerPeriod):
         self.__name = name
-        self.__taskMgr = taskMgr
+        self.__task_mgr = task_mgr
         self.__logger = logger
 
         if timerName is None and timerPeriod is None:
@@ -22,7 +24,7 @@ class CnCTask(object):
         else:
             # create and start the timer for this task
             self.__timer = \
-                taskMgr.createIntervalTimer(timerName, timerPeriod)
+                task_mgr.createIntervalTimer(timerName, timerPeriod)
 
     def __str__(self):
         return self.__name
@@ -59,11 +61,11 @@ class CnCTask(object):
         "Handle task-specific cleanup when the task is stopped"
         raise NotImplementedError()
 
-    def endTimer(self):
+    def end_timer(self):
         "Stop the timer forever"
         self.__timer = None
 
-    def logError(self, msg):
+    def log_error(self, msg):
         "Log an error"
         self.__logger.error(msg)
 
@@ -76,9 +78,9 @@ class CnCTask(object):
         self.__timer = None
         self._reset()
 
-    def setError(self, callerName):
+    def set_error(self, caller_name):
         """
         Inform the task manager that this task has encountered an
         unrecoverable error and the run should be stopped
         """
-        self.__taskMgr.setError(callerName)
+        self.__task_mgr.set_error(caller_name)

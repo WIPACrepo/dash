@@ -291,7 +291,7 @@ class MyRunSet(RunSet):
 class TestRunSet(unittest.TestCase):
     def __add_hub_mbeans(self, compList):
         for comp in compList:
-            if comp.isSource:
+            if comp.is_source:
                 bean = "stringhub"
                 for fld in ("EarliestLastChannelHitTime",
                             "LatestFirstChannelHitTime",
@@ -338,7 +338,7 @@ class TestRunSet(unittest.TestCase):
         num = 1
         for name in nameList:
             c = MockComponent(name, num)
-            c.setOrder(num)
+            c.set_order(num)
             compList.append(c)
             num += 1
 
@@ -408,7 +408,7 @@ class TestRunSet(unittest.TestCase):
 
         num = 1
         for c in compList:
-            c.setOrder(num)
+            c.set_order(num)
             num += 1
 
         runConfig = FakeRunConfig(None, "XXXrunSubXXX")
@@ -458,13 +458,13 @@ class TestRunSet(unittest.TestCase):
         self.assertFalse(stopErr, "stop_run() encountered error")
 
         for comp in compList:
-            if comp.isSource:
+            if comp.is_source:
                 comp.mbean.addData("stringhub", "LatestFirstChannelHitTime",
                                    10)
                 comp.mbean.addData("stringhub", "NumberOfNonZombies", 1)
 
-        self.__startRun(runset, runNum, runConfig, cluCfg,
-                        components=compList, logger=logger)
+        self.__start_run(runset, runNum, runConfig, cluCfg,
+                         components=compList, logger=logger)
 
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
@@ -495,12 +495,12 @@ class TestRunSet(unittest.TestCase):
         logger.checkStatus(10)
 
         for comp in compList:
-            if comp.isSource:
+            if comp.is_source:
                 comp.mbean.addData("stringhub", "EarliestLastChannelHitTime",
                                    10)
 
-        self.__stopRun(runset, runNum, runConfig, cluCfg, moni_client,
-                       components=compList, logger=logger)
+        self.__stop_run(runset, runNum, runConfig, cluCfg, moni_client,
+                        components=compList, logger=logger)
 
     def __runTests(self, compList, runNum, hangType=None):
         logger = MockLogger('foo#0')
@@ -508,8 +508,8 @@ class TestRunSet(unittest.TestCase):
         num = 1
         sources = 0
         for c in compList:
-            c.setOrder(num)
-            if c.isSource:
+            c.set_order(num)
+            if c.is_source:
                 sources += 1
             num += 1
 
@@ -576,8 +576,8 @@ class TestRunSet(unittest.TestCase):
         expState = "running"
 
         try:
-            self.__startRun(runset, runNum, runConfig, cluCfg,
-                            components=compList, logger=logger)
+            self.__start_run(runset, runNum, runConfig, cluCfg,
+                             components=compList, logger=logger)
             if sources == 0:
                 self.fail("Should not be able to start a run with no sources")
         except RunSetException as rse:
@@ -594,12 +594,12 @@ class TestRunSet(unittest.TestCase):
         expState = "stopping"
 
         for comp in compList:
-            if comp.isSource:
+            if comp.is_source:
                 comp.mbean.addData("stringhub", "EarliestLastChannelHitTime",
                                    10)
 
-        self.__stopRun(runset, runNum, runConfig, cluCfg, moni_client,
-                       components=compList, logger=logger, hangType=hangType)
+        self.__stop_run(runset, runNum, runConfig, cluCfg, moni_client,
+                        components=compList, logger=logger, hangType=hangType)
 
         expState = "ready"
 
@@ -631,10 +631,10 @@ class TestRunSet(unittest.TestCase):
         self.__checkStatus(runset, compList, expState)
         logger.checkStatus(10)
 
-    def __startRun(self, runset, runNum, runConfig, cluCfg,
-                   runOptions=RunOption.MONI_TO_NONE, versionInfo=None,
-                   spadeDir="/tmp", copyDir=None, logDir=None,
-                   components=None, logger=None):
+    def __start_run(self, runset, runNum, runConfig, cluCfg,
+                    runOptions=RunOption.MONI_TO_NONE, versionInfo=None,
+                    spadeDir="/tmp", copyDir=None, logDir=None,
+                    components=None, logger=None):
 
         global CAUGHT_WARNING
         if not LIVE_IMPORT and not CAUGHT_WARNING:
@@ -644,7 +644,7 @@ class TestRunSet(unittest.TestCase):
         has_source = False
         if components is not None:
             for comp in components:
-                if comp.isSource:
+                if comp.is_source:
                     has_source = True
                     bean = "stringhub"
                     for fld in ("LatestFirstChannelHitTime",
@@ -696,13 +696,13 @@ class TestRunSet(unittest.TestCase):
         self.__checkStatus(runset, components, expState)
         logger.checkStatus(10)
 
-    def __stopRun(self, runset, runNum, runConfig, cluCfg, moni_client,
-                  components=None, logger=None, hangType=0):
+    def __stop_run(self, runset, runNum, runConfig, cluCfg, moni_client,
+                   components=None, logger=None, hangType=0):
         expState = "stopping"
 
         compList = components
         if compList is not None:
-            compList.sort(key=lambda x: x.order())
+            compList.sort(key=lambda x: x.order)
 
         if hangType == 0:
             stopName = "TestRunSet"
@@ -1030,11 +1030,11 @@ class TestRunSet(unittest.TestCase):
 
         self.__add_hub_mbeans(compList)
 
-        self.__startRun(runset, runNum, runConfig, cluCfg,
+        self.__start_run(runset, runNum, runConfig, cluCfg,
                         components=compList, logger=logger)
 
-        self.__stopRun(runset, runNum, runConfig, cluCfg, moni_client,
-                       components=compList, logger=logger)
+        self.__stop_run(runset, runNum, runConfig, cluCfg, moni_client,
+                        components=compList, logger=logger)
 
     def testShortStopHang(self):
         compList = self.__buildCompList(("oneHub", "two", "three"))
@@ -1052,7 +1052,7 @@ class TestRunSet(unittest.TestCase):
 
         self.__add_hub_mbeans(compList)
 
-        self.__startRun(runset, runNum, runConfig, cluCfg,
+        self.__start_run(runset, runNum, runConfig, cluCfg,
                         components=compList, logger=logger)
 
         hangType = 2
@@ -1061,8 +1061,8 @@ class TestRunSet(unittest.TestCase):
 
         RunSet.TIMEOUT_SECS = 5
 
-        self.__stopRun(runset, runNum, runConfig, cluCfg, moni_client,
-                       components=compList, logger=logger, hangType=hangType)
+        self.__stop_run(runset, runNum, runConfig, cluCfg, moni_client,
+                        components=compList, logger=logger, hangType=hangType)
 
     def testBadStop(self):
         compNames = ("firstHub", "middle", "middle", "middle", "middle", "last")
@@ -1081,8 +1081,8 @@ class TestRunSet(unittest.TestCase):
 
         self.__add_hub_mbeans(compList)
 
-        self.__startRun(runset, runNum, runConfig, cluCfg,
-                        components=compList, logger=logger)
+        self.__start_run(runset, runNum, runConfig, cluCfg,
+                         components=compList, logger=logger)
 
         for comp in compList:
             comp.setStopFail()
@@ -1140,7 +1140,7 @@ class TestRunSet(unittest.TestCase):
             else:
                 num = 0
             c = MockComponent(name, num)
-            c.setOrder(nextNum)
+            c.set_order(nextNum)
             compList.append(c)
 
             nextNum += 1

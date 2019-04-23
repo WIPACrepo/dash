@@ -240,7 +240,7 @@ def main():
         if args.verbose:
             print("Generating noXX versions of %s" % (run_config.basename, ))
         for comp in run_config.components():
-            if comp.isHub:
+            if comp.is_hub:
                 if not args.dryrun:
                     _ = create_config(run_config, [comp.id, ], None,
                                       force=args.force, verbose=args.verbose)

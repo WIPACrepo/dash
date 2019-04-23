@@ -16,7 +16,7 @@ class RateTaskTest(unittest.TestCase):
         pass
 
     def testGood(self):
-        timer = MockIntervalTimer(RateTask.NAME)
+        timer = MockIntervalTimer(RateTask.name)
 
         taskMgr = MockTaskManager()
         taskMgr.addIntervalTimer(timer)
@@ -39,7 +39,7 @@ class RateTaskTest(unittest.TestCase):
                          "Expected %d seconds, not %d" %
                          (timer.wait_secs(), left))
 
-        tsk.waitUntilFinished()
+        tsk.wait_until_finished()
 
         logger.checkStatus(4)
 

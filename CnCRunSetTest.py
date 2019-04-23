@@ -98,7 +98,7 @@ class MockMBeanClient(object):
 
         return self.__beanData[beanName][fieldName]
 
-    def getAttributes(self, beanName, fieldList):
+    def get_attributes(self, beanName, fieldList):
         if beanName not in self.__beanData:
             raise ValueError("Unknown %s bean \"%s\"" % (str(self), beanName))
 
@@ -112,10 +112,10 @@ class MockMBeanClient(object):
 
         return valMap
 
-    def getBeanNames(self):
+    def get_bean_names(self):
         return []
 
-    def getDictionary(self):
+    def get_dictionary(self):
         return copy.deepcopy(self.__beanData)
 
     def reload(self):
@@ -138,7 +138,7 @@ class MockComponent(object):
         self.__mbean = MockMBeanClient()
 
     def __str__(self):
-        if self.__num == 0 and not self.isSource:
+        if self.__num == 0 and not self.is_source:
             return self.__name
         return "%s#%d" % (self.__name, self.__num)
 
@@ -159,7 +159,7 @@ class MockComponent(object):
             raise SystemExit("No connectors for %s" % str(self))
         return self.__conn[:]
 
-    def createMBeanClient(self):
+    def create_mbean_client(self):
         return self.__mbean
 
     @property
@@ -170,7 +170,7 @@ class MockComponent(object):
     def fullname(self):
         return "%s#%s" % (self.__name, self.__num)
 
-    def getRunData(self, runnum):
+    def get_run_data(self, runnum):
         if self.__num == 0:
             if self.__name.startswith("event"):
                 evtData = self.__mbean.get("backEnd", "EventData")
@@ -193,21 +193,21 @@ class MockComponent(object):
         return False
 
     @property
-    def isBuilder(self):
+    def is_builder(self):
         return self.__name.lower().endswith("builder")
 
-    def isComponent(self, name, num=-1):
+    def is_component(self, name, num=-1):
         return self.__name == name and (num < 0 or self.__num == num)
 
     @property
-    def isReplayHub(self):
+    def is_replay_hub(self):
         return False
 
     @property
-    def isSource(self):
+    def is_source(self):
         return self.__name.lower().endswith("hub")
 
-    def logTo(self, host, port, live_host, live_port):
+    def log_to(self, host, port, live_host, live_port):
         pass
 
     @property
@@ -222,25 +222,26 @@ class MockComponent(object):
     def num(self):
         return self.__num
 
+    @property
     def order(self):
         return self.__order
 
-    def resetLogging(self):
+    def reset_logging(self):
         pass
 
-    def setFirstGoodTime(self, payTime):
+    def set_first_good_time(self, payTime):
         pass
 
-    def setLastGoodTime(self, payTime):
+    def set_last_good_time(self, payTime):
         pass
 
-    def setOrder(self, order):
+    def set_order(self, order):
         self.__order = order
 
-    def startRun(self, runCfg):
+    def start_run(self, runCfg):
         self.__state = "running"
 
-    def stopRun(self):
+    def stop_run(self):
         self.__state = "ready"
 
     @property
@@ -462,7 +463,7 @@ class CnCRunSetTest(unittest.TestCase):
         },
     }
 
-    def __addLiveMoni(self, comps, liveMoni, compName, compNum, beanName,
+    def __addLiveMoni(self, comps, live_moni, compName, compNum, beanName,
                       fieldName, isJSON=False):
 
         if not LIVE_IMPORT:
@@ -473,14 +474,14 @@ class CnCRunSetTest(unittest.TestCase):
                 val = c.mbean.get(beanName, fieldName)
                 var = "%s-%d*%s+%s" % (compName, compNum, beanName, fieldName)
                 if isJSON:
-                    liveMoni.addExpectedLiveMoni(var, val, "json")
+                    live_moni.addExpectedLiveMoni(var, val, "json")
                 else:
-                    liveMoni.addExpectedLiveMoni(var, val)
+                    live_moni.addExpectedLiveMoni(var, val)
                 return
 
         raise Exception("Unknown component %s-%d" % (compName, compNum))
 
-    def __addRunStartMoni(self, liveMoni, runNum, release, revision, started):
+    def __addRunStartMoni(self, live_moni, runNum, release, revision, started):
 
         if not LIVE_IMPORT:
             return
@@ -489,9 +490,9 @@ class CnCRunSetTest(unittest.TestCase):
                 "release": release,
                 "revision": revision,
                 "started": True}
-        liveMoni.addExpectedLiveMoni("runstart", data, "json")
+        live_moni.addExpectedLiveMoni("runstart", data, "json")
 
-    def __addRunStopMoni(self, liveMoni, firstTime, lastTime, numEvts, runNum):
+    def __addRunStopMoni(self, live_moni, firstTime, lastTime, numEvts, runNum):
 
         if not LIVE_IMPORT:
             return
@@ -502,13 +503,13 @@ class CnCRunSetTest(unittest.TestCase):
             "events": numEvts,
             "status": "SUCCESS"
         }
-        liveMoni.addExpectedLiveMoni("runstop", data, "json")
+        live_moni.addExpectedLiveMoni("runstop", data, "json")
 
-    def __checkActiveDOMsTask(self, comps, rs, liveMoni):
+    def __checkActiveDOMsTask(self, comps, rs, live_moni):
         if not LIVE_IMPORT:
             return
 
-        timer = rs.getTaskManager().getTimer(ActiveDOMsTask.NAME)
+        timer = rs.getTaskManager().getTimer(ActiveDOMsTask.name)
 
         numDOMs = 22
         numTotal = 60
@@ -521,70 +522,70 @@ class CnCRunSetTest(unittest.TestCase):
                            "TotalLBMOverflows",
                            20)
 
-        liveMoni.addExpectedLiveMoni("activeDOMs", numDOMs)
-        liveMoni.addExpectedLiveMoni("expectedDOMs", numTotal)
+        live_moni.addExpectedLiveMoni("activeDOMs", numDOMs)
+        live_moni.addExpectedLiveMoni("expectedDOMs", numTotal)
 
         timer.trigger()
 
-        self.__waitForEmptyLog(liveMoni, "Didn't get active DOM message")
+        self.__waitForEmptyLog(live_moni, "Didn't get active DOM message")
 
-        liveMoni.checkStatus(5)
+        live_moni.checkStatus(5)
 
-    def __checkMonitorTask(self, comps, rs, liveMoni):
-        timer = rs.getTaskManager().getTimer(MonitorTask.NAME)
+    def __checkMonitorTask(self, comps, rs, live_moni):
+        timer = rs.getTaskManager().getTimer(MonitorTask.name)
 
-        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
+        self.__addLiveMoni(comps, live_moni, "stringHub", self.HUB_NUMBER,
                            "sender", "NumHitsReceived")
-        self.__addLiveMoni(comps, liveMoni, "inIceTrigger", 0, "stringHit",
+        self.__addLiveMoni(comps, live_moni, "inIceTrigger", 0, "stringHit",
                            "RecordsReceived")
-        self.__addLiveMoni(comps, liveMoni, "inIceTrigger", 0, "trigger",
+        self.__addLiveMoni(comps, live_moni, "inIceTrigger", 0, "trigger",
                            "RecordsSent")
-        self.__addLiveMoni(comps, liveMoni, "globalTrigger", 0, "trigger",
+        self.__addLiveMoni(comps, live_moni, "globalTrigger", 0, "trigger",
                            "RecordsReceived")
-        self.__addLiveMoni(comps, liveMoni, "globalTrigger", 0, "glblTrig",
+        self.__addLiveMoni(comps, live_moni, "globalTrigger", 0, "glblTrig",
                            "RecordsSent")
-        self.__addLiveMoni(comps, liveMoni, "eventBuilder", 0, "backEnd",
+        self.__addLiveMoni(comps, live_moni, "eventBuilder", 0, "backEnd",
                            "NumTriggerRequestsReceived")
-        self.__addLiveMoni(comps, liveMoni, "eventBuilder", 0, "backEnd",
+        self.__addLiveMoni(comps, live_moni, "eventBuilder", 0, "backEnd",
                            "NumReadoutsReceived")
-        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
+        self.__addLiveMoni(comps, live_moni, "stringHub", self.HUB_NUMBER,
                            "sender", "NumReadoutRequestsReceived")
-        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
+        self.__addLiveMoni(comps, live_moni, "stringHub", self.HUB_NUMBER,
                            "sender", "NumReadoutsSent")
-        self.__addLiveMoni(comps, liveMoni, "eventBuilder", 0, "backEnd",
+        self.__addLiveMoni(comps, live_moni, "eventBuilder", 0, "backEnd",
                            "NumEventsSent")
 
-        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
+        self.__addLiveMoni(comps, live_moni, "stringHub", self.HUB_NUMBER,
                            "stringhub", "NumberOfActiveAndTotalChannels")
-        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
+        self.__addLiveMoni(comps, live_moni, "stringHub", self.HUB_NUMBER,
                            "stringhub", "TotalLBMOverflows")
-        self.__addLiveMoni(comps, liveMoni, "eventBuilder", 0, "backEnd",
+        self.__addLiveMoni(comps, live_moni, "eventBuilder", 0, "backEnd",
                            "DiskAvailable")
-        self.__addLiveMoni(comps, liveMoni, "eventBuilder", 0, "backEnd",
+        self.__addLiveMoni(comps, live_moni, "eventBuilder", 0, "backEnd",
                            "NumBadEvents")
-        self.__addLiveMoni(comps, liveMoni, "eventBuilder", 0, "backEnd",
+        self.__addLiveMoni(comps, live_moni, "eventBuilder", 0, "backEnd",
                            "EventData", True)
-        self.__addLiveMoni(comps, liveMoni, "eventBuilder", 0, "backEnd",
+        self.__addLiveMoni(comps, live_moni, "eventBuilder", 0, "backEnd",
                            "FirstEventTime", False)
-        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
+        self.__addLiveMoni(comps, live_moni, "stringHub", self.HUB_NUMBER,
                            "DataCollectorMonitor-00A", "MainboardId")
 
-        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
+        self.__addLiveMoni(comps, live_moni, "stringHub", self.HUB_NUMBER,
                            "stringhub", "EarliestLastChannelHitTime")
-        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
+        self.__addLiveMoni(comps, live_moni, "stringHub", self.HUB_NUMBER,
                            "stringhub", "LatestFirstChannelHitTime")
-        self.__addLiveMoni(comps, liveMoni, "stringHub", self.HUB_NUMBER,
+        self.__addLiveMoni(comps, live_moni, "stringHub", self.HUB_NUMBER,
                            "stringhub", "NumberOfNonZombies")
 
         timer.trigger()
 
-        self.__waitForEmptyLog(liveMoni, "Didn't get moni messages")
+        self.__waitForEmptyLog(live_moni, "Didn't get moni messages")
 
-        liveMoni.checkStatus(5)
+        live_moni.checkStatus(5)
 
-    def __checkRateTask(self, comps, rs, liveMoni, dashLog, numEvts, payTime,
+    def __checkRateTask(self, comps, rs, live_moni, dashLog, numEvts, payTime,
                         firstTime, runNum):
-        timer = rs.getTaskManager().getTimer(RateTask.NAME)
+        timer = rs.getTaskManager().getTimer(RateTask.name)
 
         self.__setBeanData(comps, "eventBuilder", 0, "backEnd", "EventData",
                            [runNum, 0, 0])
@@ -617,12 +618,12 @@ class CnCRunSetTest(unittest.TestCase):
         self.__waitForEmptyLog(dashLog, "Didn't get second rate message")
 
         dashLog.checkStatus(5)
-        if liveMoni is not None:
-            liveMoni.checkStatus(5)
+        if live_moni is not None:
+            live_moni.checkStatus(5)
 
-    def __checkWatchdogTask(self, comps, rs, dashLog, liveMoni,
+    def __checkWatchdogTask(self, comps, rs, dashLog, live_moni,
                             unhealthy=False):
-        timer = rs.getTaskManager().getTimer(WatchdogTask.NAME)
+        timer = rs.getTaskManager().getTimer(WatchdogTask.name)
 
         self.__setBeanData(comps, "eventBuilder", 0, "backEnd",
                            "DiskAvailable", 0)
@@ -638,7 +639,7 @@ class CnCRunSetTest(unittest.TestCase):
         self.__waitForEmptyLog(dashLog, "Didn't get watchdog message")
 
         dashLog.checkStatus(5)
-        liveMoni.checkStatus(5)
+        live_moni.checkStatus(5)
 
     def __computeDuration(self, startTime, curTime):
         domTicksPerSec = 10000000000
@@ -1002,7 +1003,7 @@ class CnCRunSetTest(unittest.TestCase):
 
         runCompList = []
         for c in comps:
-            if c.isSource or c.name == "extraComp":
+            if c.is_source or c.name == "extraComp":
                 continue
             runCompList.append(c.fullname)
 
@@ -1025,8 +1026,8 @@ class CnCRunSetTest(unittest.TestCase):
         catchall.addExpectedText("Loaded run configuration \"%s\"" % runConfig)
         catchall.addExpectedTextRegexp(r"Built runset #\d+: .*")
 
-        liveMoni = SocketReader("liveMoni", DAQPort.I3LIVE, 99)
-        liveMoni.start_serving()
+        live_moni = SocketReader("live_moni", DAQPort.I3LIVE, 99)
+        live_moni.start_serving()
 
         runNum = 345
 
@@ -1034,7 +1035,7 @@ class CnCRunSetTest(unittest.TestCase):
 
         if catchall:
             catchall.checkStatus(5)
-        liveMoni.checkStatus(5)
+        live_moni.checkStatus(5)
 
         rs = self.__cnc.findRunset(rsId)
         self.assertFalse(rs is None, "Could not find runset #%d" % rsId)
@@ -1051,10 +1052,10 @@ class CnCRunSetTest(unittest.TestCase):
                            "stringhub", "LatestFirstChannelHitTime", 10)
         if LIVE_IMPORT:
             data = {"runnum": runNum, "subrun": 0}
-            liveMoni.addExpectedLiveMoni("firstGoodTime", data, "json")
+            live_moni.addExpectedLiveMoni("firstGoodTime", data, "json")
 
         (rel, rev) = self.__cnc.getRelease()
-        self.__addRunStartMoni(liveMoni, runNum, rel, rev, True)
+        self.__addRunStartMoni(live_moni, runNum, rel, rev, True)
 
         catchall.addExpectedText("Starting run #%d on \"%s\"" %
                                  (runNum, cluCfg.description))
@@ -1073,25 +1074,25 @@ class CnCRunSetTest(unittest.TestCase):
         if catchall:
             catchall.checkStatus(5)
         dashLog.checkStatus(5)
-        liveMoni.checkStatus(5)
+        live_moni.checkStatus(5)
 
         numEvts = 5
         payTime = 50000000001
         firstTime = 1
 
-        self.__checkRateTask(comps, rs, liveMoni, dashLog, numEvts, payTime,
+        self.__checkRateTask(comps, rs, live_moni, dashLog, numEvts, payTime,
                              firstTime, runNum)
-        self.__checkMonitorTask(comps, rs, liveMoni)
-        self.__checkActiveDOMsTask(comps, rs, liveMoni)
+        self.__checkMonitorTask(comps, rs, live_moni)
+        self.__checkActiveDOMsTask(comps, rs, live_moni)
 
         for idx in range(5):
-            self.__checkWatchdogTask(comps, rs, dashLog, liveMoni,
+            self.__checkWatchdogTask(comps, rs, dashLog, live_moni,
                                      unhealthy=(idx >= 3))
 
         if catchall:
             catchall.checkStatus(5)
         dashLog.checkStatus(5)
-        liveMoni.checkStatus(5)
+        live_moni.checkStatus(5)
 
         duration = self.__computeDuration(firstTime, payTime)
         if duration <= 0:
@@ -1113,13 +1114,13 @@ class CnCRunSetTest(unittest.TestCase):
         dashLog.addExpectedExact("Not logging to file so cannot queue to"
                                  " SPADE")
 
-        self.__addRunStopMoni(liveMoni, firstTime, payTime, numEvts, runNum)
+        self.__addRunStopMoni(live_moni, firstTime, payTime, numEvts, runNum)
 
         self.__setBeanData(comps, "stringHub", self.HUB_NUMBER,
                            "stringhub", "EarliestLastChannelHitTime", 20)
         if LIVE_IMPORT:
             data = {"runnum": runNum}
-            liveMoni.addExpectedLiveMoni("lastGoodTime", data, "json")
+            live_moni.addExpectedLiveMoni("lastGoodTime", data, "json")
 
         self.__cnc.rpc_runset_stop_run(rsId)
 
@@ -1128,7 +1129,7 @@ class CnCRunSetTest(unittest.TestCase):
         if catchall:
             catchall.checkStatus(5)
         dashLog.checkStatus(5)
-        liveMoni.checkStatus(5)
+        live_moni.checkStatus(5)
 
         RunXMLValidator.validate(self, runNum, runConfig, cluCfg.description,
                                  None, None, numEvts, numMoni, numSN, numTcal,
@@ -1139,10 +1140,10 @@ class CnCRunSetTest(unittest.TestCase):
         if catchall:
             catchall.checkStatus(5)
         dashLog.checkStatus(5)
-        liveMoni.checkStatus(5)
+        live_moni.checkStatus(5)
 
         catchall.stop_serving()
-        liveMoni.stop_serving()
+        live_moni.stop_serving()
 
 
 if __name__ == '__main__':

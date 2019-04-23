@@ -486,7 +486,7 @@ class LiveRun(BaseRun):
             elif line.find("Service pdaq was unreachable on ") >= 0:
                 pass
             else:
-                self.logError("Control: %s" % line)
+                self.log_error("Control: %s" % line)
         proc.stdout.close()
 
         proc.wait()
@@ -536,7 +536,7 @@ class LiveRun(BaseRun):
             if line != "OK":
                 problem = True
             if problem:
-                self.logError("%s: %s" % (name, line))
+                self.log_error("%s: %s" % (name, line))
         proc.stdout.close()
 
         proc.wait()
@@ -635,7 +635,7 @@ class LiveRun(BaseRun):
                 if line != "OK" and not line.startswith("Starting subrun"):
                     problem = True
                 if problem:
-                    self.logError("Flasher: %s" % line)
+                    self.log_error("Flasher: %s" % line)
             proc.stdout.close()
 
             proc.wait()
@@ -676,7 +676,7 @@ class LiveRun(BaseRun):
 
         return (num, 0)
 
-    def getRunNumber(self):
+    def get_run_number(self):
         "Return the current run number"
         if self.__dryRun:
             return self.__fakeRunNum
@@ -819,8 +819,8 @@ class LiveRun(BaseRun):
         proc.stdout.close()
         proc.wait()
 
-    def startRun(self, runCfg, duration, numRuns=1, ignoreDB=False,
-                 runMode=None, filterMode=None, verbose=False):
+    def start_run(self, runCfg, duration, numRuns=1, ignoreDB=False,
+                  runMode=None, filterMode=None, verbose=False):
         """
         Tell I3Live to start a run
 
@@ -864,7 +864,7 @@ class LiveRun(BaseRun):
     def state(self):
         return self.__state.runState()
 
-    def stopRun(self):
+    def stop_run(self):
         """Stop the run"""
         cmd = "%s stop daq" % self.__liveCmdProg
         if not self.__runBasicCommand("StopRun", cmd):

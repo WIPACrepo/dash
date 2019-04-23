@@ -7,17 +7,17 @@ from DAQMocks import MockCnCLogger, MockLogger
 
 
 class MostlyDAQClient(DAQClient):
-    def __init__(self, name, num, host, port, mbeanPort, connectors, appender):
+    def __init__(self, name, num, host, port, mbean_port, connectors, appender):
         self.__appender = appender
 
         super(MostlyDAQClient, self).__init__(name, num, host, port,
-                                              mbeanPort, connectors,
+                                              mbean_port, connectors,
                                               quiet=True)
 
-    def createClient(self, host, port):
+    def create_client(self, host, port):
         return None
 
-    def createLogger(self, quiet):
+    def create_logger(self, quiet):
         return MockCnCLogger(self.fullname, appender=self.__appender,
                              quiet=quiet)
 

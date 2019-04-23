@@ -710,7 +710,7 @@ class TestClusterDescription(unittest.TestCase):
                 instExtra = dfltExtra
             if j == FLD_LOGLVL:
                 instLogLvl = "instLvl"
-                bar.setLogLevel(instLogLvl)
+                bar.set_log_level(instLogLvl)
             else:
                 instLogLvl = dfltLogLvl
             if j == FLD_HSDIR:
@@ -854,7 +854,7 @@ class TestClusterDescription(unittest.TestCase):
                                      (comp.name, type(comp), log_level,
                                       comp.log_level))
 
-                if comp.isRealHub:
+                if comp.is_real_hub:
                     self.assertEqual(hsDir, comp.hitspoolDirectory,
                                      "Expected %s<%s> HS directory \"%s\","
                                      " not \"%s\"" %
@@ -895,7 +895,7 @@ class TestClusterDescription(unittest.TestCase):
         foo.setJVMHeapInit("newInit")
         foo.setJVMHeapMax("newMax")
         foo.setJVMServer(False)
-        foo.setLogLevel("logLvl")
+        foo.set_log_level("logLvl")
         mockComps.append(foo)
 
         bar = h1.addComponent("bar", 123)

@@ -62,7 +62,7 @@ class MostlyMBeanClient(MBeanClient):
         self.__agent = agent
         super(MostlyMBeanClient, self).__init__(compName, host, port)
 
-    def createClient(self, host, port):
+    def create_client(self, host, port):
         return MockRPCClient(host, port, self.__agent)
 
 
@@ -99,7 +99,7 @@ class TestMBeanClient(unittest.TestCase):
         self.assertEqual(val, realVal, "Expected value \"%s\", not \"%s\"" %
                          (val, realVal))
 
-        beanList = client.getBeanNames()
+        beanList = client.get_bean_names()
         self.assertTrue(beanList is not None,
                         "Bean name list should not be None")
         self.assertEqual(len(beanList), 1, "Expected one bean name, not %s" %
@@ -108,7 +108,7 @@ class TestMBeanClient(unittest.TestCase):
                          "Expected bean name \"%s\", not \"%s\"" %
                          (bean, beanList[0]))
 
-        fldList = client.getBeanFields(bean)
+        fldList = client.get_bean_fields(bean)
         self.assertTrue(fldList is not None,
                         "Field name list should not be None")
         self.assertEqual(len(fldList), 1, "Expected one bean name, not %s" %
@@ -120,14 +120,14 @@ class TestMBeanClient(unittest.TestCase):
         client.reload()
 
         try:
-            beanList = client.getBeanNames()
-            self.fail("getBeanNames should throw an exception")
+            beanList = client.get_bean_names()
+            self.fail("get_bean_names should throw an exception")
         except:
             pass
 
         try:
-            beanList = client.getBeanFields(bean)
-            self.fail("getBeanFields should throw an exception")
+            beanList = client.get_bean_fields(bean)
+            self.fail("get_bean_fields should throw an exception")
         except:
             pass
 

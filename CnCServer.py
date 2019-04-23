@@ -390,7 +390,7 @@ class DAQPool(object):
                                      (c.fullname, exc_string()))
             elif stateStr == DAQClientState.MISSING or \
                  stateStr == DAQClientState.HANGING:
-                c.addDeadCount()
+                c.add_dead_count()
             else:
                 count += 1
 
@@ -875,9 +875,9 @@ class CnCServer(DAQPool):
 
         return True
 
-    def createClient(self, name, num, host, port, mbeanPort, connectors):
+    def createClient(self, name, num, host, port, mbean_port, connectors):
         "overrideable method used for testing"
-        return DAQClient(name, num, host, port, mbeanPort, connectors,
+        return DAQClient(name, num, host, port, mbean_port, connectors,
                          self.__quiet)
 
     def createCnCLogger(self, quiet):
@@ -1051,26 +1051,26 @@ class CnCServer(DAQPool):
 
         return idDict
 
-    def rpc_component_list_beans(self, compId, includeRunsetComponents=False):
-        c = self.__findComponentById(compId, includeRunsetComponents)
-        if c is not None:
-            return c.mbean.getBeanNames()
+    def rpc_component_list_beans(self, comp_id, includeRunsetComponents=False):
+        comp = self.__findComponentById(comp_id, includeRunsetComponents)
+        if comp is not None:
+            return comp.mbean.get_bean_names()
 
-        raise CnCServerException("Unknown component #%d" % compId)
+        raise CnCServerException("Unknown component #%d" % comp_id)
 
-    def rpc_component_list_bean_fields(self, compId, bean,
+    def rpc_component_list_bean_fields(self, comp_idd, bean,
                                        includeRunsetComponents=False):
-        c = self.__findComponentById(compId, includeRunsetComponents)
-        if c is not None:
-            return c.mbean.getBeanFields(bean)
+        comp = self.__findComponentById(comp_id, includeRunsetComponents)
+        if comp is not None:
+            return comp.mbean.get_bean_fields(bean)
 
-        raise CnCServerException("Unknown component #%d" % compId)
+        raise CnCServerException("Unknown component #%d" % comp_id)
 
     def rpc_component_list_dicts(self, idList=None, getAll=True):
         "list unused components"
         return self.__listComponentDicts(self.__getComponents(idList, getAll))
 
-    def rpc_component_register(self, name, num, host, port, mbeanPort,
+    def rpc_component_register(self, name, num, host, port, mbean_port,
                                connArray):
         "register a component with the server"
 
@@ -1115,7 +1115,7 @@ class CnCServer(DAQPool):
                 raise CnCServerException(errMsg)
             connectors.append(Connector(d[0], d[1], connPort))
 
-        client = self.createClient(name, num, host, port, mbeanPort,
+        client = self.createClient(name, num, host, port, mbean_port,
                                    connectors)
 
         if self.add(client):
@@ -1177,10 +1177,10 @@ class CnCServer(DAQPool):
         "remote method for far end to confirm that server is still alive"
         return self.__id
 
-    def rpc_register_component(self, name, num, host, port, mbeanPort,
+    def rpc_register_component(self, name, num, host, port, mbean_port,
                                connArray):
         "backward compatibility shim"
-        return self.rpc_component_register(name, num, host, port, mbeanPort,
+        return self.rpc_component_register(name, num, host, port, mbean_port,
                                            connArray)
 
     def rpc_run_summary(self, runNum):
@@ -1306,7 +1306,7 @@ class CnCServer(DAQPool):
         if logDir is None:
             logDir = self.__defaultLogDir
 
-        if not self.startRun(runSet, runNum, runOptions, log_dir=logDir):
+        if not self.start_run(runSet, runNum, runOptions, log_dir=logDir):
             return "FAILED"
 
         return "OK"
@@ -1419,7 +1419,7 @@ class CnCServer(DAQPool):
 
         return live
 
-    def startRun(self, runSet, runNum, runOptions, log_dir=None):
+    def start_run(self, runSet, runNum, runOptions, log_dir=None):
         if log_dir is None:
             log_dir = self.__defaultLogDir
 
@@ -1438,6 +1438,7 @@ class CnCServer(DAQPool):
             success = True
         except:
             import traceback
+            traceback.print_exc()
             try:
                 self.__log.error("Cannot start runset#%s: %s" %
                                  (runSet.id, traceback.format_exc()))
@@ -1446,7 +1447,7 @@ class CnCServer(DAQPool):
                 self.__log.error("Cannot reset runset#%s: %s" %
                                  (runSet.id, traceback.format_exc()))
 
-        # file leaks are reported after startRun() because dash.log
+        # file leaks are reported after start_run() because dash.log
         # is created in that method
         #
         if self.__openFileCount is None:

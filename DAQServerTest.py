@@ -21,7 +21,7 @@ class TinyMBeanClient(object):
     def __init__(self):
         pass
 
-    def getAttributes(self, beanname, fldlist):
+    def get_attributes(self, beanname, fldlist):
         if beanname != "stringhub":
             raise Exception("Unknown bean \"%s\"" % beanname)
         rtndict = {}
@@ -37,7 +37,7 @@ class TinyMBeanClient(object):
 
 
 class TinyClient(object):
-    def __init__(self, name, num, host, port, mbeanPort, connectors):
+    def __init__(self, name, num, host, port, mbean_port, connectors):
         self.__name = name
         self.__num = num
         self.__connectors = connectors
@@ -46,7 +46,7 @@ class TinyClient(object):
 
         self.__host = host
         self.__port = port
-        self.__mbeanPort = mbeanPort
+        self.__mbean_port = mbean_port
 
         self.__state = 'idle'
         self.__order = None
@@ -55,10 +55,10 @@ class TinyClient(object):
         self.__mbeanClient = TinyMBeanClient()
 
     def __str__(self):
-        if self.__mbeanPort == 0:
+        if self.__mbean_port == 0:
             mStr = ''
         else:
-            mStr = ' M#%d' % self.__mbeanPort
+            mStr = ' M#%d' % self.__mbean_port
         return 'ID#%d %s#%d at %s:%d%s' % \
             (self.__id, self.__name, self.__num, self.__host, self.__port,
              mStr)
@@ -87,14 +87,14 @@ class TinyClient(object):
         return False
 
     @property
-    def isReplayHub(self):
+    def is_replay_hub(self):
         return False
 
     @property
-    def isSource(self):
+    def is_source(self):
         return True
 
-    def logTo(self, log_host, log_port, live_host, live_port):
+    def log_to(self, log_host, log_port, live_host, live_port):
         if live_host is not None and live_port is not None:
             raise Exception('Cannot log to I3Live')
 
@@ -109,7 +109,7 @@ class TinyClient(object):
                 "compNum": self.__num,
                 "host": self.__host,
                 "rpcPort": self.__port,
-                "mbeanPort": self.__mbeanPort,
+                "mbeanPort": self.__mbean_port,
                 "state": self.__state}
 
     @property
@@ -124,26 +124,27 @@ class TinyClient(object):
     def num(self):
         return self.__num
 
+    @property
     def order(self):
         return self.__order
 
     def reset(self):
         self.__state = 'idle'
 
-    def resetLogging(self):
+    def reset_logging(self):
         pass
 
-    def setOrder(self, orderNum):
+    def set_order(self, orderNum):
         self.__order = orderNum
 
-    def startRun(self, runNum):
+    def start_run(self, runNum):
         self.__state = 'running'
 
     @property
     def state(self):
         return self.__state
 
-    def stopRun(self):
+    def stop_run(self):
         self.__state = 'ready'
 
 
@@ -280,8 +281,8 @@ class MockServer(CnCServer):
                                          forceRestart=forceRestart,
                                          testOnly=True)
 
-    def createClient(self, name, num, host, port, mbeanPort, connectors):
-        return TinyClient(name, num, host, port, mbeanPort, connectors)
+    def createClient(self, name, num, host, port, mbean_port, connectors):
+        return TinyClient(name, num, host, port, mbean_port, connectors)
 
     def createCnCLogger(self, quiet):
         return MockCnCLogger("CnC", appender=MockServer.APPENDER, quiet=quiet)
