@@ -707,9 +707,8 @@ class CnCServer(DAQPool):
             self.__server.register_function(self.rpc_runset_switch_run)
             self.__server.register_function(self.rpc_version)
 
-        if sys.version_info > (2, 3):
-            from DumpThreads import DumpThreadsOnSignal
-            DumpThreadsOnSignal(fd=sys.stderr, logger=self.__log)
+        from DumpThreads import DumpThreadsOnSignal
+        DumpThreadsOnSignal(sys.stderr, logger=self.__log)
 
     def __str__(self):
         return "%s<%s>" % (self.__name, self.getClusterConfig().config_name)
@@ -1156,7 +1155,7 @@ class CnCServer(DAQPool):
     def rpc_end_all(self):
         "reset all clients"
         ComponentGroup.run_simple(OpResetComponent, self.components(), (),
-                                  report_errors=True)
+                                  self.__log, report_errors=True)
         return 1
 
     def rpc_list_open_files(self):
