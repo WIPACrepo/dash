@@ -1,4 +1,9 @@
 #!/usr/bin/env python
+"""
+Manage RPC calls across a group of components
+"""
+
+import threading
 
 from DAQClient import BeanTimeoutException
 from ThreadGroup import Thread, ThreadGroup
@@ -26,9 +31,16 @@ class classproperty(object):
 class ComponentOperation(object):
     "Send a command or query to a component in a runset"
 
+    __LOCK = threading.Lock()
+
     @classproperty
     def has_result(cls):
         return True
+
+    @classmethod
+    def lock_and_run(cls, *args, **kwargs):
+        with cls.__LOCK:
+            return cls.execute(*args, **kwargs)
 
     @classproperty
     def name(cls):
@@ -257,7 +269,7 @@ class ComponentThread(Thread):
         super(ComponentThread, self).__init__(target=self.__execute, name=name)
 
     def __execute(self):
-        self.__result = self.__operation.execute(self.__comp, self.__args)
+        self.__result = self.__operation.lock_and_run(self.__comp, self.__args)
 
     @property
     def component(self):
