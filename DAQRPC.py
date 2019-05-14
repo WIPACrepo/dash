@@ -19,6 +19,18 @@ import time
 import traceback
 import xmlrpclib
 
+class LockedTransport(xmlrpclib.Transport):
+    def __init__(self):
+        xmlrpclib.Transport.__init__(self)
+        self.__req_lock = threading.Lock()
+
+    super_single_request = xmlrpclib.Transport.single_request
+
+    def single_request(self, host, handler, request_body, verbose=0):
+        with self.__req_lock:
+            return self.super_single_request(host, handler, request_body,
+                                             verbose=verbose)
+
 
 class RPCClient(xmlrpclib.ServerProxy):
     """Generic class for accessing methods on remote objects
@@ -41,8 +53,14 @@ class RPCClient(xmlrpclib.ServerProxy):
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         socket.setdefaulttimeout(timeout)
 
+        # hack to only allow one active request at a time
+        if sys.version_info < (2, 7):
+            transport = None
+        else:
+            transport = LockedTransport()
+
         xmlrpclib.ServerProxy.__init__(self, "http://" + hostPort,
-                                       verbose=verbose)
+                                       transport=transport, verbose=verbose)
 
     @classmethod
     def client_statistics(cls):
