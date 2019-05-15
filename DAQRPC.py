@@ -9,10 +9,10 @@
 
 try:
     from DocXMLRPCServer import DocXMLRPCServer
-    from xmlrpclib import ServerProxy
+    from xmlrpclib import ServerProxy, Transport
 except ModuleNotFoundError:
     from xmlrpc.server import DocXMLRPCServer
-    from xmlrpc.client import ServerProxy
+    from xmlrpc.client import ServerProxy, Transport
 import datetime
 import errno
 import math
@@ -22,6 +22,26 @@ import sys
 import threading
 import time
 import traceback
+
+
+class LockedTransport(Transport):
+    "XML-RPC transport layer which only allows one active request at a time"
+
+    def __init__(self):
+        Transport.__init__(self)
+        self.__req_lock = threading.Lock()
+
+    if sys.version_info < (2, 7):
+        super_single_request = None
+    else:
+        # Preserve Transport.single_request so we can call it
+        super_single_request = Transport.single_request
+
+    def single_request(self, host, handler, request_body, verbose=0):
+        "Don't allow more than one request at a time"
+        with self.__req_lock:
+            return self.super_single_request(host, handler, request_body,
+                                             verbose=verbose)
 
 
 class RPCClient(ServerProxy):
@@ -45,7 +65,15 @@ class RPCClient(ServerProxy):
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         socket.setdefaulttimeout(timeout)
 
-        ServerProxy.__init__(self, "http://" + hostPort, verbose=verbose)
+ 
+        # hack to only allow one active request at a time
+        if sys.version_info < (2, 7):
+            transport = None
+        else:
+            transport = LockedTransport()
+
+        ServerProxy.__init__(self, "http://" + hostPort, transport=transport,
+                             verbose=verbose)
 
     @classmethod
     def client_statistics(cls):
