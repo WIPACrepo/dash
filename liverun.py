@@ -155,6 +155,7 @@ class LiveState(object):
     SVC_PAT = re.compile(r"(\S+)( .*)? \((\S+):(\d+)\), (async|sync)hronous" +
                          " - (.*)")
     SVCBACK_PAT = re.compile(r"(\S+) \(started (\d+) times\)")
+    ALERT_PAT = re.compile(r"^(\d+): (.*)$")
 
     PARSE_NORMAL = 1
     PARSE_FLASH = 2
@@ -244,8 +245,10 @@ class LiveState(object):
             if line.find("(None)") >= 0:
                 return self.PARSE_NORMAL
 
-            if not line.find("PFServer is Running check") >= 0:
-                self.__logger.error("Ongoing Alert: %s" % (line, ))
+            match = self.ALERT_PAT.match(line)
+            if match is None:
+                self.__logger.error("Unrecognized alert: \"%s\"" % (line, ))
+
             return self.PARSE_ALERTS
 
         if line.startswith("Ongoing Pages:"):
