@@ -20,13 +20,20 @@ import traceback
 import xmlrpclib
 
 class LockedTransport(xmlrpclib.Transport):
+    "XML-RPC transport layer which only allows one active request at a time"
+
     def __init__(self):
         xmlrpclib.Transport.__init__(self)
         self.__req_lock = threading.Lock()
 
-    super_single_request = xmlrpclib.Transport.single_request
+    if sys.version_info < (2, 7):
+        super_single_request = None
+    else:
+        # Preserve Transport.single_request so we can call it
+        super_single_request = xmlrpclib.Transport.single_request
 
     def single_request(self, host, handler, request_body, verbose=0):
+        "Don't allow more than one request at a time"
         with self.__req_lock:
             return self.super_single_request(host, handler, request_body,
                                              verbose=verbose)
