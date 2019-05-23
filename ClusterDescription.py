@@ -647,6 +647,7 @@ class ClusterDefaults(object):
 
 class ClusterDescription(ConfigXMLBase):
     LOCAL = "localhost"
+    PDAQ2 = "pdaq2"
     SPS = "sps"
     SPTS = "spts"
     MDFL = "mdfl"
