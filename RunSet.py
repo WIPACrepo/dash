@@ -1026,14 +1026,15 @@ class RunData(object):
             prio = Prio.EMAIL
         self.__num_event_count_messages += 1
 
-        self.send_count_updates(moni_data, prio)
-
+        # validate data
         for stream in ("physics", "moni", "sn", "tcal"):
             if stream + "Events" not in moni_data:
                 if len(moni_data) > 0:
                     self.error("Dropping incomplete monitoring data (%s)" %
                                str(moni_data))
                 return
+
+        self.send_count_updates(moni_data, prio)
 
     def send_moni(self, name, value, prio=None, time=None, debug=False):
         if not self.has_moni_client:
