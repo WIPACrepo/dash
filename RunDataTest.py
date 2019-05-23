@@ -79,17 +79,6 @@ class TinyMoniClient(object):
                 raise Exception("Expected dict value, not %s" %
                                 (type(value).__name__, ))
 
-        elif name == "run_update":
-            if self.__run_number is None:
-                raise Exception("Run number not set for \"%s\"" % (name, ))
-            self.__check_count("events", value, self.__num_events,
-                               none_is_zero=True)
-            self.__check_count("moni", value, self.__num_moni,
-                               none_is_zero=True)
-            self.__check_count("sn", value, self.__num_sn,
-                               none_is_zero=True)
-            self.__check_count("tcal", value, self.__num_tcal,
-                               none_is_zero=True)
         elif name == "runstop":
             if self.__run_number is None:
                 raise Exception("Run number not set for \"%s\"" % (name, ))

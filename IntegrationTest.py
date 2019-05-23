@@ -902,12 +902,13 @@ class RealComponent(object):
 
         self.__mbean_data[bean][fld].setValue(val)
 
-    def setRunData(self, val0, val1, val2, val3=None, val4=None):
-        if val3 is None and val4 is None:
-            self.__run_data = (int(val0), int(val1), int(val2))
-        else:
+    def setRunData(self, val0, val1, val2, val3, val4, val5=None):
+        if val5 is None:
             self.__run_data = (int(val0), int(val1), int(val2), int(val3),
                                int(val4))
+        else:
+            self.__run_data = (int(val0), int(val1), int(val2), int(val3),
+                               int(val4), int(val5))
 
     @staticmethod
     def sortForStart(self_obj, other_obj):
@@ -1203,14 +1204,16 @@ class IntegrationTest(unittest.TestCase):
             raise Exception("Could not find component %s#%d" %
                             (comp_name, comp_num))
 
-    def __set_run_data(self, num_evts, start_evt_time, last_evt_time, num_tcal,
-                       num_sn, num_moni, first_good, last_good):
+    def __set_run_data(self, num_evts, start_evt_time, last_evt_time,
+                       first_good, last_good, num_tcal, tcal_ticks, num_sn,
+                       sn_ticks, num_moni, moni_ticks):
         for comp in self.__comp_list:
             if comp.name == "eventBuilder":
                 comp.setRunData(num_evts, start_evt_time, last_evt_time,
                                 first_good, last_good)
             elif comp.name == "secondaryBuilders":
-                comp.setRunData(num_tcal, num_sn, num_moni)
+                comp.setRunData(num_tcal, tcal_ticks, num_sn, sn_ticks,
+                                num_moni, moni_ticks)
 
     def __test_body(self, live, cnc, live_log, appender, dash_log,
                     run_options, live_run_only):
@@ -1609,8 +1612,9 @@ class IntegrationTest(unittest.TestCase):
         self.__set_bean_data("secondaryBuilders", 0, "tcalBuilder",
                              "EventData", (run_num, num_tcal, tcal_ticks))
 
-        self.__set_run_data(num_evts, start_evt_time, last_evt_time, num_tcal,
-                            num_sn, num_moni, start_evt_time, last_evt_time)
+        self.__set_run_data(num_evts, start_evt_time, last_evt_time,
+                            start_evt_time, last_evt_time, num_tcal,
+                            tcal_ticks, num_sn, sn_ticks, num_moni, moni_ticks)
 
         msg = 'Stopping run %d' % run_num
         if live_log:

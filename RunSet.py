@@ -1035,39 +1035,6 @@ class RunData(object):
                                str(moni_data))
                 return
 
-        if True:  # XXX this should be removed after Sprecher is released
-            run_update = {
-                "run": self.__run_number,
-                "subrun": self.__subrun_number,
-                "version": 0,
-            }
-
-            # fill in counts and times
-            run_update["physicsEvents"] = moni_data["physicsEvents"]
-            if moni_data["wallTime"] is not None:
-                run_update["wallTime"] = moni_data["wallTime"]
-            for src in ("moni", "sn", "tcal"):
-                event_key = src + "Events"
-                time_key = src + "Time"
-                if moni_data[time_key] is not None and \
-                   moni_data[time_key] >= 0:
-                    run_update[event_key] = moni_data[event_key]
-                    if isinstance(moni_data[time_key], numbers.Number):
-                        dttm = PayloadTime.toDateTime(moni_data[time_key])
-                    else:
-                        dttm = moni_data[time_key]
-                    run_update[time_key] = str(dttm)
-
-            # if we don't have a DAQ time, use system time but complain
-            if moni_data["eventPayloadTicks"] is not None:
-                ptime = PayloadTime.toDateTime(moni_data["eventPayloadTicks"])
-            else:
-                ptime = datetime.datetime.utcnow()
-                self.error("Using system time for initial event" +
-                           " counts (no event times available)")
-
-            self.send_moni("run_update", run_update, prio=prio, time=ptime)
-
     def send_moni(self, name, value, prio=None, time=None, debug=False):
         if not self.has_moni_client:
             self.__dashlog.error("No monitoring client")
@@ -1749,11 +1716,9 @@ class RunSet(object):
                 if len(result) == 6:
                     (tcal_count, tcal_ticks, sn_count, sn_ticks, moni_count,
                      moni_ticks) = result
-                elif len(result) == 3:  # XXX remove after Sprecher release
-                    (tcal_count, sn_count, moni_count) = result
                 else:
-                    run_data.error(("Expected 3 or 6 run data values from" +
-                                    " %s, got %d (%s)") %
+                    run_data.error("Expected 6 run data values from %s,"
+                                   " got %d (%s)" %
                                    (comp.fullname, len(result), result))
 
         return (physics_count, first_time, last_time, first_good, last_good,
