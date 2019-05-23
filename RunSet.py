@@ -1865,25 +1865,6 @@ class RunSet(object):
 
             self.__spade_thread = thrd
 
-    def __remove_component(self, comp):
-        try:
-            self.__set.remove(comp)
-        except ValueError:
-            self.__logger.error(("Cannot remove component %s from" +
-                                 " RunSet #%d") %
-                                (comp.fullname, self.__id))
-
-        # clean up active log thread
-        self.__stop_log_servers(self.__comp_log)
-        for comp in self.__comp_log.keys():
-            del self.__comp_log[comp]
-
-        try:
-            comp.close()
-        except:
-            self.__logger.error("Close failed for %s: %s" %
-                                (comp.fullname, exc_string()))
-
     def __report_run_start(self, moni_client, run_number, release, revision,
                            started, start_time=None):
         data = {
@@ -2746,9 +2727,25 @@ class RunSet(object):
         for comp in comp_list:
             for node_comp in clu_cfg_list:
                 if comp.name.lower() == node_comp.name.lower() and \
-                   comp.num == node_comp.id:
-                    self.__remove_component(comp)
+                  comp.num == node_comp.id:
+                    try:
+                        self.__set.remove(comp)
+                    except ValueError:
+                        self.__logger.error("Cannot remove component %s from"
+                                            " RunSet #%d" %
+                                            (comp.fullname, self.__id))
+
+                    try:
+                        comp.close()
+                    except:
+                        self.__logger.error("Close failed for %s: %s" %
+                                            (comp.fullname, exc_string()))
+
                     break
+
+        # stop all logger threads
+        self.__stop_log_servers(self.__comp_log)
+        self.__comp_log.clear()
 
         self.cycle_components(clu_cfg_list, config_dir, daq_data_dir,
                               self.__logger, log_port, live_port,
