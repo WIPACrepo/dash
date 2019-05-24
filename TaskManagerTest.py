@@ -1,9 +1,12 @@
 #!/usr/bin/env python
+"Test TaskManager"
 
 import copy
 import time
 import unittest
 
+from ActiveDOMsTask import ActiveDOMThread
+from Component import Component
 from LiveImports import Prio
 from RunOption import RunOption
 from TaskManager import TaskManager
@@ -13,6 +16,8 @@ from DAQMocks import MockIntervalTimer, MockLiveMoni, MockLogger, MockRunSet
 
 
 class MockTMMBeanClient(object):
+    "Mock MBean client"
+
     BEANBAG = {
         "stringHub": {
             "stringhub": {
@@ -76,63 +81,71 @@ class MockTMMBeanClient(object):
         self.__name = name
         self.__num = num
 
-        self.__beanData = self.__createBeanData()
+        self.__bean_data = self.__create_bean_data()
 
     def __str__(self):
         if self.__num == 0:
             return self.__name
         return "%s#%d" % (self.__name, self.__num)
 
-    def __createBeanData(self):
+    def __create_bean_data(self):
         if self.__name not in self.BEANBAG:
             raise Exception("No bean data found for %s" % self.__name)
 
         data = {}
-        for b in self.BEANBAG[self.__name]:
-            if b not in data:
-                data[b] = {}
-            for f in self.BEANBAG[self.__name][b]:
-                data[b][f] = self.BEANBAG[self.__name][b][f]
+        for bnm in self.BEANBAG[self.__name]:
+            if bnm not in data:
+                data[bnm] = {}
+            for fld in self.BEANBAG[self.__name][bnm]:
+                data[bnm][fld] = self.BEANBAG[self.__name][bnm][fld]
 
         return data
 
-    def check(self, beanName, fieldName):
-        return beanName in self.__beanData and \
-            fieldName in self.__beanData[beanName]
+    def check(self, bean_name, field_name):
+        "Return True if there is data for `bean.field`"
+        return bean_name in self.__bean_data and \
+            field_name in self.__bean_data[bean_name]
 
-    def get(self, beanName, fieldName):
-        if not self.check(beanName, fieldName):
+    def get(self, bean_name, field_name):
+        "Return the data for `bean.field`"
+        if not self.check(bean_name, field_name):
             raise Exception("No %s data for bean %s field %s" %
-                            (self, beanName, fieldName))
+                            (self, bean_name, field_name))
 
-        return self.__beanData[beanName][fieldName]
+        return self.__bean_data[bean_name][field_name]
 
-    def get_attributes(self, beanName, fieldList):
-        rtnMap = {}
-        for f in fieldList:
-            rtnMap[f] = self.get(beanName, f)
-        return rtnMap
+    def get_attributes(self, bean_name, field_list):
+        "Return a dictionary holding data for all the requested MBean fields"
+        rtn_map = {}
+        for fld in field_list:
+            rtn_map[fld] = self.get(bean_name, fld)
+        return rtn_map
 
-    def get_bean_fields(self, beanName):
-        return list(self.__beanData[beanName].keys())
+    def get_bean_fields(self, bean_name):
+        "Return a list of field names for the MBean"
+        return list(self.__bean_data[bean_name].keys())
 
     def get_bean_names(self):
-        return list(self.__beanData.keys())
+        "Return a list of MBean names"
+        return list(self.__bean_data.keys())
 
     def get_dictionary(self):
-        return copy.deepcopy(self.__beanData)
+        "Return the entire dictionary of MBean data"
+        return copy.deepcopy(self.__bean_data)
 
     def reload(self):
+        "Pretend to reload the MBean data"
         pass
 
 
-class MockTMComponent(object):
+class MockTMComponent(Component):
+    "Mock component"
+
     def __init__(self, name, num):
-        self.__name = name
-        self.__num = num
+        super(MockTMComponent, self).__init__(name, num)
 
         self.__order = None
-        self.__updatedRates = False
+        self.__updated_rates = False
 
         self.__mbean = MockTMMBeanClient(name, num)
 
@@ -140,83 +153,85 @@ class MockTMComponent(object):
         return self.fullname
 
     def create_mbean_client(self):
+        "Return the common MBean client"
         return self.__mbean
 
     @property
     def filename(self):
-        return "%s-%d" % (self.__name, self.__num)
-
-    @property
-    def fullname(self):
-        if self.__num == 0:
-            return self.__name
-        return "%s#%d" % (self.__name, self.__num)
-
-    @property
-    def is_builder(self):
-        return self.__name.lower().endswith("builder")
+        "Return a fake filename"
+        return "%s-%d" % (self.name, self.num)
 
     @property
     def is_source(self):
-        return self.__name.lower().endswith("hub")
+        "Return True if this is a data source (e.g. stringHub)"
+        return self.is_hub
 
     @property
     def mbean(self):
+        "Return the cached MBean client"
         return self.__mbean
 
     @property
-    def name(self):
-        return self.__name
-
-    @property
-    def num(self):
-        return self.__num
-
-    @property
     def order(self):
+        "Return the order for this component"
         return self.__order
 
     def set_order(self, num):
+        "Set the order in which components are started/stopped"
         self.__order = num
 
     def updateRates(self):
-        self.__updatedRates = True
+        "Pretend to fetch this component's updated event rates"
+        self.__updated_rates = True
 
-    def wasUpdated(self):
-        return self.__updatedRates
+    def was_updated(self):
+        "Return True if this component's updateRates() method was called"
+        return self.__updated_rates
 
 
 class MockRunConfig(object):
+    "Create a mock run configuration object"
+
     def __init__(self):
         pass
 
     @property
     def monitorPeriod(self):
+        "Return None for monitor period"
         return None
 
     @property
     def watchdogPeriod(self):
+        "Return None for watchdog period"
         return None
 
 
 class MyTaskManager(TaskManager):
-    def __init__(self, runset, dashlog, live, runDir, runCfg, moniType):
-        self.__timerDict = {}
+    "Test version of TaskManager which returns mock interval timers"
+
+    def __init__(self, runset, dashlog, live, runDir, run_cfg, moniType):
+        self.__timer_dict = {}
         super(MyTaskManager, self).__init__(runset, dashlog, live, runDir,
-                                            runCfg, moniType)
+                                            run_cfg, moniType)
 
     def createIntervalTimer(self, name, period):
+        "Create a mock interval timer and add it to our timer cache"
         timer = MockIntervalTimer(name)
-        self.__timerDict[name] = timer
+        self.__timer_dict[name] = timer
         return timer
 
     def triggerTimers(self):
-        for k in self.__timerDict:
-            self.__timerDict[k].trigger()
+        "Trigger cached task timers so tasks will be run"
+        for k in self.__timer_dict:
+            self.__timer_dict[k].trigger()
 
 
 class TaskManagerTest(unittest.TestCase):
-    def __loadExpected(self, live, compList, hitRate, first=True):
+    "Test TaskManager methods"
+
+    @classmethod
+    def __load_expected(cls, live, first=True):
+        "Add expected monitoring values to 'live'"
 
         # add monitoring data
         live.addExpected("stringHub-1*sender+NumHitsReceived",
@@ -291,45 +306,47 @@ class TaskManagerTest(unittest.TestCase):
 
 
     def setUp(self):
-        self.__firstTime = True
+        self.__first_time = True
+        ActiveDOMThread.reset()
 
     def tearDown(self):
-        self.__firstTime = False
+        self.__first_time = False
 
-    def testNotRun(self):
-        compList = [MockTMComponent("stringHub", 1),
-                    MockTMComponent("stringHub", 6),
-                    MockTMComponent("inIceTrigger", 0),
-                    MockTMComponent("iceTopTrigger", 0),
-                    MockTMComponent("globalTrigger", 0),
-                    MockTMComponent("eventBuilder", 0),
-                    MockTMComponent("secondaryBuilders", 0)]
+    def test_not_run(self):
+        "Test what happens when the tasks are never run"
+        comp_list = [MockTMComponent("stringHub", 1),
+                     MockTMComponent("stringHub", 6),
+                     MockTMComponent("inIceTrigger", 0),
+                     MockTMComponent("iceTopTrigger", 0),
+                     MockTMComponent("globalTrigger", 0),
+                     MockTMComponent("eventBuilder", 0),
+                     MockTMComponent("secondaryBuilders", 0)]
 
-        orderNum = 1
-        for c in compList:
-            c.set_order(orderNum)
+        order_num = 1
+        for comp in comp_list:
+            comp.set_order(order_num)
 
-        runset = MockRunSet(compList)
+        runset = MockRunSet(comp_list)
 
         dashlog = MockLogger("dashlog")
 
         live = MockLiveMoni()
 
-        runCfg = MockRunConfig()
+        run_cfg = MockRunConfig()
 
-        rst = MyTaskManager(runset, dashlog, live, None, runCfg,
+        rst = MyTaskManager(runset, dashlog, live, None, run_cfg,
                             RunOption.MONI_TO_LIVE)
         rst.start()
 
         for _ in range(20):
-            waitForThread = False
-            for c in compList:
-                if not c.wasUpdated():
-                    waitForThread = True
+            wait_for_thread = False
+            for comp in comp_list:
+                if not comp.was_updated():
+                    wait_for_thread = True
                 if not live.hasAllMoni():
-                    waitForThread = True
+                    wait_for_thread = True
 
-            if not waitForThread:
+            if not wait_for_thread:
                 break
 
             time.sleep(0.1)
@@ -337,35 +354,35 @@ class TaskManagerTest(unittest.TestCase):
         runset.stopRunning()
         rst.stop()
 
-        self.assertFalse(c.wasUpdated(), "Rate thread was updated")
+        for comp in comp_list:
+            self.assertFalse(comp.was_updated(), "Rate thread was updated")
         self.assertTrue(live.hasAllMoni(), "Monitoring data was not sent")
 
-    def testRunOnce(self):
-        compList = [MockTMComponent("stringHub", 1),
-                    MockTMComponent("inIceTrigger", 0),
-                    MockTMComponent("iceTopTrigger", 0),
-                    MockTMComponent("globalTrigger", 0),
-                    MockTMComponent("eventBuilder", 0),
-                    MockTMComponent("secondaryBuilders", 0)]
+    def test_run_once(self):
+        "Test what happens when the tasks are run once"
+        comp_list = [MockTMComponent("stringHub", 1),
+                     MockTMComponent("inIceTrigger", 0),
+                     MockTMComponent("iceTopTrigger", 0),
+                     MockTMComponent("globalTrigger", 0),
+                     MockTMComponent("eventBuilder", 0),
+                     MockTMComponent("secondaryBuilders", 0)]
 
-        orderNum = 1
-        for c in compList:
-            c.set_order(orderNum)
+        order_num = 1
+        for comp in comp_list:
+            comp.set_order(order_num)
 
-        runset = MockRunSet(compList)
+        runset = MockRunSet(comp_list)
         runset.startRunning()
 
         dashlog = MockLogger("dashlog")
 
         live = MockLiveMoni()
 
-        runCfg = MockRunConfig()
+        run_cfg = MockRunConfig()
 
-        hitRate = 12.34
+        self.__load_expected(live)
 
-        self.__loadExpected(live, compList, hitRate)
-
-        rst = MyTaskManager(runset, dashlog, live, None, runCfg,
+        rst = MyTaskManager(runset, dashlog, live, None, run_cfg,
                             RunOption.MONI_TO_LIVE)
 
         dashlog.addExpectedExact(("\t%d physics events (%.2f Hz)," +
@@ -376,51 +393,51 @@ class TaskManagerTest(unittest.TestCase):
         rst.start()
 
         for _ in range(20):
-            waitForThread = False
-            for c in compList:
-                if not c.wasUpdated():
-                    waitForThread = True
+            wait_for_thread = False
+            for comp in comp_list:
+                if not comp.was_updated():
+                    wait_for_thread = True
                 if not live.hasAllMoni():
-                    waitForThread = True
+                    wait_for_thread = True
 
-            if not waitForThread:
+            if not wait_for_thread:
                 break
 
             time.sleep(0.1)
 
-        self.assertTrue(c.wasUpdated(), "Rate thread was not updated")
+        for comp in comp_list:
+            self.assertTrue(comp.was_updated(), "Rate thread was not updated")
         self.assertTrue(live.hasAllMoni(), "Monitoring data was not sent")
 
         runset.stopRunning()
         rst.stop()
 
-    def testRunTwice(self):
-        compList = [MockTMComponent("stringHub", 1),
-                    MockTMComponent("inIceTrigger", 0),
-                    MockTMComponent("iceTopTrigger", 0),
-                    MockTMComponent("globalTrigger", 0),
-                    MockTMComponent("eventBuilder", 0),
-                    MockTMComponent("secondaryBuilders", 0)]
+    def test_run_twice(self):
+        "Test what happens when the tasks are run twice"
+        comp_list = [MockTMComponent("stringHub", 1),
+                     MockTMComponent("inIceTrigger", 0),
+                     MockTMComponent("iceTopTrigger", 0),
+                     MockTMComponent("globalTrigger", 0),
+                     MockTMComponent("eventBuilder", 0),
+                     MockTMComponent("secondaryBuilders", 0)]
 
-        orderNum = 1
-        for c in compList:
-            c.set_order(orderNum)
+        order_num = 1
+        for comp in comp_list:
+            comp.set_order(order_num)
 
-        runset = MockRunSet(compList)
+        runset = MockRunSet(comp_list)
         runset.startRunning()
 
         dashlog = MockLogger("dashlog")
 
         live = MockLiveMoni()
 
-        runCfg = MockRunConfig()
+        run_cfg = MockRunConfig()
 
-        hitRate = 12.34
-
-        rst = MyTaskManager(runset, dashlog, live, None, runCfg,
+        rst = MyTaskManager(runset, dashlog, live, None, run_cfg,
                             RunOption.MONI_TO_LIVE)
 
-        self.__loadExpected(live, compList, hitRate)
+        self.__load_expected(live)
 
         dashlog.addExpectedExact(("\t%d physics events (%.2f Hz)," +
                                   " %d moni events, %d SN events, %d tcals") %
@@ -431,21 +448,21 @@ class TaskManagerTest(unittest.TestCase):
         rst.start()
 
         for _ in range(20):
-            waitForThread = False
-            for c in compList:
-                if not c.wasUpdated():
-                    waitForThread = True
+            wait_for_thread = False
+            for comp in comp_list:
+                if not comp.was_updated():
+                    wait_for_thread = True
                 if not live.hasAllMoni():
-                    waitForThread = True
+                    wait_for_thread = True
 
-            if not waitForThread:
+            if not wait_for_thread:
                 break
 
             time.sleep(0.1)
 
         self.assertTrue(live.hasAllMoni(), "Monitoring data was not sent")
 
-        self.__loadExpected(live, compList, hitRate, first=False)
+        self.__load_expected(live, first=False)
         dashlog.addExpectedExact("Watchdog reports threshold components:\n" +
                                  "    secondaryBuilders" +
                                  " snBuilder.DiskAvailable below 1024" +
@@ -459,19 +476,20 @@ class TaskManagerTest(unittest.TestCase):
         rst.triggerTimers()
 
         for _ in range(20):
-            waitForThread = False
-            for c in compList:
-                if not c.wasUpdated():
-                    waitForThread = True
+            wait_for_thread = False
+            for comp in comp_list:
+                if not comp.was_updated():
+                    wait_for_thread = True
                 if not live.hasAllMoni():
-                    waitForThread = True
+                    wait_for_thread = True
 
-            if not waitForThread:
+            if not wait_for_thread:
                 break
 
             time.sleep(0.1)
 
-        self.assertTrue(c.wasUpdated(), "Rate thread was not updated")
+        for comp in comp_list:
+            self.assertTrue(comp.was_updated(), "Rate thread was not updated")
         self.assertTrue(live.hasAllMoni(), "Monitoring data was not sent")
 
         runset.stopRunning()

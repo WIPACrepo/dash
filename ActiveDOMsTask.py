@@ -17,6 +17,7 @@ class ActiveDOMThread(CnCThread):
     "A thread which reports the active DOM counts"
 
     PREV_ACTIVE = {}
+    PREV_COUNT = None
 
     KEY_ACT_TOT = "NumberOfActiveAndTotalChannels"
     KEY_LBM_OVER = "TotalLBMOverflows"
@@ -195,6 +196,16 @@ class ActiveDOMThread(CnCThread):
         for hub_count in lbmo_dict.values():
             count += hub_count
 
+        # replace the previous LBM count with the new count
+        prev_count = self.__update_lbm_count(count)
+
+        # sanity-check the LBM count
+        if prev_count is None:
+            prev_count = 0
+        if prev_count > count:
+            self.__dashlog.error("WARNING: Total LBM count decreased from"
+                                 " %s to %s" % (prev_count, count))
+
         msg_dict = {}
         if self.__lbm_start_time is None:
             msg_dict["early_lbm"] = True
@@ -204,7 +215,7 @@ class ActiveDOMThread(CnCThread):
             msg_dict["recordingStopTime"] = str(start_time)
 
         msg_dict["runNumber"] = run_number
-        msg_dict["count"] = count
+        msg_dict["count"] = count - prev_count
 
         self.__send_moni("LBMOcount", msg_dict, Prio.ITS)
 
@@ -222,12 +233,24 @@ class ActiveDOMThread(CnCThread):
             cls.KEY_LBM_OVER: hub_lbm_overflows,
         }
 
+    @classmethod
+    def __update_lbm_count(cls, new_count):
+        prev_count = cls.PREV_COUNT
+        cls.PREV_COUNT = new_count
+        return prev_count
+
     def get_new_thread(self, send_details=False):
         "Create a new copy of this thread"
         thrd = ActiveDOMThread(self.__runset, self.__dashlog,
                                self.__live_moni_client, self.__lbm_start_time,
                                send_details)
         return thrd
+
+    @classmethod
+    def reset(cls):
+        "This is used by unit tests to reset the cached values"
+        cls.PREV_ACTIVE.clear()
+        cls.PREV_COUNT = None
 
 
 class ActiveDOMsTask(CnCSingleThreadTask):
