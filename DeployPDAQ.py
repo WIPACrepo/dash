@@ -300,6 +300,7 @@ def deploy(config, pdaq_dir, subdirs, delete, dry_run, deep_dry_run,
 
     rsync_cmd_stub += " -azLC%s%s" % (delete and ' --delete' or '',
                                       deep_dry_run and ' --dry-run' or '')
+    rsync_cmd_stub += " --exclude .hg"
 
     # set 'rsync_config_src' to the configuration directory path, or None
     # if 'config' is a subdirectory of 'pdaq'
