@@ -655,7 +655,7 @@ class LiveLog(object):
         else:
             dstr = "%s " % (date, )
 
-        if len(colors) == 0:
+        if not cls.TTYOUT or len(colors) == 0:
             cstr = ""
         else:
             cstr = foreground_color(colors[0])
