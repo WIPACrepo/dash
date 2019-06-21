@@ -47,7 +47,6 @@ def add_arguments(parser):
 
 
 def tail_logs(args):
-    # get list of files to watch
     if args.print_colors:
         try:
             ColorFileParser(args.color_file).parse(LiveLog.COLORS)
@@ -57,6 +56,7 @@ def tail_logs(args):
         ColorFileParser.print_formatted(LiveLog.COLORS)
         return
 
+    # get list of files to watch
     if len(args.files) > 0:
         if len(args.files) == 1:
             log = Tail(args.files[0], num_lines=args.tail_lines)
@@ -80,20 +80,35 @@ class LiveLogException(Exception):
 class LiveData(object):
     TYPE_LOG = 1
     TYPE_MONI = 2
-    TYPE_LOGMONI = 3
+    TYPE_MSGDICT = 3
     TYPE_ALERT = 4
     TYPE_MSGERR = 5
     TYPE_WARN = 6
+    TYPE_MSGLIST = 7
     TYPE_UNKNOWN = 99
 
     def __init__(self, dtype):
         self.__datatype = dtype
 
+    @property
     def datatype(self):
         return self.__datatype
 
-    def is_text(self):
+    @property
+    def data(self):
         raise NotImplementedError()
+
+    @property
+    def is_dict(self):
+        return False
+
+    @property
+    def is_list(self):
+        return False
+
+    @property
+    def is_text(self):
+        return False
 
     @property
     def typestring(self):
@@ -101,8 +116,8 @@ class LiveData(object):
             return "LOG"
         if self.__datatype == self.TYPE_MONI:
             return "MONI"
-        if self.__datatype == self.TYPE_LOGMONI:
-            return "LOGMONI"
+        if self.__datatype == self.TYPE_MSGDICT:
+            return "MSGDICT"
         if self.__datatype == self.TYPE_ALERT:
             return "ALERT"
         if self.__datatype == self.TYPE_MSGERR:
@@ -123,9 +138,11 @@ class TextData(LiveData):
     def __str__(self):
         return "[%s] %s" % (self.typestring, self.__text)
 
+    @property
     def is_text(self):
         return True
 
+    @property
     def data(self):
         return self.__text
 
@@ -139,11 +156,31 @@ class DictData(LiveData):
     def __str__(self):
         return "[%s] %s" % (self.typestring, self.__dict)
 
-    def is_text(self):
-        return False
+    @property
+    def is_dict(self):
+        return True
 
+    @property
     def data(self):
         return self.__dict
+
+
+class ListData(LiveData):
+    def __init__(self, dtype, dlist):
+        self.__list = dlist
+
+        super(ListData, self).__init__(dtype)
+
+    def __str__(self):
+        return "[%s] %s" % (self.typestring, self.__list)
+
+    @property
+    def is_list(self):
+        return True
+
+    @property
+    def data(self):
+        return self.__list
 
 
 class LiveLine(object):
@@ -217,27 +254,37 @@ class LiveLine(object):
                     "time": dtstr,
                     "value": value,
                 }
-                return DictData(DictData.TYPE_LOG, cls.__wrap_payload(payload))
+                return DictData(LiveData.TYPE_LOG, cls.__wrap_payload(payload))
+
+        if line.startswith("Got user-generated alert message: \"") and \
+          line.endswith("\""):
+            try:
+                ddict = cls.__parse_datetime_dict(line[35:-1], debug=debug)
+                if "varname" in ddict:
+                    ddict = cls.__wrap_payload(ddict)
+                return DictData(LiveData.TYPE_ALERT, ddict)
+            except:
+                import traceback; traceback.print_exc()
+                pass
 
         if line.startswith("WARN_MONI_SEND: "):
             try:
                 ddict = cls.__parse_datetime_dict(line[16:], debug=debug)
-                return DictData(DictData.TYPE_MONI, ddict)
+                return DictData(LiveData.TYPE_MONI, ddict)
             except:
                 pass
 
-        if line.startswith("{"):
+        if line.startswith("{") and line.endswith("}"):
             try:
                 ddict = cls.__parse_datetime_dict(line, debug=debug)
-                return DictData(DictData.TYPE_LOGMONI, ddict)
+                return DictData(LiveData.TYPE_MSGDICT, ddict)
             except:
                 pass
 
-        if line.startswith("Got user-generated alert message: \"") and \
-           line.endswith("\""):
+        if line.startswith("[") and line.endswith("]"):
             try:
-                ddict = cls.__parse_datetime_dict(line[35:-1], debug=debug)
-                return DictData(DictData.TYPE_ALERT, cls.__wrap_payload(ddict))
+                dlist = cls.__parse_datetime_dict(line, debug=debug)
+                return ListData(LiveData.TYPE_MSGLIST, dlist)
             except:
                 pass
 
@@ -291,12 +338,15 @@ class LiveLine(object):
             "payload": payload
         }
 
+    @property
     def data(self):
         return self.__data
 
+    @property
     def msgtype(self):
         return self.__msgtype
 
+    @property
     def timestamp(self):
         return self.__timestamp
 
@@ -441,6 +491,7 @@ class LiveLog(object):
     # if the output isn't a terminal, don't add ANSI escapes
     TTYOUT = sys.stdout.isatty()
 
+    FIELD_CHAT = "chat"
     FIELD_ITS = "its"
     FIELD_LIVE_MISC = "live_misc"
     FIELD_LIVECONTROL = "livecontrol"
@@ -453,24 +504,31 @@ class LiveLog(object):
     FIELD_PDAQ_REGISTERED = "pdaq_registered"
     FIELD_PDAQ_WAIT = "pdaq_wait"
     FIELD_PDAQ_WATCHDOG = "pdaq_watchdog"
+    FIELD_SNDAQ = "sndaq"
+    FIELD_UNFORMATTED = "unformatted"
     FIELD_UNKNOWN = "unknown"
 
     # predefined fields and colors
     COLORS = {
         ColorFileParser.DEFAULT_FIELD: (ANSIEscapeCode.RED,
                                         ANSIEscapeCode.YELLOW),
+        FIELD_CHAT: (ANSIEscapeCode.MAGENTA, ANSIEscapeCode.WHITE,
+                     ANSIEscapeCode.BOLD_ON),
+        FIELD_ITS: None,
+        FIELD_LIVECONTROL: (),
+        FIELD_LIVE_MISC: (ANSIEscapeCode.YELLOW, ANSIEscapeCode.BLACK),
+        FIELD_PDAQ_HEALTH: (ANSIEscapeCode.GREEN, ANSIEscapeCode.BLACK),
+        FIELD_PDAQ_INFO: (ANSIEscapeCode.BLUE, ANSIEscapeCode.WHITE),
+        FIELD_PDAQ_LOAD: (),
         FIELD_PDAQ_RATE: (ANSIEscapeCode.GREEN, ANSIEscapeCode.WHITE),
         FIELD_PDAQ_REGISTERED: (),
         FIELD_PDAQ_WAIT: (ANSIEscapeCode.MAGENTA, ANSIEscapeCode.WHITE),
-        FIELD_PDAQ_LOAD: (),
-        FIELD_PDAQ_INFO: (ANSIEscapeCode.BLUE, ANSIEscapeCode.WHITE),
-        FIELD_PDAQ_HEALTH: (ANSIEscapeCode.GREEN, ANSIEscapeCode.BLACK),
         FIELD_PDAQ_WATCHDOG: (ANSIEscapeCode.RED, ANSIEscapeCode.WHITE),
-        FIELD_LIVE_MISC: (ANSIEscapeCode.YELLOW, ANSIEscapeCode.BLACK),
+        FIELD_SNDAQ: (ANSIEscapeCode.BLUE, ANSIEscapeCode.YELLOW),
+        FIELD_UNFORMATTED: (ANSIEscapeCode.RED, ANSIEscapeCode.YELLOW,
+                            ANSIEscapeCode.ITALIC_ON),
         FIELD_UNKNOWN: (ANSIEscapeCode.RED, ANSIEscapeCode.YELLOW,
                         ANSIEscapeCode.BOLD_ON),
-        FIELD_ITS: None,
-        FIELD_LIVECONTROL: (),
     }
 
     def __init__(self, fd, show_all=False, pdaq_only=False, non_log=False,
@@ -543,55 +601,95 @@ class LiveLog(object):
 
         return self.string(self.FIELD_PDAQ_OTHER, date, msg)
 
-    def __process(self, line):
+    def __process_control(self, line):
         liveline = LiveLine(line)
 
-        data = liveline.data()
-        if data.is_text():
-            msg = data.data()
+        data = liveline.data
+        if data.is_text:
+            msg = data.data
             if msg.find("flowed max message size in queue ITSQueue") > 0 or \
                     msg.startswith("Sent ITS Message: "):
                 field = self.FIELD_ITS
             elif msg.find("unable to send message") >= 0 and \
                     msg.find("in queue ITSQueue!!!") > 0:
                 field = self.FIELD_ITS
+            elif msg.find("Sent 'chat' message") >= 0 or \
+              msg.find("Got message list from ") >= 0:
+                if self.__show_all:
+                    field = self.FIELD_ITS
+                else:
+                    field = None
             else:
                 field = self.FIELD_UNKNOWN
 
-            line = self.string(field, liveline.timestamp(), msg)
-            if line is not None:
+            if field is not None:
+                line = self.string(field, liveline.timestamp, msg)
                 print(line)
-
             return
 
-        ddict = data.data()
-        svc = ddict["service"]
+        if data.is_list:
+            for entry in data.data:
+                self.__process_message(entry, default_time=liveline.timestamp)
+            return
 
-        if svc == "livecontrol":
-            if self.__show_all:
-                line = self.string(self.FIELD_LIVECONTROL, ddict["t"],
-                                   str(ddict["payload"]))
-                if line is not None:
+        if data.is_dict:
+            self.__process_message(data.data, default_time=liveline.timestamp)
+            return
+
+        line = self.string(self.FIELD_UNKNOWN, liveline.timestamp,
+                           str(data.data))
+        print(line)
+        return
+
+    def __process_message(self, ddict, default_time=None):
+        if "service" not in ddict:
+            line = self.string(self.FIELD_UNKNOWN, default_time,
+                               str(ddict))
+            print(line)
+            return
+
+        svc = ddict["service"]
+        if "t" not in ddict or "payload" not in ddict or \
+          not isinstance(ddict["payload"], dict):
+            line = self.string(self.FIELD_UNFORMATTED, default_time,
+                               "??? " + str(ddict))
+            print(line)
+            return
+
+        payload = ddict["payload"]
+        if "varname" not in payload:
+            if svc == "SlackForwarder":
+                if "user" in payload and "message" in payload:
+                    line = self.string(self.FIELD_CHAT, ddict["t"],
+                                       "%s:: %s" % (payload["user"],
+                                                    payload["message"]))
                     print(line)
+                    return
+
+            if self.__show_all:
+                if svc == "livecontrol":
+                    fldtype = self.FIELD_LIVECONTROL
+                else:
+                    fldtype = self.FIELD_UNFORMATTED
+                line = self.string(fldtype, ddict["t"], "???? " + str(payload))
+                print(line)
             return
 
         if self.__pdaq_only and svc != "pdaq":
             return
 
-        if "payload" not in ddict or \
-           "varname" not in ddict["payload"]:
-            line = self.string(self.FIELD_UNKNOWN, "BadDict ", str(ddict))
-            if line is not None:
+        varname = payload["varname"]
+
+        if svc == "sndaq":
+            if varname == "log" or self.__show_all:
+                line = self.string(self.FIELD_SNDAQ, payload["time"],
+                                   str(payload["value"]))
                 print(line)
             return
 
-        varname = ddict["payload"]["varname"]
-
-        if varname == "log":
-            line = self.__color_log(ddict["payload"]["time"],
-                                    ddict["payload"]["value"])
-            if line is not None:
-                print(line)
+        if svc == "pdaq" and varname == "log":
+            line = self.__color_log(payload["time"], payload["value"])
+            print(line)
             return
 
         if not self.__non_log:
@@ -599,11 +697,9 @@ class LiveLog(object):
 
         line = self.string(self.FIELD_LIVE_MISC, ddict["t"],
                            svc + ":" + varname)
-        if line is not None:
-            print(line)
-        line = self.string(self.FIELD_LIVE_MISC, "\t", str(ddict["payload"]))
-        if line is not None:
-            print(line)
+        print(line)
+        line = self.string(self.FIELD_LIVE_MISC, "\t", str(payload))
+        print(line)
 
     def read_file(self):
         prevline = None
@@ -613,7 +709,7 @@ class LiveLog(object):
 
             if line.startswith("    livecontrol"):
                 if prevline is not None:
-                    self.__process(prevline.rstrip())
+                    self.__process_control(prevline.rstrip())
                 is_rate = line.find(" physics events") >= 0 and \
                           line.find(" moni events") >= 0 and \
                           line.find(" SN events") >= 0 and \
@@ -623,7 +719,7 @@ class LiveLog(object):
                     # cache non-rate lines in case there's an embedded newline
                     prevline = line
                 else:
-                    self.__process(line.rstrip())
+                    self.__process_control(line.rstrip())
                     prevline = None
             elif prevline is not None:
                 # if line didn't start with 'livecontrol', the previous
@@ -633,7 +729,7 @@ class LiveLog(object):
                 print("Ignoring bad line: " + line, file=sys.stderr)
 
         if prevline is not None:
-            self.__process(prevline.rstrip())
+            self.__process_control(prevline.rstrip())
 
     @classmethod
     def string(cls, field, date, msg):
@@ -647,15 +743,12 @@ class LiveLog(object):
         else:
             off = ""
 
-        if colors is None:
-            return None
-
         if date is None:
             dstr = ""
         else:
             dstr = "%s " % (date, )
 
-        if not cls.TTYOUT or len(colors) == 0:
+        if not cls.TTYOUT or colors is None or len(colors) == 0:
             cstr = ""
         else:
             cstr = foreground_color(colors[0])
