@@ -602,29 +602,12 @@ class LiveLog(object):
         return self.string(self.FIELD_PDAQ_OTHER, date, msg)
 
     def __process_control(self, line):
+        "Handle a (possibly incomplete) Live log message"
         liveline = LiveLine(line)
 
         data = liveline.data
         if data.is_text:
-            msg = data.data
-            if msg.find("flowed max message size in queue ITSQueue") > 0 or \
-                    msg.startswith("Sent ITS Message: "):
-                field = self.FIELD_ITS
-            elif msg.find("unable to send message") >= 0 and \
-                    msg.find("in queue ITSQueue!!!") > 0:
-                field = self.FIELD_ITS
-            elif msg.find("Sent 'chat' message") >= 0 or \
-              msg.find("Got message list from ") >= 0:
-                if self.__show_all:
-                    field = self.FIELD_ITS
-                else:
-                    field = None
-            else:
-                field = self.FIELD_UNKNOWN
-
-            if field is not None:
-                line = self.string(field, liveline.timestamp, msg)
-                print(line)
+            self.__process_livetext(liveline.timestamp, data.data)
             return
 
         if data.is_list:
@@ -641,7 +624,41 @@ class LiveLog(object):
         print(line)
         return
 
+    def __process_livetext(self, timestamp, msg):
+        "Handle Live text messages"
+        no_svc_str = "Unable to retrieve status for service "
+
+        field = self.FIELD_UNKNOWN
+        if msg.find("flowed max message size in queue ITSQueue") > 0 or \
+          msg.startswith("Sent ITS Message: "):
+            field = self.FIELD_ITS
+        elif msg.find("unable to send message") >= 0 and \
+          msg.find("in queue ITSQueue!!!") > 0:
+            field = self.FIELD_ITS
+        elif msg.find("Sent 'chat' message") >= 0 or \
+          msg.find("Got message list from ") >= 0:
+          if self.__show_all:
+              field = self.FIELD_ITS
+          else:
+              field = None
+        else:
+            svcidx = msg.find(no_svc_str)
+            if svcidx >= 0:
+                if self.__show_all:
+                    field = self.FIELD_LIVECONTROL
+                else:
+                    offset = svcidx + len(no_svc_str)
+                    final = msg.find(":", offset)
+                    if final > 0:
+                        msg = "Cannot retrieve status from " + msg[offset:final]
+                        field = self.FIELD_LIVECONTROL
+
+        if field is not None:
+            line = self.string(field, timestamp, msg)
+            print(line)
+
     def __process_message(self, ddict, default_time=None):
+        "Process a Live JSON message"
         if "service" not in ddict:
             line = self.string(self.FIELD_UNKNOWN, default_time,
                                str(ddict))
