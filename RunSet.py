@@ -1654,7 +1654,7 @@ class RunSet(object):
 
         # stop log servers for all components
         try:
-            self.__stop_log_servers()
+            self.__stop_log_servers(self.__comp_log)
         except:
             self.__logger.error("Could not stop log servers for %s (%s): %s" %
                                 (self, caller_name, exc_string()))
@@ -1867,11 +1867,8 @@ class RunSet(object):
                                 (comp.fullname, self.__id))
 
         # clean up active log thread
-        if comp in self.__comp_log:
-            try:
-                self.__comp_log[comp].stopServing()
-            except:
-                pass
+        self.__stop_log_servers(self.__comp_log)
+        for comp in self.__comp_log.keys():
             del self.__comp_log[comp]
 
         try:
@@ -1896,27 +1893,29 @@ class RunSet(object):
                              time=start_time)
 
     def __start_components(self, quiet):
-        live_host = None
-        live_port = None
-
-        self.__stop_log_servers()
-
         log_host = ip.getLocalIpAddr()
-        log_port = DAQPort.RUNCOMP_BASE
+        log_port = None
+
+        old_servers = self.__comp_log.copy()
 
         tgroup = ComponentGroup(OpConfigureLogging)
         for comp in self.__set:
-            self.__comp_log[comp] \
+            new_log \
                 = self.create_component_log(self.__run_data.run_directory,
                                             comp, log_host, log_port,
-                                            live_host, live_port, quiet=quiet)
-            args = (log_host, log_port, live_host, live_port)
-            tgroup.run_thread(comp, args, logger=self.__run_data)
+                                            None, None, quiet=quiet)
+            self.__comp_log[comp] = new_log
+            if new_log.port is None:
+                raise Exception("Newly created %s logger has no port number" %
+                                (comp.fullname, ))
 
-            log_port += 1
+            tgroup.run_thread(comp, (log_host, new_log.port, None, None),
+                              logger=self.__run_data)
 
         tgroup.wait()
         tgroup.report_errors(self.__run_data, "startLogging")
+
+        self.__stop_log_servers(old_servers)
 
         self.__run_data.error("Starting run %d..." %
                               (self.__run_data.run_number, ))
@@ -2032,18 +2031,18 @@ class RunSet(object):
 
         return changed
 
-    def __stop_log_servers(self):
+    def __stop_log_servers(self, servers):
         """
         Stop all log servers
         """
         # build list of components with active log servers
         loglist = []
         for comp in self.__set:
-            if comp in self.__comp_log:
+            if comp in servers:
                 loglist.append(comp)
 
         # stop listed log servers
-        ComponentGroup.run_simple(OpStopLogging, loglist, self.__comp_log,
+        ComponentGroup.run_simple(OpStopLocalLogger, loglist, servers,
                                   self.__logger, report_errors=True)
 
     def __stop_run_internal(self, run_data, timeout=20):
@@ -2333,6 +2332,19 @@ class RunSet(object):
         log_name = os.path.join(run_dir, "%s-%d.log" % (comp.name, comp.num))
         sock = LogSocketServer(port, comp.fullname, log_name, quiet=quiet)
         sock.startServing()
+
+        # wait for the server thread to start
+        reps = 100
+        for _ in range(reps):
+            if sock.isServing:
+                break
+
+            time.sleep(0.01)
+
+        # die if the server thread has not started
+        if not sock.isServing:
+            raise Exception("Logger for %s was not started" %
+                            (comp.fullname, ))
 
         return sock
 

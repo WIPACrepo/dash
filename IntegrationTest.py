@@ -5,6 +5,7 @@ from __future__ import print_function
 import datetime
 import os
 import shutil
+import socket
 import sys
 import tempfile
 import threading
@@ -16,6 +17,7 @@ import xmlrpclib
 from CnCServer import CnCServer, Connector
 from DAQClient import DAQClient
 from DAQConst import DAQPort
+from DAQLog import LogSocketServer
 from DAQRPC import RPCServer
 from LiveImports import Prio, LIVE_IMPORT, SERVICE_NAME
 from RunOption import RunOption
@@ -305,8 +307,20 @@ class MostlyRunSet(RunSet):
         if comp.fullname in cls.LOGDICT:
             return cls.LOGDICT[comp.fullname]
 
-        log = cls.LOGFACTORY.createLog(comp.fullname, port,
-                                       expectStartMsg=True)
+        if port is not None:
+            log = cls.LOGFACTORY.createLog(comp.fullname, port,
+                                           expectStartMsg=True)
+        else:
+            while True:
+                port = LogSocketServer.next_log_port
+
+                try:
+                    log = cls.LOGFACTORY.createLog(comp.fullname, port,
+                                                   expectStartMsg=True)
+                    break
+                except socket.error:
+                    pass
+
         cls.LOGDICT[comp.fullname] = log
 
         log.addExpectedRegexp(r'Hello from \S+#\d+')

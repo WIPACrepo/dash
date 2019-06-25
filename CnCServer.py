@@ -1153,7 +1153,7 @@ class CnCServer(DAQPool):
     def rpc_end_all(self):
         "reset all clients"
         ComponentGroup.run_simple(OpResetComponent, self.components(), (),
-                                  report_errors=True)
+                                  self.__log, report_errors=True)
         return 1
 
     def rpc_list_open_files(self):

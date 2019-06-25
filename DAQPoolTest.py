@@ -8,6 +8,7 @@ from CnCServer import DAQPool
 from DAQClient import DAQClientState
 from DAQTime import PayloadTime
 from LiveImports import LIVE_IMPORT
+from DAQLog import LogSocketServer
 from RunOption import RunOption
 from RunSet import RunSet, ConnectionException
 
@@ -16,8 +17,15 @@ from DAQMocks import MockComponent, MockLeapsecondFile, MockLogger, \
 
 
 class FakeLogger(object):
-    def __init__(self):
-        pass
+    def __init__(self, port):
+        if port is None:
+            port = LogSocketServer.next_log_port
+
+        self.__port = port
+
+    @property
+    def port(self):
+        return self.__port
 
     def stopServing(self):
         pass
@@ -94,7 +102,7 @@ class MyRunSet(RunSet):
     @classmethod
     def create_component_log(cls, runDir, comp, host, port, liveHost,
                              livePort, quiet=True):
-        return FakeLogger()
+        return FakeLogger(port)
 
     def create_run_data(self, runNum, clusterConfigName, runOptions,
                         versionInfo, spadeDir, copyDir=None, logDir=None):

@@ -11,7 +11,6 @@ from DAQConst import DAQPort
 from DAQMocks import MockClusterConfig, MockCnCLogger, \
     MockDefaultDomGeometryFile, MockLeapsecondFile, MockLogger, \
     MockRunConfigFile, SocketReaderFactory, SocketWriter
-from LiveImports import LIVE_IMPORT
 from RunOption import RunOption
 from RunSet import RunSet
 from locate_pdaq import set_pdaq_config_dir
@@ -100,8 +99,8 @@ class TinyClient(object):
             raise Exception('Cannot log to I3Live')
 
         self.__log = SocketWriter(logIP, logPort)
-        self.__log.write_ts('Start of log at LOG=log(%s:%d)' %
-                            (logIP, logPort))
+        self.__log.write_ts('Start of log at LOG=log(%s:%s)' %
+                            (logIP, self.__log.port))
         self.__log.write_ts('Version info: BRANCH 0:0 unknown unknown')
 
     def map(self):
@@ -472,7 +471,7 @@ class TestDAQServer(unittest.TestCase):
 
         logger = self.__createLog('main', logPort)
 
-        clientPort = DAQPort.RUNCOMP_BASE
+        clientPort = DAQPort.EPHEMERAL_BASE
 
         clientLogger = self.__createLog('client', clientPort)
 

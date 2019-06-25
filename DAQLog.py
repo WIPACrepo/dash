@@ -16,7 +16,9 @@ import sys
 import threading
 import time as pytime
 
+from DAQConst import DAQPort
 from LiveImports import LIVE_IMPORT, MoniClient, MoniPort, Prio, SERVICE_NAME
+from decorators import classproperty
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -29,8 +31,16 @@ class LogException(Exception):
 class LogSocketServer(object):
     "Create class which logs requests from a remote object to a file"
     "Works nonblocking in a separate thread to guarantee concurrency"
+
+    NEXT_PORT = DAQPort.EPHEMERAL_BASE
+    NEXT_LOCK = threading.Lock()
+
     def __init__(self, port, cname, logpath, quiet=False):
         "Logpath should be fully qualified in case I'm a Daemon"
+        if not os.path.isabs(logpath):
+            raise LogException("Cannot log to non-absolute path \"%s\"" %
+                               (logpath, ))
+
         self.__port = port
         self.__cname = cname
         self.__logpath = logpath
@@ -39,7 +49,7 @@ class LogSocketServer(object):
         self.__outfile = None
         self.__serving = False
 
-    def __listener(self):
+    def __main(self):
         """
         Create listening, non-blocking UDP socket, read from it,
         and write to file; close socket and end thread if signaled via
@@ -47,64 +57,103 @@ class LogSocketServer(object):
         """
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.setblocking(0)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        try:
-            sock.bind(("", self.__port))
-        except socket.error:
-            raise LogException('Cannot bind %s log server to port %d' %
-                               (self.__cname, self.__port))
+        if os.name != "nt":
+            # initialize POSIX socket
+            sock.setblocking(0)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-        self.__serving = True
-        pr = [sock]
-        pw = []
-        pe = [sock]
-        while self.__thread is not None:
-            rd, rw, re = select.select(pr, pw, pe, 0.5)
-            if len(re) != 0:
-                print("Error on select was detected.", file=self.__outfile)
-            if len(rd) == 0:
-                continue
-            while True:  # Slurp up waiting packets, return to select if EAGAIN
+        if self.__port is not None:
+            try:
+                sock.bind(("", self.__port))
+            except socket.error:
+                raise LogException('Cannot bind %s log server to port %d' %
+                                   (self.__cname, self.__port))
+        else:
+            while True:
+                self.__port = self.next_log_port
+
                 try:
-                    data = sock.recv(8192, socket.MSG_DONTWAIT)
-                    if not self.__quiet:
-                        print("%s %s" % (self.__cname, data))
-                    print("%s %s" % (self.__cname, data), file=self.__outfile)
-                    self.__outfile.flush()
-                except:
-                    break  # Go back to select so we don't busy-wait
-        sock.close()
-        if self.__logpath:
-            self.__outfile.close()
-        self.__serving = False
+                    sock.bind(("", self.__port))
+                    break
+                except socket.error:
+                    pass
 
-    def __openPath(self, path):
+        self.__outfile = self.__open_path(self.__logpath)
+        self.__serving = True
+        try:
+            if os.name == "nt":
+                self.__win_loop(sock)
+            else:
+                self.__posix_loop(sock)
+        finally:
+            self.__serving = False
+
+            try:
+                sock.close()
+            except:
+                pass # ignore errors on close
+
+            if self.__outfile is not None:
+                try:
+                    self.__outfile.close()
+                except:
+                    pass # ignore errors on close
+                self.__outfile = None
+
+    @classmethod
+    def __open_path(cls, path):
         if path is None:
             return sys.stdout
         return open(path, "a")
 
-    def __win_listener(self):
+    def __posix_loop(self, sock):
+        prd = [sock]
+        pwr = []
+        per = [sock]
+        while self.__thread is not None:
+            srd, _, sre = select.select(prd, pwr, per, 0.5)
+            if len(sre) != 0:
+                if self.__outfile is not None:
+                    print("Error on select was detected.", file=self.__outfile)
+            if len(srd) == 0:
+                continue
+            while True:  # Slurp up waiting packets, return to select if EAGAIN
+                try:
+                    data = sock.recv(8192, socket.MSG_DONTWAIT)
+                    self.__write_data(data)
+                except:
+                    break  # Go back to select so we don't busy-wait
+
+    def __win_loop(self, sock):
         """
         Windows version of listener - no select().
         """
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind(("", self.__port))
-        self.__serving = True
         while self.__thread is not None:
             data = sock.recv(8192)
-            if not self.__quiet:
-                print("%s %s" % (self.__cname, data))
-            print("%s %s" % (self.__cname, data), file=self.__outfile)
-            self.__outfile.flush()
-        sock.close()
-        if self.__logpath:
-            self.__outfile.close()
-        self.__serving = False
+            self.__write_data(data)
+
+    def __write_data(self, data):
+        if self.__outfile is None:
+            return
+
+        if not self.__quiet:
+            print("%s %s" % (self.__cname, data))
+        print("%s %s" % (self.__cname, data), file=self.__outfile)
+        self.__outfile.flush()
 
     @property
     def isServing(self):
         return self.__serving
+
+    @classproperty
+    def next_log_port(cls):
+        with cls.NEXT_LOCK:
+            port = cls.NEXT_PORT
+            cls.NEXT_PORT += 1
+            if cls.NEXT_PORT > DAQPort.EPHEMERAL_MAX:
+                cls.NEXT_PORT = DAQPort.EPHEMERAL_BASE
+            return port
+
 
     @property
     def port(self):
@@ -112,21 +161,20 @@ class LogSocketServer(object):
 
     def startServing(self):
         "Creates listener thread, prepares file for output, and returns"
-        self.__outfile = self.__openPath(self.__logpath)
-        if os.name == "nt":
-            self.__thread = threading.Thread(target=self.__win_listener,
-                                             name=self.__logpath)
-        else:
-            self.__thread = threading.Thread(target=self.__listener,
-                                             name=self.__logpath)
+        if self.__thread is not None:
+            raise LogException("Thread for %s:%s has started" %
+                               (self.__cname, self.__logpath))
+
         self.__serving = False
+        self.__thread = threading.Thread(target=self.__main,
+                                         name=self.__logpath)
         self.__thread.setDaemon(True)
         self.__thread.start()
 
     def setOutput(self, newPath):
         "Change logging output file.  Send to sys.stdout if path is None"
         oldFD = self.__outfile
-        self.__outfile = self.__openPath(newPath)
+        self.__outfile = self.__open_path(newPath)
         try:
             if oldFD is not None:
                 oldFD.close()
@@ -143,7 +191,6 @@ class LogSocketServer(object):
             thread = self.__thread
             self.__thread = None
             thread.join()
-        self.__outfile.close()
 
 
 class BaseAppender(object):
@@ -330,14 +377,15 @@ class FileAppender(BaseFileAppender):
 class LogSocketAppender(BaseFileAppender):
     "Log to DAQ logging socket"
     def __init__(self, node, port):
-        self.__loc = '%s:%d' % (node, port)
-        super(LogSocketAppender, self).__init__(self.__loc,
-                                                self.__openSocket(node, port))
+        if port is None:
+            raise Exception("Port cannot be None")
 
-    def __openSocket(self, node, port):
+        self.__loc = '%s:%d' % (node, port)
+
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.connect((node, port))
-        return sock
+
+        super(LogSocketAppender, self).__init__(self.__loc, sock)
 
     def _write(self, fd, time, msg):
         try:
@@ -346,7 +394,7 @@ class LogSocketAppender(BaseFileAppender):
             raise LogException('LogSocket %s: %s' % (self.__loc, str(se)))
 
 
-class LiveFormatter(object):
+class LiveFormatter(BaseAppender):
     def __init__(self, service=SERVICE_NAME):
         self.__svc = service
 

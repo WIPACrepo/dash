@@ -15,13 +15,13 @@ class LogInfo(object):
         self.__livePort = livePort
 
     def __cmp__(self, other):
-        val = cmp(self.__logHost, other.__logHost)
+        val = cmp(self.logHost, other.logHost)
         if val == 0:
-            val = cmp(self.__logPort, other.__logPort)
+            val = cmp(self.logPort, other.logPort)
             if val == 0:
-                val = cmp(self.__liveHost, other.__liveHost)
+                val = cmp(self.liveHost, other.liveHost)
                 if val == 0:
-                    val = cmp(self.__livePort, other.__livePort)
+                    val = cmp(self.livePort, other.livePort)
         return val
 
     def __str__(self):
@@ -35,20 +35,20 @@ class LogInfo(object):
         return outStr[1:]
 
     @property
-    def logHost(self):
-        return self.__logHost
-
-    @property
-    def logPort(self):
-        return self.__logPort
-
-    @property
     def liveHost(self):
         return self.__liveHost
 
     @property
     def livePort(self):
         return self.__livePort
+
+    @property
+    def logHost(self):
+        return self.__logHost
+
+    @property
+    def logPort(self):
+        return self.__logPort
 
 
 class CnCLogger(DAQLog):
@@ -65,47 +65,47 @@ class CnCLogger(DAQLog):
         super(CnCLogger, self).__init__(name, appender=appender)
 
     def __str__(self):
-        return self.__getName()
-
-    def __addAppenders(self):
-        if self.__logInfo.logHost is not None and \
-                self.__logInfo.logPort is not None:
-            self.addAppender(LogSocketAppender(self.__logInfo.logHost,
-                                               self.__logInfo.logPort))
-
-        if self.__logInfo.liveHost is not None and \
-                self.__logInfo.livePort is not None:
-            self.addAppender(LiveSocketAppender(self.__logInfo.liveHost,
-                                                self.__logInfo.livePort))
-        if not self.hasAppender():
-            raise LogException("Not logging to socket or I3Live")
-
-    def __getName(self):
         if self.__logInfo is not None:
             return 'LOG=%s' % str(self.__logInfo)
         if self.__prevInfo is not None:
             return 'PREV=%s' % str(self.__prevInfo)
         return '?LOG?'
 
-    def _logmsg(self, level, s, retry=True):
+    def __addAppenders(self):
+        if self.__logInfo.logHost is not None:
+            self.addAppender(LogSocketAppender(self.__logInfo.logHost,
+                                               self.__logInfo.logPort))
+
+        if self.__logInfo.liveHost is not None:
+            self.addAppender(LiveSocketAppender(self.__logInfo.liveHost,
+                                                self.__logInfo.livePort))
+        if not self.hasAppender():
+            raise LogException("Not logging to socket or I3Live")
+
+    def __reset_and_retry(self, level, msg, retry=False):
+        "Reset logging config and retry log message if 'retry' is True"
+        self.resetLog()
+        if retry and self.hasAppender():
+            self._logmsg(level, msg, False)
+
+    def _logmsg(self, level, msg, retry=True):
         """
         Log a string to stdout and, if available, to the socket logger
         stdout of course will not appear if daemonized.
         """
         if not self.__quiet:
-            print(s)
+            print(msg)
 
         try:
-            super(CnCLogger, self)._logmsg(level, s)
+            super(CnCLogger, self)._logmsg(level, msg)
+        except LogException:
+            self.__reset_and_retry(level, msg, retry=retry)
         except Exception as ex:
-            if not isinstance(ex, LogException):
-                if str(ex).find('Connection refused') < 0:
-                    raise
-                print('Lost logging connection to %s' % \
-                      str(self.__logInfo), file=sys.stderr)
-            self.resetLog()
-            if retry and self.hasAppender():
-                self._logmsg(level, s, False)
+            if str(ex).find('Connection refused') < 0:
+                raise
+            print('Lost logging connection to %s' %
+                  str(self.__logInfo), file=sys.stderr)
+            self.__reset_and_retry(level, msg, retry=retry)
 
     def closeLog(self):
         "Close the log socket"

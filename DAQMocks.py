@@ -23,10 +23,12 @@ from Component import Component
 from ComponentManager import ComponentManager
 from DAQClient import DAQClient
 from DAQConst import DAQPort
+from DAQLog import LogSocketServer
 from DefaultDomGeometry import DefaultDomGeometry
 from LiveImports import MoniPort, SERVICE_NAME
 from RunCluster import RunCluster
 from RunSet import RunSet
+from decorators import classproperty
 from leapseconds import leapseconds, MJD
 from locate_pdaq import find_pdaq_trunk
 from utils import ip
@@ -2556,7 +2558,12 @@ class MockXMLRPC(object):
 
 
 class SocketReader(LogChecker):
+    NEXT_PORT = DAQPort.EPHEMERAL_BASE
+
     def __init__(self, name, port, depth=None):
+        if port is None:
+            raise Exception("Reader port cannot be None")
+
         self.__name = name
         self.__port = port
 
@@ -2573,11 +2580,22 @@ class SocketReader(LogChecker):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setblocking(0)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        try:
-            sock.bind(("", self.__port))
-        except socket.error as e:
-            raise socket.error('Cannot bind SocketReader to port %d: %s' %
-                               (self.__port, str(e)))
+        if self.__port is not None:
+            try:
+                sock.bind(("", self.__port))
+            except socket.error as e:
+                raise socket.error('Cannot bind SocketReader to port %d: %s' %
+                                   (self.__port, str(e)))
+        else:
+            while True:
+                self.__port = self.__next_port
+
+                try:
+                    sock.bind(("", self.__port))
+                    break
+                except socket.error:
+                    pass
+
         return sock
 
     def __listener(self, sock):
@@ -2610,6 +2628,14 @@ class SocketReader(LogChecker):
                 sock.close()
             self.__serving = False
 
+    @classproperty
+    def __next_port(cls):
+        port = cls.NEXT_PORT
+        cls.NEXT_PORT += 1
+        if cls.NEXT_PORT > DAQPort.EPHEMERAL_MAX:
+            cls.NEXT_PORT = DAQPort.EPHEMERAL_BASE
+        return port
+
     def __win_bind(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind(("", self.__port))
@@ -2633,6 +2659,10 @@ class SocketReader(LogChecker):
             raise Exception(self.__errMsg)
 
     def getPort(self):
+        return self.__port
+
+    @property
+    def port(self):
         return self.__port
 
     def serving(self):
@@ -2699,16 +2729,28 @@ class SocketReaderFactory(object):
 
 class SocketWriter(object):
     def __init__(self, node, port):
+        "Create a socket and connect it to the next port"
+        if port is None:
+            port = LogSocketServer.next_log_port
+
+        self.__port = port
+
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
             self.socket.connect((node, port))
-            self.__loc = (node, port)
         except socket.error as err:
             raise socket.error('Cannot connect to %s:%d: %s' %
                                (node, port, str(err)))
 
+
+        self.__loc = (node, port)
+
     def __str__(self):
         return '%s@%d' % self.__loc
+
+    @property
+    def port(self):
+        return self.__port
 
     def write(self, s):
         "Write message to remote logger"
