@@ -626,8 +626,6 @@ class LiveLog(object):
 
     def __process_livetext(self, timestamp, msg):
         "Handle Live text messages"
-        no_svc_str = "Unable to retrieve status for service "
-
         field = self.FIELD_UNKNOWN
         if msg.find("flowed max message size in queue ITSQueue") > 0 or \
           msg.startswith("Sent ITS Message: "):
@@ -637,11 +635,14 @@ class LiveLog(object):
             field = self.FIELD_ITS
         elif msg.find("Sent 'chat' message") >= 0 or \
           msg.find("Got message list from ") >= 0:
-          if self.__show_all:
-              field = self.FIELD_ITS
-          else:
-              field = None
+            # silence some noise around Slack messages
+            if self.__show_all:
+                field = self.FIELD_ITS
+            else:
+                field = None
         else:
+            no_svc_str = "Unable to retrieve status for service "
+
             svcidx = msg.find(no_svc_str)
             if svcidx >= 0:
                 if self.__show_all:
