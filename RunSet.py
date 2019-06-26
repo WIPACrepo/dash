@@ -2896,7 +2896,7 @@ class RunSet(object):
 
         return set_stats
 
-    def stop_run(self, caller_name, had_error=False, timeout=20):
+    def stop_run(self, caller_name, had_error=False, timeout=30):
         """
         Stop all components in the runset
         Return True if an error is encountered while stopping.
