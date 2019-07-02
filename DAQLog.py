@@ -87,6 +87,7 @@ class LogSocketServer(object):
                 self.__posix_loop(sock)
         finally:
             self.__serving = False
+
             try:
                 sock.close()
             except:
@@ -94,11 +95,6 @@ class LogSocketServer(object):
 
             if self.__outfile is not None:
                 try:
-                    XXX = False
-                    if XXX:
-                        print("StopLog %s #%s" % (self.__cname, self.__port),
-                              file=self.__outfile)
-                        self.__outfile.flush()
                     self.__outfile.close()
                 except:
                     pass # ignore errors on close
