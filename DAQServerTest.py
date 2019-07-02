@@ -100,7 +100,7 @@ class TinyClient(object):
 
         self.__log = SocketWriter(log_host, log_port)
         self.__log.write_ts('Start of log at LOG=log(%s:%d)' %
-                            (log_host, log_port))
+                            (log_host, self.__log.port))
         self.__log.write_ts('Version info: BRANCH 0:0 unknown unknown')
 
     def map(self):

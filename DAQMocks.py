@@ -2751,6 +2751,10 @@ class SocketWriter(object):
     def __str__(self):
         return '%s@%d' % self.__loc
 
+    @property
+    def port(self):
+        return self.__port
+
     def write(self, s):
         "Write message to remote logger"
         self.socket.send(s)
