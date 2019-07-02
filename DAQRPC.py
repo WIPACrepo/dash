@@ -64,7 +64,6 @@ class RPCClient(ServerProxy):
         # !!!! but no other way in XMLRPC? !!!!
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         socket.setdefaulttimeout(timeout)
-
  
         # hack to only allow one active request at a time
         if sys.version_info < (2, 7):
