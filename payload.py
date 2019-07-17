@@ -120,6 +120,10 @@ class Payload(object):
         elif comp_type == 13:
             return "simHub-%d" % comp_num
 
+        if comp_num != 0:
+            raise PayloadException("Unexpected component#%d for source#%d" %
+                                   (comp_num, comp_type * 1000))
+
         if comp_type == 4:
             comp_name = "inIceTrigger"
         elif comp_type == 5:
@@ -140,10 +144,8 @@ class Payload(object):
             comp_name = "secondaryBuilders"
         elif comp_type == 15:
             comp_name = "trackEngine"
-
-        if comp_num != 0:
-            raise PayloadException("Unexpected component#%d for %s" %
-                                   (comp_num, comp_name))
+        else:
+            comp_name = "??component#%d??" % (comp_type, )
 
         return comp_name
 
