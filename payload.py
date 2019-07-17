@@ -689,6 +689,9 @@ class BaseHitRecord(object):
     def __len__(self):
         return self.HEADER_LEN + len(self.__data)
 
+    def __str__(self):
+        return "%d@%d[flags %x]" % (self.__chan_id, self.__utime, self.__flags)
+
     @property
     def channel_id(self):
         return self.__chan_id
