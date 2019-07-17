@@ -35,6 +35,20 @@ def compute_channel_id(string, pos):
     return ((kstring * 64) + (pos - 1)) & 0xffff
 
 
+def decode_channel_id(chan_id):
+    "Translate a channel ID into a DOM's (string, position) information"
+    if chan_id is None:
+        return None
+
+    if chan_id >= 6000:
+        # scinillator IDs
+        pos = 65 + (chan_id % 2)
+        kstr = (chan_id - 6000) / 2
+        return (kstr + 1, pos)
+
+    return (chan_id / 64, (chan_id % 64) + 1)
+
+
 class DomGeometryException(Exception):
     pass
 
