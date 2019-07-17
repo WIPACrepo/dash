@@ -498,8 +498,9 @@ class DefaultDomGeometry(object):
 
     def doms(self):
         "Convenience method to list all known DOMs"
-        for domid in self.__domIdToDom:
-            yield self.__domIdToDom[domid]
+        for domlist in self.__strings.values():
+            for dom in domlist:
+                yield dom
 
     def dump(self, out=sys.stdout, include_undeployed_doms=False):
         "Dump the string->DOM dictionary in default-dom-geometry format"
