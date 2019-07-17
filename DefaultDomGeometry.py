@@ -22,11 +22,11 @@ def compute_channel_id(string, pos):
     if string is None or pos is None:
         return None
 
-    if pos < 1 or pos > 66:
+    if pos < 1 or pos > DomGeometry.MAX_POSITION:
         raise Exception("Impossible position %d" % pos)
 
     kstring = string % 1000
-    if kstring < 0 or kstring > 86:
+    if kstring < 0 or kstring > DomGeometry.MAX_STRING:
         raise Exception("Impossible string %d" % string)
 
     if pos > 64:
@@ -130,20 +130,42 @@ class DomGeometry(object):
 
     @property
     def is_icetop(self):
-        return self.__pos >= 61 and self.__pos <= 64
+        if self.__origString is not None:
+            strnum = self.__origString
+        else:
+            strnum = self.__string
+
+        return strnum >= 1 and strnum <= DomGeometry.MAX_STRING and \
+          self.__pos >= 61 and self.__pos <= 64
 
     @property
     def is_inice(self):
-        return self.__pos >= 1 and self.__pos <= 60
+        if self.__origString is not None:
+            strnum = self.__origString
+        else:
+            strnum = self.__string
+
+        return strnum >= 1 and strnum <= DomGeometry.MAX_STRING and \
+          self.__pos >= 1 and self.__pos <= 60
 
     @property
     def is_real_dom(self):
-        return self.__string >= 1 and self.__string <= 86 and \
+        if self.__origString is not None:
+            strnum = self.__origString
+        else:
+            strnum = self.__string
+
+        return strnum >= 1 and strnum <= DomGeometry.MAX_STRING and \
             self.__pos >= 1 and self.__pos <= 64
 
     @property
     def is_scintillator(self):
-        return self.__string >= 1 and self.__string <= 86 and \
+        if self.__origString is not None:
+            strnum = self.__origString
+        else:
+            strnum = self.__string
+
+        return strnum >= 1 and strnum <= DomGeometry.MAX_STRING and \
             self.__pos >= 65 and self.__pos <= 66
 
     def location(self):
