@@ -658,6 +658,7 @@ class EventV5(Payload):
     def trigger_count(self):
         return len(self.__trig_records)
 
+    @property
     def triggers(self):
         return self.__trig_records[:]
 
