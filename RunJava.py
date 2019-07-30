@@ -80,13 +80,15 @@ class JavaCommand(object):
 
         if java_args is not None:
             if isinstance(java_args, str):
-                self.__cmd.append(java_args)
+                if java_args != "":
+                    self.__cmd.append(java_args)
             elif isinstance(java_args, list) or isinstance(java_args, tuple):
-                self.__cmd += java_args
+                for arg in java_args:
+                    if len(arg) > 0:
+                        self.__cmd.append(arg)
             else:
                 raise RunnerException("Bad java_args type %s for %s" %
                                       (type(java_args), java_args))
-
         self.__cmd.append(main_class)
         if sys_args is not None:
             self.__cmd += sys_args
@@ -511,29 +513,6 @@ class JavaRunner(object):
             os.environ["CLASSPATH"] = ":".join(cp)
             if debug:
                 print("export CLASSPATH=\"%s\"" % os.environ["CLASSPATH"])
-
-    def oldrun(self, java_args=None, app_args=None, debug=False):
-        cmd = self.__build_java_cmd(java_args, app_args)
-
-        self.__set_class_path(debug=debug)
-
-        signal.signal(signal.SIGINT, self.__quickexit)
-        signal.signal(signal.SIGQUIT, self.__send_signal)
-
-        self.__killsig = None
-        self.__exitsig = None
-
-        try:
-            rtncode = self.__run(cmd, debug)
-            killsig = self.__killsig
-            exitsig = self.__exitsig
-            return rtncode, killsig, exitsig
-        finally:
-            signal.signal(signal.SIGINT, signal.SIG_DFL)
-            signal.signal(signal.SIGQUIT, signal.SIG_DFL)
-
-            self.__killsig = None
-            self.__exitsig = None
 
     def kill(self, sig):
         self.send_signal(sig, None)
