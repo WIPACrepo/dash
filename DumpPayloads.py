@@ -24,6 +24,7 @@ def add_arguments(parser):
 
 def dump_payloads(args):
     app = "icecube.daq.io.PayloadDumper"
+    javaArgs = ["-mx2000m"]
     daqProjects = ["daq-common", "splicer", "payload", "daq-io"]
     mavenDeps = [("log4j", "log4j", "1.2.7"),
                  ("commons-logging", "commons-logging", "1.0.3")]
@@ -43,7 +44,7 @@ def dump_payloads(args):
 
     arglist += args.fileList
 
-    runJava(app, ["-mx2000m"], arglist, daqProjects, mavenDeps)
+    runJava(app, javaArgs, arglist, daqProjects, mavenDeps)
 
 
 if __name__ == "__main__":
