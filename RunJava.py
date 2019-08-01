@@ -84,7 +84,7 @@ class JavaCommand(object):
                     self.__cmd.append(java_args)
             elif isinstance(java_args, list) or isinstance(java_args, tuple):
                 for arg in java_args:
-                    if len(arg) > 0:
+                    if arg is not None and len(arg) > 0:
                         self.__cmd.append(arg)
             else:
                 raise RunnerException("Bad java_args type %s for %s" %
