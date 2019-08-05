@@ -241,6 +241,9 @@ class LiveState(object):
         if line.startswith("Ongoing Alerts:"):
             return self.PARSE_ALERTS
 
+        if line.startswith("Ongoing Pages:"):
+            return self.PARSE_PAGES
+
         if parseState == self.PARSE_ALERTS:
             if line.find("(None)") >= 0:
                 return self.PARSE_NORMAL
@@ -250,9 +253,6 @@ class LiveState(object):
                 self.__logger.error("Unrecognized alert: \"%s\"" % (line, ))
 
             return self.PARSE_ALERTS
-
-        if line.startswith("Ongoing Pages:"):
-            return self.PARSE_PAGES
 
         if parseState == self.PARSE_PAGES:
             if line.find(" PAGE FROM ") >= 0:
