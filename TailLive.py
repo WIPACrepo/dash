@@ -184,7 +184,7 @@ class ListData(LiveData):
 
 
 class LiveLine(object):
-    PREFIX_PAT = re.compile(r"^\s+livecontrol\((\S+)\)" +
+    PREFIX_PAT = re.compile(r"^\s+live(?:control|cmd)\((\S+)\)" +
                             r"\s+(\d+-\d+-\d+ \d+:\d+:\d+,\d+)\s+(.*)$",
                             re.DOTALL)
     TIME_FMT = "%Y-%m-%d %H:%M:%S,%f"
@@ -725,7 +725,9 @@ class LiveLog(object):
             if line is None:
                 break
 
-            if line.startswith("    livecontrol"):
+            stripped = line.strip()
+            if stripped.startswith("livecontrol") or \
+              stripped.startswith("livecmd"):
                 if prevline is not None:
                     self.__process_control(prevline.rstrip())
                 is_rate = line.find(" physics events") >= 0 and \
