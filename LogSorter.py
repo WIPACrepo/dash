@@ -74,6 +74,10 @@ class LogLevel(object):
         return repr(self)
 
     @property
+    def level(self):
+        return self.__level
+
+    @property
     def value(self):
         "Return the numeric value of this log level"
         return self.__level
