@@ -233,6 +233,38 @@ class CmdFlash(BaseCmd):
 
 
 @command
+class CmdGenerateConfigSet(BaseCmd):
+    @classmethod
+    def add_arguments(cls, parser):
+        from SplitDetector import add_arguments
+        add_arguments(parser)
+
+    @classmethod
+    def cmdtype(cls):
+        return cls.CMDTYPE_UNKNOWN
+
+    @classmethod
+    def description(cls):
+        "One-line description of this subcommand"
+        return "Generate alternate and -no## configs from a full-detector" \
+          " run configuration file"
+
+    @classmethod
+    def is_valid_host(cls, args):
+        "Config files live on the build host"
+        return Machineid().is_build_host
+
+    @classmethod
+    def name(cls):
+        return "generate-config-set"
+
+    @classmethod
+    def run(cls, args):
+        from SplitDetector import split_detector
+        split_detector(args)
+
+
+@command
 class CmdHelp(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
@@ -440,7 +472,7 @@ class CmdRemoveHubs(BaseCmd):
 
     @classmethod
     def cmdtype(cls):
-        return cls.CMDTYPE_UNKNOWN
+        return cls.CMDTYPE_CARG
 
     @classmethod
     def description(cls):
@@ -449,7 +481,7 @@ class CmdRemoveHubs(BaseCmd):
 
     @classmethod
     def is_valid_host(cls, args):
-        "Any host can have log files"
+        "Config files live on the build host"
         return Machineid().is_build_host
 
     @classmethod
