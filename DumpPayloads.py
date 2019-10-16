@@ -8,6 +8,10 @@ from RunJava import runJava
 def add_arguments(parser):
     parser.add_argument("-D", "--config_dir", dest="config_dir",
                         help="Configuration directory")
+    parser.add_argument("-S", "--summarize", dest="summarize",
+                        action="store_true", default=False,
+                        help="Print time ranges and payload count" +
+                             " for each file")
     parser.add_argument("-f", "--fullDump", dest="fullDump",
                         action="store_true", default=False,
                         help="Dump entire payload")
@@ -32,6 +36,8 @@ def dump_payloads(args):
     arglist = []
     if args.config_dir is not None:
         arglist += ["-D", args.config_dir]
+    if args.summarize:
+        arglist.append("-S")
     if args.fullDump:
         arglist.append("-f")
     if args.hexDump:
