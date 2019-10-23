@@ -470,6 +470,9 @@ class DAQLive(LiveComponent):
         self.__thread = SwitchThread(self, self.__log, runNum)
         self.__thread.start()
 
+        # after we return, Live will call us immediately so wait a tiny bit
+        time.sleep(0.5)
+
         return INCOMPLETE_STATE_CHANGE
 
     def version(self):
