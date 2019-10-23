@@ -335,6 +335,9 @@ class DAQPool(object):
                 problems.append(rs)
         return problems
 
+    def isStarting(self):
+        return self.__starting
+
     def listRunsetIDs(self):
         "List active runset IDs"
         ids = []
