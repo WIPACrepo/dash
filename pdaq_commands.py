@@ -403,7 +403,7 @@ class CmdRemoveHubs(BaseCmd):
 
     @classmethod
     def cmdtype(cls):
-        return cls.CMDTYPE_UNKNOWN
+        return cls.CMDTYPE_CARG
 
     @classmethod
     def description(cls):
