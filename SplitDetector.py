@@ -13,7 +13,7 @@ from RemoveHubs import create_config, get_hub_name
 from locate_pdaq import find_pdaq_config
 
 
-# list of icetop and in-ice keys used to build each partition
+# list of icetop and in-ice keys used to build each alternate configuration
 PARTITION_KEYS = (
     ("NORTH", "INICE"),
     ("SOUTH", "INICE"),
@@ -31,6 +31,9 @@ class SplitException(Exception):
 
 
 def add_arguments(parser):
+    parser.add_argument("-A", "--altconfigs_only", dest="altconfigs_only",
+                        action="store_true", default=False,
+                        help="Only generate alternate run configurations")
     parser.add_argument("-d", "--dry-run", dest="dryrun",
                         action="store_true", default=False,
                         help="Dry run (do not actually create configurations)")
@@ -40,9 +43,9 @@ def add_arguments(parser):
     parser.add_argument("-N", "--noXX_only", dest="noXX_only",
                         action="store_true", default=False,
                         help="Only generate -noXX run configurations")
-    parser.add_argument("-P", "--partitions_only", dest="partitions_only",
+    parser.add_argument("-P", "--partitions_only", dest="altconfigs_only",
                         action="store_true", default=False,
-                        help="Only generate partition run configurations")
+                        help="Obsolete alias for --altconfigs_only")
     parser.add_argument("-p", "--print-testdaq", dest="print_testdaq",
                         action="store_true", default=False,
                         help="Print domhubConfig.dat sections for testdaq")
@@ -50,10 +53,10 @@ def add_arguments(parser):
                         action="store_true", default=False,
                         help="Verbose mode")
     parser.add_argument("runConfig", nargs=1,
-                        help="Run configuration file to partition")
+                        help="Run configuration file")
 
 
-def __make_partition_config(run_config, partitions, it_key, ii_key,
+def __make_alternate_config(run_config, altconfigs, it_key, ii_key,
                             dry_run=False, force=False, verbose=False):
     if it_key != "NORTH" and it_key != "SOUTH":
         raise SplitException("Bad IceTop key \"%s\"" % it_key)
@@ -75,10 +78,10 @@ def __make_partition_config(run_config, partitions, it_key, ii_key,
         cfgname += "_InIce" + ii_key
         tstname += "_inice_" + ii_key.lower()
 
-    hub_list = sorted(partitions[it_key] + partitions[ii_key])
+    hub_list = sorted(altconfigs[it_key] + altconfigs[ii_key])
 
     if verbose:
-        print("Generating partition %s" % cfgname)
+        print("Generating alternate configuration %s" % cfgname)
         print("  using hubs %s" % range_string(hub_list))
 
     new_name = "%s_%s_partition.xml" % (basename, cfgname)
@@ -93,9 +96,9 @@ def __make_partition_config(run_config, partitions, it_key, ii_key,
     return tstname, hub_list
 
 
-def get_partitions(verbose=False):
+def get_altconfigs(verbose=False):
     """
-    Get lists of hubs associated with each partition.
+    Get lists of hubs associated with each alternate configuration.
     Partitions "NORTH" and "SOUTH" should include all IceTop hubs.
     Partitions "NORTHEAST", "NORTHWEST", "SOUTHEAST", and "SOUTHWEST" should
     include all In-Ice hubs.
@@ -111,27 +114,27 @@ def get_partitions(verbose=False):
     def_dom_geom = DefaultDomGeometryReader.parse()
 
     # get partition definitions
-    partitions = def_dom_geom.getPartitions()
+    altconfigs = def_dom_geom.getPartitions()
 
     if verbose:
-        print("Sanity-checking all partitions")
+        print("Sanity-checking all configurations")
 
-    # build tuples will all IceTop and In-Ice partition keys
+    # build tuples will all IceTop and In-Ice alternate configuration keys
     icetop_keys = ("NORTH", "SOUTH")
     inice_keys = ("NORTHEAST", "NORTHWEST", "SOUTHEAST", "SOUTHWEST")
 
-    # make sure partitions include all strings and stations
+    # make sure alternate configurations include all strings and stations
     all_icetop = [x for x in range(201, 212)]
-    sanity_check(partitions, "IceTop", icetop_keys, all_icetop)
+    sanity_check(altconfigs, "IceTop", icetop_keys, all_icetop)
     all_inice = [x for x in range(1, 87)]
-    sanity_check(partitions, "InIce", inice_keys, all_inice)
+    sanity_check(altconfigs, "InIce", inice_keys, all_inice)
 
-    # fill in superset partitions
-    partitions["IINORTH"] = partitions["NORTHEAST"] + partitions["NORTHWEST"]
-    partitions["IISOUTH"] = partitions["SOUTHEAST"] + partitions["SOUTHWEST"]
-    partitions["INICE"] = partitions["IINORTH"] + partitions["IISOUTH"]
+    # fill in superset alternate configurations
+    altconfigs["IINORTH"] = altconfigs["NORTHEAST"] + altconfigs["NORTHWEST"]
+    altconfigs["IISOUTH"] = altconfigs["SOUTHEAST"] + altconfigs["SOUTHWEST"]
+    altconfigs["INICE"] = altconfigs["IINORTH"] + altconfigs["IISOUTH"]
 
-    return partitions
+    return altconfigs
 
 
 def range_string(hub_list):
@@ -157,51 +160,46 @@ def range_string(hub_list):
     return rangeStr
 
 
-def sanity_check(partitions, name, keys, expected):
+def sanity_check(altconfigs, name, keys, expected):
     """
-    If the hubs from the partitions listed in "keys" do not match the
-    hubs in "expected", complain and exit
+    If the hubs from the alternate configurations listed in "keys" do not
+    match the hubs in "expected", complain and exit
     """
 
-    # first make sure the individual partitions don't overlap
+    # first make sure the individual alternate configurations don't overlap
     for k1 in keys:
         for k2 in keys:
             if k1 == k2:
                 continue
-            overlap = [hub for hub in partitions[k1] if hub in partitions[k2]]
+            overlap = [hub for hub in altconfigs[k1] if hub in altconfigs[k2]]
             if len(overlap) > 0:
-                raise SystemExit("Partitions \"%s\" and \"%s\" both contain"
-                                 " hubs %s" % (k1, k2, overlap))
+                raise SystemExit("Alternate configurations \"%s\" and \"%s\""
+                                 " both contain hubs %s" % (k1, k2, overlap))
 
-    # build a list containing all the hubs from the individual partitions
+    # build a list containing all the hubs from each alternate configuration
     testlist = []
     for part in keys:
-        if part not in partitions:
-            raise SystemExit("No %s %s partition found" % (name, part))
+        if part not in altconfigs:
+            raise SystemExit("No %s %s alternate configuration found" %
+                             (name, part))
 
-        testlist += partitions[part]
+        testlist += altconfigs[part]
     testlist.sort()
 
     # die if the final list doesn't contain all the expected hubs
     if testlist != expected:
         print("=== EXPECTED\n%s" % str(expected))
         print("=== RECEIVED\n%s" % str(testlist))
-        raise SystemExit("Bad %s partitions (missing or duplicate hubs)!" %
-                         name)
+        raise SystemExit("Bad %s alternate configurations (missing or"
+                         " duplicate hubs)!" % (name, ))
 
 
-def main():
-    import argparse
-
-    op = argparse.ArgumentParser()
-    add_arguments(op)
-    args = op.parse_args()
-
-    gen_partitions = True
+def split_detector(args):
+    gen_altconfigs = True
     gen_noXX = True
-    if args.partitions_only or args.noXX_only:
-        if not args.partitions_only:
-            gen_partitions = False
+    if args.altconfigs_only or args.noXX_only:
+        if not args.altconfigs_only:
+            gen_altconfigs = False
         if not args.noXX_only:
             gen_noXX = False
 
@@ -222,13 +220,17 @@ def main():
     # map generated configuration names to lists of included hubs
     tstlist = {}
 
-    if gen_partitions:
-        # get partition descriptions
-        partitions = get_partitions(verbose=args.verbose)
+    if gen_altconfigs:
+        if args.verbose:
+            print("Generating alternate versions of %s" %
+                  (run_config.basename, ))
 
-        # get partition descriptions
+        # get alternate configuration descriptions
+        altconfigs = get_altconfigs(verbose=args.verbose)
+
+        # build alternate configurations
         for it_key, ii_key in PARTITION_KEYS:
-            (tstname, hubs) = __make_partition_config(run_config, partitions,
+            (tstname, hubs) = __make_alternate_config(run_config, altconfigs,
                                                       it_key, ii_key,
                                                       dry_run=args.dryrun,
                                                       force=args.force,
@@ -273,6 +275,16 @@ def main():
                     print("sps-ithub%02d" % (hub - 200))
                 else:
                     return "unknown%02d" % hub
+
+
+def main():
+    import argparse
+
+    op = argparse.ArgumentParser()
+    add_arguments(op)
+    args = op.parse_args()
+
+    split_detector(args)
 
 
 if __name__ == "__main__":
