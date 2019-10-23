@@ -96,8 +96,7 @@ class RecoverThread(ActionThread):
         # if runset isn't stopping, try to stop it
         if not runset.stopping():
             try:
-                stopVal = not runset.stop_run("LiveRecover",
-                                                     had_error=True)
+                stopVal = not runset.stop_run("LiveRecover", had_error=True)
                 if stopVal:
                     self.__log.error("DAQLive stop_run %s returned %s" %
                                      (runset, stopVal))
