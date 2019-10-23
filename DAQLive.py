@@ -311,7 +311,7 @@ class DAQLive(LiveComponent):
                     raise LiveException(errmsg)
                 elif self.__thread.name == name:
                     # the thread has finished, our work is done
-                    return True
+                    chkval = True
 
             if self.__thread.exception is not None:
                 # log the thread's exception
@@ -353,16 +353,16 @@ class DAQLive(LiveComponent):
             self.__runSet = None
 
         if self.__thread is not None:
-            if self.__thread.is_alive():
+            if not self.__thread.is_alive():
                 if not self.__thread.is_joined:
                     raise LiveException("Found active %s thread" %
                                         (self.__thread.name, ))
 
-            if self.__thread.exception is not None:
-                # log the thread's exception
-                self.__thread.log_and_clear_exception(self.__log)
+                if self.__thread.exception is not None:
+                    # log the thread's exception
+                    self.__thread.log_and_clear_exception(self.__log)
 
-            self.__thread = None
+                self.__thread = None
 
         if self.__runSet is None:
             raise LiveException("Cannot check run state; no active runset")
