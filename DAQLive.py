@@ -297,7 +297,7 @@ class DAQLive(LiveComponent):
                                           synchronous=True, lightSensitive=True,
                                           makesLight=True, timeout=timeout)
 
-    def __check_active_thread(self, name, action):
+    def __check_active_thread(self, name):
         """
         Return None if it's safe to start our thread
         Return True if our thread has finished
@@ -336,7 +336,7 @@ class DAQLive(LiveComponent):
         # count another recovery attempt
         self.__recoverAttempts += 1
 
-        chkval = self.__check_active_thread(RecoverThread.NAME, "recover")
+        chkval = self.__check_active_thread(RecoverThread.NAME)
         if chkval is not None:
             return chkval
 
@@ -396,7 +396,7 @@ class DAQLive(LiveComponent):
         if stateArgs is None or len(stateArgs) == 0:
             raise LiveException("No stateArgs specified")
 
-        chkval = self.__check_active_thread(StartThread.NAME, "start")
+        chkval = self.__check_active_thread(StartThread.NAME)
         if chkval is not None:
             return chkval
 
@@ -423,7 +423,7 @@ class DAQLive(LiveComponent):
         debug = False
         if debug: self.__log.error("LiveStop: TOP")
 
-        chkval = self.__check_active_thread(StopThread.NAME, "stop")
+        chkval = self.__check_active_thread(StopThread.NAME)
         if chkval is not None:
             return chkval
 
@@ -453,7 +453,7 @@ class DAQLive(LiveComponent):
         if stateArgs is None or len(stateArgs) == 0:
             raise LiveException("No stateArgs specified")
 
-        chkval = self.__check_active_thread(SwitchThread.NAME, "switch")
+        chkval = self.__check_active_thread(SwitchThread.NAME)
         if chkval is not None:
             return chkval
 
