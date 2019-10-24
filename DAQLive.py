@@ -26,6 +26,10 @@ class ActionThread(threading.Thread):
 
         self.__exception = None
 
+    def __str__(self):
+        return "%s[%s]%s" % (type(self), self.name,
+                             "" if self.__exception is None else "EXC")
+
     @property
     def exception(self):
         return self.__exception
@@ -293,33 +297,36 @@ class DAQLive(LiveComponent):
                                           synchronous=True, lightSensitive=True,
                                           makesLight=True, timeout=timeout)
 
-    def __check_thread(self, name, action):
-        # we can't start if there's an active thread
-        rtnval = None
-        if self.__thread is not None:
-            if not self.__thread.is_alive():
-                rtnval = self.__thread.name == name and \
-                  self.__thread.exception is None
-            else:
-                if not self.__thread.is_joined:
-                    if self.__thread.name == name:
-                        # if the thread is ours, wait for it to finish
-                        return INCOMPLETE_STATE_CHANGE
+    def __check_active_thread(self, name, action):
+        """
+        Return None if it's safe to start our thread
+        Return True if our thread has finished
+        Return INCOMPLETE_STATE_CHANGE if there's an active thread
+        """
+        # if there's no active thread, return None so our thread is started
+        if self.__thread is None:
+            return None
 
-                    errmsg = "Cannot %s run while %s thread is active" % \
-                      (action, self.__thread.name, )
-                    raise LiveException(errmsg)
-                elif self.__thread.name == name:
-                    # the thread has finished, our work is done
-                    return True
+        # if the active thread is alive, try to join with it
+        if self.__thread.is_alive():
+            if not self.__thread.is_joined:
+                # still waiting for the active thread
+                return INCOMPLETE_STATE_CHANGE
 
-            if self.__thread.exception is not None:
-                # log the thread's exception
-                self.__thread.log_and_clear_exception(self.__log)
+        # the active thread is done
+        dead_thread = self.__thread
+        self.__thread = None
 
-            self.__thread = None
+        # report any exceptions from the active thread
+        if dead_thread.exception is not None:
+            dead_thread.log_and_clear_exception(self.__log)
 
-        return rtnval
+        # the active thread was our thread, we're done!
+        if dead_thread.name == name:
+            return True
+
+        # an old thread has finished, return None so our thread is started
+        return None
 
     @property
     def recoverAttempts(self):
@@ -329,7 +336,7 @@ class DAQLive(LiveComponent):
         # count another recovery attempt
         self.__recoverAttempts += 1
 
-        chkval = self.__check_thread(RecoverThread.NAME, "recover")
+        chkval = self.__check_active_thread(RecoverThread.NAME, "recover")
         if chkval is not None:
             return chkval
 
@@ -352,17 +359,10 @@ class DAQLive(LiveComponent):
         if self.__runSet is not None and self.__runSet.isDestroyed:
             self.__runSet = None
 
-        if self.__thread is not None:
-            if self.__thread.is_alive():
-                if not self.__thread.is_joined:
-                    raise LiveException("Found active %s thread" %
-                                        (self.__thread.name, ))
-
-            if self.__thread.exception is not None:
-                # log the thread's exception
-                self.__thread.log_and_clear_exception(self.__log)
-
-            self.__thread = None
+        # this method doesn't start a thread, so we provide a fake name
+        chkval = self.__check_active_thread("Fake Thread Name")
+        if chkval is not None:
+            return chkval
 
         if self.__runSet is None:
             raise LiveException("Cannot check run state; no active runset")
@@ -396,7 +396,7 @@ class DAQLive(LiveComponent):
         if stateArgs is None or len(stateArgs) == 0:
             raise LiveException("No stateArgs specified")
 
-        chkval = self.__check_thread(StartThread.NAME, "start")
+        chkval = self.__check_active_thread(StartThread.NAME, "start")
         if chkval is not None:
             return chkval
 
@@ -423,7 +423,7 @@ class DAQLive(LiveComponent):
         debug = False
         if debug: self.__log.error("LiveStop: TOP")
 
-        chkval = self.__check_thread(StopThread.NAME, "stop")
+        chkval = self.__check_active_thread(StopThread.NAME, "stop")
         if chkval is not None:
             return chkval
 
@@ -453,7 +453,7 @@ class DAQLive(LiveComponent):
         if stateArgs is None or len(stateArgs) == 0:
             raise LiveException("No stateArgs specified")
 
-        chkval = self.__check_thread(SwitchThread.NAME, "switch")
+        chkval = self.__check_active_thread(SwitchThread.NAME, "switch")
         if chkval is not None:
             return chkval
 
@@ -469,9 +469,6 @@ class DAQLive(LiveComponent):
         # start thread now, subsequent calls will check the thread result
         self.__thread = SwitchThread(self, self.__log, runNum)
         self.__thread.start()
-
-        # after we return, Live will call us immediately so wait a tiny bit
-        time.sleep(0.5)
 
         return INCOMPLETE_STATE_CHANGE
 

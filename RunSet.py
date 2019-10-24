@@ -1718,14 +1718,14 @@ class RunSet(object):
         for comp in bldrs:
             result = rslt[comp]
             if not ComponentGroup.has_value(result):
-                run_data.error("Cannot get run data for %s: %s" %
-                               (comp.fullname, result))
+                run_data.error("Cannot get run %s data for %s: %s" %
+                               (run_data.run_number, comp.fullname, result))
                 continue
 
             if not isinstance(result, list) and \
                  not isinstance(result, tuple):
-                run_data.error("Bogus run data for %s: %s" %
-                               (comp.fullname, result))
+                run_data.error("Bogus run %s data for %s: %s" %
+                               (run_data.run_number, comp.fullname, result))
                 continue
 
             if comp.isComponent("eventBuilder"):
@@ -1734,20 +1734,19 @@ class RunSet(object):
                     (physics_count, first_time, last_time, first_good,
                      last_good) = result
                 else:
-                    run_data.error(("Expected %d run data values from" +
+                    run_data.error(("Expected %d run %s data values from" +
                                     " %s, got %d (%s)") %
-                                   (exp_num, comp.fullname, len(result),
-                                    result))
+                                   (exp_num, run_data.run_number,
+                                    comp.fullname, len(result), result))
             elif comp.isComponent("secondaryBuilders"):
                 if len(result) == 6:
                     (tcal_count, tcal_ticks, sn_count, sn_ticks, moni_count,
                      moni_ticks) = result
-                elif len(result) == 3:  # XXX remove after Sprecher release
-                    (tcal_count, sn_count, moni_count) = result
                 else:
-                    run_data.error(("Expected 3 or 6 run data values from" +
+                    run_data.error(("Expected 6 run %d data values from" +
                                     " %s, got %d (%s)") %
-                                   (comp.fullname, len(result), result))
+                                   (run_data.run_number, comp.fullname,
+                                    len(result), result))
 
         return (physics_count, first_time, last_time, first_good, last_good,
                 moni_count, moni_ticks, sn_count, sn_ticks, tcal_count,
@@ -3074,13 +3073,16 @@ class RunSet(object):
         if self.__state != RunSetState.RUNNING:
             raise RunSetException("RunSet #%s is %s, not running" %
                                   (self.__id, self.__state))
+        if self.__run_data.run_number == new_num:
+            raise RunSetException("RunSet #%s has already switched to run %s" %
+                                  (self.__id, new_num))
 
         # create new run data object
         #
         new_data = self.__run_data.clone(self, new_num)
         new_data.connect_to_live()
 
-        new_data.error("Switching to run %d..." % new_num)
+        new_data.error("Switching to run %d..." % new_data.run_number)
 
         # switch logs to new daqrun directory before switching components
         #
@@ -3105,16 +3107,16 @@ class RunSet(object):
         # switch builders first
         #
         for comp in bldr_set:
-            comp.switchToNewRun(new_num)
+            comp.switchToNewRun(new_data.run_number)
 
         # switch non-builders in order
         #
         for comp in middle_set:
-            comp.switchToNewRun(new_num)
+            comp.switchToNewRun(new_data.run_number)
 
         # switch sources in parallel
         #
-        ComponentGroup.run_simple(OpSwitchRun, src_set, (new_num, ),
+        ComponentGroup.run_simple(OpSwitchRun, src_set, (new_data.run_number, ),
                                   self.__run_data, report_errors=True)
 
         # wait for builders to finish switching
@@ -3124,7 +3126,7 @@ class RunSet(object):
         for i in range(int(bldr_max_sleep / bldr_sleep)):
             for comp in bldr_set:
                 num = comp.getRunNumber()
-                if num == new_num:
+                if num == new_data.run_number:
                     bldr_set.remove(comp)
 
             if len(bldr_set) == 0:
