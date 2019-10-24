@@ -1459,7 +1459,7 @@ class CnCServer(DAQPool):
             runSet.log_to_dash("WARNING: Possible file leak; open file count"
                                " increased from %d to %d" %
                                (self.__openFileCount, openCount))
-            if openCount - self.__openFileCount > 5:
+            if openCount - self.__openFileCount > 40:
                 self.__reportOpenFiles(runNum)
             self.__openFileCount = openCount
 
