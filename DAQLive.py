@@ -2,6 +2,7 @@
 
 import threading
 import time
+import traceback
 
 from CnCExceptions import MissingComponentException
 from DAQConst import DAQPort
@@ -357,36 +358,39 @@ class DAQLive(LiveComponent):
     def running(self, retry=True):
         # if the runset was destroyed, forget about it
         if self.__runSet is not None and self.__runSet.isDestroyed:
+            self.__log.error("DAQLive.running() throwing away destroyed"
+                             " runset")
             self.__runSet = None
 
-        # XXX
-        if False: # self.__thread is not None:
-            if not self.__thread.is_alive():
-                if not self.__thread.is_joined:
-                    raise LiveException("Found active %s thread" %
-                                        (self.__thread.name, ))
-
-                if self.__thread.exception is not None:
-                    # log the thread's exception
-                    self.__thread.log_and_clear_exception(self.__log)
-
-                self.__thread = None
-
         # this method doesn't start a thread, so we provide a fake name
-        chkval = self.__check_active_thread("Fake Thread Name")
-        if chkval is not None:
-            return chkval
+        # it *should* always return None or INCOMPLETE
+        if self.__thread is not None:
+            self.__log.error("DAQLive.running() is ignoring old thread %s" %
+                             str(self.__thread))
+            try:
+                _ = self.__check_active_thread("Fake Thread Name")
+            except:
+                self.__log.error("DAQLive.running() dying due to check_thread"
+                                 " exception\n" + traceback.format_exc())
+                raise
 
         if self.__runSet is None:
+            self.__log.error("DAQLive.running() dying due to missing runset")
             raise LiveException("Cannot check run state; no active runset")
 
         if not self.__runSet.isRunning:
+            self.__log.error("DAQLive.running() dying due to stopped runset")
             raise LiveException("%s is not running (state = %s)" %
                                 (self.__runSet, self.__runSet.state))
 
         if self.__moniTimer.is_time():
-            self.__moniTimer.reset()
-            self.__runSet.send_event_counts()
+            try:
+                self.__moniTimer.reset()
+                self.__runSet.send_event_counts()
+            except:
+                self.__log.error("DAQLive.running() dying due to moni"
+                                 " exception\n" + traceback.format_exc())
+                raise
 
         return True
 
