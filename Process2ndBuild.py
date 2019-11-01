@@ -93,7 +93,7 @@ class SuperSaver(object):
                     os.remove(fname)
                     if verbose:
                         print("Deleted sentinal file %s" % fname)
-                except OSError, err:
+                except OSError as err:
                     logging.error("Could not delete sentinal file %s: %s",
                                   fname, err)
 
@@ -102,7 +102,7 @@ class SuperSaver(object):
 
     def find_first_time(self, dry_run=False):
         # sort list by start time
-        for run, times in sorted(self.__run_times.items(),
+        for run, times in sorted(list(self.__run_times.items()),
                                  key=lambda x: x[1][0]):
             # check for 'supersaver' stop times with no matching start time
             if times[0] is None and times[1] is not None:
@@ -222,7 +222,7 @@ def process_files(spade_dir, create_icetop_hdf5=False, dry_run=False,
     files_to_tar = []
     files_to_remove = []
     moni_files = []
-    for name, mtime in sorted(filedict.items(), key=lambda x: x[1]):
+    for name, mtime in sorted(list(filedict.items()), key=lambda x: x[1]):
         logging.debug("Checking file %s(%s)", name, mtime)
         if supersaver is not None:
             if supersaver.found_group_end(mtime):

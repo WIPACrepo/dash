@@ -374,16 +374,19 @@ class TestDAQPool(unittest.TestCase):
 
         compList = []
 
-        inputName = "yyy"
+        inputNames = ["xxx", "yyy"]
+        outputName = "aaa"
+
+        inputNames.sort()
 
         comp = MockComponent('fooHub', 0)
-        comp.addInput('xxx', 123)
-        comp.addInput(inputName, 456)
-        comp.addOutput('aaa')
+        comp.addInput(inputNames[0], 123)
+        comp.addInput(inputNames[1], 456)
+        comp.addOutput(outputName)
         compList.append(comp)
 
         comp = MockComponent('bar', 0)
-        comp.addInput('aaa', 789)
+        comp.addInput(outputName, 789)
         compList.append(comp)
 
         self.assertEqual(mgr.numComponents(), 0)
@@ -407,7 +410,8 @@ class TestDAQPool(unittest.TestCase):
                            daqDataDir, forceRestart=False, strict=False)
             self.fail("makeRunset should not succeed")
         except ConnectionException as ce:
-            if str(ce).find("No outputs found for %s inputs" % inputName) < 0:
+            if str(ce).find("No outputs found for %s inputs" %
+                            inputNames[0]) < 0:
                 raise
 
         self.assertEqual(mgr.numComponents(), len(compList))

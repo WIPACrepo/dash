@@ -20,8 +20,8 @@ from LiveImports import MoniPort
 from ParallelShell import ParallelShell
 from Process import find_python_process
 from RunSetState import RunSetState
+from i3helper import reraise_excinfo
 from locate_pdaq import find_pdaq_trunk
-from reraise import reraise_excinfo
 
 
 SVN_ID = "$Id: DAQLaunch.py 13550 2012-03-08 23:12:05Z dglo $"
@@ -243,7 +243,8 @@ class ComponentManager(object):
                 jvm_args += " -Dicecube.daq.stringhub.alert-email=%s" % \
                   (comp.alertEMail, )
         else:
-            if comp.numReplayFilesToSkip > 0:
+            if comp.numReplayFilesToSkip is not None and \
+              comp.numReplayFilesToSkip > 0:
                 jvm_args += " -Dreplay.skipFiles=%d" % \
                   (comp.numReplayFilesToSkip, )
 

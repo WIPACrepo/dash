@@ -985,7 +985,7 @@ class BaseRun(object):
             try:
                 summary = cnc.rpc_run_summary(runNum)
                 break
-            except xmlrpclib.Fault, fault:
+            except xmlrpclib.Fault as fault:
                 if fault.faultString.find("SummaryNotReady") < 0:
                     raise
                 summary = None

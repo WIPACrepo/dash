@@ -9,7 +9,11 @@ import threading
 import time
 import traceback
 import unittest
-import xmlrpclib
+
+try:
+    from xmlrpclib import ServerProxy
+except ModuleNotFoundError:
+    from xmlrpc.client import ServerProxy
 
 from CnCExceptions import CnCServerException
 from CnCServer import CnCServer
@@ -306,8 +310,8 @@ class RealComponent(Component):
         self.__cmd = self.__create_cmd_server()
         self.__mbean = self.__create_mbean_server()
 
-        self.__cnc = xmlrpclib.ServerProxy('http://localhost:%d' %
-                                           DAQPort.CNCSERVER, verbose=verbose)
+        self.__cnc = ServerProxy('http://localhost:%d' %
+                                 DAQPort.CNCSERVER, verbose=verbose)
 
     def __create_cmd_server(self):
         cmd_srvr = RPCServer(LogSocketServer.next_log_port)

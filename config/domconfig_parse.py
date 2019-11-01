@@ -2,7 +2,7 @@
 
 from __future__ import print_function
 
-from validate_configs import validate_dom_config_sps, validate_dom_config_spts
+from .validate_configs import validate_dom_config_sps, validate_dom_config_spts
 import glob
 import os
 import sys

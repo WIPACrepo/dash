@@ -9,7 +9,7 @@ from IntervalTimer import IntervalTimer
 from MonitorTask import MonitorTask
 from RateTask import RateTask
 from WatchdogTask import WatchdogTask
-from reraise import reraise_excinfo
+from i3helper import reraise_excinfo
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")

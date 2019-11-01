@@ -189,10 +189,11 @@ class xml_dict(object):
     def toString(info_dict, pretty_print=True):
         root = xml_dict.dict_xml_tree(info_dict)
         tree = etree.ElementTree(root)
-        return etree.tostring(tree,
-                              method="xml",
-                              xml_declaration=True,
-                              pretty_print=pretty_print)
+        outstr = etree.tostring(tree, method="xml", xml_declaration=True,
+                                pretty_print=pretty_print)
+        if isinstance(outstr, bytes):
+            outstr = outstr.decode("utf-8")
+        return outstr
 
     def __str__(self):
         return self.toString(self.xml_dict)

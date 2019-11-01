@@ -2,7 +2,7 @@
 
 from __future__ import print_function
 
-from validate_configs import validate_clusterconfig
+from .validate_configs import validate_clusterconfig
 import glob
 import os
 import sys

@@ -14,6 +14,7 @@ import os
 import re
 import time
 
+from i3helper import Comparable
 from locate_pdaq import find_pdaq_config
 
 
@@ -21,7 +22,7 @@ class LeapsecondException(Exception):
     pass
 
 
-class MJD(object):
+class MJD(Comparable):
     def __init__(self, year=None, month=None, day=None, hour=None,
                  minute=None, second=None, rawvalue=None):
         """Convert the date to a modified julian date.
@@ -64,26 +65,9 @@ class MJD(object):
 
         self.__value = value
 
-    def __eq__(self, other):
-        return abs(self.__value - other.value) < 1E-6
-
-    def __ge__(self, other):
-        return self.__gt__(other) or self.__eq__(other)
-
-    def __gt__(self, other):
-        return self.__value > other.value
-
-    def __hash__(self):
-        return int(self.__value * 1E6)
-
-    def __le__(self, other):
-        return self.__lt__(other) or self.__eq__(other)
-
-    def __lt__(self, other):
-        return self.__value < other.value
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
+    @property
+    def compare_tuple(self):
+        return self.__value
 
     def __sub__(self, other):
         return self.__value - other.value

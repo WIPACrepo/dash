@@ -25,8 +25,8 @@ from RunOption import RunOption
 from RunSetState import RunSetState
 from TaskManager import TaskManager
 from UniqueID import UniqueID
+from i3helper import reraise_excinfo
 from leapseconds import leapseconds, LeapsecondException, MJD
-from reraise import reraise_excinfo
 from scmversion import get_scmversion_str
 from utils import ip
 from utils.DashXMLLog import DashXMLLog, DashXMLLogException, \
@@ -1186,9 +1186,8 @@ class RunData(object):
 
         # if there are physics event but we don't know the time of
         #  the first event, fetch it now
-        if physics_count > 0 and \
-           self.__first_pay_time <= 0 and \
-           evtBldr is not None:
+        if physics_count > 0 and evtBldr is not None and \
+          (self.__first_pay_time is None or self.__first_pay_time <= 0):
             result = run_set.get_first_event_time(evtBldr, self)
             if not ComponentGroup.has_value(result):
                 msg = "Cannot get first event time (%s)" % (result, )
@@ -1205,7 +1204,8 @@ class RunData(object):
                             evt_pay_time, moni_count, moni_time, sn_count,
                             sn_time, tcal_count, tcal_time, add_rate=False):
         "Gather run statistics"
-        if add_rate and self.__first_pay_time is None and first_pay_time > 0:
+        if add_rate and self.__first_pay_time is None and \
+          first_pay_time is not None and first_pay_time > 0:
             self.set_first_physics_time(first_pay_time)
 
         if physics_count >= 0 and evt_pay_time > 0:
@@ -2195,7 +2195,7 @@ class RunSet(object):
 
         conn_map = {}
 
-        for name in conn_dict:
+        for name in sorted(conn_dict):
             # XXX - this can raise ConnectionException
             conn_dict[name].build_connection_map(conn_map)
 
@@ -3064,7 +3064,7 @@ class RunSet(object):
 
         # switch logs to new daqrun directory before switching components
         #
-        for comp, logger in self.__comp_log.items():
+        for comp, logger in list(self.__comp_log.items()):
             self.switch_component_log(logger, new_data.run_directory, comp)
 
         try:

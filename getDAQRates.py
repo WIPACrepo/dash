@@ -356,10 +356,10 @@ def reportDataRates(allData):
 
     trigList = []
     for trig in ('inIceTrigger', 'iceTopTrigger', 'globalTrigger'):
-        for comp in allData.keys():
+        for comp in list(allData.keys()):
             if comp.name == trig:
                 trigList.append((trig, 'trigger'))
-                for key in allData[comp].keys():
+                for key in list(allData[comp].keys()):
                     mtch = TRIG_PAT.match(key)
                     if mtch is not None:
                         trigList.append((trig, key))

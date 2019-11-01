@@ -66,7 +66,7 @@ class Dash(cmd.Cmd):
                     return (None, None)
 
                 if comp_id is not None:
-                    for comp in comp_dict.keys():
+                    for comp in list(comp_dict.keys()):
                         if comp_dict[comp] == comp_id:
                             comp_name = comp
                             break

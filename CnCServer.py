@@ -12,6 +12,11 @@ import sys
 import threading
 import time
 
+try:
+    from SocketServer import ThreadingMixIn
+except ModuleNotFoundError:
+    from socketserver import ThreadingMixIn
+
 from CnCExceptions import CnCServerException, MissingComponentException, \
     StartInterruptedException
 from CnCLogger import CnCLogger
@@ -28,7 +33,7 @@ from ListOpenFiles import ListOpenFiles
 from Process import find_python_process
 from RunSet import RunSet, SummaryNotReady
 from RunSetState import RunSetState
-from SocketServer import ThreadingMixIn
+from i3helper import reraise_excinfo
 from locate_pdaq import find_pdaq_config, find_pdaq_trunk
 from scmversion import get_scmversion, get_scmversion_str
 from xmlparser import XMLBadFileError
@@ -497,7 +502,7 @@ class DAQPool(object):
                     savedEx = sys.exc_info()
 
         if savedEx:
-            raise savedEx[0], savedEx[1], savedEx[2]
+            reraise_excinfo(savedEx)
 
         return True
 
@@ -519,7 +524,7 @@ class DAQPool(object):
                 savedEx = sys.exc_info()
 
         if savedEx:
-            raise savedEx[0], savedEx[1], savedEx[2]
+            reraise_excinfo(savedEx)
 
     def returnRunsetComponents(self, rs, verbose=False, kill_with_9=True,
                                event_check=False):
@@ -1285,8 +1290,8 @@ class CnCServer(DAQPool):
         monidict = runSet.get_event_counts(run_num)
         for key, val in list(monidict.items()):
             if not isinstance(val, str) and \
-                not isinstance(val, unicode) and \
-                not isinstance(val, numbers.Number):
+              not isinstance(val, numbers.Number) and \
+              (sys.version_info >= (3, 0) or not isinstance(val, unicode)):
                 monidict[key] = str(val)
 
         return monidict
@@ -1349,7 +1354,7 @@ class CnCServer(DAQPool):
             self.restartRunset(runSet, self.__log)
 
         if delayedException:
-            raise delayedException[0], delayedException[1], delayedException[2]
+            reraise_excinfo(delayedException)
 
         return "OK"
 

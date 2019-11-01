@@ -9,6 +9,7 @@
 from __future__ import print_function
 
 import datetime
+import errno
 import os
 import select
 import socket
@@ -18,7 +19,7 @@ import threading
 from DAQConst import DAQPort
 from LiveImports import LIVE_IMPORT, MoniClient, Prio, SERVICE_NAME
 from decorators import classproperty
-from reraise import reraise_excinfo
+from i3helper import reraise_excinfo
 
 
 class LogException(Exception):
@@ -121,8 +122,10 @@ class LogSocketServer(object):
                 try:
                     data = sock.recv(8192, socket.MSG_DONTWAIT)
                     self.__write_data(data)
-                except:
-                    break  # Go back to select so we don't busy-wait
+                except socket.error as sockerr:
+                    if sockerr.errno == errno.EWOULDBLOCK:
+                        break  # Go back to select so we don't busy-wait
+                    raise
 
     def __win_loop(self, sock):
         """
@@ -136,9 +139,10 @@ class LogSocketServer(object):
         if self.__outfile is None:
             return
 
+        outstr = "%s %s" % (self.__cname, data.decode("utf-8"))
         if not self.__quiet:
-            print("%s %s" % (self.__cname, data))
-        print("%s %s" % (self.__cname, data), file=self.__outfile)
+            print("%s" % outstr)
+        print(outstr, file=self.__outfile)
         self.__outfile.flush()
 
     @property
@@ -413,7 +417,7 @@ class LogSocketAppender(BaseFileAppender):
     def _write(self, fdesc, mtime, msg):
         "Format the log message and write it to the file"
         try:
-            fdesc.send("%s %s [%s] %s" % ('-', '-', mtime, msg))
+            fdesc.send(("%s %s [%s] %s" % ('-', '-', mtime, msg)).encode())
         except socket.error as sex:
             raise LogException('LogSocket %s: %s' % (self.__loc, sex))
 
@@ -441,14 +445,13 @@ class LiveSocketAppender(BaseAppender):
 
     def write(self, msg, mtime=None, level=DAQLog.DEBUG):
         "Send the log message to I3Live"
-        if isinstance(msg, unicode):
-            msg = str(msg)
+        msg = str(msg)
 
         self.__client_lock.acquire()
         try:
             if not msg.startswith('Start of log at '):
                 if self.__client:
-                    self.__client.sendMoni("log", str(msg), prio=self.__prio,
+                    self.__client.sendMoni("log", msg, prio=self.__prio,
                                            time=mtime)
         finally:
             self.__client_lock.release()

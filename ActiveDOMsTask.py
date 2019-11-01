@@ -193,7 +193,7 @@ class ActiveDOMThread(CnCThread):
     def __send_lbm_overflow(self, lbmo_dict, start_time, run_number):
         # get the total LBM overflow count
         count = 0
-        for hub_count in lbmo_dict.values():
+        for hub_count in list(lbmo_dict.values()):
             count += hub_count
 
         # replace the previous LBM count with the new count

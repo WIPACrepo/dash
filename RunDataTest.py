@@ -267,7 +267,7 @@ class RunDataTest(unittest.TestCase):
                         "Result should be a dict, not %s" %
                         type(result).__name__)
 
-        for key, val in valid.items():
+        for key, val in list(valid.items()):
             self.assertTrue(key in result, "No entry for \"%s\" in %s" %
                             (key, result))
 
@@ -725,7 +725,7 @@ class RunDataTest(unittest.TestCase):
         # first update does nothing (not enough history)
         rdata.send_count_updates(moni_data, prio)
 
-        for key, val in moni_data.items():
+        for key, val in list(moni_data.items()):
             if key.endswith("Events"):
                 moni_data[key] = val + int(val / 2)
             elif key.endswith("Time") or key.endswith("Ticks"):

@@ -96,7 +96,7 @@ class CnCSingleThreadTask(CnCTask):
 
     def _running(self):
         "Is the current thread still running?"
-        return self.__thread is not None and self.__thread.isAlive()
+        return self.__thread is not None and self.__thread.is_alive()
 
     def close(self):
         "Close any running thread"

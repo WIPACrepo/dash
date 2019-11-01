@@ -2,7 +2,7 @@
 
 from __future__ import print_function
 
-from validate_configs import validate_runconfig
+from .validate_configs import validate_runconfig
 import glob
 import os
 import sys

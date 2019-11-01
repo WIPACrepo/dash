@@ -520,7 +520,7 @@ class DefaultDomGeometry(object):
 
     def doms(self):
         "Convenience method to list all known DOMs"
-        for domlist in self.__strings.values():
+        for domlist in list(self.__strings.values()):
             for dom in domlist:
                 yield dom
 

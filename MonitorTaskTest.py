@@ -68,7 +68,7 @@ class BadCloseThread(object):
         self.__closed = True
         raise Exception("Forced exception")
 
-    def isAlive(self):
+    def is_alive(self):
         return True
 
     @property

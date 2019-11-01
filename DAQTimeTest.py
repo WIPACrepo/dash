@@ -27,13 +27,25 @@ class TestDAQTime(unittest.TestCase):
         self.assertEqual(valid, to_check,
                          "Expected %s %s, not %s" % (name, valid, to_check))
 
+    @staticmethod
+    def __compare_dates(dt0, dt1):
+        if dt0 == dt1:
+            return 0
+        if dt0 < dt1:
+           return -1
+        if dt0 > dt1:
+            return 1
+
+        raise Exception("Comparison always fails (<%s>%s <=> <%s>%s)" %
+                        (type(dt0), dt0, type(dt1), dt1))
+
     def __checkCompare(self, dt0, dt1, expResult):
-        result = cmp(dt0, dt1)
+        result = self.__compare_dates(dt0, dt1)
         self.assertEqual(expResult, result,
                          "Expected cmp(%s, %s) to return %s, not %s" %
                          (dt0, dt1, expResult, result))
 
-        result = cmp(dt1, dt0)
+        result = self.__compare_dates(dt1, dt0)
         self.assertEqual(-expResult, result,
                          "Expected inverted cmp(%s, %s) to return %s, not %s" %
                          (dt1, dt0, -expResult, result))
@@ -154,9 +166,9 @@ class TestDAQTime(unittest.TestCase):
 
     def __validateDelta(self, t1, t2, expDiff):
         dt1 = datetime.datetime(t1[0], t1[1], t1[2], t1[3], t1[4], t1[5],
-                                (t1[6] + 500) / 10000)
+                                int((t1[6] + 500) / 10000))
         dt2 = datetime.datetime(t2[0], t2[1], t2[2], t2[3], t2[4], t2[5],
-                                (t2[6] + 500) / 10000)
+                                int((t2[6] + 500) / 10000))
         diff = dt1 - dt2
         self.assertEqual(expDiff,
                          (diff.days, diff.seconds, diff.microseconds),

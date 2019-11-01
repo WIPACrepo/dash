@@ -29,6 +29,7 @@ from LiveImports import MoniPort, SERVICE_NAME
 from RunCluster import RunCluster
 from RunSet import RunSet
 from decorators import classproperty
+from i3helper import Comparable
 from leapseconds import leapseconds, MJD
 from locate_pdaq import find_pdaq_trunk
 from utils import ip
@@ -1144,7 +1145,7 @@ class MockClusterConfigFile(MockClusterWriter):
 
                 print(indent + "</default>", file=fd)
 
-            for h in self.__hosts.values():
+            for h in list(self.__hosts.values()):
                 h.write(fd, indent, split_hosts=split_hosts)
 
             print("</cluster>", file=fd)
@@ -1292,6 +1293,9 @@ class MockConnection(object):
         self.__name = name
         self.__connCh = connCh
         self.__port = port
+
+    def __repr__(self):
+        return str(self)
 
     def __str__(self):
         if self.__port is not None:
@@ -1476,7 +1480,7 @@ class MockMBeanClient(object):
         self.__beanData[beanName][fieldName] = value
 
 
-class MockComponent(object):
+class MockComponent(Comparable):
     def __init__(self, name, num=0, host='localhost'):
         self.__name = name
         self.__num = num
@@ -1552,6 +1556,10 @@ class MockComponent(object):
 
     def commit_subrun(self, id, startTime):
         pass
+
+    @property
+    def compare_tuple(self):
+        return (self.__name, self.__num)
 
     def configure(self, config_name=None):
         if not self.__connected:
@@ -2627,7 +2635,7 @@ class SocketReader(LogChecker):
                         data = sock.recv(8192, socket.MSG_DONTWAIT)
                     except:
                         break  # Go back to select so we don't busy-wait
-                    if not self._checkMsg(data):
+                    if not self._checkMsg(data.decode("utf-8")):
                         break
         finally:
             if sock is not None:
@@ -2757,13 +2765,14 @@ class SocketWriter(object):
 
     def write(self, s):
         "Write message to remote logger"
-        self.socket.send(s)
+        self.socket.send(s.encode("utf-8"))
 
     def write_ts(self, s, time=None):
         "Write time-stamped log msg to remote logger"
         if time is None:
             time = datetime.datetime.now()
-        self.socket.send("- - [%s] %s" % (time, s))
+        output = "- - [%s] %s" % (time, s)
+        self.socket.send(output.encode("utf-8"))
 
     def close(self):
         "Shut down socket to remote server - do this to avoid stale sockets"
@@ -2956,7 +2965,7 @@ class MockLiveMoni(object):
                     continue
             else:
                 matched = True
-                for key in val.keys():
+                for key in list(val.keys()):
                     if key not in val_tmp:
                         matched = False
                         break

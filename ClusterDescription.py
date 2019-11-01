@@ -10,8 +10,8 @@ import traceback
 from xml.dom import minidom, Node
 
 from Component import Component
+from i3helper import Comparable, reraise_excinfo
 from locate_pdaq import find_pdaq_config
-from reraise import reraise_excinfo
 from xmlparser import XMLBadFileError, XMLFormatError, XMLParser
 from utils.Machineid import Machineid
 
@@ -491,7 +491,7 @@ class SimHubComponent(JavaComponent):
         return self.__priority
 
 
-class ClusterHost(object):
+class ClusterHost(Comparable):
     def __init__(self, name):
         self.name = name
         self.compMap = {}
@@ -537,6 +537,10 @@ class ClusterHost(object):
         self.simHubs.append(newHub)
         return newHub
 
+    @property
+    def compare_tuple(self):
+        return (self.name, self.ctlServer)
+
     def dump(self, fd=None, prefix=None):
         if fd is None:
             fd = sys.stdout
@@ -578,7 +582,7 @@ class ClusterHost(object):
         if host.ctlServer:
             self.ctlServer = True
 
-        for comp in host.compMap.values():
+        for comp in list(host.compMap.values()):
             key = comp.fullname
             if key in self.compMap:
                 errMsg = 'Multiple entries for component "%s" in host "%s"' % \
@@ -1109,9 +1113,7 @@ class ClusterDescription(ConfigXMLBase):
                         (prefix, self.__defaults.Components[comp]['logLevel']), file=fd)
 
         if self.__host_map is not None:
-            hKeys = sorted(self.__host_map.keys())
-
-            for key in hKeys:
+            for key in sorted(self.__host_map.keys()):
                 self.__host_map[key].dump(fd=fd, prefix=prefix + "  ")
 
     def extractFrom(self, dom):
@@ -1139,7 +1141,6 @@ class ClusterDescription(ConfigXMLBase):
             raise ClusterDescriptionFormatError(errMsg)
 
         hostMap = self.__parse_host_nodes(name, defaults, hostNodes)
-
         self.name = name
         self.__defaults = defaults
         self.__host_map = hostMap

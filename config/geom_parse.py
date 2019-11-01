@@ -2,7 +2,7 @@
 
 from __future__ import print_function
 
-from validate_configs import validate_default_dom_geom
+from .validate_configs import validate_default_dom_geom
 import os
 import sys
 

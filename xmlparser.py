@@ -35,11 +35,16 @@ class XMLParser(object):
     def getAttr(cls, node, attrName, defaultVal=None):
         "Return the text from this node's attribute"
 
-        # NOTE: xml.dom.Node doesn't support "attrName in node.attributes"
-        if node.attributes is not None and \
-           node.attributes.has_key(attrName):
+        if node.attributes is not None:
+            try:
+                found = attrName in node.attributes
+            except KeyError:
+                # Python2 xml.dom.Node doesn't support "name in attributes"
+                found = node.attributes.has_key(attrName)
+
             # return named attribute value
-            return node.attributes[attrName].value
+            if found:
+                return node.attributes[attrName].value
 
         return defaultVal
 

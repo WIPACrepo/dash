@@ -12,7 +12,10 @@ import threading
 import time
 import traceback
 import unittest
-import xmlrpclib
+try:
+    import xmlrpc.client as rpcclient
+except:
+    import xmlrpclib as rpcclient
 
 from CnCServer import CnCServer, Connector
 from DAQClient import DAQClient
@@ -23,6 +26,7 @@ from LiveImports import Prio, LIVE_IMPORT, SERVICE_NAME
 from RunOption import RunOption
 from RunSet import RunData, RunSet
 from TaskManager import MonitorTask, RateTask, TaskManager, WatchdogTask
+from i3helper import Comparable
 from locate_pdaq import set_pdaq_config_dir
 from scmversion import get_scmversion_str
 
@@ -458,7 +462,7 @@ class MostlyCnCServer(CnCServer):
         return None
 
 
-class RealComponent(object):
+class RealComponent(Comparable):
     # Component order, used in the __get_order() method
     COMP_ORDER = {
         'stringHub': (50, 50),
@@ -487,6 +491,7 @@ class RealComponent(object):
         self.__jvm_extra_args = jvm_extra_args
 
         self.__state = 'FOO'
+        self.__launch_order = None
 
         self.__logger = None
         self.__liver = None
@@ -547,12 +552,9 @@ class RealComponent(object):
         self.__cnc = None
 
     def __cmp__(self, other):
-        self_order = RealComponent.__get_launch_order(self.__name)
-        other_order = RealComponent.__get_launch_order(other.__name)
-
-        if self_order < other_order:
+        if self.launch_order < other.launch_order:
             return -1
-        elif self_order > other_order:
+        elif self.launch_order > other.launch_order:
             return 1
 
         if self.__num < other.__num:
@@ -599,7 +601,7 @@ class RealComponent(object):
     @classmethod
     def __fix_value(cls, obj):
         if isinstance(obj, dict):
-            for key, val in obj.items():
+            for key, val in list(obj.items()):
                 obj[key] = cls.__fix_value(val)
         elif isinstance(obj, list):
             for idx, val in enumerate(obj):
@@ -610,7 +612,7 @@ class RealComponent(object):
                 new_obj.append(cls.__fix_value(val))
             obj = tuple(new_obj)
         elif isinstance(obj, int):
-            if obj < xmlrpclib.MININT or obj > xmlrpclib.MAXINT:
+            if obj < rpcclient.MININT or obj > rpcclient.MAXINT:
                 return str(obj)
         return obj
 
@@ -622,12 +624,6 @@ class RealComponent(object):
         for fld in fld_list:
             attrs[fld] = self.__mbean_data[bean][fld].getValue()
         return attrs
-
-    @classmethod
-    def __get_launch_order(cls, name):
-        if name not in cls.COMP_ORDER:
-            raise Exception('Unknown component type %s' % name)
-        return cls.COMP_ORDER[name][0]
 
     def __get_mbean_value(self, bean, fld):
         if self.__mbean_data is None:
@@ -791,8 +787,12 @@ class RealComponent(object):
         self.__cmd.server_close()
         self.__mbean.server_close()
 
+    @property
+    def compare_tuple(self):
+        return (self.launch_order, self.__num)
+
     def connectToCnC(self):
-        self.__cnc = xmlrpclib.ServerProxy('http://localhost:%d' %
+        self.__cnc = rpcclient.ServerProxy('http://localhost:%d' %
                                            DAQPort.CNCSERVER)
 
     @property
@@ -855,6 +855,15 @@ class RealComponent(object):
     @property
     def jvmServer(self):
         return self.__jvm_server
+
+    @property
+    def launch_order(self):
+        if self.__launch_order is None:
+            if self.__name not in self.COMP_ORDER:
+                raise Exception('Unknown component type %s' % self.__name)
+            self.__launch_order = self.COMP_ORDER[self.__name][0]
+
+        return self.__launch_order
 
     def log_to(self, log_host, log_port, live_host, live_port):
         return self.__log_to(log_host, log_port, live_host, live_port)

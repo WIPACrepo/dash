@@ -697,8 +697,12 @@ class TestRunSet(unittest.TestCase):
         logger.checkStatus(10)
 
     def __stop_run(self, runset, runNum, runConfig, cluCfg, moni_client,
-                   components=None, logger=None, hangType=0):
+                   components=None, logger=None, hangType=None):
         expState = "stopping"
+
+        # default to type 0
+        if hangType is None:
+            hangType = 0
 
         compList = components
         if compList is not None:

@@ -10,13 +10,14 @@ from CachedConfigName import CachedConfigName
 from ClusterDescription import ClusterDescription, HSArgs, HubComponent, \
     JVMArgs, ReplayHubComponent
 from DefaultDomGeometry import DefaultDomGeometry
+from i3helper import Comparable
 
 
 class RunClusterError(Exception):
     pass
 
 
-class RunNode(object):
+class RunNode(Comparable):
     def __init__(self, hostname, defaultHSDir, defaultHSIval,
                  defaultHSMaxFiles, defaultJVMPath, defaultJVMServer,
                  defaultJVMHeapInit, defaultJVMHeapMax, defaultJVMArgs,
@@ -44,6 +45,10 @@ class RunNode(object):
     def addComponent(self, comp):
         comp.host = self.__hostname
         self.__comps.append(comp)
+
+    @property
+    def compare_tuple(self):
+        return (self.__hostname, self.__locName)
 
     def components(self):
         return self.__comps[:]
@@ -217,7 +222,7 @@ class RunCluster(CachedConfigName):
                                jvmHeapMax, jvmArgs, jvmExtra)
             comp.setHitSpoolOptions(None, hsDir, hsIval, hsMaxFiles)
 
-            if numToSkip > 0:
+            if numToSkip is not None and numToSkip > 0:
                 comp.setNumberToSkip(numToSkip)
 
             cls.__addComponent(hostMap, comp.host, comp)
@@ -320,7 +325,7 @@ class RunCluster(CachedConfigName):
                                    jvmHeapMax, jvmArgs, jvmExtra)
                 comp.setHitSpoolOptions(None, None, None, None)
 
-                cls.__addComponent(hostMap, host, comp)
+                cls.__addComponent(hostMap, host.name, comp)
                 hubNum += 1
 
     @classmethod
@@ -355,10 +360,8 @@ class RunCluster(CachedConfigName):
     @classmethod
     def __convertToNodes(cls, clusterDesc, hostMap):
         "Convert hostMap to an array of cluster nodes"
-        hostKeys = sorted(hostMap.keys())
-
         nodes = []
-        for host in hostKeys:
+        for host in sorted(hostMap.keys()):
             node = RunNode(str(host),
                            clusterDesc.defaultHSDirectory(),
                            clusterDesc.defaultHSInterval(),

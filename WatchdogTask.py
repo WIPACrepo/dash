@@ -6,13 +6,13 @@ from CnCTask import CnCTask, TaskException
 from CnCThread import CnCThread
 from ComponentManager import ComponentManager
 from decorators import classproperty
-from reraise import reraise_excinfo
+from i3helper import Comparable, reraise_excinfo
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
 
-class UnhealthyRecord(object):
+class UnhealthyRecord(Comparable):
     "Record of a problem, including the order so problems can be prioritized"
 
     def __init__(self, msg, order):
@@ -39,6 +39,10 @@ class UnhealthyRecord(object):
         if val == 0:
             val = cmp(self.__msg, other.message)
         return val
+
+    @property
+    def compare_tuple(self):
+        return (self.__order, self.__msg)
 
     @property
     def message(self):
@@ -808,8 +812,8 @@ class WatchdogTask(CnCTask):
         stagnant = []
         threshold = []
 
-        for key, thrd in self.__thread_list.items():
-            if thrd.isAlive():
+        for key, thrd in list(self.__thread_list.items()):
+            if thrd.is_alive():
                 hanging.append(key)
             else:
                 starved += thrd.starved()
@@ -873,7 +877,7 @@ class WatchdogTask(CnCTask):
     def close(self):
         "Close everything associated with this task"
         saved_exc = None
-        for thrd in self.__thread_list.values():
+        for thrd in list(self.__thread_list.values()):
             try:
                 thrd.close()
             except:
@@ -895,6 +899,6 @@ class WatchdogTask(CnCTask):
 
     def wait_until_finished(self):
         "Wait until all threads have finished"
-        for thrd in self.__thread_list.values():
-            if thrd.isAlive():
+        for thrd in list(self.__thread_list.values()):
+            if thrd.is_alive():
                 thrd.join()

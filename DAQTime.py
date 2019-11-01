@@ -8,6 +8,7 @@ import re
 import sys
 import time
 
+from i3helper import Comparable
 from leapseconds import leapseconds, MJD
 
 
@@ -32,7 +33,7 @@ class DAQDateTimeDelta(object):
         return rtnstr
 
 
-class DAQDateTime(object):
+class DAQDateTime(Comparable):
     # if True, calculate DAQ times to 0.1 nanosecond precision
     # if False, calculate to microsecond precision
     HIGH_PRECISION = True
@@ -60,6 +61,18 @@ class DAQDateTime(object):
 
         self.tuple = (year, month, day, hour, minute, second, 0, 0, -1)
 
+    def __str__(self):
+        fmt = "%d-%02d-%02d %02d:%02d:%02d"
+        if self.__high_precision:
+            fmt += ".%010d"
+            ticks = self.__daqticks
+        else:
+            fmt += ".%06d"
+            ticks = self.__daqticks / 10000
+
+        return fmt % (self.year, self.month, self.day, self.hour, self.minute,
+                      self.second, ticks)
+
     def __repr__(self):
         if not self.tzinfo:
             tzstr = ""
@@ -77,7 +90,7 @@ class DAQDateTime(object):
 
     def __cmp__(self, other):
         # compare two date time objects
-        if not other:
+        if other is None:
             return -1
 
         val = cmp(self.tuple[0:6], other.tuple[0:6])
@@ -126,17 +139,9 @@ class DAQDateTime(object):
 
         return DAQDateTimeDelta(days, secs, int(usecs))
 
-    def __str__(self):
-        fmt = "%d-%02d-%02d %02d:%02d:%02d"
-        if self.__high_precision:
-            fmt += ".%010d"
-            ticks = self.__daqticks
-        else:
-            fmt += ".%06d"
-            ticks = self.__daqticks / 10000
-
-        return fmt % (self.year, self.month, self.day, self.hour, self.minute,
-                      self.second, ticks)
+    @property
+    def compare_tuple(self):
+        return (self.tuple[0:6], self.__daqticks)
 
 
 class YearData(object):

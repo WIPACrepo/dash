@@ -310,7 +310,7 @@ class ComponentGroup(ThreadGroup):
 
         results = {}
         for thrd in self.threads:
-            if thrd.isAlive():
+            if thrd.is_alive():
                 result = ComponentGroup.RESULT_HANGING
             elif thrd.is_error:
                 result = ComponentGroup.RESULT_ERROR
@@ -360,9 +360,9 @@ class ComponentGroup(ThreadGroup):
         for _ in range(reps):
             alive = False
             for thrd in self.threads:
-                if thrd.isAlive():
+                if thrd.is_alive():
                     thrd.join(part_secs)
-                    alive |= thrd.isAlive()
+                    alive |= thrd.is_alive()
             if not alive:
                 break
 

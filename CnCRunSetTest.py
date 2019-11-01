@@ -6,7 +6,6 @@ import tempfile
 import time
 import unittest
 
-from locate_pdaq import set_pdaq_config_dir
 from ActiveDOMsTask import ActiveDOMsTask
 from ComponentManager import ComponentManager
 from CnCExceptions import CnCServerException, MissingComponentException
@@ -24,6 +23,8 @@ from RunOption import RunOption
 from RunSet import RunData, RunSet, RunSetException
 from TaskManager import TaskManager
 from WatchdogTask import WatchdogTask
+from i3helper import Comparable
+from locate_pdaq import set_pdaq_config_dir
 
 
 class MockComponentLogger(MockLogger):
@@ -127,7 +128,7 @@ class MockMBeanClient(object):
         self.__beanData[beanName][fieldName] = value
 
 
-class MockComponent(object):
+class MockComponent(Comparable):
     def __init__(self, name, num=0, conn=None):
         self.__name = name
         self.__num = num
@@ -147,6 +148,10 @@ class MockComponent(object):
 
     def close(self):
         pass
+
+    @property
+    def compare_tuple(self):
+        return (self.__name, self.__num)
 
     def configure(self, runCfg):
         self.__state = "ready"
@@ -225,6 +230,9 @@ class MockComponent(object):
     @property
     def order(self):
         return self.__order
+
+    def reset(self):
+        pass
 
     def reset_logging(self):
         pass

@@ -11,6 +11,7 @@ except ImportError:
 from CnCLogger import CnCLogger
 from DAQRPC import RPCClient
 from UniqueID import UniqueID
+from i3helper import Comparable
 from scmversion import get_scmversion_str
 
 from exc_string import exc_string, set_exc_string_encoding
@@ -229,7 +230,7 @@ class MBeanClient(object):
         self.__loaded_info = False
 
 
-class ComponentName(object):
+class ComponentName(Comparable):
     "DAQ component name"
 
     def __init__(self, name, num):
@@ -240,6 +241,10 @@ class ComponentName(object):
     def __repr__(self):
         "Return the full name of this component"
         return self.fullname
+
+    @property
+    def compare_tuple(self):
+        return (self.__name, self.__num)
 
     @property
     def filename(self):

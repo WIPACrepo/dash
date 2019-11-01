@@ -17,7 +17,8 @@ class TestDAQLog(unittest.TestCase):
     def __check_log(self, log_path, msg_list):
         "Compare log file lines against original log messages"
         lines = self.__read_log(log_path)
-        self.assertEqual(len(msg_list), len(lines), 'Expected %d line, not %d' %
+        self.assertEqual(len(msg_list), len(lines),
+                         'Expected %d line(s), not %d' %
                          (len(msg_list), len(lines)))
 
         for idx, msg in enumerate(msg_list):

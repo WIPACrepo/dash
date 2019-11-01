@@ -30,7 +30,7 @@ def list_processes():
         raise ProcessException("Failed to list processes")
 
     for line in lines:
-        yield line.rstrip()
+        yield line.decode("utf-8").rstrip()
 
 
 def process_exists(filename):

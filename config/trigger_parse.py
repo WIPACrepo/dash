@@ -2,7 +2,7 @@
 
 from __future__ import print_function
 
-from validate_configs import validate_trigger
+from .validate_configs import validate_trigger
 import glob
 import os
 import sys

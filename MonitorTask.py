@@ -14,7 +14,7 @@ from DAQClient import BeanLoadException, BeanTimeoutException
 from LiveImports import Prio
 from RunOption import RunOption
 from decorators import classproperty
-from reraise import reraise_excinfo
+from i3helper import reraise_excinfo
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -122,7 +122,7 @@ class MBeanThread(MonitorThread):
                 # report monitoring data
                 with self.__reporter_lock:
                     reporter = self.__reporter
-                for key, data in bean_dict.items():
+                for key, data in list(bean_dict.items()):
                     if not self.isClosed:
                         reporter.send(datetime.datetime.now(), key, data)
 
@@ -325,7 +325,7 @@ class MonitorTask(CnCTask):
     def _check(self):
         for key in list(self.__thread_list.keys()):
             thrd = self.__thread_list[key]
-            if not thrd.isAlive():
+            if not thrd.is_alive():
                 if thrd.refused_count >= self.MAX_REFUSED:
                     if not thrd.is_warned:
                         msg = ("ERROR: Not monitoring %s: Connect failed" +
@@ -382,5 +382,5 @@ class MonitorTask(CnCTask):
     def wait_until_finished(self):
         "Wait until all threads have finished"
         for key in list(self.__thread_list.keys()):
-            if self.__thread_list[key].isAlive():
+            if self.__thread_list[key].is_alive():
                 self.__thread_list[key].join()

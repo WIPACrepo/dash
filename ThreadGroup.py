@@ -86,7 +86,7 @@ class ThreadGroup(object):
         num_errors = 0
 
         for thrd in self.__list:
-            if thrd.isAlive():
+            if thrd.is_alive():
                 num_alive += 1
             try:
                 if thrd.is_error:
@@ -155,9 +155,9 @@ class ThreadGroup(object):
         for _ in range(reps):
             alive = False
             for thrd in self.__list:
-                if thrd.isAlive():
+                if thrd.is_alive():
                     thrd.join(part_secs)
-                    alive |= thrd.isAlive()
+                    alive |= thrd.is_alive()
             if not alive:
                 break
 
