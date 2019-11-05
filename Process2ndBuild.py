@@ -16,6 +16,7 @@ installation procedure.
 from __future__ import print_function
 
 import datetime
+import logging
 import os
 import tarfile
 import time
@@ -28,6 +29,163 @@ from Process import exclusive_process
 MAX_FILES_PER_TARBALL = 50
 
 
+class SuperSaver(object):
+    START_PREFIX = "supersaver."
+    STOP_PREFIX = "supersaved."
+
+    STATE_PRESTART = 0
+    STATE_IN_RUN = 1
+
+    def __init__(self):
+        self.__run_times = {}
+
+        self.__run = None
+        self.__start = None
+        self.__stop = None
+        self.__state = self.STATE_PRESTART
+
+    def __str__(self):
+        if self.__run is None and self.__start is None and self.__stop is None:
+            stat_str = ""
+        else:
+            stat_str = "#%s,%s-%s," % (self.__run, self.__start, self.__stop)
+        return "SuperSaver[%s%s]%s" % \
+          (stat_str, self.state,
+           "" if len(self.__run_times) == 0 else "+%d" % len(self.__run_times))
+
+    def __add_time(self, run, mtime, idx):
+        if run not in self.__run_times:
+            self.__run_times[run] = [None, None]
+        self.__run_times[run][idx] = mtime
+
+    def check_file(self, fname, mtime=None):
+        """
+        If file starts with start/stop prefix,
+        add the time to our run start/stop dictionary and return True
+        """
+        for idx, prefix in enumerate((self.START_PREFIX, self.STOP_PREFIX)):
+            if fname.startswith(prefix):
+                if mtime is None:
+                    mtime = os.stat(fname).st_mtime
+                self.__add_time(fname[len(prefix):], mtime, idx)
+                return True
+
+        # this file isn't a SuperSaver sentinal file
+        return False
+
+    def clear_group(self, mtime, verbose=False, dry_run=False):
+        logging.debug("Clearing group from %s after time %s",
+                      self, mtime)
+        if self.__stop is None or mtime < self.__stop:
+            # we found a file for this SuperSaver run!
+            if self.__state == self.STATE_PRESTART:
+                # we finished processing all files before the SuperSaver run
+                self.__state = self.STATE_IN_RUN
+            logging.debug("Cleared group, now %s", self)
+            return True
+
+        # we've finished the current SuperSaver run, delete the sentinal files
+        if not dry_run:
+            for prefix in (self.START_PREFIX, self.STOP_PREFIX):
+                fname = prefix + str(self.__run)
+                try:
+                    logging.error("Removing sentinal %s", fname)
+                    os.remove(fname)
+                    if verbose:
+                        print("Deleted sentinal file %s" % fname)
+                except OSError as err:
+                    logging.error("Could not delete sentinal file %s: %s",
+                                  fname, err)
+
+        # return True if we have a start time for another SuperSaver run
+        return self.find_first_time()
+
+    def find_first_time(self, dry_run=False):
+        # sort list by start time
+        for run, times in sorted(list(self.__run_times.items()),
+                                 key=lambda x: x[1][0]):
+            # check for 'supersaver' stop times with no matching start time
+            if times[0] is None and times[1] is not None:
+                if not dry_run:
+                    try:
+                        os.remove(self.STOP_PREFIX + run)
+                        logging.warning("Deleted orphaned SuperSaver stop file"
+                                        " from run %s", run)
+                    except OSError as err:
+                        logging.error("Could not delete orphaned SuperSaver"
+                                      " stop file from run %s: %s", run, err)
+                continue
+
+            # stash first run times
+            self.__run = run
+            self.__start = times[0]
+            self.__stop = times[1]
+            del self.__run_times[run]
+            logging.debug("New group for %s", self)
+            return True
+
+        # no times found
+        logging.debug("No groups found for %s", self)
+        return False
+
+    def found_group_end(self, mtime):
+        logging.debug("Find SuperSaver group end using time %s"
+                      " (run %s start %s stop %s state %s)", mtime,
+                      self.__run, self.__start, self.__stop, self.state)
+        if self.__state == self.STATE_PRESTART:
+            if mtime < self.__start:
+                # continue processing files preceeding the SuperSaver run
+                logging.debug("*** PreStart -> False")
+                return False
+
+            self.__state = self.STATE_IN_RUN
+            logging.debug("*** FoundRun -> True")
+            return True
+        elif self.__state == self.STATE_IN_RUN:
+            if self.__stop is None or mtime <= self.__stop:
+                # continue processing SuperSaver files
+                logging.debug("*** InRun -> False")
+                return False
+
+            logging.debug("*** PastRun -> True")
+            return True
+        else:
+            raise Exception("Unknown state %s (type %s)" %
+                            (self.__state, type(self.__state)))
+
+    def in_range(self, mtime):
+        return mtime >= self.__start and \
+          (self.__stop is None or mtime <= self.__stop)
+
+    @property
+    def state(self):
+        if self.__state == self.STATE_PRESTART:
+            return "<prestart>"
+        elif self.__state == self.STATE_IN_RUN:
+            return "<in_run>"
+        return "<??%s??>" % str(self.__state)
+
+
+def init_logging(log_level):
+    """
+    Write log messages to "process2nd.log", using the (optional) level
+    specified in the 'log_level' string.
+    Throw Exception if 'log_level' is not a valid logging level
+    """
+    default_level = logging.WARNING
+
+    # convert the logging level string into a 'logging' attribute
+    if log_level is None:
+        py_level = default_level
+    else:
+        py_level = getattr(logging, log_level.upper(), None)
+        if py_level is None:
+            raise Exception("Invalid log level \"%s\"" % str(log_level))
+
+    # configure logging
+    logging.basicConfig(filename="process2nd.log", level=py_level)
+
+
 def is_target_file(filename):
     "Does this file start with 'moni', 'sn', or 'tcal'?"
     if filename is None:
@@ -37,24 +195,81 @@ def is_target_file(filename):
         filename.startswith("tcal_")
 
 
-def process_files(filelist, verbose=False, dry_run=False,
-                  enable_moni_link=False, create_icetop_hdf5=False):
+def process_files(spade_dir, create_icetop_hdf5=False, dry_run=False,
+                  enable_moni_link=False, log_level=None, verbose=False):
+
+    os.chdir(spade_dir)
+
+    init_logging(log_level)
+
+    # Get list of available files matching target tar pattern,
+    # along with their modification times
+    filedict = {}
+    supersaver = SuperSaver()
+    for fname in os.listdir(spade_dir):
+        if is_target_file(fname):
+            filedict[fname] = os.stat(fname).st_mtime
+        else:
+            # check for SuperSaver start/stop sentinal files
+            supersaver.check_file(fname)
+
+    if not supersaver.find_first_time():
+        supersaver = None
+    else:
+        logging.debug("Found supersaver %s", str(supersaver))
+
     # Make list for tarball - restrict total number of files
     files_to_tar = []
+    files_to_remove = []
     moni_files = []
-    while len(filelist) > 0:
-        files_to_tar.append(filelist[0])
-        if create_icetop_hdf5 and filelist[0].startswith("moni_"):
-            moni_files.append(filelist[0])
-        del filelist[0]
+    for name, mtime in sorted(list(filedict.items()), key=lambda x: x[1]):
+        logging.debug("Checking file %s(%s)", name, mtime)
+        if supersaver is not None:
+            if supersaver.found_group_end(mtime):
+                # if we're in a new group and the new time is outside the
+                # current range, we must have *just* finished a set of
+                # SuperSaver files
+                do_extra_link = not supersaver.in_range(mtime)
+                logging.debug("New group for %s (%sSuperSaver)",
+                              name, "" if do_extra_link else "!")
+
+                # process this group of files
+                if len(files_to_tar) > 0:
+                    create_tar_and_sem_files(files_to_tar, verbose=verbose,
+                                             dry_run=dry_run,
+                                             enable_moni_link=enable_moni_link,
+                                             is_supersaver=do_extra_link)
+
+                # wait a second so the next file has a unique name
+                time.sleep(1)
+
+                # remember the processed files
+                files_to_remove += files_to_tar
+
+                # clear the list of files to process
+                del files_to_tar[:]
+
+                if not supersaver.clear_group(mtime, verbose=verbose,
+                                              dry_run=dry_run):
+                    logging.debug("Finished SuperSaver data before %s(%s)",
+                                  name, mtime)
+                    supersaver = None
+
+        files_to_tar.append(name)
+        if create_icetop_hdf5 and name.startswith("moni_"):
+            moni_files.append(name)
         if len(files_to_tar) >= MAX_FILES_PER_TARBALL:
+            logging.debug("Found maximum %d files for current tarball",
+                          len(files_to_tar))
             break
 
-    if len(files_to_tar) == 0:
-        return False
+    if len(files_to_tar) != 0:
+        do_extra_link = supersaver is not None
 
-    create_tar_and_sem_files(files_to_tar, verbose=verbose, dry_run=dry_run,
-                             enable_moni_link=enable_moni_link)
+        create_tar_and_sem_files(files_to_tar, verbose=verbose,
+                                 dry_run=dry_run,
+                                 enable_moni_link=enable_moni_link,
+                                 is_supersaver=do_extra_link)
 
     if create_icetop_hdf5 and len(moni_files) > 0:
         # read in default-dom-geometry.xml
@@ -67,7 +282,7 @@ def process_files(filelist, verbose=False, dry_run=False,
                                  dry_run=dry_run)
 
     # Clean up tar'ed files
-    for fname in files_to_tar:
+    for fname in files_to_tar + files_to_remove:
         if verbose:
             print("Removing %s..." % (fname, ))
         if not dry_run:
@@ -77,9 +292,10 @@ def process_files(filelist, verbose=False, dry_run=False,
 
 
 def create_tar_and_sem_files(files_to_tar, verbose=False, dry_run=False,
-                             enable_moni_link=False):
+                             enable_moni_link=False, is_supersaver=False):
     if verbose:
         print("Found %d files" % len(files_to_tar))
+
     now = datetime.datetime.now()
     date_tag = "%03d_%04d%02d%02d_%02d%02d%02d_%06d" % \
         (0, now.year, now.month, now.day, now.hour, now.minute, now.second, 0)
@@ -89,6 +305,9 @@ def create_tar_and_sem_files(files_to_tar, verbose=False, dry_run=False,
     monilink = front + ".mon.tar"
     moni_sem = front + ".msem"
     snlink = front + ".sn.tar"
+    savelink = front + ".save.tar"
+
+    logging.debug("Writing %d files to %s", len(files_to_tar), front)
 
     # Duplicate file: wait for a new second, recalculate everything:
     if os.path.exists(spade_tar):
@@ -104,7 +323,8 @@ def create_tar_and_sem_files(files_to_tar, verbose=False, dry_run=False,
             tarball = tarfile.open(tmp_tar, "w")
         for tfile in files_to_tar:
             if verbose:
-                print("  " + tfile)
+                print("  %s" % str(tfile))
+            logging.debug("++ %s" % str(tfile))
             if not dry_run:
                 tarball.add(tfile)
         if not dry_run:
@@ -134,7 +354,11 @@ def create_tar_and_sem_files(files_to_tar, verbose=False, dry_run=False,
     if not dry_run:
         os.link(spade_tar, snlink)
         # So that SN process can delete if it's not running as pdaq
-        os.chmod(snlink, 0666)
+        os.chmod(snlink, 0o666)
+
+    # Create SuperSaver link, if requested
+    if is_supersaver:
+        os.link(spade_tar, savelink)
 
     # Create spade .sem
     if not dry_run:
@@ -146,22 +370,7 @@ def create_tar_and_sem_files(files_to_tar, verbose=False, dry_run=False,
         sem = open(moni_sem, "w")
         sem.close()
 
-
-def main(spade_dir, verbose=False, dry_run=False, enable_moni_link=False,
-         create_icetop_hdf5=False):
-    os.chdir(spade_dir)
-
-    # Get list of available files, matching target tar pattern:
-    filelist = []
-    for fname in os.listdir(spade_dir):
-        if is_target_file(fname):
-            filelist.append(fname)
-
-    filelist.sort(lambda x, y: (cmp(os.stat(x)[8], os.stat(y)[8])))
-
-    process_files(filelist, verbose=verbose, dry_run=dry_run,
-                  enable_moni_link=enable_moni_link,
-                  create_icetop_hdf5=create_icetop_hdf5)
+    return False
 
 
 if __name__ == "__main__":
@@ -177,6 +386,10 @@ if __name__ == "__main__":
     op.add_argument("-d", "--spadedir", dest="spadedir",
                     action="store", default=None,
                     help="SPADE directory")
+    op.add_argument("-l", "--log-level", dest="log_level",
+                    action="store", default=None,
+                    help="Logging level (DEBUG, INFO, WARNING, ERROR,"
+                    " CRITICAL)")
     op.add_argument("-m", "--enable-moni-link", dest="enable_moni_link",
                     action="store_true", default=False,
                     help="Include moni files and create a moni link")
@@ -202,6 +415,7 @@ if __name__ == "__main__":
     # adding the same files to different tar files
     guard_file = os.path.join(os.environ["HOME"], ".proc2ndbld.pid")
     with exclusive_process(guard_file):
-        main(spade_dir, verbose=args.verbose, dry_run=args.dry_run,
-             enable_moni_link=args.enable_moni_link,
-             create_icetop_hdf5=args.create_icetop_hdf5)
+        process_files(spade_dir, create_icetop_hdf5=args.create_icetop_hdf5,
+                      dry_run=args.dry_run,
+                      enable_moni_link=args.enable_moni_link,
+                      log_level=args.log_level, verbose=args.verbose)

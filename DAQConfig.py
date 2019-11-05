@@ -414,6 +414,7 @@ class DAQConfig(ConfigObject):
         self.noise_rate = None
         self.excluded_doms = []
         self.strict = strict
+        self.is_supersaver = False
 
         super(DAQConfig, self).__init__(cfgdir, filename)
 
@@ -833,6 +834,8 @@ class DAQConfig(ConfigObject):
                 if self.noise_rate is None:
                     raise DAQConfigException("No noise rate in %s"
                                              " <randomConfig>" % self.filename)
+            elif key == 'supersaver':
+                self.is_supersaver = True
             else:
                 # an 'OTHER' object
                 self.other_objs.append((key, val))

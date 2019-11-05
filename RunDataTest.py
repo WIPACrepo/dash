@@ -112,12 +112,17 @@ class TinyMoniClient(object):
 
 
 class TinyRunConfig(object):
-    def __init__(self, basename):
+    def __init__(self, basename, supersaver=False):
         self.__basename = basename
+        self.__supersaver = supersaver
 
     @property
     def basename(self):
         return self.__basename
+
+    @property
+    def is_supersaver(self):
+        return self.__supersaver
 
 
 class TinyRunSet(object):

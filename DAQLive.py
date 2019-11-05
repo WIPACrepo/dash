@@ -357,23 +357,39 @@ class DAQLive(LiveComponent):
     def running(self, retry=True):
         # if the runset was destroyed, forget about it
         if self.__runSet is not None and self.__runSet.isDestroyed:
+            self.__log.error("DAQLive.running() throwing away destroyed"
+                             " runset")
             self.__runSet = None
 
         # this method doesn't start a thread, so we provide a fake name
-        chkval = self.__check_active_thread("Fake Thread Name")
-        if chkval is not None:
-            return chkval
+        # it *should* always return None or INCOMPLETE
+        if self.__thread is not None:
+            self.__log.error("DAQLive.running() is ignoring old thread %s" %
+                             str(self.__thread))
+            try:
+                _ = self.__check_active_thread("Fake Thread Name")
+            except:
+                self.__log.error("DAQLive.running() dying due to check_thread"
+                                 " exception\n" + traceback.format_exc())
+                raise
 
         if self.__runSet is None:
+            self.__log.error("DAQLive.running() dying due to missing runset")
             raise LiveException("Cannot check run state; no active runset")
 
         if not self.__runSet.isRunning:
+            self.__log.error("DAQLive.running() dying due to stopped runset")
             raise LiveException("%s is not running (state = %s)" %
                                 (self.__runSet, self.__runSet.state))
 
         if self.__moniTimer.isTime():
-            self.__moniTimer.reset()
-            self.__runSet.send_event_counts()
+            try:
+                self.__moniTimer.reset()
+                self.__runSet.send_event_counts()
+            except:
+                self.__log.error("DAQLive.running() dying due to moni"
+                                 " exception\n" + traceback.format_exc())
+                raise
 
         return True
 
@@ -448,13 +464,19 @@ class DAQLive(LiveComponent):
 
     def switchrun(self, stateArgs=None):
         if self.__runSet is None or self.__runSet.isDestroyed:
-            raise LiveException("Cannot stop run; no active runset")
+            raise LiveException("Cannot switch run; no active runset")
 
         if stateArgs is None or len(stateArgs) == 0:
-            raise LiveException("No stateArgs specified")
+            raise LiveException("No stateArgs specified for switchrun")
 
         chkval = self.__check_active_thread(SwitchThread.NAME)
         if chkval is not None:
+            if self.__thread is None:
+                self.__log.warn("SwitchRun is returning %s after ending"
+                                " thread" % str(chkval))
+            else:
+                self.__log.warn("SwitchRun is waiting for thread %s" %
+                                str(self.__thread.name))
             return chkval
 
         # reset recovery attempt counter
