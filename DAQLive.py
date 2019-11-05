@@ -465,13 +465,19 @@ class DAQLive(LiveComponent):
 
     def switchrun(self, stateArgs=None):
         if self.__runSet is None or self.__runSet.isDestroyed:
-            raise LiveException("Cannot stop run; no active runset")
+            raise LiveException("Cannot switch run; no active runset")
 
         if stateArgs is None or len(stateArgs) == 0:
-            raise LiveException("No stateArgs specified")
+            raise LiveException("No stateArgs specified for switchrun")
 
         chkval = self.__check_active_thread(SwitchThread.NAME)
         if chkval is not None:
+            if self.__thread is None:
+                self.__log.warn("SwitchRun is returning %s after ending"
+                                " thread" % str(chkval))
+            else:
+                self.__log.warn("SwitchRun is waiting for thread %s" %
+                                str(self.__thread.name))
             return chkval
 
         # reset recovery attempt counter
