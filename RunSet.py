@@ -606,6 +606,8 @@ class RunData(object):
                              (get_scmversion_str(info=version_info), ))
         self.__dashlog.error("Run configuration: %s" % (run_config.basename, ))
         self.__dashlog.error("Cluster: %s" % (cluster_config.description, ))
+        if run_config.is_supersaver:
+            self.__dashlog.error("** SuperSaver run **")
 
         self.__live_moni_client = None
 
@@ -917,6 +919,12 @@ class RunData(object):
 
         monitime = PayloadTime.toDateTime(last_pay_time)
         self.send_moni("runstop", data, prio=Prio.ITS, time=monitime)
+
+        if self.__run_config.is_supersaver:
+            self.error("SuperSaver run start: %s (%d)" %
+                       (first_dt, first_pay_time))
+            self.error("SuperSaver run stop : %s (%d)" %
+                       (last_dt, last_pay_time))
 
     def reset(self):
         pass
