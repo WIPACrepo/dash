@@ -1716,6 +1716,11 @@ class RunSet(object):
                 if len(result) == exp_num:
                     (physics_count, first_time, last_time, first_good,
                      last_good) = result
+                    if last_good == 0:
+                        run_data.error("Event builder reported [%s-%s]"
+                                       " for run %s good stop time" %
+                                       (first_good, last_good,
+                                        run-data.run_number))
                 else:
                     run_data.error(("Expected %d run %s data values from" +
                                     " %s, got %d (%s)") %
