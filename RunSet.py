@@ -1745,7 +1745,7 @@ class RunSet(object):
                         run_data.error("Event builder reported [%s-%s]"
                                        " for run %s good stop time" %
                                        (first_good, last_good,
-                                        run-data.run_number))
+                                        run_data.run_number))
                 else:
                     run_data.error(("Expected %d run %s data values from" +
                                     " %s, got %d (%s)") %
