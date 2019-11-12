@@ -261,8 +261,10 @@ class LiveState(object):
             match = self.ALERT_PAT.match(line)
             if match is None:
                 self.__logger.error("Unrecognized page: \"%s\"" % (line, ))
- 
+
             parseState = self.PARSE_PAGES
+
+            return self.PARSE_PAGES
 
         if line.find(": ") > 0:
             (front, back) = line.split(": ", 1)
