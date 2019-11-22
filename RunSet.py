@@ -1912,9 +1912,9 @@ class RunSet(object):
                                           self.__run_data, self.__run_data)
         good_thread.start()
 
-        # wait up to 10 seconds for the thread to finish
+        # wait up to 30 seconds for the thread to finish
         #
-        for _ in range(100):
+        for _ in range(300):
             if good_thread.finished:
                 break
             time.sleep(0.1)
