@@ -108,6 +108,70 @@ class BaseCmd(object):
         print("Not running '%s'" % cls.name())
 
 
+class CmdCopyFromHubs(BaseCmd):
+    @classmethod
+    def add_arguments(cls, parser):
+        from copy_from_hubs import add_arguments
+        add_arguments(parser)
+
+    @classmethod
+    def cmdtype(cls):
+        return cls.CMDTYPE_NONE
+
+    @classmethod
+    def description(cls):
+        "One-line description of this subcommand"
+        return "Copy HitSpool files from one or more hub to a local directory"
+
+    @classmethod
+    def is_valid_host(cls, args):
+        "HitSpool copies are done from hubs"
+        host = Machineid().hname
+        return not host.startswith("ichub") and not host.startswith("ithub")
+
+    @classmethod
+    def name(cls):
+        return "copy_from_hubs"
+
+    @classmethod
+    def run(cls, args):
+        from copy_from_hubs import CopyManager
+        mgr = CopyManager(args)
+        mgr.run()
+
+
+@command
+class CmdCopyHSFiles(BaseCmd):
+    @classmethod
+    def add_arguments(cls, parser):
+        from copy_hs_files import add_arguments
+        add_arguments(parser)
+
+    @classmethod
+    def cmdtype(cls):
+        return cls.CMDTYPE_NONE
+
+    @classmethod
+    def description(cls):
+        "One-line description of this subcommand"
+        return "Copy HitSpool files from a hub to a remote destination"
+
+    @classmethod
+    def is_valid_host(cls, args):
+        "HitSpool copies are done from hubs"
+        host = Machineid().hname
+        return host.startswith("ichub") or host.startswith("ithub")
+
+    @classmethod
+    def name(cls):
+        return "copy_hs_files"
+
+    @classmethod
+    def run(cls, args):
+        from copy_hs_files import copy_files_in_range
+        copy_files_in_range(args)
+
+
 @command
 class CmdDeploy(BaseCmd):
     @classmethod
