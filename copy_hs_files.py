@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+#
+# TODO: if missing, insert local SSH credentials into hub's ~/.ssh/known_hosts
+#       before doing rsyncs
 
 from __future__ import print_function
 
@@ -71,6 +74,201 @@ class HSCopyException(Exception):
     pass
 
 
+class HsCopier(object):
+    """
+    Copy all hitspool files in the time range to a subdirectory of
+    the destination.
+    """
+
+    def __init__(self, args):
+        if not args.force:
+            # this should only be run on a hub
+            hubname = hostname()
+            if not hubname.startswith("ichub") and \
+              not hubname.startswith("ithub"):
+                raise SystemExit("This command should only be run on a hub")
+
+        # get the IDs of all processes running this program
+        my_name = os.path.basename(sys.argv[0])
+        if my_name == "pdaq":
+            my_name = sys.argv[1]
+        pids = list(find_python_process(my_name))
+
+        if args.kill:
+            # kill other instances of this program
+            mypid = os.getpid()
+            for pid in pids:
+                if pid != mypid:
+                    # print("Killing %d..." % pid)
+                    os.kill(pid, signal.SIGHUP)
+            sys.exit(0)
+
+        # quit if there's another instance of this program
+        if len(pids) > 1:
+            raise SystemExit("Another copy of \"%s\" is running!" % my_name)
+
+        # load all arguments
+        (destination, start_ticks, stop_ticks, bwlimit, chunk_size, dry_run,
+         size_only, verbose) = process_args(args)
+
+        self.__destination = destination
+        self.__start_ticks = start_ticks
+        self.__stop_ticks = stop_ticks
+        self.__bwlimit = bwlimit
+        self.__chunk_size = chunk_size
+        self.__dry_run = dry_run
+        self.__size_only = size_only
+        self.__verbose = verbose
+
+        self.__proc = None
+
+    def __copy_files(self, spooldir, file_list):
+        """
+        Copy the files from the local 'spooldir' to the remote 'destination'
+        using 'rsync' with requested bandwidth limit
+        """
+        cmd_args = ["nice", "-19", "rsync", "-avv", "--partial",
+                    "--bwlimit=%s" % self.__bwlimit] + file_list
+        cmd_args.append(self.__destination)
+
+        if self.__dry_run:
+            print(" ".join(cmd_args))
+            return 0
+
+        self.__proc = subprocess.Popen(cmd_args, close_fds=True, cwd=spooldir,
+                                       stdout=subprocess.PIPE,
+                                       stderr=subprocess.PIPE)
+
+        select_err = False
+        rsync_err = False
+        while True:
+            reads = [self.__proc.stdout.fileno(), self.__proc.stderr.fileno()]
+            try:
+                ret = select.select(reads, [], [])
+            except select.error:
+                # quit if we've seen more than one error
+                if select_err:
+                    break
+                select_err = True
+                continue
+
+            for fno in ret[0]:
+                if fno == self.__proc.stdout.fileno():
+                    line = self.__proc.stdout.readline()
+                    if line != "":
+                        print("%s" % line)
+                        sys.stdout.flush()
+                    continue
+
+                if fno == self.__proc.stderr.fileno():
+                    line = self.__proc.stderr.readline().rstrip()
+                    if line != "":
+                        print("ERROR: %s" % line, file=sys.stderr)
+                        if line.find("rsync error") >= 0:
+                            rsync_err = True
+                    continue
+
+            if self.__proc.poll() is not None:
+                break
+
+        self.__proc.stdout.close()
+        self.__proc.stderr.close()
+
+        rtncode = self.__proc.wait()
+        if rtncode == 0:
+            if rsync_err:
+                print("YIKES: Saw 'rsync error' with rtncode 0!!",
+                      file=sys.stderr)
+                return -1
+        return rtncode
+
+    def __get_size(self, hs_spooldir, file_list):
+        "Get the total size in bytes for all files in <file_list>"
+
+        total_size = 0
+        for fname in file_list:
+            path = os.path.join(hs_spooldir, fname)
+            if self.__dry_run:
+                total_size += len(path)
+            else:
+                total_size += os.path.getsize(path)
+
+        return total_size
+
+
+    def __kill_with_signal(self, signum, frame):
+        self.__proc.kill()
+        sys.exit(0)
+
+    def __list_files(self, hs_spooldir="/mnt/data/pdaqlocal/hitspool",
+                        hs_dbfile="hitspool.db"):
+        """
+        Fetch list of files containing requested data from hitspool DB.
+        Return directory holding HS files, plus the list of files with
+        data in the requested range
+        """
+        dbpath = os.path.join(hs_spooldir, hs_dbfile)
+        if not os.path.exists(dbpath):
+            raise SystemExit("Cannot find DB file \"%s\" in %s" %
+                             (hs_dbfile, hs_spooldir))
+
+        conn = sqlite3.connect(dbpath)
+        try:
+            cursor = conn.cursor()
+
+            hs_files = []
+            for row in cursor.execute("select filename from hitspool"
+                                      " where stop_tick>=? "
+                                      " and start_tick<=?",
+                                      (self.__start_ticks, self.__stop_ticks)):
+                hs_files.append(row[0])
+
+        finally:
+            conn.close()
+
+        if hs_files is None or len(hs_files) == 0:
+            raise SystemExit("No data found between %s and %s" %
+                             (self.__start_ticks, self.__stop_ticks))
+
+        return hs_spooldir, hs_files
+
+    def run(self):
+        # fetch the list of files to copy
+        if not self.__dry_run:
+            hs_spooldir, file_list = self.__list_files()
+        else:
+            hs_spooldir = "/tmp/spool"
+            file_list = ["ONE", "TWO", "THREE"]
+
+        # if the process is killed, kill hub workers before quitting
+        signal.signal(signal.SIGINT, self.__kill_with_signal)
+        signal.signal(signal.SIGHUP, self.__kill_with_signal)
+
+        num_files = len(file_list)
+        total_size = 0
+        while len(file_list) > 0:
+            chunk = file_list[:self.__chunk_size]
+
+            if self.__size_only:
+                total_size += self.__get_size(hs_spooldir, chunk)
+            else:
+                for idx in range(5):
+                    rtncode = self.__copy_files(hs_spooldir, chunk)
+                    if rtncode == 0:
+                        if idx > 0:
+                            print("Copy attempt #%d succeeded" % idx,
+                                  file=sys.stderr)
+                        break
+
+                    print("Copy attempt #%d failed for %s" %
+                          (idx, ", ".join(chunk)), file=sys.stderr)
+
+            del file_list[:self.__chunk_size]
+
+        if self.__size_only:
+            print("Found %d bytes in %d files" % (total_size, num_files))
+
+
 def add_arguments(parser):
     "Add all arguments"
     parser.add_argument("-b", "--bwlimit", type=int, dest="bwlimit",
@@ -91,109 +289,13 @@ def add_arguments(parser):
     parser.add_argument("-n", "--dry-run", dest="dry_run",
                         action="store_true", default=False,
                         help="Dry run (do not actually change anything)")
+    parser.add_argument("-s", "--size-only", dest="size_only",
+                        action="store_true", default=False,
+                        help="Only gather total file size, don't copy anything")
     parser.add_argument("-v", "--verbose", dest="verbose",
                         action="store_true", default=False,
                         help="Print details")
     parser.add_argument(dest="positional", nargs="*")
-
-
-def copy_files_in_range(args):
-    """
-    Copy all hitspool files in the time range to a subdirectory of
-    the destination.
-    """
-    hubname = hostname()
-    if not args.force and not hubname.startswith("ichub") and \
-      not hubname.startswith("ithub"):
-        raise SystemExit("This command should only be run on a hub")
-
-    # get the IDs of all processes running this program
-    my_name = os.path.basename(sys.argv[0])
-    if my_name == "pdaq":
-        my_name = sys.argv[1]
-    pids = list(find_python_process(my_name))
-
-    if args.kill:
-        # kill other instances of this program
-        mypid = os.getpid()
-        for pid in pids:
-            if pid != mypid:
-                # print("Killing %d..." % pid)
-                os.kill(pid, signal.SIGKILL)
-        sys.exit(0)
-
-    # quit if there's another instance of this program
-    if len(pids) > 1:
-        raise SystemExit("Another copy of \"%s\" is running!" % my_name)
-
-    # load all arguments
-    destination, start_ticks, stop_ticks, bwlimit, chunk_size, dry_run, \
-      verbose = process_args(args)
-
-    if not dry_run:
-        hs_spooldir, file_list = list_hs_files(start_ticks, stop_ticks)
-    else:
-        hs_spooldir = "/tmp/spool"
-        file_list = ["ONE", "TWO", "THREE"]
-
-    while len(file_list) > 0:
-        chunk = file_list[:chunk_size]
-
-        rtncode = copy_hs_files(destination, hs_spooldir, chunk, bwlimit,
-                                dry_run=dry_run)
-        if rtncode != 0:
-            raise HSCopyException("Could not copy one or more files: %s" %
-                                  " ".join(chunk))
-
-        del file_list[:chunk_size]
-
-
-def copy_hs_files(destination, spooldir, file_list, bwlimit, dry_run=False):
-    """
-    Copy the files from the local 'spooldir' to the remote 'destination'
-    using 'rsync' with requested bandwidth limit
-    """
-    cmd_args = ["nice", "-19", "rsync", "-avv", "--partial",
-                "--bwlimit=%s" % bwlimit] + file_list
-    cmd_args.append(destination)
-
-    if dry_run:
-        print(" ".join(cmd_args))
-        return 0
-
-    proc = subprocess.Popen(cmd_args, bufsize=1, close_fds=True, cwd=spooldir,
-                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-    saw_err = False
-    while True:
-        reads = [proc.stdout.fileno(), proc.stderr.fileno()]
-        try:
-            ret = select.select(reads, [], [])
-        except select.error:
-            # quit if we've seen more than one error
-            if saw_err:
-                break
-            saw_err = True
-            continue
-
-        for fno in ret[0]:
-            if fno == proc.stdout.fileno():
-                line = proc.stdout.readline()
-                if line != "":
-                    print("%s" % line)
-                    sys.stdout.flush()
-            if fno == proc.stderr.fileno():
-                line = proc.stderr.readline().rstrip()
-                if line != "":
-                    print("ERROR: %s" % line, file=sys.stderr)
-
-        if proc.poll() is not None:
-            break
-
-    proc.stdout.close()
-    proc.stderr.close()
-
-    return proc.wait()
 
 
 def hostname():
@@ -205,51 +307,24 @@ def hostname():
     return pieces[0]
 
 
-def list_hs_files(start_ticks, stop_ticks,
-                  hs_spooldir="/mnt/data/pdaqlocal/hitspool",
-                  hs_dbfile="hitspool.db"):
-    """
-    Fetch list of files containing requested data from hitspool DB.
-    Return directory holding HS files, plus the list of files with
-    data in the requested range
-    """
-    dbpath = os.path.join(hs_spooldir, hs_dbfile)
-    if not os.path.exists(dbpath):
-        raise HSCopyException("Cannot find DB file in %s" % hs_spooldir)
-
-    conn = sqlite3.connect(dbpath)
-    try:
-        cursor = conn.cursor()
-
-        hs_files = []
-        for row in cursor.execute("select filename from hitspool"
-                                  " where stop_tick>=? "
-                                  " and start_tick<=?",
-                                  (start_ticks, stop_ticks)):
-            hs_files.append(row[0])
-
-    finally:
-        conn.close()
-
-    if hs_files is None or len(hs_files) == 0:
-        raise HSCopyException("No data found between %s and %s" %
-                              (start_ticks, stop_ticks))
-
-    return hs_spooldir, hs_files
-
-
 def process_args(args):
     """
-    Parse arguments
-    Return a tuple containing
-    (destination, start_ticks, stop_ticks, bwlimit, chunk_size, dry_run,
-     verbose)
+    Parse arguments and return a tuple containing:
+    destination - local directory
+    start_ticks - starting DAQ tick (integer value)
+    stop_ticks - ending DAQ tick (integer value)
+    bwlimit - 'rsync' bandwidth limit (if None, default will be used)
+    chunk_size - number of files to copy at a time (if None, uses default)
+    dry_run - if True, print what would be done but run anything
+    size_only - if True, report the total size to be copied but don't copy
+    verbose - if True, print status messages
     """
     # assign argument values
     bwlimit = args.bwlimit
     chunk_size = args.chunk_size
     destination = args.destination
     dry_run = args.dry_run
+    size_only = args.size_only
     verbose = args.verbose
 
     start_ticks = None
@@ -258,7 +333,7 @@ def process_args(args):
     # --kill ignores all other arguments
     if not args.kill:
         if len(args.positional) == 0:
-            raise HSCopyException("Please specify start and end times")
+            raise SystemExit("Please specify start and end times")
 
         # extract remaining values from positional parameters
         for arg in args.positional:
@@ -269,8 +344,8 @@ def process_args(args):
                     start_ticks = int(start_str)
                     stop_ticks = int(stop_str)
                 except:
-                    raise HSCopyException("Cannot extract start/stop times"
-                                          " from \"%s\"" % str(arg))
+                    raise SystemExit("Cannot extract start/stop times"
+                                     " from \"%s\"" % str(arg))
                 continue
 
             try:
@@ -284,19 +359,22 @@ def process_args(args):
             except ValueError:
                 pass
 
-            if destination is None:
-                destination = arg
-                continue
-
-            raise HSCopyException("Unrecognized argument \"%s\"" % arg)
+            raise SystemExit("Unrecognized argument \"%s\"" % arg)
 
         if start_ticks is None or stop_ticks is None:
-            raise HSCopyException("Please specify start/stop times")
-        elif destination is None:
-            raise HSCopyException("Please specify destination")
+            raise SystemExit("Please specify start/stop times")
+        elif not size_only and destination is None:
+            raise SystemExit("Please specify destination")
+
+        if start_ticks > stop_ticks:
+            print("WARNING: Start and stop times were reversed",
+                  file=sys.stderr)
+            tmp_ticks = start_ticks
+            start_ticks = stop_ticks
+            stop_ticks = tmp_ticks
 
     return (destination, start_ticks, stop_ticks, bwlimit, chunk_size, dry_run,
-            verbose)
+            size_only, verbose)
 
 
 def main():
@@ -305,7 +383,8 @@ def main():
     add_arguments(argp)
     args = argp.parse_args()
 
-    copy_files_in_range(args)
+    copier = HsCopier(args)
+    copier.run()
 
 
 if __name__ == "__main__":

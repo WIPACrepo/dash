@@ -104,6 +104,37 @@ class BaseCmd(object):
 
 
 @command
+class CmdCopy2ndSS(BaseCmd):
+    @classmethod
+    def add_arguments(cls, parser):
+        from copy_secondary_supersaver import add_arguments
+        add_arguments(parser)
+
+    @classmethod
+    def cmdtype(cls):
+        return cls.CMDTYPE_NONE
+
+    @classmethod
+    def description(cls):
+        "One-line description of this subcommand"
+        return "Copy SuperSaver secondary stream tarfiles to a local directory"
+
+    @classmethod
+    def is_valid_host(cls, args):
+        "Any host can copy SuperSaver data"
+        return True
+
+    @classmethod
+    def name(cls):
+        return "copy_secondary_supersaver"
+
+    @classmethod
+    def run(cls, args):
+        from copy_secondary_supersaver import copy_save_files
+        copy_save_files(args)
+
+
+@command
 class CmdCopyFromHubs(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):
@@ -121,9 +152,8 @@ class CmdCopyFromHubs(BaseCmd):
 
     @classmethod
     def is_valid_host(cls, args):
-        "HitSpool copies are done from hubs"
-        host = Machineid().hname
-        return not host.startswith("ichub") and not host.startswith("ithub")
+        "Any host can copy HitSpool data"
+        return True
 
     @classmethod
     def name(cls):
@@ -164,8 +194,9 @@ class CmdCopyHSFiles(BaseCmd):
 
     @classmethod
     def run(cls, args):
-        from copy_hs_files import copy_files_in_range
-        copy_files_in_range(args)
+        from copy_hs_files import HsCopier
+        copier = HsCopier(args)
+        copier.run()
 
 
 @command
