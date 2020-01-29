@@ -172,14 +172,19 @@ class DAQLiveTest(unittest.TestCase):
         self.__live = DAQLive(cnc, log, timeout=1)
         return self.__live
 
+    @property
     def __imported_live(self):
-        if not LIVE_IMPORT:
-            global WARNED
-            if not WARNED:
-                WARNED = True
-                print("No I3Live Python code found, cannot run tests",
-                      file=sys.stderr)
-            return False
+        global WARNED
+
+        if LIVE_IMPORT:
+            return True
+
+        if not WARNED:
+            WARNED = True
+            print("No I3Live Python code found, cannot run tests",
+                  file=sys.stderr)
+
+        return False
 
     def __waitForComplete(self, func, *args, **kwargs):
         if "expectedException" not in kwargs:
