@@ -1720,7 +1720,7 @@ class MockComponent(Comparable):
     def set_first_good_time(self, time):
         self.__firstGoodTime = time
 
-    def setHangType(self, hangType):
+    def set_hang_type(self, hangType):
         self.__hangType = hangType
 
     def set_last_good_time(self, time):

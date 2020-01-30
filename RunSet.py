@@ -348,15 +348,16 @@ class GoodTimeThread(CnCThread):
             for num in range(self.MAX_ATTEMPTS):
                 complete = self.__fetch_time()
                 loud = False
-                if loud and (complete or self.__stopped):
-                    if complete:
-                        status = "complete"
-                    elif self.__stopped:
-                        status = "stopped"
-                    else:
-                        status = "unknown"
-                    self.__log.error("GetGoodTime %s after %d attempts" %
-                                     (status, num))
+                if complete or self.__stopped:
+                    if loud:
+                        if complete:
+                            status = "complete"
+                        elif self.__stopped:
+                            status = "stopped"
+                        else:
+                            status = "unknown"
+                        print >>sys.stderr, \
+                          "GetGoodTime %s after %d attempts" % (status, num)
                     # we're done, break out of the loop
                     break
                 time.sleep(0.1)
@@ -364,7 +365,11 @@ class GoodTimeThread(CnCThread):
             self.__log.error("Couldn't find %s: %s" %
                              (self.moniname, exc_string()))
 
-        self.__final_time = self.__good_time
+        if self.__good_time is None:
+            good_val = "unknown"
+        else:
+            good_val = self.__good_time
+        self.__final_time = good_val
 
         if len(self.__bad_comps) > 0:
             keylist = list(self.__bad_comps.keys())
@@ -372,10 +377,6 @@ class GoodTimeThread(CnCThread):
             self.__log.error("Couldn't find %s for %s" %
                              (self.moniname, comp_str))
 
-        if self.__good_time is None:
-            good_val = "unknown"
-        else:
-            good_val = self.__good_time
         self.__runset.report_good_time(self.__data, self.moniname, good_val)
 
     def beanfield(self):
@@ -1890,12 +1891,15 @@ class RunSet(object):
 
         self.__stop_log_servers(old_servers)
 
-        self.__run_data.error("Starting run %d..." %
-                              (self.__run_data.run_number, ))
-
         src_set, middle_set, bldr_set = self.__build_start_sets()
         other_set = bldr_set + middle_set
 
+        if len(src_set) == 0:
+            raise ConnectionException("Cannot start run %d; no sources found!" %
+                                      (self.__run_data.run_number, ))
+
+        self.__run_data.error("Starting run %d..." %
+                              (self.__run_data.run_number, ))
         self.__state = RunSetState.STARTING
 
         # start non-sources
