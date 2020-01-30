@@ -4,6 +4,7 @@ import sys
 
 from CnCTask import CnCTask, TaskException
 from CnCThread import CnCThread
+from Component import Component
 from ComponentManager import ComponentManager
 from decorators import classproperty
 from i3helper import Comparable, reraise_excinfo
@@ -525,48 +526,11 @@ class WatchdogThread(CnCThread):
         return self.__threshold[:]
 
 
-class DummyComponent(object):
-    "Placeholder for non-component things like 'dom' or 'dispatch'"
-
-    def __init__(self, name):
-        "Create a dummy component"
-        self.__name = name
-        self.__order = None
-
-    def __str__(self):
-        "Return this component's name"
-        return self.__name
-
-    @property
-    def fullname(self):
-        "Return the full component name (type#number)"
-        return self.__name
-
-    @property
-    def is_builder(self):
-        "Return True if this is an eventBuilder or secondaryBuilder component"
-        return False
-
-    @property
-    def is_source(self):
-        "Return True if this is a source component"
-        return False
-
-    @property
-    def order(self):
-        "Return the order of this component in the DAQ 'supply chain'"
-        return self.__order
-
-    def set_order(self, num):
-        "Set the order for this component"
-        self.__order = num
-
-
 class WatchdogRule(object):
     "Base class for all watchdog rules"
 
-    DOM_COMP = DummyComponent("dom")
-    DISPATCH_COMP = DummyComponent("dispatch")
+    DOM_COMP = Component("dom", -9)
+    DISPATCH_COMP = Component("dispatch", -10)
 
     def __str__(self):
         "Return the name of this rule"

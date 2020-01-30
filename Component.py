@@ -10,6 +10,7 @@ class Component(object):
         self.__id = id
         self.__log_level = log_level
         self.__host = host
+        self.__order = None
 
     def __lt__(self, other):
         if self.__name < other.name:
@@ -73,6 +74,11 @@ class Component(object):
         return self.__name.lower() == "stringhub" and self.__id < 1000
 
     @property
+    def is_source(self):
+        "Return True if this is a source component"
+        return self.is_hub
+
+    @property
     def is_trigger(self):
         "Return True if this is a trigger component"
         return self.__name.lower().find("trigger") >= 0
@@ -81,6 +87,11 @@ class Component(object):
     def log_level(self):
         "Return the logging level for this component"
         return self.__log_level
+
+    @log_level.setter
+    def log_level(self, lvl):
+        "Set the logging level for this component"
+        self.__log_level = lvl
 
     @property
     def name(self):
@@ -92,7 +103,11 @@ class Component(object):
         "Component instance number"
         return self.__id
 
-    @log_level.setter
-    def log_level(self, lvl):
-        "Set the logging level for this component"
-        self.__log_level = lvl
+    @property
+    def order(self):
+        "Return the order of this component in the DAQ 'supply chain'"
+        return self.__order
+
+    def set_order(self, num):
+        "Set the order for this component"
+        self.__order = num
