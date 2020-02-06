@@ -202,7 +202,7 @@ class leapseconds(object):
             mjd2 = MJD(self.__base_offset_year + 1, 1, 1)
 
             total_seconds = int(mjd2.value - mjd1.value) * 3600 * 24
-            self.__leap_offsets[idx].set_total_seconds(total_seconds)
+            self.__leap_offsets[idx].total_seconds = total_seconds
             mjd1 = mjd2
 
     def __is_config_dir(self, config_dir):
@@ -308,12 +308,13 @@ class LeapOffsets(object):
     def initial_offset(self):
         return self.__initial_offset
 
-    def set_total_seconds(self, value):
-        self.__total_seconds = value
-
     @property
     def total_seconds(self):
         return self.__total_seconds
+
+    @total_seconds.setter
+    def total_seconds(self, value):
+        self.__total_seconds = value
 
 
 class NISTParser(object):

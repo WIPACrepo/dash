@@ -13,8 +13,8 @@ LOUD = False
 
 
 class MyDAQPool(DAQPool):
-    def returnRunsetComponents(self, rs, verbose=False, kill_with_9=True,
-                               event_check=False):
+    def return_runset_components(self, rs, verbose=False, kill_with_9=True,
+                                 event_check=False):
         rs.return_components(self, None, None, None, None, None,
                              verbose=verbose, kill_with_9=kill_with_9,
                              event_check=event_check)
@@ -54,8 +54,8 @@ class Node(object):
         Node.CONN_PORT -= 1
         return port
 
-    def link(self, comp, ioType, isOutput):
-        if isOutput:
+    def link(self, comp, ioType, is_output):
+        if is_output:
             links = self.outLinks
         else:
             links = self.inLinks
@@ -86,39 +86,39 @@ class ConnectionTest(unittest.TestCase):
                                    node.getConnections(), nodeLog[key],
                                    node.outLinks, extra_loud=extra_loud))
             port -= 1
-        self.assertEqual(pool.numComponents(), len(nodeList))
+        self.assertEqual(pool.num_components, len(nodeList))
 
         if LOUD:
-            print('-- Pool has %s comps' % pool.numComponents())
+            print('-- Pool has %s comps' % pool.num_components)
             for c in pool.components():
                 print('    %s' % str(c))
 
-        numComps = pool.numComponents()
+        numComps = pool.num_components
 
         nameList = []
         for node in nodeList:
             nameList.append(node.name + '#' + str(node.num))
 
-        rcFile = MockRunConfigFile(self.__runConfigDir)
-        runConfig = rcFile.create(nameList, {})
+        rcFile = MockRunConfigFile(self.__run_config_dir)
+        run_config = rcFile.create(nameList, {})
 
         logger = MockLogger('main')
         logger.addExpectedExact("Loading run configuration \"%s\"" %
-                                runConfig)
-        logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
+                                run_config)
+        logger.addExpectedExact("Loaded run configuration \"%s\"" % run_config)
         logger.addExpectedRegexp(r"Built runset #\d+: .*")
 
-        daqDataDir = None
+        daq_data_dir = None
 
-        runset = pool.makeRunset(self.__runConfigDir, runConfig, 0, 0,
-                                 logger, daqDataDir, forceRestart=False,
-                                 strict=False)
+        runset = pool.make_runset(self.__run_config_dir, run_config, 0, 0,
+                                  logger, daq_data_dir, force_restart=False,
+                                  strict=False)
 
         chkId = ConnectionTest.EXP_ID
         ConnectionTest.EXP_ID += 1
 
-        self.assertEqual(pool.numUnused(), 0)
-        self.assertEqual(pool.numSets(), 1)
+        self.assertEqual(pool.num_unused, 0)
+        self.assertEqual(pool.num_sets, 1)
         self.assertEqual(pool.runset(0), runset)
 
         self.assertEqual(runset.id, chkId)
@@ -150,7 +150,7 @@ class ConnectionTest(unittest.TestCase):
             for typ in node.outLinks:
                 conn = None
                 for c in compConn:
-                    if not c.isInput and c.name == typ:
+                    if not c.is_input and c.name == typ:
                         conn = c
                         compConn.remove(c)
                         break
@@ -163,7 +163,7 @@ class ConnectionTest(unittest.TestCase):
             for typ in node.inLinks:
                 conn = None
                 for c in compConn:
-                    if c.isInput and c.name == typ:
+                    if c.is_input and c.name == typ:
                         conn = c
                         compConn.remove(c)
                         break
@@ -188,9 +188,9 @@ class ConnectionTest(unittest.TestCase):
             for key in nodeLog:
                 nodeLog[key].addExpectedExact('End of log')
                 nodeLog[key].addExpectedExact('Reset log to ?LOG?')
-        pool.returnRunset(runset, logger)
-        self.assertEqual(pool.numComponents(), numComps)
-        self.assertEqual(pool.numSets(), 0)
+        pool.return_runset(runset, logger)
+        self.assertEqual(pool.num_components, numComps)
+        self.assertEqual(pool.num_sets, 0)
 
         logger.checkStatus(10)
 
@@ -198,11 +198,11 @@ class ConnectionTest(unittest.TestCase):
             nodeLog[key].checkStatus(10)
 
     def setUp(self):
-        self.__runConfigDir = tempfile.mkdtemp()
+        self.__run_config_dir = tempfile.mkdtemp()
 
     def tearDown(self):
-        if self.__runConfigDir is not None:
-            shutil.rmtree(self.__runConfigDir, ignore_errors=True)
+        if self.__run_config_dir is not None:
+            shutil.rmtree(self.__run_config_dir, ignore_errors=True)
 
     def testSimple(self):
         # build nodes

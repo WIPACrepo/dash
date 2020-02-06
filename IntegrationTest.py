@@ -392,18 +392,18 @@ class MostlyCnCServer(CnCServer):
             live_host = 'localhost'
 
         super(MostlyCnCServer, self).__init__(name=MostlyCnCServer.SERVER_NAME,
-                                              copyDir=copy_dir,
-                                              defaultLogDir=default_log_dir,
-                                              runConfigDir=run_config_dir,
-                                              daqDataDir=daq_data_dir,
-                                              spadeDir=spade_dir,
-                                              logIP=log_host,
-                                              logPort=log_port,
-                                              liveIP=live_host,
-                                              livePort=live_port,
-                                              forceRestart=False, quiet=True)
+                                              copy_dir=copy_dir,
+                                              default_log_dir=default_log_dir,
+                                              run_config_dir=run_config_dir,
+                                              daq_data_dir=daq_data_dir,
+                                              spade_dir=spade_dir,
+                                              log_host=log_host,
+                                              log_port=log_port,
+                                              live_host=live_host,
+                                              live_port=live_port,
+                                              force_restart=False, quiet=True)
 
-    def createClient(self, name, num, host, port, mbean_port, connectors):
+    def create_client(self, name, num, host, port, mbean_port, connectors):
         if self.__live_only:
             appender = None
         else:
@@ -425,10 +425,10 @@ class MostlyCnCServer(CnCServer):
         return MockCnCLogger(key, appender=MostlyCnCServer.APPENDERS[key],
                              quiet=quiet)
 
-    def getClusterConfig(self, runConfig=None):
+    def get_cluster_config(self, run_config=None):
         return self.__cluster_config
 
-    def createRunset(self, run_config, comp_list, logger):
+    def create_runset(self, run_config, comp_list, logger):
         self.__runset = MostlyRunSet(self, run_config, comp_list, logger,
                                      dash_appender=self.__dash_appender)
         return self.__runset
@@ -439,26 +439,26 @@ class MostlyCnCServer(CnCServer):
     def getRunSet(self):
         return self.__runset
 
-    def monitorLoop(self):
+    def monitor_loop(self):
         pass
 
-    def openLogServer(self, port, log_dir):
+    def open_log_server(self, port, log_dir):
         self.__log_server = SocketReader("CnCDefault", port)
 
         msg = "Start of log at LOG=log(localhost:%d)" % port
         self.__log_server.addExpectedText(msg)
-        msg = get_scmversion_str(info=self.versionInfo())
+        msg = get_scmversion_str(info=self.version_info())
         self.__log_server.addExpectedText(msg)
 
         return self.__log_server
 
-    def saveCatchall(self, run_dir):
+    def save_catchall(self, run_dir):
         pass
 
     def set_dash_appender(self, dash_appender):
         self.__dash_appender = dash_appender
 
-    def startLiveThread(self):
+    def start_live_thread(self):
         return None
 
 
@@ -633,7 +633,7 @@ class RealComponent(Comparable):
 
         return self.__fix_value(val)
 
-    def __get_run_data(self, runnum):
+    def __get_run_data(self, run_num):
         if self.__run_data is None:
             raise Exception("RunData has not been set")
         return self.__fix_value(self.__run_data)
@@ -818,42 +818,42 @@ class RealComponent(Comparable):
         return self.__get_state()
 
     @property
-    def hitspoolDirectory(self):
+    def hitspool_directory(self):
         return self.__hs_dir
 
     @property
-    def hitspoolInterval(self):
+    def hitspool_interval(self):
         return self.__hs_interval
 
     @property
-    def hitspoolMaxFiles(self):
+    def hitspool_max_files(self):
         return self.__hs_max_files
 
     def is_component(self, name, num=-1):
         return self.__name == name and (num < 0 or self.__num == num)
 
     @property
-    def jvmArgs(self):
+    def jvm_args(self):
         return self.__jvm_args
 
     @property
-    def jvmExtraArgs(self):
+    def jvm_extra_args(self):
         return self.__jvm_extra_args
 
     @property
-    def jvmHeapInit(self):
+    def jvm_heap_init(self):
         return self.__jvm_heap_init
 
     @property
-    def jvmHeapMax(self):
+    def jvm_heap_max(self):
         return self.__jvm_heap_max
 
     @property
-    def jvmPath(self):
+    def jvm_path(self):
         return self.__jvm_path
 
     @property
-    def jvmServer(self):
+    def jvm_server(self):
         return self.__jvm_server
 
     @property
@@ -1044,8 +1044,8 @@ class IntegrationTest(unittest.TestCase):
         clu_cfg = MockClusterConfig(IntegrationTest.CLUSTER_CONFIG,
                                     IntegrationTest.CLUSTER_DESC)
         for comp in self.__comp_list:
-            clu_cfg.addComponent(comp.fullname, comp.jvmPath, comp.jvmArgs,
-                                 "localhost")
+            clu_cfg.add_component(comp.fullname, comp.jvm_path, comp.jvm_args,
+                                  "localhost")
 
         if RunOption.is_log_to_file(run_options) or live_run_only:
             log_port = DAQPort.CATCHALL
@@ -1198,7 +1198,7 @@ class IntegrationTest(unittest.TestCase):
         finally:
             time.sleep(0.4)
 
-            cnc.closeServer()
+            cnc.close_server()
 
     def __set_bean_data(self, comp_name, comp_num, bean_name, field_name,
                         value):
@@ -1298,7 +1298,7 @@ class IntegrationTest(unittest.TestCase):
 
         msg_list = [
             ('Version info: ' +
-             get_scmversion_str(info=cnc.versionInfo())),
+             get_scmversion_str(info=cnc.version_info())),
             'Starting run %d...' % run_num,
             'Run configuration: %s' % config_name
         ]
@@ -1698,7 +1698,7 @@ class IntegrationTest(unittest.TestCase):
         if log_server:
             log_server.checkStatus(10)
 
-        cnc.updateRates(set_id)
+        cnc.update_rates(set_id)
 
         moni = cnc.rpc_runset_monitor_run(set_id, run_num)
         self.assertFalse(moni is None, 'rpc_run_monitoring returned None')
@@ -1749,7 +1749,7 @@ class IntegrationTest(unittest.TestCase):
             log_server.checkStatus(10)
 
     @staticmethod
-    def __wait_for_empty_log(log, err_msg):
+    def __wait_for_empty_log(log, errmsg):
         for _ in range(5):
             if log.isEmpty:
                 break
@@ -1822,7 +1822,7 @@ class IntegrationTest(unittest.TestCase):
             for comp in self.__comp_list:
                 comp.close()
         if self.__cnc is not None:
-            self.__cnc.closeServer()
+            self.__cnc.close_server()
         if self.__live is not None:
             self.__live.close()
 

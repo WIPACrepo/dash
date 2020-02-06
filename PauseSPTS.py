@@ -9,7 +9,7 @@ from RestartSPTS import isSPTSActive
 
 
 # stolen from live/misc/util.py
-def getDurationFromString(s):
+def get_duration_from_string(s):
     """
     Return duration in seconds based on string <s>
     """
@@ -48,7 +48,7 @@ if __name__ == "__main__":
         raise SystemExit("Usage: %s minutes-to-pause" % sys.argv[0])
 
     try:
-        minutes = getDurationFromString(sys.argv[1]) / 60
+        minutes = get_duration_from_string(sys.argv[1]) / 60
     except:
         raise SystemExit("%s: Bad duration \"%s\"" %
                          (sys.argv[0], sys.argv[1]))

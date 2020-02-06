@@ -58,7 +58,7 @@ class MyParent(object):
     def __init__(self):
         pass
 
-    def saveCatchall(self, run_dir):
+    def save_catchall(self, run_dir):
         pass
 
 
@@ -148,7 +148,7 @@ class FakeRunData(object):
         self.__logger.info(logmsg)
 
     @property
-    def isDestroyed(self):
+    def is_destroyed(self):
         return self.__logger is not None
 
     @property
@@ -193,10 +193,16 @@ class FakeRunData(object):
     def send_event_counts(self, run_set=None):
         pass
 
+    @property
     def set_finished(self):
         self.__finished = True
 
-    def set_subrun_number(self, num):
+    @property
+    def subrun_number(self, num):
+        pass
+
+    @subrun_number.setter
+    def subrun_number(self, num):
         pass
 
     def set_mock_logger(self, logger):
@@ -227,7 +233,7 @@ class MyRunSet(RunSet):
 
     @classmethod
     def cycle_components(cls, comp_list, config_dir, daq_data_dir, logger,
-                         log_port, livePort, verbose=False, kill_with_9=False,
+                         log_port, live_port, verbose=False, kill_with_9=False,
                          event_check=False, check_exists=True):
         pass
 
@@ -328,8 +334,8 @@ class TestRunSet(unittest.TestCase):
 
         cluster_cfg = MockClusterConfig("CC-" + base_name)
         for comp in comp_list:
-            cluster_cfg.addComponent(comp.fullname, jvm_path, jvm_args,
-                                     "host-" + comp.fullname)
+            cluster_cfg.add_component(comp.fullname, jvm_path, jvm_args,
+                                      "host-" + comp.fullname)
 
         return cluster_cfg
 
@@ -339,7 +345,7 @@ class TestRunSet(unittest.TestCase):
         num = 1
         for name in name_list:
             comp = MockComponent(name, num)
-            comp.set_order(num)
+            comp.order = num
             comp_list.append(comp)
             num += 1
 
@@ -397,9 +403,9 @@ class TestRunSet(unittest.TestCase):
 
     def __is_comp_list_running(self, comp_list, run_num=-1):
         for comp in comp_list:
-            if comp.runNum is None:
+            if comp.run_number is None:
                 return False
-            if comp.runNum != run_num:
+            if comp.run_number != run_num:
                 return False
 
         return True
@@ -409,7 +415,7 @@ class TestRunSet(unittest.TestCase):
 
         num = 1
         for comp in comp_list:
-            comp.set_order(num)
+            comp.order = num
             num += 1
 
         run_config = FakeRunConfig(None, "XXXrunSubXXX")
@@ -509,7 +515,7 @@ class TestRunSet(unittest.TestCase):
         num = 1
         sources = 0
         for comp in comp_list:
-            comp.set_order(num)
+            comp.order = num
             if comp.is_source:
                 sources += 1
             num += 1
@@ -898,14 +904,14 @@ class TestRunSet(unittest.TestCase):
 
         cycle_list = sorted(comp_list[1:])
 
-        err_msg = None
+        errmsg = None
         for comp in cycle_list:
-            if err_msg is None:
-                err_msg = "Cycling components " + comp.fullname
+            if errmsg is None:
+                errmsg = "Cycling components " + comp.fullname
             else:
-                err_msg += ", " + comp.fullname
-        if err_msg is not None:
-            logger.addExpectedExact(err_msg)
+                errmsg += ", " + comp.fullname
+        if errmsg is not None:
+            logger.addExpectedExact(errmsg)
 
         runset.restart_components(comp_list[:], cluster_cfg, None, None, None,
                                   None, verbose=False, kill_with_9=False,
@@ -937,14 +943,14 @@ class TestRunSet(unittest.TestCase):
 
         long_list.sort()
 
-        err_msg = None
+        errmsg = None
         for comp in long_list:
-            if err_msg is None:
-                err_msg = "Cycling components " + comp.fullname
+            if errmsg is None:
+                errmsg = "Cycling components " + comp.fullname
             else:
-                err_msg += ", " + comp.fullname
-        if err_msg is not None:
-            logger.addExpectedExact(err_msg)
+                errmsg += ", " + comp.fullname
+        if errmsg is not None:
+            logger.addExpectedExact(errmsg)
 
         runset.restart_components(long_list, cluster_cfg, None, None, None,
                                   None, verbose=False, kill_with_9=False,
@@ -964,14 +970,14 @@ class TestRunSet(unittest.TestCase):
 
         cluster_cfg = self.__build_cluster_config(comp_list, "restart")
 
-        err_msg = None
+        errmsg = None
         for comp in comp_list:
-            if err_msg is None:
-                err_msg = "Cycling components " + comp.fullname
+            if errmsg is None:
+                errmsg = "Cycling components " + comp.fullname
             else:
-                err_msg += ", " + comp.fullname
-        if err_msg is not None:
-            logger.addExpectedExact(err_msg)
+                errmsg += ", " + comp.fullname
+        if errmsg is not None:
+            logger.addExpectedExact(errmsg)
 
         runset.restart_components(comp_list[:], cluster_cfg, None, None, None,
                                   None, verbose=False, kill_with_9=False,
@@ -991,14 +997,14 @@ class TestRunSet(unittest.TestCase):
 
         cluster_cfg = self.__build_cluster_config(comp_list, "restartAll")
 
-        err_msg = None
+        errmsg = None
         for comp in comp_list:
-            if err_msg is None:
-                err_msg = "Cycling components " + comp.fullname
+            if errmsg is None:
+                errmsg = "Cycling components " + comp.fullname
             else:
-                err_msg += ", " + comp.fullname
-        if err_msg is not None:
-            logger.addExpectedExact(err_msg)
+                errmsg += ", " + comp.fullname
+        if errmsg is not None:
+            logger.addExpectedExact(errmsg)
 
         runset.restart_all_components(cluster_cfg, None, None, None, None,
                                       verbose=False, kill_with_9=False,
@@ -1127,9 +1133,9 @@ class TestRunSet(unittest.TestCase):
         logger.addExpectedExact("Failed to transition to ready: stopping[%s]" %
                                 comp_str)
 
-        stop_err_msg = ("RunSet #%d run#%d (error): Could not stop" +
+        stop_errmsg = ("RunSet #%d run#%d (error): Could not stop" +
                         " stopping[%s]") % (runset.id, run_num, comp_str)
-        logger.addExpectedExact(stop_err_msg)
+        logger.addExpectedExact(stop_errmsg)
 
         self.__add_moni_run_update(runset, moni_client, run_num)
 
@@ -1137,9 +1143,9 @@ class TestRunSet(unittest.TestCase):
             try:
                 runset.stop_run(stop_name, timeout=0)
             except RunSetException as rse:
-                self.assertEqual(str(rse), stop_err_msg,
+                self.assertEqual(str(rse), stop_errmsg,
                                  "Expected exception %s, not %s" %
-                                 (rse, stop_err_msg))
+                                 (rse, stop_errmsg))
         finally:
             pass
 
@@ -1158,7 +1164,7 @@ class TestRunSet(unittest.TestCase):
             else:
                 num = 0
             comp = MockComponent(name, num)
-            comp.set_order(next_num)
+            comp.order = next_num
             comp_list.append(comp)
 
             next_num += 1

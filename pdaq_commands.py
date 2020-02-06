@@ -412,12 +412,12 @@ class CmdKill(BaseCmd):
         if not args.force:
             check_detector_state()
 
-        cfgDir = find_pdaq_config()
+        cfg_dir = find_pdaq_config()
         logger = ConsoleLogger()
 
-        args.clusterDesc = None
+        args.cluster_desc = None
 
-        kill(cfgDir, logger, args=args)
+        kill(cfg_dir, logger, args=args)
 
 
 @command
@@ -453,15 +453,15 @@ class CmdLaunch(BaseCmd):
         if not args.force:
             check_detector_state()
 
-        cfgDir = find_pdaq_config()
-        dashDir = os.path.join(PDAQ_HOME, "dash")
+        cfg_dir = find_pdaq_config()
+        dash_dir = os.path.join(PDAQ_HOME, "dash")
 
         logger = ConsoleLogger()
 
         if not args.skipKill:
-            kill(cfgDir, logger, args=args)
+            kill(cfg_dir, logger, args=args)
 
-        launch(cfgDir, dashDir, logger, args=args)
+        launch(cfg_dir, dash_dir, logger, args=args)
 
 
 @command

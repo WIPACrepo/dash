@@ -51,7 +51,7 @@ def add_arguments_both(parser):
                         action="store_true", default=False,
                         help="just kill everything with extreme (-9)"
                         " prejudice")
-    parser.add_argument("-C", "--cluster-desc", dest="clusterDesc",
+    parser.add_argument("-C", "--cluster-desc", dest="cluster_desc",
                         help="Cluster description name.")
     parser.add_argument("-S", "--server-kill", dest="serverKill",
                         action="store_true", default=False,
@@ -63,7 +63,7 @@ def add_arguments_both(parser):
                         action="store_true", default=False,
                         help=("Disable checking the host type for"
                               " run permission"))
-    parser.add_argument("-n", "--dry-run", dest="dryRun",
+    parser.add_argument("-n", "--dry-run", dest="dry_run",
                         action="store_true", default=False,
                         help="\"Dry run\" only, don't actually do anything")
     parser.add_argument("-v", "--verbose", dest="verbose",
@@ -89,7 +89,7 @@ def add_arguments_launch(parser, config_as_arg=True):
         parser.add_argument("config_name", nargs="?",
                             help="Run configuration name")
 
-    parser.add_argument("-F", "--no-force-restart", dest="forceRestart",
+    parser.add_argument("-F", "--no-force-restart", dest="force_restart",
                         action="store_false", default=True,
                         help="Do not force healthy components to restart at"
                         " run end")
@@ -157,11 +157,11 @@ def kill(config_dir, logger, args=None):
         kill_with_9 = None
         force = None
     else:
-        cluster_desc = args.clusterDesc
+        cluster_desc = args.cluster_desc
         validate = args.validate
         server_kill = args.serverKill
         verbose = args.verbose
-        dry_run = args.dryRun
+        dry_run = args.dry_run
         kill_with_9 = args.kill_with_9
         force = args.force
 
@@ -195,24 +195,24 @@ def launch(config_dir, dash_dir, logger, parallel=None, check_exists=True,
         event_check = None
         force_restart = None
     else:
-        cluster_desc = args.clusterDesc
+        cluster_desc = args.cluster_desc
         config_name = args.config_name
         validate = args.validate
         verbose = args.verbose
-        dry_run = args.dryRun
+        dry_run = args.dry_run
         event_check = args.event_check
-        force_restart = args.forceRestart
+        force_restart = args.force_restart
 
     if config_name is None:
         config_name = livecmd_default_config()
 
     try:
         cluster_config = \
-            DAQConfigParser.getClusterConfiguration(config_name,
-                                                    useActiveConfig=False,
-                                                    clusterDesc=cluster_desc,
-                                                    config_dir=config_dir,
-                                                    validate=validate)
+            DAQConfigParser.get_cluster_configuration(config_name,
+                                                      use_active_config=False,
+                                                      cluster_desc=cluster_desc,
+                                                      config_dir=config_dir,
+                                                      validate=validate)
     except DAQConfigException:
         raise SystemExit("DAQ Config exception:\n\t%s" %
                          traceback.format_exc())
@@ -233,11 +233,11 @@ def launch(config_dir, dash_dir, logger, parallel=None, check_exists=True,
                 print("%s#%d " % (comp.name, comp.id), end=' ')
             print()
 
-    spade_dir = cluster_config.logDirForSpade
-    copy_dir = cluster_config.logDirCopies
-    log_dir = cluster_config.daqLogDir
+    spade_dir = cluster_config.log_dir_for_spade
+    copy_dir = cluster_config.log_dir_copies
+    log_dir = cluster_config.daq_log_dir
     log_dir_fallback = os.path.join(PDAQ_HOME, "log")
-    daq_data_dir = cluster_config.daqDataDir
+    daq_data_dir = cluster_config.daq_data_dir
 
     do_cnc = True
 

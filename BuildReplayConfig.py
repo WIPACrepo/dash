@@ -26,6 +26,8 @@ HUB_PAT = re.compile(r"i([ct])hub(\d+)")
 
 
 def process(path, ext, basename, trigcfg):
+    "Find all hitspool directories and include them in a run configuration"
+
     hubdirs = {}
 
     for root, _, files in os.walk(path):
@@ -46,44 +48,48 @@ def process(path, ext, basename, trigcfg):
 
     dkeys = sorted(hubdirs.keys())
 
-    for hd in dkeys:
-        name = "%s-%s.xml" % (basename, hd.replace("/", "-"))
-        if path == hd:
-            rcbase = hd
+    for key in dkeys:
+        name = "%s-%s.xml" % (basename, key.replace("/", "-"))
+        if path == key:
+            rcbase = key
         else:
-            rcbase = os.path.join(path, hd)
+            rcbase = os.path.join(path, key)
         with open(name, "w") as out:
-            writeRunConfig(out, rcbase, trigcfg, list(hubdirs[hd].keys()))
+            write_run_config(out, rcbase, trigcfg, list(hubdirs[key].keys()))
 
 
-def writeRunConfig(out, basedir, trigcfg, hubs):
-    sawInice = False
-    sawIcetop = False
+def write_run_config(out, basedir, trigcfg, hubs):
+    "Write the new replay run configuration to file output stream 'out'"
+
+    saw_inice = False
+    saw_icetop = False
 
     fullpath = os.path.abspath(basedir)
 
     finalhubs = []
     for hub in sorted(hubs):
-        m = HUB_PAT.match(hub)
-        if m is None:
-            print("Ignoring unrecognized directory \"%s\"" % hub, file=sys.stderr)
+        mtch = HUB_PAT.match(hub)
+        if mtch is None:
+            print("Ignoring unrecognized directory \"%s\"" % hub,
+                  file=sys.stderr)
             continue
 
-        hubtype = m.group(1)
-        hubnum = int(m.group(2))
+        hubtype = mtch.group(1)
+        hubnum = int(mtch.group(2))
 
         if hubtype == "t":
             hubnum = hubnum + 200
-            sawIcetop = True
+            saw_icetop = True
         elif hubtype == "c":
-            sawInice = True
+            saw_inice = True
         else:
-            print("Hub \"%s\" is neither in-ice nor icetop" % hub, file=sys.stderr)
+            print("Hub \"%s\" is neither in-ice nor icetop" % hub,
+                  file=sys.stderr)
             continue
 
         finalhubs.append((hub, hubnum))
 
-    if not sawInice and not sawIcetop:
+    if not saw_inice and not saw_icetop:
         print("No in-ice or icetop hubs found!", file=sys.stderr)
         return
 
@@ -96,35 +102,38 @@ def writeRunConfig(out, basedir, trigcfg, hubs):
 
     print('    <replayFiles baseDir="%s">' % fullpath, file=out)
     for (hubname, hubnum) in finalhubs:
-        print('        <hits hub="%d" source="%s"/>' % (hubnum, hubname), file=out)
+        print('        <hits hub="%d" source="%s"/>' % (hubnum, hubname),
+              file=out)
     print('    </replayFiles>', file=out)
 
     print('    <triggerConfig>%s</triggerConfig>' % trigcfg, file=out)
-    if sawInice:
+    if saw_inice:
         print('    <runComponent name="inIceTrigger"/>', file=out)
-    if sawIcetop:
+    if saw_icetop:
         print('    <runComponent name="iceTopTrigger"/>', file=out)
     print('    <runComponent name="globalTrigger"/>', file=out)
     print('    <runComponent name="eventBuilder"/>', file=out)
     print('</runConfig>', file=out)
 
 
-if __name__ == "__main__":
+def main():
+    "Mainn program"
+
     import argparse
 
-    op = argparse.ArgumentParser()
-    op.add_argument("-b", "--basename", dest="basename",
-                    default="replay",
-                    help="Run configuration base file name")
-    op.add_argument("-t", "--trigger", dest="trigcfg",
-                    default="sps-2013-no-physminbias-001",
-                    help="Trigger configuration file name")
-    op.add_argument("-x", "--extension", dest="ext",
-                    default=".dat",
-                    help="Hitspool file extension (defaults to \".dat\")")
-    op.add_argument("directory", nargs="*")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-b", "--basename", dest="basename",
+                        default="replay",
+                        help="Run configuration base file name")
+    parser.add_argument("-t", "--trigger", dest="trigcfg",
+                        default="sps-2013-no-physminbias-001",
+                        help="Trigger configuration file name")
+    parser.add_argument("-x", "--extension", dest="ext",
+                        default=".dat",
+                        help="Hitspool file extension (defaults to \".dat\")")
+    parser.add_argument("directory", nargs="*")
 
-    args = op.parse_args()
+    args = parser.parse_args()
 
     if args.ext.startswith("."):
         ext = args.ext
@@ -133,3 +142,7 @@ if __name__ == "__main__":
 
     for path in args.directory:
         process(path, ext, args.basename, args.trigcfg)
+
+
+if __name__ == "__main__":
+    main()

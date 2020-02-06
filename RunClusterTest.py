@@ -44,28 +44,28 @@ class DeployData(object):
 class RunClusterTest(unittest.TestCase):
     CONFIG_DIR = os.path.abspath('src/test/resources/config')
 
-    def __checkCluster(self, cluCfg, expNodes, spadeDir, logCopyDir,
-                       daqLogDir, daqDataDir, verbose=False):
-        sortedNodes = sorted(cluCfg.nodes())
+    def __check_cluster(self, clu_cfg, exp_nodes, spade_dir, log_copy_dir,
+                       daq_log_dir, daq_data_dir, verbose=False):
+        sorted_nodes = sorted(clu_cfg.nodes())
 
         if verbose:
-            print("=== RC -> %s" % (cluCfg.config_name, ))
-            for n in sortedNodes:
+            print("=== RC -> %s" % (clu_cfg.config_name, ))
+            for n in sorted_nodes:
                 print("::  " + str(n))
                 sortedComps = sorted(n.components())
                 for c in sortedComps:
                     print("        " + str(c))
 
             print("=== EXP")
-            for en in sorted(expNodes, key=lambda x: str(x)):
+            for en in sorted(exp_nodes, key=lambda x: str(x)):
                 print("::  " + str(en))
 
         extra = {}
-        for node in sortedNodes:
+        for node in sorted_nodes:
             sortedComps = sorted(node.components())
             for comp in sortedComps:
                 found = False
-                for en in expNodes:
+                for en in exp_nodes:
                     if en.matches(node.hostname, comp.name, comp.id):
                         if found:
                             self.fail("Found multiple matches for %s/%s#%d" %
@@ -93,7 +93,7 @@ class RunClusterTest(unittest.TestCase):
             self.fail(errmsg)
 
         missing = None
-        for en in expNodes:
+        for en in exp_nodes:
             if not en.isFound:
                 if missing is None:
                     missing = str(en)
@@ -103,20 +103,20 @@ class RunClusterTest(unittest.TestCase):
         if missing is not None:
             self.fail('Missing one or more components: ' + missing)
 
-        self.assertEqual(cluCfg.logDirForSpade, spadeDir,
+        self.assertEqual(clu_cfg.log_dir_for_spade, spade_dir,
                          'SPADE log directory is "%s", not "%s"' %
-                         (cluCfg.logDirForSpade, spadeDir))
-        self.assertEqual(cluCfg.logDirCopies, logCopyDir,
+                         (clu_cfg.log_dir_for_spade, spade_dir))
+        self.assertEqual(clu_cfg.log_dir_copies, log_copy_dir,
                          'Log copy directory is "%s", not "%s"' %
-                         (cluCfg.logDirCopies, logCopyDir))
-        self.assertEqual(cluCfg.daqLogDir, daqLogDir,
+                         (clu_cfg.log_dir_copies, log_copy_dir))
+        self.assertEqual(clu_cfg.daq_log_dir, daq_log_dir,
                          'DAQ log directory is "%s", not "%s"' %
-                         (cluCfg.daqLogDir, daqLogDir))
-        self.assertEqual(cluCfg.daqDataDir, daqDataDir,
+                         (clu_cfg.daq_log_dir, daq_log_dir))
+        self.assertEqual(clu_cfg.daq_data_dir, daq_data_dir,
                          'DAQ data directory is "%s", not "%s"' %
-                         (cluCfg.daqDataDir, daqDataDir))
+                         (clu_cfg.daq_data_dir, daq_data_dir))
 
-    def __loadConfigs(self, cfgName, clusterName):
+    def __load_configs(self, cfgName, clusterName):
         cfg = DAQConfigParser.parse(RunClusterTest.CONFIG_DIR, cfgName)
 
         cluster = RunCluster(cfg, clusterName,
@@ -154,9 +154,9 @@ class RunClusterTest(unittest.TestCase):
         cfgName = 'simpleConfig'
         clusterName = "localhost"
 
-        (runCfg, cluCfg) = self.__loadConfigs(cfgName, clusterName)
+        (run_cfg, clu_cfg) = self.__load_configs(cfgName, clusterName)
 
-        expNodes = [
+        exp_nodes = [
             DeployData('localhost', 'inIceTrigger'),
             DeployData('localhost', 'globalTrigger'),
             DeployData('localhost', 'eventBuilder'),
@@ -168,21 +168,21 @@ class RunClusterTest(unittest.TestCase):
             DeployData('localhost', 'stringHub', 1005),
         ]
 
-        daqLogDir = "logs"
-        daqDataDir = "data"
-        spadeDir = 'spade'
-        logCopyDir = None
+        daq_log_dir = "logs"
+        daq_data_dir = "data"
+        spade_dir = 'spade'
+        log_copy_dir = None
 
-        self.__checkCluster(cluCfg, expNodes, spadeDir, logCopyDir, daqLogDir,
-                            daqDataDir)
+        self.__check_cluster(clu_cfg, exp_nodes, spade_dir, log_copy_dir,
+                             daq_log_dir, daq_data_dir)
 
     def testDeploySPTS64(self):
         cfgName = 'simpleConfig'
         clusterName = "spts64"
 
-        (runCfg, cluCfg) = self.__loadConfigs(cfgName, clusterName)
+        (run_cfg, clu_cfg) = self.__load_configs(cfgName, clusterName)
 
-        expNodes = [
+        exp_nodes = [
             DeployData('spts64-iitrigger', 'inIceTrigger'),
             DeployData('spts64-gtrigger', 'globalTrigger'),
             DeployData('spts64-evbuilder', 'eventBuilder'),
@@ -194,20 +194,20 @@ class RunClusterTest(unittest.TestCase):
             DeployData('spts64-fpslave04', 'stringHub', 1005),
         ]
 
-        daqLogDir = "/mnt/data/pdaq/log"
-        daqDataDir = "/mnt/data/pdaqlocal"
-        spadeDir = "/mnt/data/spade/pdaq/runs"
-        logCopyDir = "/mnt/data/pdaqlocal"
+        daq_log_dir = "/mnt/data/pdaq/log"
+        daq_data_dir = "/mnt/data/pdaqlocal"
+        spade_dir = "/mnt/data/spade/pdaq/runs"
+        log_copy_dir = "/mnt/data/pdaqlocal"
 
-        self.__checkCluster(cluCfg, expNodes, spadeDir, logCopyDir, daqLogDir,
-                            daqDataDir)
+        self.__check_cluster(clu_cfg, exp_nodes, spade_dir, log_copy_dir,
+                             daq_log_dir, daq_data_dir)
 
     def testDeployTooMany(self):
         cfgName = 'tooManyConfig'
         clusterName = "localhost"
 
         try:
-            self.__loadConfigs(cfgName, clusterName)
+            self.__load_configs(cfgName, clusterName)
         except RunClusterError as rce:
             if not str(rce).endswith("Only have space for 10 of 11 hubs"):
                 self.fail("Unexpected exception: " + str(rce))
@@ -216,9 +216,9 @@ class RunClusterTest(unittest.TestCase):
         cfgName = 'sps-IC40-IT6-Revert-IceTop-V029'
         clusterName = "sps"
 
-        (runCfg, cluCfg) = self.__loadConfigs(cfgName, clusterName)
+        (run_cfg, clu_cfg) = self.__load_configs(cfgName, clusterName)
 
-        expNodes = [
+        exp_nodes = [
             DeployData('sps-trigger', 'inIceTrigger'),
             DeployData('sps-trigger', 'iceTopTrigger'),
             DeployData('sps-gtrigger', 'globalTrigger'),
@@ -268,13 +268,13 @@ class RunClusterTest(unittest.TestCase):
             DeployData('sps-ithub06', 'stringHub', 206),
         ]
 
-        daqLogDir = "/mnt/data/pdaq/log"
-        daqDataDir = "/mnt/data/pdaqlocal"
-        spadeDir = "/mnt/data/spade/pdaq/runs"
-        logCopyDir = "/mnt/data/pdaqlocal"
+        daq_log_dir = "/mnt/data/pdaq/log"
+        daq_data_dir = "/mnt/data/pdaqlocal"
+        spade_dir = "/mnt/data/spade/pdaq/runs"
+        log_copy_dir = "/mnt/data/pdaqlocal"
 
-        self.__checkCluster(cluCfg, expNodes, spadeDir, logCopyDir, daqLogDir,
-                            daqDataDir)
+        self.__check_cluster(clu_cfg, exp_nodes, spade_dir, log_copy_dir,
+                             daq_log_dir, daq_data_dir)
 
     @classmethod
     def __addHubs(cls, nodes, hostname, numToAdd, hubnum):
@@ -290,7 +290,7 @@ class RunClusterTest(unittest.TestCase):
         return hubnum
 
     @classmethod
-    def __addHubsFromRunConfig(cls, nodes, filename):
+    def __add_hubs_from_run_config(cls, nodes, filename):
         # NOTE: only a fool parses XML code with regexps!
         HIT_PAT = re.compile(r'^\s*<hits hub="(\d+)" host="(\S+)"\s*/>\s*$')
 
@@ -318,9 +318,9 @@ class RunClusterTest(unittest.TestCase):
         cfgName = "replay-oldtest"
         clusterName = "replay"
 
-        (runCfg, cluCfg) = self.__loadConfigs(cfgName, clusterName)
+        (run_cfg, clu_cfg) = self.__load_configs(cfgName, clusterName)
 
-        expNodes = [
+        exp_nodes = [
             DeployData('trigger', 'iceTopTrigger'),
             DeployData('trigger', 'iniceTrigger'),
             DeployData('trigger', 'globalTrigger'),
@@ -329,31 +329,31 @@ class RunClusterTest(unittest.TestCase):
             DeployData('2ndbuild', 'SecondaryBuilders'),
         ]
         hubnum = 1
-        hubnum = self.__addHubs(expNodes, 'daq01', 44, hubnum)
-        hubnum = self.__addHubs(expNodes, 'pdaq2', 10, hubnum)
+        hubnum = self.__addHubs(exp_nodes, 'daq01', 44, hubnum)
+        hubnum = self.__addHubs(exp_nodes, 'pdaq2', 10, hubnum)
         for h in ('fpslave01', 'fpslave02'):
-            hubnum = self.__addHubs(expNodes, h, 8, hubnum)
+            hubnum = self.__addHubs(exp_nodes, h, 8, hubnum)
         for h in ('fpslave03', 'fpslave04'):
-            hubnum = self.__addHubs(expNodes, h, 7, hubnum)
-        hubnum = self.__addHubs(expNodes, 'ittest2', 7, hubnum)
+            hubnum = self.__addHubs(exp_nodes, h, 7, hubnum)
+        hubnum = self.__addHubs(exp_nodes, 'ittest2', 7, hubnum)
         for h in ('fpslave05', 'ittest1'):
-            hubnum = self.__addHubs(expNodes, h, 3, hubnum)
+            hubnum = self.__addHubs(exp_nodes, h, 3, hubnum)
 
-        daqLogDir = "/mnt/data/pdaq/log"
-        daqDataDir = "/mnt/data/pdaqlocal"
-        spadeDir = "/mnt/data/pdaq/spade/runs"
-        logCopyDir = None
+        daq_log_dir = "/mnt/data/pdaq/log"
+        daq_data_dir = "/mnt/data/pdaqlocal"
+        spade_dir = "/mnt/data/pdaq/spade/runs"
+        log_copy_dir = None
 
-        self.__checkCluster(cluCfg, expNodes, spadeDir, logCopyDir, daqLogDir,
-                            daqDataDir)
+        self.__check_cluster(clu_cfg, exp_nodes, spade_dir, log_copy_dir,
+                             daq_log_dir, daq_data_dir)
 
     def testDeployReplay(self):
         cfgName = 'replay-test'
         clusterName = "replay"
 
-        (runCfg, cluCfg) = self.__loadConfigs(cfgName, clusterName)
+        (run_cfg, clu_cfg) = self.__load_configs(cfgName, clusterName)
 
-        expNodes = [
+        exp_nodes = [
             DeployData('trigger', 'iceTopTrigger'),
             DeployData('trigger', 'iniceTrigger'),
             DeployData('trigger', 'globalTrigger'),
@@ -362,15 +362,15 @@ class RunClusterTest(unittest.TestCase):
             DeployData('2ndbuild', 'SecondaryBuilders'),
         ]
 
-        self.__addHubsFromRunConfig(expNodes, cfgName)
+        self.__add_hubs_from_run_config(exp_nodes, cfgName)
 
-        daqLogDir = "/mnt/data/pdaq/log"
-        daqDataDir = "/mnt/data/pdaqlocal"
-        spadeDir = "/mnt/data/pdaq/spade/runs"
-        logCopyDir = None
+        daq_log_dir = "/mnt/data/pdaq/log"
+        daq_data_dir = "/mnt/data/pdaqlocal"
+        spade_dir = "/mnt/data/pdaq/spade/runs"
+        log_copy_dir = None
 
-        self.__checkCluster(cluCfg, expNodes, spadeDir, logCopyDir, daqLogDir,
-                            daqDataDir)
+        self.__check_cluster(clu_cfg, exp_nodes, spade_dir, log_copy_dir,
+                             daq_log_dir, daq_data_dir)
 
     def testDeployReplayMissingHost(self):
         cfgName = 'replay-missing'
@@ -390,9 +390,9 @@ class RunClusterTest(unittest.TestCase):
         cfgName = 'sps-IC40-IT6-Revert-IceTop-V029'
         clusterName = "sps"
 
-        (runCfg, cluCfg) = self.__loadConfigs(cfgName, clusterName)
+        (run_cfg, clu_cfg) = self.__load_configs(cfgName, clusterName)
 
-        expNodes = [
+        exp_nodes = [
             DeployData('sps-trigger', 'inIceTrigger'),
             DeployData('sps-trigger', 'iceTopTrigger'),
             DeployData('sps-gtrigger', 'globalTrigger'),
@@ -442,25 +442,25 @@ class RunClusterTest(unittest.TestCase):
             DeployData('sps-ithub06', 'stringHub', 206),
         ]
 
-        daqLogDir = "/mnt/data/pdaq/log"
-        daqDataDir = "/mnt/data/pdaqlocal"
-        spadeDir = "/mnt/data/spade/pdaq/runs"
-        logCopyDir = "/mnt/data/pdaqlocal"
+        daq_log_dir = "/mnt/data/pdaq/log"
+        daq_data_dir = "/mnt/data/pdaqlocal"
+        spade_dir = "/mnt/data/spade/pdaq/runs"
+        log_copy_dir = "/mnt/data/pdaqlocal"
 
-        self.__checkCluster(cluCfg, expNodes, spadeDir, logCopyDir, daqLogDir,
-                            daqDataDir)
+        self.__check_cluster(clu_cfg, exp_nodes, spade_dir, log_copy_dir,
+                             daq_log_dir, daq_data_dir)
 
-        newPath = os.path.join(RunClusterTest.CONFIG_DIR, "sps2-cluster.cfg")
-        cluCfg.loadIfChanged(runCfg, newPath)
+        new_path = os.path.join(RunClusterTest.CONFIG_DIR, "sps2-cluster.cfg")
+        clu_cfg.load_if_changed(run_cfg, new_path)
 
-        delNodes = []
-        for node in expNodes:
+        del_nodes = []
+        for node in exp_nodes:
             node.clear()
             if node.matches('sps-gtrigger', 'globalTrigger', 0):
                 node.changeHost("sps-trigger")
 
-        self.__checkCluster(cluCfg, expNodes, spadeDir, logCopyDir, daqLogDir,
-                            daqDataDir)
+        self.__check_cluster(clu_cfg, exp_nodes, spade_dir, log_copy_dir,
+                             daq_log_dir, daq_data_dir)
 
 
 if __name__ == '__main__':

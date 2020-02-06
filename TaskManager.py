@@ -18,7 +18,8 @@ set_exc_string_encoding("ascii")
 class TaskManager(threading.Thread):
     "Manage RunSet tasks"
 
-    def __init__(self, runset, dashlog, live_moni, runDir, runCfg, runOptions):
+    def __init__(self, runset, dashlog, live_moni, rundir, run_cfg,
+                 run_options):
         if dashlog is None:
             raise TaskException("Dash logfile cannot be None")
 
@@ -32,49 +33,50 @@ class TaskManager(threading.Thread):
         super(TaskManager, self).__init__(name="TaskManager")
         self.setDaemon(True)
 
-        self.__tasks = self.__createAllTasks(live_moni, runDir, runCfg,
-                                             runOptions)
+        self.__tasks = self.__create_all_tasks(live_moni, rundir, run_cfg,
+                                               run_options)
 
-    def __createAllTasks(self, live_moni, runDir, runCfg, runOptions):
+    def __create_all_tasks(self, live_moni, rundir, run_cfg, run_options):
         """
         This method exists solely to make it easy to detect
         errors in the task constructors.
         """
         taskList = []
 
-        taskNum = 0
+        task_num = 0
         while True:
             try:
-                task = self.__createTask(taskNum, live_moni, runDir,
-                                         runCfg, runOptions)
+                task = self.__create_task(task_num, live_moni, rundir,
+                                          run_cfg, run_options)
                 if task is None:
                     break
                 taskList.append(task)
             except:
                 self.__dashlog.error("Cannot create task#%d: %s" %
-                                     (taskNum, exc_string()))
-            taskNum += 1
+                                     (task_num, exc_string()))
+            task_num += 1
 
         return taskList
 
-    def __createTask(self, taskNum, live_moni, runDir, runCfg, runOptions):
+    def __create_task(self, task_num, live_moni, rundir, run_cfg, run_options):
         """
-        Create a single task.  There's nothing magic about 'taskNum',
+        Create a single task.  There's nothing magic about 'task_num',
         it's just a convenient way to iterate through all the task
         constructors.
         """
-        if taskNum == 0:
+        if task_num == 0:
             return MonitorTask(self, self.__runset, self.__dashlog, live_moni,
-                               runDir, runOptions,
-                               period=runCfg.monitorPeriod)
-        elif taskNum == 1:
+                               rundir, run_options,
+                               period=run_cfg.monitorPeriod)
+        elif task_num == 1:
             return RateTask(self, self.__runset, self.__dashlog)
-        elif taskNum == 2:
+        elif task_num == 2:
             return ActiveDOMsTask(self, self.__runset, self.__dashlog,
                                   live_moni)
-        elif taskNum == 3:
+        elif task_num == 3:
             return WatchdogTask(self, self.__runset, self.__dashlog,
-                                initial_health=12, period=runCfg.watchdogPeriod)
+                                initial_health=12,
+                                period=run_cfg.watchdogPeriod)
 
         return None
 
@@ -106,29 +108,29 @@ class TaskManager(threading.Thread):
 
         self.__running = False
 
-        savedEx = None
+        saved_exc = None
         for t in self.__tasks:
             try:
                 t.close()
             except:
-                if not savedEx:
-                    savedEx = sys.exc_info()
+                if not saved_exc:
+                    saved_exc = sys.exc_info()
 
         self.__stopping = False
 
-        if savedEx:
-            reraise_excinfo(savedEx)
+        if saved_exc:
+            reraise_excinfo(saved_exc)
 
     @classmethod
     def createIntervalTimer(cls, name, period):
         return IntervalTimer(name, period, start_triggered=True)
 
     @property
-    def isRunning(self):
+    def is_running(self):
         return self.__running
 
     @property
-    def isStopped(self):
+    def is_stopped(self):
         return not self.__running and not self.__stopping
 
     def reset(self):

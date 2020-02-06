@@ -71,7 +71,7 @@ class CommonCode(unittest.TestCase):
                              (data[2], data[3], data[0], dom))
 
     def runNamesTest(self, newFormat):
-        cfgDir = self.getConfigDir(newFormat=newFormat)
+        cfg_dir = self.getConfigDir(newFormat=newFormat)
 
         simpledata = ("simpleConfig", 5, "IniceGlobalTest")
         sps40data = ("sps-IC40-IT6-AM-Revert-IceTop-V029", 41,
@@ -79,10 +79,10 @@ class CommonCode(unittest.TestCase):
         for data in (simpledata, sps40data):
             n = data[0]
 
-            cfg = DAQConfigParser.parse(cfgDir, n)
+            cfg = DAQConfigParser.parse(cfg_dir, n)
             self.assertEqual(n, cfg.basename,
                              "Expected %s, not %s" % (n, cfg.basename))
-            fullname = os.path.join(cfgDir, n + ".xml")
+            fullname = os.path.join(cfg_dir, n + ".xml")
             self.assertEqual(fullname, cfg.fullpath,
                              "Expected %s, not %s" %
                              (fullname, cfg.fullpath))
@@ -98,8 +98,8 @@ class CommonCode(unittest.TestCase):
                              (data[2], n, trigcfg.basename))
 
     def runListsSim5Test(self, newFormat):
-        cfgDir = self.getConfigDir(newFormat=newFormat)
-        cfg = DAQConfigParser.parse(cfgDir, "simpleConfig")
+        cfg_dir = self.getConfigDir(newFormat=newFormat)
+        cfg = DAQConfigParser.parse(cfg_dir, "simpleConfig")
 
         expected = ['eventBuilder', 'globalTrigger', 'inIceTrigger',
                     'secondaryBuilders', 'stringHub#1001', 'stringHub#1002',
@@ -119,8 +119,8 @@ class CommonCode(unittest.TestCase):
                 self.fail('Unexpected component "%s"' % c)
 
     def runLookupSim5Test(self, newFormat):
-        cfgDir = self.getConfigDir(newFormat=newFormat)
-        cfg = DAQConfigParser.parse(cfgDir, "simpleConfig")
+        cfg_dir = self.getConfigDir(newFormat=newFormat)
+        cfg = DAQConfigParser.parse(cfg_dir, "simpleConfig")
 
         dataList = (('53494d550101', 'Nicholson_Baker', 1001, 1),
                     ('53494d550120', 'SIM0020', 1001, 20),
@@ -146,8 +146,8 @@ class CommonCode(unittest.TestCase):
         self.lookup(cfg, dataList)
 
     def runListsSpsIC40IT6Test(self, newFormat):
-        cfgDir = self.getConfigDir(newFormat=newFormat)
-        cfg = DAQConfigParser.parse(cfgDir,
+        cfg_dir = self.getConfigDir(newFormat=newFormat)
+        cfg = DAQConfigParser.parse(cfg_dir,
                                     "sps-IC40-IT6-AM-Revert-IceTop-V029")
 
         expected = ['amandaTrigger', 'eventBuilder', 'globalTrigger',
@@ -181,8 +181,8 @@ class CommonCode(unittest.TestCase):
                 self.fail('Unexpected component "%s"' % c)
 
     def runLookupSpsIC40IT6Test(self, newFormat):
-        cfgDir = self.getConfigDir(newFormat=newFormat)
-        cfg = DAQConfigParser.parse(cfgDir,
+        cfg_dir = self.getConfigDir(newFormat=newFormat)
+        cfg = DAQConfigParser.parse(cfg_dir,
                                     "sps-IC40-IT6-AM-Revert-IceTop-V029")
 
         dataList = (
@@ -196,8 +196,8 @@ class CommonCode(unittest.TestCase):
         self.lookup(cfg, dataList)
 
     def runDumpDOMsTest(self, newFormat):
-        cfgDir = self.getConfigDir(newFormat=newFormat)
-        cfg = DAQConfigParser.parse(cfgDir,
+        cfg_dir = self.getConfigDir(newFormat=newFormat)
+        cfg = DAQConfigParser.parse(cfg_dir,
                                     "sps-IC40-IT6-AM-Revert-IceTop-V029")
 
         for d in cfg.getAllDOMs():
@@ -218,8 +218,8 @@ class CommonCode(unittest.TestCase):
                               (newid, mbid, n))
 
     def runReplayTest(self, newFormat):
-        cfgDir = self.getConfigDir(newFormat=newFormat)
-        cfg = DAQConfigParser.parse(cfgDir, "replay-ic22-it4")
+        cfg_dir = self.getConfigDir(newFormat=newFormat)
+        cfg = DAQConfigParser.parse(cfg_dir, "replay-ic22-it4")
 
         expected = ['eventBuilder', 'globalTrigger', 'iceTopTrigger',
                     'inIceTrigger',
@@ -295,9 +295,9 @@ class DAQOldConfigTest(CommonCode):
 
 class DAQConfigTest(CommonCode):
     def testCheckPeriod(self):
-        cfgDir = self.getConfigDir()
+        cfg_dir = self.getConfigDir()
 
-        cfg = DAQConfigParser.parse(cfgDir, "sps-IC40-hitspool")
+        cfg = DAQConfigParser.parse(cfg_dir, "sps-IC40-hitspool")
 
         expVal = 10
         self.assertEqual(expVal, cfg.monitorPeriod,

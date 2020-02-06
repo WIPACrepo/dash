@@ -42,9 +42,10 @@ TOO_LARGE = 1024 * 1024 * 1024 * 1.5
 COMBINED_LOG = "combined.log"
 
 
-def __copySpadeTarFile(logger, copyDir, spadeBaseName, tarFile, dryRun=False):
-    copyFile = os.path.join(copyDir, spadeBaseName + ".dat.tar")
-    if dryRun:
+def __copySpadeTarFile(logger, copy_dir, spadeBaseName, tarFile,
+                       dry_run=False):
+    copyFile = os.path.join(copy_dir, spadeBaseName + ".dat.tar")
+    if dry_run:
         print("ln %s %s" % (tarFile, copyFile))
         return
 
@@ -58,7 +59,7 @@ def __copySpadeTarFile(logger, copyDir, spadeBaseName, tarFile, dryRun=False):
             raise OSError(str(e) + ": Copy %s to %s" % (tarFile, copyFile))
 
 
-def __findExecutable(cmd, dryRun=False):
+def __find_executable(cmd, dry_run=False):
     """Find 'cmd' in the user's PATH"""
     path = os.environ["PATH"].split(":")
     for pdir in path:
@@ -69,11 +70,11 @@ def __findExecutable(cmd, dryRun=False):
     return None
 
 
-def __get_run_data(runDir):
+def __get_run_data(run_dir):
     time = None
     duration = 0
 
-    runXML = DashXMLLog.parse(runDir)
+    runXML = DashXMLLog.parse(run_dir)
 
     try:
         tmp = runXML.getEndTime()
@@ -90,14 +91,14 @@ def __get_run_data(runDir):
     return (time, duration)
 
 
-def __getSize(runDir, runNum, logger=None):
+def __getSize(run_dir, run_num, logger=None):
     total = 0
-    for f in os.listdir(runDir):
-        path = os.path.join(runDir, f)
+    for f in os.listdir(run_dir):
+        path = os.path.join(run_dir, f)
 
         if not os.path.isfile(path):
             if logger is not None:
-                logger.error("Ignoring run %s subdirectory %s" % (runNum, f))
+                logger.error("Ignoring run %s subdirectory %s" % (run_num, f))
             continue
 
         total += os.path.getsize(path)
@@ -105,14 +106,14 @@ def __getSize(runDir, runNum, logger=None):
     return total
 
 
-def __in_progress(logger, runNum):
+def __in_progress(logger, run_num):
     global CURRENT_RUN_NUMBER
 
     if CURRENT_RUN_NUMBER is None:
-        cmd = __findExecutable("livecmd")
+        cmd = __find_executable("livecmd")
         if cmd is None:
             # if we can't find the current run number,
-            # assume 'runNum' is current
+            # assume 'run_num' is current
             logger.error("Cannot find 'livecmd' program")
             return True
 
@@ -137,11 +138,11 @@ def __in_progress(logger, runNum):
         else:
             CURRENT_RUN_NUMBER = curNum
 
-    return CURRENT_RUN_NUMBER == runNum
+    return CURRENT_RUN_NUMBER == run_num
 
 
-def __indicate_daq_logs_queued(spadeDir, dryRun=False):
-    __touch_file(os.path.join(spadeDir, FILE_MARKER), dryRun=dryRun)
+def __indicate_daq_logs_queued(spade_dir, dry_run=False):
+    __touch_file(os.path.join(spade_dir, FILE_MARKER), dry_run=dry_run)
 
 
 def __sizefmt(size):
@@ -152,35 +153,35 @@ def __sizefmt(size):
     return "%3.1f TB" % size
 
 
-def __touch_file(f, dryRun=False):
-    if dryRun:
+def __touch_file(f, dry_run=False):
+    if dry_run:
         print("touch %s" % f)
     else:
         open(f, "w").close()
 
 
-def __writeSpadeSemaphore(spadeDir, spadeBaseName, dryRun=False):
-    semFile = os.path.join(spadeDir, spadeBaseName + ".sem")
-    __touch_file(semFile, dryRun=dryRun)
+def __writeSpadeSemaphore(spade_dir, spadeBaseName, dry_run=False):
+    semFile = os.path.join(spade_dir, spadeBaseName + ".sem")
+    __touch_file(semFile, dry_run=dry_run)
 
 
-def __writeSpadeTarFile(spadeDir, spadeBaseName, runDir, runNum, logger=None,
-                        dryRun=False, force=False):
+def __writeSpadeTarFile(spade_dir, spadeBaseName, run_dir, run_num,
+                        logger=None, dry_run=False, force=False):
     # ignore huge directories
-    dirsize = __getSize(runDir, runNum, logger=logger)
+    dirsize = __getSize(run_dir, run_num, logger=logger)
     if dirsize >= TOO_LARGE and not force:
         if logger is not None:
             logger.error("Not sending %s; %s is too large" %
-                         (runDir, __sizefmt(dirsize)))
+                         (run_dir, __sizefmt(dirsize)))
             return None
 
-    tarBall = os.path.join(spadeDir, spadeBaseName + ".dat.tar")
+    tarBall = os.path.join(spade_dir, spadeBaseName + ".dat.tar")
 
-    if dryRun:
-        print("tar cvf %s %s" % (tarBall, runDir))
+    if dry_run:
+        print("tar cvf %s %s" % (tarBall, run_dir))
     else:
         tarObj = tarfile.TarFile(tarBall, "w")
-        tarObj.add(runDir, os.path.basename(runDir), True)
+        tarObj.add(run_dir, os.path.basename(run_dir), True)
         tarObj.close()
 
     return tarBall
@@ -197,82 +198,82 @@ def add_arguments(p):
                    action="store_true", default=False,
                    help="Requeue the logs for runs which have already been" +
                    "queued")
-    p.add_argument("-n", "--dry-run", dest="dryRun",
+    p.add_argument("-n", "--dry-run", dest="dry_run",
                    action="store_true", default=False,
                    help="Don't create any files, just print what would happen")
     p.add_argument("-v", "--verbose", dest="verbose",
                    action="store_true", default=False,
                    help="Print running commentary of program's progress")
-    p.add_argument("runNumber", nargs="*")
+    p.add_argument("run_number", nargs="*")
 
 
-def check_all(logger, spadeDir, copyDir, logDir, no_combine=False, force=False,
-              verbose=False, dryRun=False):
-    if logDir is None or not os.path.exists(logDir):
-        logger.info("Log directory \"%s\" does not exist" % logDir)
+def check_all(logger, spade_dir, copy_dir, log_dir, no_combine=False,
+              force=False, verbose=False, dry_run=False):
+    if log_dir is None or not os.path.exists(log_dir):
+        logger.info("Log directory \"%s\" does not exist" % log_dir)
         return
 
-    for f in os.listdir(logDir):
+    for f in os.listdir(log_dir):
         if f.startswith("daqrun"):
-            if os.path.exists(os.path.join(logDir, f, FILE_MARKER)):
+            if os.path.exists(os.path.join(log_dir, f, FILE_MARKER)):
                 # skip runs which have already been queued
                 continue
 
             try:
-                runNum = int(f[6:])
+                run_num = int(f[6:])
             except:
                 logger.error("Bad run directory name \"%s\"" % f)
                 continue
 
-            queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
+            queueForSpade(logger, spade_dir, copy_dir, log_dir, run_num,
                           no_combine=no_combine, force=force, verbose=verbose,
-                          dryRun=dryRun)
+                          dry_run=dry_run)
 
 
-def queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
-                  no_combine=False, force=False, verbose=False, dryRun=False):
-    if logDir is None or not os.path.exists(logDir):
-        logger.error("Log directory \"%s\" does not exist" % logDir)
+def queueForSpade(logger, spade_dir, copy_dir, log_dir, run_num,
+                  no_combine=False, force=False, verbose=False, dry_run=False):
+    if log_dir is None or not os.path.exists(log_dir):
+        logger.error("Log directory \"%s\" does not exist" % log_dir)
         return
 
-    runDir = os.path.join(logDir, "daqrun%05d" % runNum)
-    if runDir is None or not os.path.exists(runDir):
-        logger.error("Run directory \"%s\" does not exist" % runDir)
+    run_dir = os.path.join(log_dir, "daqrun%05d" % run_num)
+    if run_dir is None or not os.path.exists(run_dir):
+        logger.error("Run directory \"%s\" does not exist" % run_dir)
         return
 
-    if spadeDir is None or not os.path.exists(spadeDir):
-        logger.error("SPADE directory \"%s\" does not exist" % spadeDir)
+    if spade_dir is None or not os.path.exists(spade_dir):
+        logger.error("SPADE directory \"%s\" does not exist" % spade_dir)
         return
 
-    if os.path.exists(os.path.join(runDir, FILE_MARKER)) and \
+    if os.path.exists(os.path.join(run_dir, FILE_MARKER)) and \
        not force:
         logger.error(("Logs for run %d have already been queued;" +
-                      " Use --force to requeue them") % runNum)
+                      " Use --force to requeue them") % run_num)
         return
 
     try:
-        (runTime, runDuration) = __get_run_data(runDir)
+        (runTime, runDuration) = __get_run_data(run_dir)
     except FileNotFoundException:
-        if __in_progress(logger, runNum):
+        if __in_progress(logger, run_num):
             # don't try to queue log files from current run
             return
         (runTime, runDuration) = (None, 0)
 
-    path = os.path.join(runDir, COMBINED_LOG)
+    path = os.path.join(run_dir, COMBINED_LOG)
     if not os.path.exists(path):
         if no_combine:
-            logger.error("Not writing combined log for run %d" % runNum)
+            logger.error("Not writing combined log for run %d" % run_num)
         else:
-            logger.error("Writing combined log for run %d" % runNum)
-            lsrt = LogSorter(runDir, runNum)
+            logger.error("Writing combined log for run %d" % run_num)
+            lsrt = LogSorter(run_dir, run_num)
             # write to dotfile in case thread dies before it's finished
-            tmppath = os.path.join(runDir, "." + COMBINED_LOG)
-            with open(tmppath, "w") as fd:
-                lsrt.dump_run(fd)
+            tmppath = os.path.join(run_dir, "." + COMBINED_LOG)
+            with open(tmppath, "w") as out:
+                lsrt.dump_run(out)
             # it's now safe to rename the combined log file
             os.rename(tmppath, path)
             try:
-                logger.error("Wrote combined log for run %d" % runNum)
+                logger.error("Wrote combined log for run %d" % run_num)
             except:
                 # don't die if we lose the race to close the file
                 pass
@@ -282,24 +283,24 @@ def queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
 
     try:
         spadeBaseName = "SPS-pDAQ-run-%03d_%04d%02d%02d_%02d%02d%02d_%06d" % \
-            (runNum, runTime.year, runTime.month, runTime.day,
+            (run_num, runTime.year, runTime.month, runTime.day,
              runTime.hour, runTime.minute, runTime.second, runDuration)
 
-        tarFile = __writeSpadeTarFile(spadeDir, spadeBaseName, runDir, runNum,
-                                      logger=logger, dryRun=dryRun,
+        tarFile = __writeSpadeTarFile(spade_dir, spadeBaseName, run_dir,
+                                      run_num, logger=logger, dry_run=dry_run,
                                       force=force)
         if tarFile is not None:
-            if copyDir is not None and os.path.exists(copyDir):
-                __copySpadeTarFile(logger, copyDir, spadeBaseName, tarFile,
-                                   dryRun=dryRun)
+            if copy_dir is not None and os.path.exists(copy_dir):
+                __copySpadeTarFile(logger, copy_dir, spadeBaseName, tarFile,
+                                   dry_run=dry_run)
 
-            __writeSpadeSemaphore(spadeDir, spadeBaseName, dryRun=dryRun)
+            __writeSpadeSemaphore(spade_dir, spadeBaseName, dry_run=dry_run)
 
-            __indicate_daq_logs_queued(runDir, dryRun=dryRun)
+            __indicate_daq_logs_queued(run_dir, dry_run=dry_run)
 
             logger.info(("Queued data for SPADE (spadeDir=%s" +
-                         ", runDir=%s, runNum=%s)...") %
-                        (spadeDir, runDir, runNum))
+                         ", run_dir=%s, run_num=%s)...") %
+                        (spade_dir, run_dir, run_num))
     except:
         logger.error("FAILED to queue data for SPADE: " + exc_string())
 
@@ -313,21 +314,21 @@ def queue_logs(args):
     logger.setLevel(logging.DEBUG)
 
     cluster = ClusterDescription()
-    spadeDir = cluster.logDirForSpade
-    logDir = cluster.daqLogDir
-    copyDir = None
+    spade_dir = cluster.log_dir_for_spade
+    log_dir = cluster.daq_log_dir
+    copy_dir = None
 
-    if args.check_all or len(args.runNumber) == 0:
-        check_all(logger, spadeDir, copyDir, logDir,
+    if args.check_all or len(args.run_number) == 0:
+        check_all(logger, spade_dir, copy_dir, log_dir,
                   no_combine=args.no_combine, force=args.force,
-                  verbose=args.verbose, dryRun=args.dryRun)
+                  verbose=args.verbose, dry_run=args.dry_run)
     else:
-        for numstr in args.runNumber:
-            runNum = int(numstr)
+        for numstr in args.run_number:
+            run_num = int(numstr)
 
-        queueForSpade(logger, spadeDir, copyDir, logDir, runNum,
+        queueForSpade(logger, spade_dir, copy_dir, log_dir, run_num,
                       no_combine=args.no_combine, force=args.force,
-                      verbose=args.verbose, dryRun=args.dryRun)
+                      verbose=args.verbose, dry_run=args.dry_run)
 
 
 if __name__ == "__main__":

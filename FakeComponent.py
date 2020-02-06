@@ -412,7 +412,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.first_port is not None:
-        PortNumber.set_first(args.first_port)
+        PortNumber.set_next_number(args.first_port)
 
     low_name = args.component.lower()
     if low_name == "inicetrigger":

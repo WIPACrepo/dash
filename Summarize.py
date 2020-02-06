@@ -59,7 +59,7 @@ class DashLog2RunXML(BaseLog):
         has_version = False
         has_config = False
         has_cluster = False
-        has_runnum = False
+        has_run_num = False
 
         phys_evts = None
         moni_evts = None
@@ -123,7 +123,7 @@ class DashLog2RunXML(BaseLog):
                                           " from %s", dashpath)
                         continue
 
-                if not has_runnum:
+                if not has_run_num:
                     target = "Starting run "
                     idx = dash_text.find(target)
                     if idx < 0:
@@ -139,7 +139,7 @@ class DashLog2RunXML(BaseLog):
 
                         runxml.setRun(numstr)
                         runxml.setStartTime(dash_date)
-                        has_runnum = True
+                        has_run_num = True
                         if not has_cluster:
                             logging.error("Missing \"Cluster\" line"
                                           " from %s", dashpath)
@@ -225,7 +225,7 @@ class Sum(object):
 
                 if verbose:
                     evts = runxml.getEvents()
-                    if evts is None:
+                    if evts is None or total == 0:
                         rate = ""
                     else:
                         rate = "%.02f" % (float(evts) / float(total), )
@@ -386,7 +386,7 @@ def summarize(args):
     if not args.show_clucfg:
         std_clucfg = None
     else:
-        clu_name = ClusterDescription.getClusterName()
+        clu_name = ClusterDescription.get_cluster_name()
         std_clucfg = strip_clucfg(clu_name)
 
     if len(args.files) > 0:

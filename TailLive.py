@@ -419,7 +419,7 @@ class Tail(LiveFile):
 class MultiFile(LiveFile):
     def __init__(self):
         self.__logname = None
-        self.__fd = None
+        self.__file_handle = None
 
         super(MultiFile, self).__init__()
 
@@ -433,24 +433,24 @@ class MultiFile(LiveFile):
         raise NotImplementedError()
 
     def close(self):
-        self.__fd.close()
+        self.__file_handle.close()
 
     next = __next__ # XXX backward compatibility for Python 2
 
     def readline(self):
         while True:
-            if self.__fd is None:
+            if self.__file_handle is None:
                 self.__logname = self.next_file()
                 if self.__logname is None:
                     break
-                self.__fd = open(self.__logname, "r")
+                self.__file_handle = open(self.__logname, "r")
 
-            line = self.__fd.readline()
+            line = self.__file_handle.readline()
             if line != "":
                 return line
 
-            self.__fd.close()
-            self.__fd = None
+            self.__file_handle.close()
+            self.__file_handle = None
 
 
 class AllFiles(MultiFile):
@@ -531,9 +531,9 @@ class LiveLog(object):
                         ANSIEscapeCode.BOLD_ON),
     }
 
-    def __init__(self, fd, show_all=False, pdaq_only=False, non_log=False,
-                 quiet=False, color_file=None):
-        self.__fd = fd
+    def __init__(self, file_handle, show_all=False, pdaq_only=False,
+                 non_log=False, quiet=False, color_file=None):
+        self.__file_handle = file_handle
         self.__show_all = show_all
         self.__pdaq_only = pdaq_only
         self.__non_log = non_log
@@ -721,7 +721,7 @@ class LiveLog(object):
 
     def read_file(self):
         prevline = None
-        for line in self.__fd:
+        for line in self.__file_handle:
             if line is None:
                 break
 
@@ -787,6 +787,6 @@ if __name__ == "__main__":
     add_arguments(parser)
     args = parser.parse_args()
 
-    DumpThreadsOnSignal(fd=sys.stderr)
+    DumpThreadsOnSignal(file_handle=sys.stderr)
 
     tail_logs(args)

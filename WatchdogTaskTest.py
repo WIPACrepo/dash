@@ -65,7 +65,7 @@ class FooRule(WatchdogRule):
 class WatchdogTaskTest(unittest.TestCase):
     def __buildFoo(self):
         foo = MockComponent("foo", 1)
-        foo.set_order(1)
+        foo.order = 1
         foo.mbean.addData("inBean", "inFld", 0)
         foo.mbean.addData("outBean", "outFld", 0)
         foo.mbean.addData("threshBean", "threshFld", 0)
@@ -73,7 +73,7 @@ class WatchdogTaskTest(unittest.TestCase):
 
     def __buildBar(self, addBarBeans=False):
         bar = MockComponent("bar", 0)
-        bar.set_order(2)
+        bar.order = 2
         if addBarBeans:
             bar.mbean.addData("barBean", "barFld", 0)
 
@@ -149,7 +149,7 @@ class WatchdogTaskTest(unittest.TestCase):
         taskMgr.addIntervalTimer(timer)
 
         foo = MockComponent("foo", 1)
-        foo.set_order(1)
+        foo.order = 1
 
         runset = MockRunSet([foo, ])
 
@@ -167,7 +167,7 @@ class WatchdogTaskTest(unittest.TestCase):
         taskMgr.addIntervalTimer(timer)
 
         foo = MockComponent("foo", 1)
-        foo.set_order(1)
+        foo.order = 1
 
         runset = MockRunSet([foo, ])
 
@@ -300,7 +300,7 @@ class WatchdogTaskTest(unittest.TestCase):
 
         num = 1
         for c in compList:
-            c.set_order(num)
+            c.order = num
             num += 1
 
         runset = MockRunSet(compList)

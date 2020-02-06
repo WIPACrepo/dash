@@ -176,16 +176,17 @@ class MockTMComponent(Component):
         "Return the order for this component"
         return self.__order
 
-    def set_order(self, num):
+    @order.setter
+    def order(self, num):
         "Set the order in which components are started/stopped"
         self.__order = num
 
-    def updateRates(self):
+    def update_rates(self):
         "Pretend to fetch this component's updated event rates"
         self.__updated_rates = True
 
     def was_updated(self):
-        "Return True if this component's updateRates() method was called"
+        "Return True if this component's update_rates() method was called"
         return self.__updated_rates
 
 
@@ -209,9 +210,9 @@ class MockRunConfig(object):
 class MyTaskManager(TaskManager):
     "Test version of TaskManager which returns mock interval timers"
 
-    def __init__(self, runset, dashlog, live, runDir, run_cfg, moniType):
+    def __init__(self, runset, dashlog, live, run_dir, run_cfg, moniType):
         self.__timer_dict = {}
-        super(MyTaskManager, self).__init__(runset, dashlog, live, runDir,
+        super(MyTaskManager, self).__init__(runset, dashlog, live, run_dir,
                                             run_cfg, moniType)
 
     def createIntervalTimer(self, name, period):
@@ -324,7 +325,7 @@ class TaskManagerTest(unittest.TestCase):
 
         order_num = 1
         for comp in comp_list:
-            comp.set_order(order_num)
+            comp.order = order_num
 
         runset = MockRunSet(comp_list)
 
@@ -369,7 +370,7 @@ class TaskManagerTest(unittest.TestCase):
 
         order_num = 1
         for comp in comp_list:
-            comp.set_order(order_num)
+            comp.order = order_num
 
         runset = MockRunSet(comp_list)
         runset.startRunning()
@@ -423,7 +424,7 @@ class TaskManagerTest(unittest.TestCase):
 
         order_num = 1
         for comp in comp_list:
-            comp.set_order(order_num)
+            comp.order = order_num
 
         runset = MockRunSet(comp_list)
         runset.startRunning()

@@ -525,7 +525,7 @@ def add_arguments(parser):
     parser.add_argument("-v", "--verbose", dest="verbose",
                         action="store_true", default=False,
                         help="Include superfluous log lines")
-    parser.add_argument("runNumber", nargs="+")
+    parser.add_argument("run_number", nargs="+")
 
 
 def get_dir_and_runnum(top_dir, sub_dir):
@@ -575,15 +575,15 @@ def sort_logs(args):
         run_dir = args.rundir
     else:
         cdesc = ClusterDescription()
-        run_dir = cdesc.daqLogDir
+        run_dir = cdesc.daq_log_dir
 
-    for arg in args.runNumber:
-        (path, runnum) = get_dir_and_runnum(run_dir, arg)
-        if path is None or runnum is None:
+    for arg in args.run_number:
+        (path, run_num) = get_dir_and_run_num(run_dir, arg)
+        if path is None or run_num is None:
             print("Bad run number \"%s\"" % arg, file=sys.stderr)
             continue
 
-        lsrt = LogSorter(path, runnum)
+        lsrt = LogSorter(path, run_num)
         lsrt.dump_run(sys.stdout, verbose=args.verbose,
                       show_tcal=args.show_tcal, hide_rates=args.hide_rates,
                       hide_sn_gaps=args.hide_sn_gaps,

@@ -4,10 +4,12 @@ from __future__ import print_function
 
 
 class ColorException(Exception):
+    "Base exception for this code"
     pass
 
 
 def escape_string(code):
+    "Return a string for the specified ANSI escape code"
     if code <= 0:
         substr = ""
     else:
@@ -16,18 +18,21 @@ def escape_string(code):
 
 
 def background_color(color):
+    "Return an ANSI string to set the terminal's background color"
     if color < 0 or color > 9:
         raise ColorException("Color must be between 0 and 9, not " + color)
     return escape_string(color + 40)
 
 
 def foreground_color(color):
+    "Return an ANSI string to set the terminal's foreground color"
     if color < 0 or color > 9:
         raise ColorException("Color must be between 0 and 9, not " + color)
     return escape_string(color + 30)
 
 
 class ANSIEscapeCode(object):
+    "Friendly interface for ANSI terminal escape codes"
     OFF = escape_string(0)
 
     BLACK = 0
@@ -71,7 +76,8 @@ class ANSIEscapeCode(object):
     BG_DEFAULT = background_color(DEFAULT)
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
     import sys
 
     color = 0
@@ -79,40 +85,44 @@ if __name__ == "__main__":
     for arg in sys.argv[1:]:
         if color == 0:
             style = ANSIEscapeCode.BOLD_ON
-            fgColor = ANSIEscapeCode.FG_BLACK
-            bgColor = ANSIEscapeCode.BG_BLUE
+            fg_color = ANSIEscapeCode.FG_BLACK
+            bg_color = ANSIEscapeCode.BG_BLUE
         elif color == 1:
             style = ANSIEscapeCode.ITALIC_ON
-            fgColor = ANSIEscapeCode.FG_RED
-            bgColor = ANSIEscapeCode.BG_MAGENTA
+            fg_color = ANSIEscapeCode.FG_RED
+            bg_color = ANSIEscapeCode.BG_MAGENTA
         elif color == 2:
             style = ANSIEscapeCode.UNDERLINE_ON
-            fgColor = ANSIEscapeCode.FG_GREEN
-            bgColor = ANSIEscapeCode.BG_CYAN
+            fg_color = ANSIEscapeCode.FG_GREEN
+            bg_color = ANSIEscapeCode.BG_CYAN
         elif color == 3:
             style = ANSIEscapeCode.INVERTED_ON
-            fgColor = ANSIEscapeCode.FG_YELLOW
-            bgColor = ANSIEscapeCode.BG_GREEN
+            fg_color = ANSIEscapeCode.FG_YELLOW
+            bg_color = ANSIEscapeCode.BG_GREEN
         elif color == 4:
             style = ANSIEscapeCode.BOLD_OFF
-            fgColor = ANSIEscapeCode.FG_BLUE
-            bgColor = ANSIEscapeCode.BG_BLACK
+            fg_color = ANSIEscapeCode.FG_BLUE
+            bg_color = ANSIEscapeCode.BG_BLACK
         elif color == 5:
             style = ANSIEscapeCode.ITALIC_OFF
-            fgColor = ANSIEscapeCode.FG_MAGENTA
-            bgColor = ANSIEscapeCode.BG_RED
+            fg_color = ANSIEscapeCode.FG_MAGENTA
+            bg_color = ANSIEscapeCode.BG_RED
         elif color == 6:
             style = ANSIEscapeCode.UNDERLINE_OFF
-            fgColor = ANSIEscapeCode.FG_CYAN
-            bgColor = ANSIEscapeCode.BG_GREEN
+            fg_color = ANSIEscapeCode.FG_CYAN
+            bg_color = ANSIEscapeCode.BG_GREEN
         else:
             style = ANSIEscapeCode.INVERTED_OFF
-            fgColor = ANSIEscapeCode.FG_GREEN
-            bgColor = ANSIEscapeCode.BG_YELLOW
+            fg_color = ANSIEscapeCode.FG_GREEN
+            bg_color = ANSIEscapeCode.BG_YELLOW
 
-        print(ANSIEscapeCode.BG_WHITE + space + style + fgColor + bgColor + \
-            arg, end=' ')
+        print(ANSIEscapeCode.BG_WHITE + space + style + fg_color + bg_color +
+              arg, end=' ')
         color = (color + 1) % 8
         space = " "
 
     print(ANSIEscapeCode.OFF)
+
+
+if __name__ == "__main__":
+    main()

@@ -80,12 +80,12 @@ class RecoverThread(ActionThread):
         runset = self.__daq_live.runset
 
         # if the runset was destroyed, forget about it
-        if runset is not None and runset.isDestroyed:
+        if runset is not None and runset.is_destroyed:
             runset = None
-            self.__daq_live.set_runset(runset)
+            self.__daq_live.runset = runset
 
         if runset is None:
-            if not cnc.isStarting:
+            if not cnc.is_starting:
                 # is there's no runset and we're not starting, we're recovered
                 return True
 
@@ -93,8 +93,8 @@ class RecoverThread(ActionThread):
             if runset is None:
                 return True
 
-        if runset.isReady or runset.isIdle or \
-           runset.isDestroyed:
+        if runset.is_ready or runset.is_idle or \
+           runset.is_destroyed:
             # if we're in a known non-running state, we're done
             return True
 
@@ -119,11 +119,11 @@ class RecoverThread(ActionThread):
 
         # report final state
         rtnVal = False
-        if runset is None or runset.isDestroyed:
+        if runset is None or runset.is_destroyed:
             self.__log.error("DAQLive destroyed %s" % (runset, ))
             runset = None
             return True
-        if runset.isReady or runset.isIdle:
+        if runset.is_ready or runset.is_idle:
             return True
         if runset.stopping():
             self.__log.error("DAQLive giving up on hung %s" %
@@ -162,19 +162,19 @@ class StartThread(ActionThread):
         runset = self.__daq_live.runset
 
         if runset is not None:
-            if runset.isRunning:
+            if runset.is_running:
                 # if we have a runset, we're ready to run!
                 return True
 
-            if runset.isDestroyed:
+            if runset.is_destroyed:
                 # if the runset was destroyed, forget about it
                 runset = None
             else:
-                cnc.breakRunset(runset)
-            self.__daq_live.set_runset(None)
+                cnc.break_runset(runset)
+            self.__daq_live.runset = None
 
         try:
-            runset = cnc.makeRunsetFromRunConfig(run_cfg, run_num)
+            runset = cnc.make_runset_from_run_config(run_cfg, run_num)
         except MissingComponentException as mce:
             compStrs = [str(x) for x in mce.components()]
             self.__daq_live.moniClient.sendMoni("missingComponent",
@@ -198,7 +198,7 @@ class StartThread(ActionThread):
         cnc.start_run(runset, run_num, runOptions)
 
         # we're now using the new runset
-        self.__daq_live.set_runset(runset)
+        self.__daq_live.runset = runset
 
 
 class StopThread(ActionThread):
@@ -215,32 +215,32 @@ class StopThread(ActionThread):
 
         cnc = self.__daq_live.command_and_control
 
-        if cnc.isStarting:
-            cnc.stopCollecting()
+        if cnc.is_starting:
+            cnc.stop_collecting()
 
         runset = self.__daq_live.runset
 
         # if the runset was destroyed, forget about it
-        if runset is not None and runset.isDestroyed:
-            self.__daq_live.set_runset(None)
+        if runset is not None and runset.is_destroyed:
+            self.__daq_live.runset = None
             runset = None
 
         # no active runset, so there's nothing to stop
         if runset is None:
             return
 
-        if runset.isReady or runset.isIdle:
+        if runset.is_ready or runset.is_idle:
             got_error = False
         else:
             got_error = runset.stop_run(runset.NORMAL_STOP)
-            if not runset.isReady:
+            if not runset.is_ready:
                 raise LiveException("%s did not stop" % (runset, ))
 
         # XXX could get rid of this if 'livecmd' released runsets on exit
         #
-        cnc.breakRunset(runset)
-        if runset.isDestroyed:
-            self.__daq_live.set_runset(None)
+        cnc.break_runset(runset)
+        if runset.is_destroyed:
+            self.__daq_live.runset = None
 
         if got_error:
             raise LiveException("Encountered ERROR while stopping run")
@@ -281,7 +281,7 @@ class DAQLive(LiveComponent):
         self.__cnc = cnc
         self.__log = logger
 
-        self.__runSet = None
+        self.__runset = None
 
         self.__thread = None
 
@@ -357,10 +357,10 @@ class DAQLive(LiveComponent):
 
     def running(self, retry=True):
         # if the runset was destroyed, forget about it
-        if self.__runSet is not None and self.__runSet.isDestroyed:
+        if self.__runset is not None and self.__runset.is_destroyed:
             self.__log.error("DAQLive.running() throwing away destroyed"
                              " runset")
-            self.__runSet = None
+            self.__runset = None
 
         # this method doesn't start a thread, so we provide a fake name
         # it *should* always return None or INCOMPLETE
@@ -374,19 +374,19 @@ class DAQLive(LiveComponent):
                                  " exception\n" + traceback.format_exc())
                 raise
 
-        if self.__runSet is None:
+        if self.__runset is None:
             self.__log.error("DAQLive.running() dying due to missing runset")
             raise LiveException("Cannot check run state; no active runset")
 
-        if not self.__runSet.isRunning:
+        if not self.__runset.is_running:
             self.__log.error("DAQLive.running() dying due to stopped runset")
             raise LiveException("%s is not running (state = %s)" %
-                                (self.__runSet, self.__runSet.state))
+                                (self.__runset, self.__runset.state))
 
         if self.__moniTimer.is_time():
             try:
                 self.__moniTimer.reset()
-                self.__runSet.send_event_counts()
+                self.__runset.send_event_counts()
             except:
                 self.__log.error("DAQLive.running() dying due to moni"
                                  " exception\n" + traceback.format_exc())
@@ -396,10 +396,11 @@ class DAQLive(LiveComponent):
 
     @property
     def runset(self):
-        return self.__runSet
+        return self.__runset
 
-    def set_runset(self, new_runset):
-        self.__runSet = new_runset
+    @runset.setter
+    def runset(self, new_runset):
+        self.__runset = new_runset
 
     def starting(self, stateArgs=None):
         """
@@ -425,13 +426,13 @@ class DAQLive(LiveComponent):
             runCfg = stateArgs[key]
 
             key = "runNumber"
-            runNum = stateArgs[key]
+            run_num = stateArgs[key]
         except KeyError:
             raise LiveException("stateArgs does not contain key \"%s\"" %
                                 (key, ))
 
         # start thread now, subsequent calls will check the thread result
-        self.__thread = StartThread(self, self.__log, runCfg, runNum)
+        self.__thread = StartThread(self, self.__log, runCfg, run_num)
         self.__thread.start()
 
         return INCOMPLETE_STATE_CHANGE
@@ -447,7 +448,7 @@ class DAQLive(LiveComponent):
         # reset recovery attempt counter
         self.__recoverAttempts = 0
 
-        if self.__runSet is None:
+        if self.__runset is None:
             return True
 
         # stop in a thread so we can return immediately
@@ -456,15 +457,15 @@ class DAQLive(LiveComponent):
         return INCOMPLETE_STATE_CHANGE
 
     def subrun(self, subrunId, domList):
-        if self.__runSet is None:
+        if self.__runset is None:
             raise LiveException("Cannot stop run; no active runset")
 
-        self.__runSet.subrun(subrunId, domList)
+        self.__runset.subrun(subrunId, domList)
 
         return "OK"
 
     def switchrun(self, stateArgs=None):
-        if self.__runSet is None or self.__runSet.isDestroyed:
+        if self.__runset is None or self.__runset.is_destroyed:
             raise LiveException("Cannot switch run; no active runset")
 
         if stateArgs is None or len(stateArgs) == 0:
@@ -485,17 +486,17 @@ class DAQLive(LiveComponent):
 
         try:
             key = "runNumber"
-            runNum = stateArgs[key]
+            run_num = stateArgs[key]
         except KeyError:
             raise LiveException("stateArgs does not contain key \"%s\"" % key)
 
         # start thread now, subsequent calls will check the thread result
-        self.__thread = SwitchThread(self, self.__log, runNum)
+        self.__thread = SwitchThread(self, self.__log, run_num)
         self.__thread.start()
 
         return INCOMPLETE_STATE_CHANGE
 
     def version(self):
         "Returns the current pDAQ release name"
-        versionInfo = self.__cnc.versionInfo()
-        return versionInfo["release"] + "_" + versionInfo["repo_rev"]
+        version_info = self.__cnc.version_info()
+        return version_info["release"] + "_" + version_info["repo_rev"]

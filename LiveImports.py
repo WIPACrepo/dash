@@ -3,12 +3,12 @@
 # assume that the imports will succeed
 LIVE_IMPORT = True
 
-# attempt to import MoniClient 
+# attempt to import MoniClient
 try:
-    from live.transport.moniclient import DefaultMoniClient as MoniClient
+    from livecore.messaging.moniclient import MoniClient
 except ImportError:
     try:
-        from live.control.LiveMoni import MoniClient
+        from live.transport.moniclient import DefaultMoniClient as MoniClient
     except ImportError:
         LIVE_IMPORT = False
         class MoniClient(object):
@@ -30,51 +30,57 @@ except ImportError:
 
 # attempt to import MoniPort
 try:
-    from live.transport.moniclient import default_moni_port as MoniPort
+    from livecore.messaging.moniclient import default_moni_port as MoniPort
 except ImportError:
-    LIVE_IMPORT = False
-    MoniPort = 6666
+    try:
+        from live.transport.moniclient import default_moni_port as MoniPort
+    except ImportError:
+        LIVE_IMPORT = False
+        MoniPort = 6666
 
 # attempt to import LiveComponent
 try:
-    from live.control.component import Component as LiveComponent
+    from livecore.control.component import Component as LiveComponent
 except ImportError:
-    LIVE_IMPORT = False
-    class LiveComponent(object):
-        def __init__(self, compName, rpcPort=None, moniHost=None,
-                     moniPort=None, synchronous=None, lightSensitive=None,
-                     makesLight=None, logger=None):
-            pass
+    try:
+        from live.control.component import Component as LiveComponent
+    except ImportError:
+        LIVE_IMPORT = False
+        class LiveComponent(object):
+            def __init__(self, compName, rpcPort=None, moniHost=None,
+                        moniPort=None, synchronous=None, lightSensitive=None,
+                        makesLight=None, logger=None):
+                pass
 
-        def close(self):
-            pass
+            def close(self):
+                pass
 
-        def run(self):
-            pass
+            def run(self):
+                pass
 
 # attempt to import INCOMPLETE_STATE_CHANGE
 try:
-    from live.control.component import INCOMPLETE_STATE_CHANGE
+    from livecore.control.component import INCOMPLETE_STATE_CHANGE
 except ImportError:
-    LIVE_IMPORT = False
-    INCOMPLETE_STATE_CHANGE = None
+    try:
+        from live.control.component import INCOMPLETE_STATE_CHANGE
+    except ImportError:
+        LIVE_IMPORT = False
+        INCOMPLETE_STATE_CHANGE = None
 
 # attempt to import Prio
 try:
-    from live.transport.priorities import Prio
+    from livecore.messaging.priorities import Prio
 except ImportError:
     try:
         from live.transport.prioqueue import Prio
     except ImportError:
-        try:
-            from live.transport.Queue import Prio
-        except ImportError:
-            LIVE_IMPORT = False
-            class Prio(object):
-                ITS = 123
-                EMAIL = 444
-                SCP = 555
-                DEBUG = 666
+        LIVE_IMPORT = False
+        class Prio(object):
+            ITS = 123
+            EMAIL = 444
+            SCP = 555
+            DEBUG = 666
 
 # set pDAQ's I3Live service name
 if LIVE_IMPORT:

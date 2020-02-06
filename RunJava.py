@@ -93,15 +93,6 @@ class JavaCommand(object):
         if sys_args is not None:
             self.__cmd += sys_args
 
-    @classmethod
-    def __timediff(cls, start_time, end_time):
-        """
-        Convert the difference between two times to a floating point value
-        """
-        diff = end_time - start_time
-        return float(diff.seconds) + \
-            (float(diff.microseconds) / 1000000.0)
-
     @property
     def command(self):
         """Return the command which was run"""
@@ -112,10 +103,20 @@ class JavaCommand(object):
         """Return the signal which caused the program to exit (or None)"""
         return self.__exitsig
 
+    @exit_signal.setter
+    def exit_signal(self, val):
+        """Record the signal which caused the program to exit"""
+        self.__exitsig = val
+
     @property
     def kill_signal(self):
         """Return the signal which caused the program to be killed (or None)"""
         return self.__killsig
+
+    @kill_signal.setter
+    def kill_signal(self, val):
+        """Record the signal which caused the program to be killed"""
+        self.__killsig = val
 
     def process(self, line, is_stderr=False):
         """Process a line of output from the program"""
@@ -130,35 +131,30 @@ class JavaCommand(object):
         """Return the POSIX return code"""
         return self.__returncode
 
+    @returncode.setter
+    def returncode(self, val):
+        """Record the POSIX return code"""
+        self.__returncode = val
+
     @property
     def run_time(self):
         """Return the time needed to run the program"""
         return self.__run_time
 
-    def set_exit_signal(self, val):
-        """Record the signal which caused the program to exit"""
-        self.__exitsig = val
-
-    def set_kill_signal(self, val):
-        """Record the signal which caused the program to be killed"""
-        self.__killsig = val
-
-    def set_return_code(self, val):
-        """Record the POSIX return code"""
-        self.__returncode = val
-
-    def set_run_time(self, start_time, end_time):
+    @run_time.setter
+    def run_time(self, value):
         """Record the run time"""
-        self.__run_time = self.__timediff(start_time, end_time)
-
-    def set_wait_time(self, start_time, end_time):
-        """Record the wait time"""
-        self.__wait_time = self.__timediff(start_time, end_time)
+        self.__run_time = value
 
     @property
     def wait_time(self):
         """Return the time spent waiting for the program to finish"""
         return self.__wait_time
+
+    @wait_time.setter
+    def wait_time(self, value):
+        """Record the wait time"""
+        self.__wait_time = value
 
 
 class JavaRunner(object):
@@ -488,13 +484,13 @@ class JavaRunner(object):
 
         wait_time = datetime.datetime.now()
 
-        data.set_return_code(self.__proc.returncode)
+        data.return_code = self.__proc.returncode
 
-        data.set_run_time(start_time, end_time)
-        data.set_wait_time(end_time, wait_time)
+        data.run_time = self.__timediff(start_time, end_time)
+        data.wait_time = self.__timediff(end_time, wait_time)
 
-        data.set_exit_signal(self.__exitsig)
-        data.set_kill_signal(self.__killsig)
+        data.exit_signal = self.__exitsig
+        data.kill_signal = self.__killsig
 
         self.__proc = None
 
@@ -513,6 +509,15 @@ class JavaRunner(object):
             os.environ["CLASSPATH"] = ":".join(cp)
             if debug:
                 print("export CLASSPATH=\"%s\"" % os.environ["CLASSPATH"])
+
+    @classmethod
+    def __timediff(cls, start_time, end_time):
+        """
+        Convert the difference between two times to a floating point value
+        """
+        diff = end_time - start_time
+        return float(diff.seconds) + \
+            (float(diff.microseconds) / 1000000.0)
 
     def kill(self, sig):
         self.send_signal(sig, None)

@@ -409,7 +409,7 @@ if __name__ == "__main__":
         spade_dir = args.spadedir
     else:
         cluster = ClusterDescription()
-        spade_dir = cluster.logDirForSpade
+        spade_dir = cluster.log_dir_for_spade
 
     # use '.pid' file to ensure multiple instances aren't
     # adding the same files to different tar files

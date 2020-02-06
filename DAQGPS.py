@@ -21,7 +21,7 @@ def main():
     p.add_argument("-c", "--config-name",
                    dest="clusterConfigName",
                    help="REQUIRED: Configuration name")
-    p.add_argument("-n", "--dry-run", dest="dryRun",
+    p.add_argument("-n", "--dry-run", dest="dry_run",
                    action="store_true", default=False,
                    help="Don't actually run DAQGPS - just print what" +
                    " would be done")
@@ -32,9 +32,9 @@ def main():
     args = p.parse_args()
 
     try:
-        config = DAQConfigParser. \
-            getClusterConfiguration(args.clusterConfigName,
-                                    validate=args.validation)
+        config = DAQConfigParser.\
+            get_cluster_configuration(args.clusterConfigName,
+                                      validate=args.validation)
     except DAQConfigException as e:
         print("Configuration file problem:\n%s" % e, file=sys.stderr)
         raise SystemExit
@@ -42,9 +42,9 @@ def main():
     if args.doList:
         raise SystemExit
 
-    hublist = config.getHubNodes()
+    hublist = config.get_hub_nodes()
 
-    cmds = ParallelShell(dryRun=args.dryRun, timeout=20)
+    cmds = ParallelShell(dry_run=args.dry_run, timeout=20)
     ids = {}
     for hub in hublist:
         # FIXME - actually implement the right thing here

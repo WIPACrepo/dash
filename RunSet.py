@@ -72,7 +72,7 @@ class Connection(object):
         "String description"
         front = '%s:%s#%d@%s' % \
             (self.conn.name, self.comp.name, self.comp.num, self.comp.host)
-        if not self.conn.isInput:
+        if not self.conn.is_input:
             return front
         return '%s:%d' % (front, self.conn.port)
 
@@ -110,13 +110,13 @@ class ConnTypeEntry(object):
 
     def add(self, conn, comp):
         "Add a connection and component to the appropriate list"
-        if conn.isInput:
-            if conn.isOptional:
+        if conn.is_input:
+            if conn.is_optional:
                 self.__opt_in_list.append([conn, comp])
             else:
                 self.__in_list.append([conn, comp])
         else:
-            if conn.isOptional:
+            if conn.is_optional:
                 self.__opt_out_list.append(comp)
             else:
                 self.__out_list.append(comp)
@@ -713,31 +713,31 @@ class RunData(object):
                            self.__run_options)
 
     def destroy(self):
-        saved_ex = None
+        saved_exc = None
         try:
             # stop monitoring, watchdog, etc.
             self.stop_tasks()
         except:
-            saved_ex = sys.exc_info()
+            saved_exc = sys.exc_info()
 
         if self.has_moni_client:
             try:
                 self.__live_moni_client.close()
             except:
-                if not saved_ex:
-                    saved_ex = sys.exc_info()
+                if not saved_exc:
+                    saved_exc = sys.exc_info()
             self.__live_moni_client = None
 
         if self.__dashlog is not None:
             try:
                 self.__dashlog.close()
             except:
-                if not saved_ex:
-                    saved_ex = sys.exc_info()
+                if not saved_exc:
+                    saved_exc = sys.exc_info()
             self.__dashlog = None
 
-        if saved_ex:
-            reraise_excinfo(saved_ex)
+        if saved_exc:
+            reraise_excinfo(saved_exc)
 
     def error(self, msg):
         if self.__dashlog is not None:
@@ -759,6 +759,13 @@ class RunData(object):
     def first_physics_time(self):
         return self.__first_pay_time
 
+    @first_physics_time.setter
+    def first_physics_time(self, paytime):
+        if self.__first_pay_time is None:
+            self.__first_pay_time = paytime
+        if len(self.__physics_entries) == 0:
+            self.__add_rate(self.__first_pay_time, 1)
+
     def get_event_counts(self, run_num, run_set):
         "Return monitoring data for the run"
         if self.run_number != run_num:
@@ -766,7 +773,7 @@ class RunData(object):
                        ", current run is #%d" %
                        (run_num, self.run_number))
             values = None
-        elif run_set.isRunning:
+        elif run_set.is_running:
             values = self.update_counts_and_rate(run_set)
         else:
             values = self.cached_monitor_data
@@ -813,7 +820,7 @@ class RunData(object):
             self.__dashlog.info(msg)
 
     @property
-    def isDestroyed(self):
+    def is_destroyed(self):
         return self.__dashlog is None
 
     @property
@@ -1066,17 +1073,9 @@ class RunData(object):
             self.__dashlog.error("Failed to send %s=%s: %s" %
                                  (name, value, exc_string()))
 
+    @property
     def set_finished(self):
         self.__finished = True
-
-    def set_first_physics_time(self, paytime):
-        if self.__first_pay_time is None:
-            self.__first_pay_time = paytime
-        if len(self.__physics_entries) == 0:
-            self.__add_rate(self.__first_pay_time, 1)
-
-    def set_subrun_number(self, num):
-        self.__subrun_number = num
 
     @property
     def spade_directory(self):
@@ -1092,13 +1091,17 @@ class RunData(object):
         if self.__task_mgr is not None:
             self.__task_mgr.stop()
             for _ in range(5):
-                if self.__task_mgr.isStopped:
+                if self.__task_mgr.is_stopped:
                     break
                 time.sleep(0.25)
 
     @property
     def subrun_number(self):
         return self.__subrun_number
+
+    @subrun_number.setter
+    def subrun_number(self, num):
+        self.__subrun_number = num
 
     def update_counts_and_rate(self, run_set):
         physics_count = 0
@@ -1202,7 +1205,7 @@ class RunData(object):
                 msg = "Cannot get first event time (%s)" % (result, )
                 self.error(msg)
             else:
-                self.set_first_physics_time(result)
+                self.first_physics_time = result
 
         return self.update_event_counts\
             (physics_count, wall_time, self.__first_pay_time,
@@ -1215,7 +1218,7 @@ class RunData(object):
         "Gather run statistics"
         if add_rate and self.__first_pay_time is None and \
           first_pay_time is not None and first_pay_time > 0:
-            self.set_first_physics_time(first_pay_time)
+            self.first_physics_time = first_pay_time
 
         if physics_count >= 0 and evt_pay_time > 0:
             (self.__num_evts, self.__wall_time, self.__evt_pay_time,
@@ -1311,7 +1314,7 @@ class RunSet(object):
         Class attributes:
         id - unique runset ID
         configured - true if this runset has been configured
-        runNumber - run number (if assigned)
+        run_number - run number (if assigned)
         state - current state of this set of components
         """
         self.__parent = parent
@@ -1627,7 +1630,7 @@ class RunSet(object):
                 self.__logger.error("Could not finish run for %s (%s): %s" %
                                     (self, caller_name, exc_string()))
             finally:
-                self.__parent.saveCatchall(run_data.run_directory)
+                self.__parent.save_catchall(run_data.run_directory)
 
         # tell components to switch back to default logger (catchall.log)
         try:
@@ -1663,7 +1666,7 @@ class RunSet(object):
                     sent_error = exc_string()
 
             # note that this run is finished
-            run_data.set_finished()
+            run_data.set_finished
 
         if sent_error is not None:
             self.__logger.error("Could not send event counts for %s (%s): %s" %
@@ -1780,7 +1783,7 @@ class RunSet(object):
                                   self.__logger, report_errors=True)
 
     def __log_error(self, msg):
-        if self.__run_data is not None and not self.__run_data.isDestroyed:
+        if self.__run_data is not None and not self.__run_data.is_destroyed:
             logger = self.__run_data
         else:
             logger = self.__logger
@@ -2235,7 +2238,7 @@ class RunSet(object):
             desc = desc[:-4]
         if desc.endswith("-cluster"):
             front = desc[:-8]
-            base = ClusterDescription.getClusterName()
+            base = ClusterDescription.get_cluster_name()
             if front == base:
                 return None
 
@@ -2293,9 +2296,9 @@ class RunSet(object):
 
         bad_states = self.__check_state(RunSetState.CONNECTED)
         if len(bad_states) > 0:
-            err_msg = "Could not connect %s" % \
+            errmsg = "Could not connect %s" % \
                       self.__bad_state_string(bad_states)
-            raise RunSetException(err_msg)
+            raise RunSetException(errmsg)
 
     @classmethod
     def create_component_log(cls, run_dir, comp, host, port, quiet=True):
@@ -2392,7 +2395,7 @@ class RunSet(object):
         This is "public" so it can be overridden by unit tests
         """
 
-        if run_data is None or run_data.isDestroyed:
+        if run_data is None or run_data.is_destroyed:
             raise RunSetException("Run data is destroyed or not initialized")
 
         # build list of endpoints (eventBuilder and secondaryBuilders)
@@ -2424,18 +2427,18 @@ class RunSet(object):
             duration = 0
         else:
             if first_time is None:
-                err_msg = "Starting time is not set"
+                errmsg = "Starting time is not set"
             elif last_time is None:
-                err_msg = "Ending time is not set"
+                errmsg = "Ending time is not set"
             elif last_time < first_time:
-                err_msg = "Ending time %s is before starting time %s" % \
+                errmsg = "Ending time %s is before starting time %s" % \
                           (last_time, first_time)
             else:
-                err_msg = None
+                errmsg = None
                 duration = (last_time - first_time) / 10000000000
 
-            if err_msg is not None:
-                run_data.error(err_msg)
+            if errmsg is not None:
+                run_data.error(errmsg)
                 had_error = True
                 duration = 0
 
@@ -2562,19 +2565,19 @@ class RunSet(object):
             self.__state = prev_state
 
     @property
-    def isDestroyed(self):
+    def is_destroyed(self):
         return self.__state == RunSetState.DESTROYED
 
     @property
-    def isIdle(self):
+    def is_idle(self):
         return self.__state == RunSetState.IDLE
 
     @property
-    def isReady(self):
+    def is_ready(self):
         return self.__state == RunSetState.READY
 
     @property
-    def isRunning(self):
+    def is_running(self):
         return self.__state == RunSetState.RUNNING
 
     @classmethod
@@ -2699,7 +2702,7 @@ class RunSet(object):
         'cluster_config') from the runset and restart them
         """
         clu_cfg_list, missing_list \
-            = cluster_config.extractComponents(comp_list)
+            = cluster_config.extract_components(comp_list)
 
         # complain about missing components
         if len(missing_list) > 0:
@@ -2795,7 +2798,7 @@ class RunSet(object):
 
             # clear order
             #
-            comp.set_order(None)
+            comp.order = None
 
             # add component to the list
             #
@@ -2824,7 +2827,7 @@ class RunSet(object):
 
                 del all_comps[comp]
 
-                comp.set_order(level)
+                comp.order = level
 
                 if comp not in conn_map:
                     if comp.is_source:
@@ -2848,7 +2851,7 @@ class RunSet(object):
 
         for comp in self.__set:
             fail_str = None
-            if not comp.order:
+            if comp.order is None:
                 if not fail_str:
                     fail_str = 'No order set for ' + str(comp)
                 else:
@@ -3000,7 +3003,7 @@ class RunSet(object):
             if comp.is_builder:
                 comp.prepare_subrun(sub_id)
 
-        self.__run_data.set_subrun_number(-sub_id)
+        self.__run_data.subrun_number = -sub_id
 
         hubs = []
         for comp in self.__set:
@@ -3041,7 +3044,7 @@ class RunSet(object):
             if comp.is_builder:
                 comp.commit_subrun(sub_id, latest_time)
 
-        self.__run_data.set_subrun_number(sub_id)
+        self.__run_data.subrun_number = sub_id
 
     def subrun_events(self, subrun_number):
         "Get the number of events in the specified subrun"
@@ -3133,7 +3136,7 @@ class RunSet(object):
             time.sleep(bldr_sleep)
 
         # from this point, cache any failures until the end
-        saved_ex = None
+        saved_exc = None
 
         # if there's a problem...
         #
@@ -3146,7 +3149,7 @@ class RunSet(object):
                 raise RunSetException("Still waiting for %s to finish"
                                       " switching" % " ".join(bad_bldrs))
             except:
-                saved_ex = sys.exc_info()
+                saved_exc = sys.exc_info()
 
         # switch to new run data
         #
@@ -3158,43 +3161,43 @@ class RunSet(object):
         try:
             self.finish_setup(new_data, start_time)
         except:
-            if saved_ex is None:
-                saved_ex = sys.exc_info()
+            if saved_exc is None:
+                saved_exc = sys.exc_info()
 
         try:
             self.final_report(self.__set, old_data, had_error=False,
                               switching=True)
         except:
-            if not saved_ex:
-                saved_ex = sys.exc_info()
+            if not saved_exc:
+                saved_exc = sys.exc_info()
         finally:
-            self.__parent.saveCatchall(old_data.run_directory)
+            self.__parent.save_catchall(old_data.run_directory)
 
         try:
             old_data.send_event_counts(self)
         except:
-            if not saved_ex:
-                saved_ex = sys.exc_info()
+            if not saved_exc:
+                saved_exc = sys.exc_info()
 
         try:
             # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
             # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
             self.__queue_for_spade(old_data)
         except:
-            if not saved_ex:
-                saved_ex = sys.exc_info()
+            if not saved_exc:
+                saved_exc = sys.exc_info()
 
         # note that the old run is finished
-        old_data.set_finished()
+        old_data.set_finished
 
         try:
             new_data.report_first_good_time(self)
         except:
-            if not saved_ex:
-                saved_ex = sys.exc_info()
+            if not saved_exc:
+                saved_exc = sys.exc_info()
 
-        if saved_ex:
-            reraise_excinfo(saved_ex)
+        if saved_exc:
+            reraise_excinfo(saved_exc)
 
     def update_rates(self):
         values = self.__run_data.update_counts_and_rate(self)

@@ -139,7 +139,7 @@ class TinyRunSet(object):
         return run_data.first_physics_time
 
     @property
-    def isRunning(self):
+    def is_running(self):
         return self.__running
 
     def report_good_time(self, run_data, name, ticks):
@@ -472,7 +472,7 @@ class RunDataTest(unittest.TestCase):
         tcal_time = 70 * self.TICKS_PER_SEC
 
         # we'll need the first time to be set
-        rdata.set_first_physics_time(10 * self.TICKS_PER_SEC)
+        rdata.first_physics_time = 10 * self.TICKS_PER_SEC
 
         self.__set_mbean_values(runset, run_num, num_evts, evt_time, num_moni,
                                 moni_time, num_sn, sn_time, num_tcal,
@@ -563,7 +563,7 @@ class RunDataTest(unittest.TestCase):
 
         # this should finally succeed
         first_tick = 100 * self.TICKS_PER_SEC
-        rdata.set_first_physics_time(first_tick)
+        rdata.first_physics_time = first_tick
         rdata.report_first_good_time(runset)
 
     def testReportRunStopBad(self):
@@ -878,7 +878,7 @@ class RunDataTest(unittest.TestCase):
         tcal_time = 70 * self.TICKS_PER_SEC
 
         # we'll need the first time to be set
-        rdata.set_first_physics_time(10 * self.TICKS_PER_SEC)
+        rdata.first_physics_time = 10 * self.TICKS_PER_SEC
 
         self.__set_mbean_values(runset, run_num, num_evts, evt_time, num_moni,
                                 moni_time, num_sn, sn_time, num_tcal,
@@ -1024,7 +1024,7 @@ class RunDataTest(unittest.TestCase):
         num_tcal = 67
         tcal_time = 70 * self.TICKS_PER_SEC
 
-        rdata.set_first_physics_time(10 * self.TICKS_PER_SEC)
+        rdata.first_physics_time = 10 * self.TICKS_PER_SEC
 
         # bad run number
         bad_num = run_num + 3

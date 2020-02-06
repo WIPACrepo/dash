@@ -36,14 +36,14 @@ class PCmd(object):
     # class variable to guarantee unique filenames
     counter = 0
 
-    def __init__(self, cmd, parallel=True, dryRun=False,
+    def __init__(self, cmd, parallel=True, dry_run=False,
                  verbose=False, trace=False, timeout=None):
         """
         Construct a PCmd object with the given options:
         cmd - The command to run as a string.
         parallel - If True don't wait for command to return when
                    started, otherwise wait. Default: True
-        dryRun   - If True, don't actually start command.  Only usefull
+        dry_run   - If True, don't actually start command.  Only usefull
                    if verbose is also True. Default: False
         verbose  - If True, print command as they are run along with
                    process IDs and return codes. Default: False
@@ -58,7 +58,7 @@ class PCmd(object):
         self.origCmd = cmd
         self.subproc = None
         self.parallel = parallel
-        self.dryRun = dryRun
+        self.dry_run = dry_run
         self.verbose = verbose
         self.trace = trace
         self.timeout = timeout
@@ -77,7 +77,7 @@ class PCmd(object):
         """ Return info about this command, the pid used and
         return code. """
         state_str = "%s%s%s%s" % (self.parallel and 'p' or '',
-                                  self.dryRun and 'd' or '',
+                                  self.dry_run and 'd' or '',
                                   self.verbose and 'v' or '',
                                   self.trace and 't' or '')
         if self.subproc is None:  # Nothing started yet or dry run
@@ -120,7 +120,7 @@ class PCmd(object):
 
         # Create a Popen object for running a shell child proc to
         # run the command
-        if not self.dryRun:
+        if not self.dry_run:
             time.sleep(0.01)
             self.subproc = subprocess.Popen(self.cmd, shell=True)
 
@@ -137,10 +137,10 @@ class PCmd(object):
         if self.done:
             return
 
-        if self.subproc is None and not self.dryRun:
+        if self.subproc is None and not self.dry_run:
             raise RuntimeError("Attempt to wait for unstarted command!")
 
-        if self.dryRun:
+        if self.dry_run:
             return
 
         if not self.timeout:
@@ -183,22 +183,22 @@ class PCmd(object):
 
 class ParallelShell(object):
     """ Class to implement multiple shell commands in parallel. """
-    def __init__(self, parallel=True, dryRun=False,
+    def __init__(self, parallel=True, dry_run=False,
                  verbose=False, trace=False, timeout=None):
         """ Construct a new ParallelShell object for managing multiple
-        shell commands to be run in parallel.  The parallel, dryRun,
+        shell commands to be run in parallel.  The parallel, dry_run,
         verbose and trace options are identical to and used for each
         added PCmd object. """
         self.pcmds = []
         self.parallel = parallel
-        self.dryRun = dryRun
+        self.dry_run = dry_run
         self.verbose = verbose
         self.trace = trace
         self.timeout = timeout
 
     def add(self, cmd):
         """ Add command to list of pending operations. """
-        self.pcmds.append(PCmd(cmd, self.parallel, self.dryRun,
+        self.pcmds.append(PCmd(cmd, self.parallel, self.dry_run,
                                self.verbose, self.trace, self.timeout))
         return len(self.pcmds) - 1  # Start w/ 0
 

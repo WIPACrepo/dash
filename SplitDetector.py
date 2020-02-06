@@ -52,7 +52,7 @@ def add_arguments(parser):
     parser.add_argument("-v", "--verbose", dest="verbose",
                         action="store_true", default=False,
                         help="Verbose mode")
-    parser.add_argument("runConfig", nargs=1,
+    parser.add_argument("run_config", nargs=1,
                         help="Run configuration file")
 
 
@@ -210,12 +210,12 @@ def split_detector(args):
     config_dir = find_pdaq_config()
 
     if args.verbose:
-        print("Reading run configuration \"%s\"" % args.runConfig[0])
+        print("Reading run configuration \"%s\"" % args.run_config[0])
 
     try:
-        run_config = DAQConfigParser.parse(config_dir, args.runConfig[0])
+        run_config = DAQConfigParser.parse(config_dir, args.run_config[0])
     except DAQConfigException as config_except:
-        raise SystemExit(str(args.runConfig) + ": " + str(config_except))
+        raise SystemExit(str(args.run_config) + ": " + str(config_except))
 
     # map generated configuration names to lists of included hubs
     tstlist = {}

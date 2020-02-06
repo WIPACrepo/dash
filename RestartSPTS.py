@@ -61,7 +61,7 @@ CONFIG_DATA = {
 }
 
 
-def getLiveDBName():
+def get_live_db_name():
     liveConfigName = ".i3live.conf"
     defaultName = "I3OmDb"
 
@@ -96,7 +96,7 @@ def getLiveDBName():
 
 
 # stolen from live/misc/util.py
-def getDurationFromString(s):
+def get_duration_from_string(s):
     """
     Return duration in seconds based on string <s>
     """
@@ -209,14 +209,14 @@ def launchSPTS(run_config, verbose=False):
 
     check_detector_state()
 
-    metaDir = find_pdaq_trunk()
-    dashDir = os.path.join(metaDir, "dash")
-    cfgDir = find_pdaq_config()
+    meta_dir = find_pdaq_trunk()
+    dash_dir = os.path.join(meta_dir, "dash")
+    cfg_dir = find_pdaq_config()
 
     logger = ConsoleLogger()
 
-    kill(cfgDir, logger, verbose=verbose)
-    launch(cfgDir, dashDir, logger, config_name=str(run_config),
+    kill(cfg_dir, logger, verbose=verbose)
+    launch(cfg_dir, dash_dir, logger, config_name=str(run_config),
            verbose=verbose)
 
 
@@ -318,7 +318,7 @@ def startRuns(numStopless=None, verbose=False):
     args = ["livecmd", "start", "daq", ]
     for k, v in list(config.items()):
         if k == DURATION_NAME:
-            v = "%ds" % getDurationFromString(v)
+            v = "%ds" % get_duration_from_string(v)
         if CONFIG_DATA[k]["flag"] is not None and v is not None:
             args.append(CONFIG_DATA[k]["flag"])
             args.append(str(v))
@@ -369,7 +369,7 @@ if __name__ == "__main__":
     else:
         dbName = args.dbName
         if dbName is None:
-            dbName = getLiveDBName()
+            dbName = get_live_db_name()
         if args.force or not isSPTSActive(idle_minutes, dbName=dbName,
                                           verbose=args.verbose):
             startRuns(numStopless=NUM_STOPLESS_VALUE, verbose=args.verbose)

@@ -65,16 +65,16 @@ class FakeLogger(object):
 
 
 class FakeRunData(object):
-    def __init__(self, runNum, runCfg, clu_cfg, dashlog=None):
-        self.__run_number = runNum
-        self.__run_config = runCfg
+    def __init__(self, run_num, run_cfg, clu_cfg, dashlog=None):
+        self.__run_number = run_num
+        self.__run_config = run_cfg
         self.__cluster_config = clu_cfg
         self.__dashlog = dashlog
 
         self.__finished = False
 
-    def clone(self, parent, newNum):
-        return FakeRunData(newNum, self.__run_config, self.__cluster_config,
+    def clone(self, parent, new_num):
+        return FakeRunData(new_num, self.__run_config, self.__cluster_config,
                            dashlog=self.__dashlog)
 
     @property
@@ -125,6 +125,7 @@ class FakeRunData(object):
     def send_event_counts(self, run_set=None):
         pass
 
+    @property
     def set_finished(self):
         self.__finished = True
 
@@ -182,24 +183,24 @@ class MostlyRunSet(RunSet):
         return FakeRunData(run_num, self.__run_config, cluster_config,
                            dashlog=self.__dashlog)
 
-    def cycle_components(self, comp_list, config_dir, daqDataDir, logger,
+    def cycle_components(self, comp_list, config_dir, daq_data_dir, logger,
                          log_port, live_port, verbose=False, kill_with_9=False,
                          event_check=False, check_exists=True):
         logger.error("Cycling components %s" %
                      (ComponentManager.format_component_list(comp_list), ))
 
     def final_report(self, comps, runData, had_error=False, switching=False):
-        numEvts = 600
-        numMoni = 0
-        numSN = 0
-        numTCal = 0
+        num_evts = 600
+        num_moni = 0
+        num_sn = 0
+        num_tcal = 0
         numSecs = 6
 
         self.__dashlog.error("%d physics events collected in %d seconds"
-                             " (%.2f Hz)" % (numEvts, numSecs,
-                                             float(numEvts) / float(numSecs)))
+                             " (%.2f Hz)" % (num_evts, numSecs,
+                                             float(num_evts) / float(numSecs)))
         self.__dashlog.error("%d moni events, %d SN events, %d tcals" %
-                             (numMoni, numSN, numTCal))
+                             (num_moni, num_sn, num_tcal))
 
         if switching:
             verb = "switched"
@@ -223,7 +224,7 @@ class MostlyRunSet(RunSet):
         pass
 
     @staticmethod
-    def switch_component_log(oldLog, runDir, comp):
+    def switch_component_log(oldLog, run_dir, comp):
         pass
 
 
@@ -231,9 +232,9 @@ class MostlyCnCServer(CnCServer):
     SERVER_NAME = "MostlyCnC"
     APPENDERS = {}
 
-    def __init__(self, clusterConfigObject, copyDir=None, runConfigDir=None,
-                 daqDataDir=None, spadeDir=None, logIP='localhost',
-                 logPort=-1, logFactory=None, dashlog=None,
+    def __init__(self, clusterConfigObject, copy_dir=None, run_config_dir=None,
+                 daq_data_dir=None, spade_dir=None, log_host='localhost',
+                 log_port=-1, logFactory=None, dashlog=None,
                  force_restart=False):
 
         self.__clusterConfig = clusterConfigObject
@@ -241,15 +242,16 @@ class MostlyCnCServer(CnCServer):
         self.__dashlog = dashlog
 
         super(MostlyCnCServer, self).__init__(name=MostlyCnCServer.SERVER_NAME,
-                                              copyDir=copyDir,
-                                              runConfigDir=runConfigDir,
-                                              daqDataDir=daqDataDir,
-                                              spadeDir=spadeDir,
-                                              logIP=logIP, logPort=logPort,
-                                              forceRestart=force_restart,
+                                              copy_dir=copy_dir,
+                                              run_config_dir=run_config_dir,
+                                              daq_data_dir=daq_data_dir,
+                                              spade_dir=spade_dir,
+                                              log_host=log_host,
+                                              log_port=log_port,
+                                              force_restart=force_restart,
                                               quiet=True)
 
-    def createClient(self, name, num, host, port, mbean_port, connectors):
+    def create_client(self, name, num, host, port, mbean_port, connectors):
         key = '%s#%d' % (name, num)
         key = 'server'
         if key not in MostlyCnCServer.APPENDERS:
@@ -258,7 +260,7 @@ class MostlyCnCServer(CnCServer):
         return MostlyDAQClient(name, num, host, port, mbean_port, connectors,
                                MostlyCnCServer.APPENDERS[key])
 
-    def createCnCLogger(self, quiet):
+    def create_cnc_logger(self, quiet):
         key = 'server'
         if key not in MostlyCnCServer.APPENDERS:
             MostlyCnCServer.APPENDERS[key] = MockLogger('Mock-%s' % key)
@@ -266,27 +268,27 @@ class MostlyCnCServer(CnCServer):
         return MockCnCLogger(key, appender=MostlyCnCServer.APPENDERS[key],
                              quiet=quiet)
 
-    def createRunset(self, run_cfg, comp_list, logger):
+    def create_runset(self, run_cfg, comp_list, logger):
         return MostlyRunSet(self, run_cfg, self.__clusterConfig, comp_list,
                             logger, self.__dashlog)
 
-    def getClusterConfig(self, runConfig=None):
+    def get_cluster_config(self, run_config=None):
         return self.__clusterConfig
 
-    def monitorLoop(self):
+    def monitor_loop(self):
         pass
 
-    def openLogServer(self, port, logDir):
+    def open_log_server(self, port, log_dir):
         if MostlyRunSet.LOGFACTORY is None:
             raise Exception("MostlyRunSet log factory has not been set")
         return MostlyRunSet.LOGFACTORY.createLog("catchall", port,
                                                  expectStartMsg=False,
                                                  startServer=False)
 
-    def saveCatchall(self, runDir):
+    def save_catchall(self, run_dir):
         pass
 
-    def startLiveThread(self):
+    def start_live_thread(self):
         return None
 
 
@@ -543,9 +545,9 @@ class RealComponent(Component):
 
 
 class RateTracker(object):
-    def __init__(self, runNum, ticksInc, evtsInc, moniInc, snInc,
+    def __init__(self, run_num, ticksInc, evtsInc, moniInc, snInc,
                  tcalInc):
-        self.__runNumber = runNum
+        self.__run_number = run_num
         self.__ticksInc = ticksInc
         self.__evtsInc = evtsInc
         self.__moniInc = moniInc
@@ -558,29 +560,31 @@ class RateTracker(object):
         numSecs = self.__numTicks / 10000000000
         logger.addExpectedExact(("%d physics events collected" +
                                  " in %d seconds (%0.2f Hz)") %
-                                (self.__numEvts, numSecs,
-                                 float(self.__numEvts) /
+                                (self.__num_evts, numSecs,
+                                 float(self.__num_evts) /
                                  float(numSecs)))
         logger.addExpectedExact("%d moni events, %d SN events, %d tcals" %
-                                (self.__numMoni, self.__numSN, self.__numTcal))
+                                (self.__num_moni, self.__num_sn,
+                                 self.__num_tcal))
 
     def getTotals(self):
-        return (self.__numEvts, self.__numMoni, self.__numSN, self.__numTcal)
+        return (self.__num_evts, self.__num_moni, self.__num_sn,
+                self.__num_tcal)
 
     def reset(self):
         self.__firstEvtTime = None
         self.__numTicks = 0
-        self.__numEvts = 0
-        self.__numMoni = 0
-        self.__numSN = 0
-        self.__numTcal = 0
+        self.__num_evts = 0
+        self.__num_moni = 0
+        self.__num_sn = 0
+        self.__num_tcal = 0
 
     def updateRunData(self, cnc, runsetId, comps):
         self.__numTicks += self.__ticksInc
-        self.__numEvts += self.__evtsInc
-        self.__numMoni += self.__moniInc
-        self.__numSN += self.__snInc
-        self.__numTcal += self.__tcalInc
+        self.__num_evts += self.__evtsInc
+        self.__num_moni += self.__moniInc
+        self.__num_sn += self.__snInc
+        self.__num_tcal += self.__tcalInc
 
         if self.__firstEvtTime is None:
             self.__firstEvtTime = self.__numTicks
@@ -589,19 +593,20 @@ class RateTracker(object):
 
         for comp in comps:
             if comp.name == "eventBuilder":
-                comp.set_run_data(self.__numEvts, self.__firstEvtTime,
+                comp.set_run_data(self.__num_evts, self.__firstEvtTime,
                                   lastEvtTime, self.__firstEvtTime, lastEvtTime)
                 comp.set_bean_field_value("backEnd", "EventData",
-                                          (self.__runNumber, self.__numEvts,
+                                          (self.__run_number, self.__num_evts,
                                            lastEvtTime))
                 comp.set_bean_field_value("backEnd", "FirstEventTime",
                                           self.__firstEvtTime)
                 comp.set_bean_field_value("backEnd", "GoodTimes",
                                           (self.__firstEvtTime, lastEvtTime))
             elif comp.name == "secondaryBuilders":
-                comp.set_run_data(self.__numTcal, self.__numSN, self.__numMoni)
+                comp.set_run_data(self.__num_tcal, self.__num_sn,
+                                  self.__num_moni)
 
-        cnc.updateRates(runsetId)
+        cnc.update_rates(runsetId)
 
 
 class CnCServerTest(unittest.TestCase):
@@ -627,7 +632,7 @@ class CnCServerTest(unittest.TestCase):
 
         if self.cnc is not None:
             try:
-                self.cnc.closeServer()
+                self.cnc.close_server()
             except:
                 pass
 
@@ -708,17 +713,17 @@ class CnCServerTest(unittest.TestCase):
 
         clu_cfg = MockClusterConfig("clusterFoo")
         for cdata in comp_data:
-            clu_cfg.addComponent("%s#%d" % (cdata[0], cdata[1]), "java", "",
-                                 comp_host)
+            clu_cfg.add_component("%s#%d" % (cdata[0], cdata[1]), "java", "",
+                                  comp_host)
 
         catchall.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+')
 
         self.cnc = MostlyCnCServer(clusterConfigObject=clu_cfg,
-                                   copyDir=self.__copy_dir,
-                                   runConfigDir=self.__run_config_dir,
-                                   daqDataDir=self.__daq_data_dir,
-                                   spadeDir=self.__spade_dir,
-                                   logPort=catchall.port,
+                                   copy_dir=self.__copy_dir,
+                                   run_config_dir=self.__run_config_dir,
+                                   daq_data_dir=self.__daq_data_dir,
+                                   spade_dir=self.__spade_dir,
+                                   log_port=catchall.port,
                                    dashlog=dashlog,
                                    force_restart=force_restart)
         t = threading.Thread(name="CnCRun", target=self.cnc.run, args=())
@@ -796,9 +801,9 @@ class CnCServerTest(unittest.TestCase):
 
         catchall.addExpectedTextRegexp(r"Built runset #\d+: .*")
 
-        runNum = 444
+        run_num = 444
 
-        set_id = self.cnc.rpc_runset_make(run_cfg, runNum, strict=False)
+        set_id = self.cnc.rpc_runset_make(run_cfg, run_num, strict=False)
         for comp in self.comps:
             self.assertEqual('ready', comp.state,
                              'Unexpected state %s for %s' %
@@ -859,7 +864,7 @@ class CnCServerTest(unittest.TestCase):
                 log.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+')
 
         catchall.addExpectedText("Starting run #%d on \"%s\"" %
-                                 (runNum, clu_cfg.description))
+                                 (run_num, clu_cfg.description))
 
         dashlog.addExpectedRegexp(r"Version info: \S+ \S+ \S+ \S+")
         dashlog.addExpectedExact("Run configuration: %s" % (run_cfg, ))
@@ -870,9 +875,9 @@ class CnCServerTest(unittest.TestCase):
         for comp in self.comps:
             for log in comp.loggers:
                 log.addExpectedExact('Start #%d on %s' %
-                                     (runNum, comp.fullname))
+                                     (run_num, comp.fullname))
 
-        dashlog.addExpectedExact("Starting run %d..." % runNum)
+        dashlog.addExpectedExact("Starting run %d..." % run_num)
 
         for comp in self.comps:
             if comp.name == "stringHub":
@@ -884,7 +889,7 @@ class CnCServerTest(unittest.TestCase):
         catchall.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
         catchall.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for Hubs")
 
-        self.assertEqual(self.cnc.rpc_runset_start_run(set_id, runNum,
+        self.assertEqual(self.cnc.rpc_runset_start_run(set_id, run_num,
                                                        moniType), 'OK')
 
         catchall.checkStatus(100)
@@ -892,7 +897,7 @@ class CnCServerTest(unittest.TestCase):
         for comp in self.comps:
             comp.check_status(100)
 
-        rateTracker = RateTracker(runNum, 10000000000, 100, 0, 0, 0)
+        rateTracker = RateTracker(run_num, 10000000000, 100, 0, 0, 0)
 
         if switch_run:
             for _ in range(5):
@@ -901,15 +906,15 @@ class CnCServerTest(unittest.TestCase):
             for comp in self.comps:
                 for log in comp.loggers:
                     log.addExpectedExact('Switch %s to run#%d' %
-                                         (comp.fullname, runNum + 1))
+                                         (comp.fullname, run_num + 1))
 
             dashlog.addExpectedRegexp(r"Version info: \S+ \S+ \S+ \S+")
             dashlog.addExpectedExact("Run configuration: %s" % (run_cfg, ))
             dashlog.addExpectedExact("Cluster: %s" % clu_cfg.description)
 
-            newNum = runNum + 1
+            new_num = run_num + 1
 
-            dashlog.addExpectedExact("Switching to run %d..." % newNum)
+            dashlog.addExpectedExact("Switching to run %d..." % new_num)
 
             rateTracker.updateRunData(self.cnc, set_id, self.comps)
 
@@ -919,11 +924,11 @@ class CnCServerTest(unittest.TestCase):
             dashlog.addExpectedExact("Not logging to file so cannot queue to"
                                      " SPADE")
 
-            self.cnc.rpc_runset_switch_run(set_id, newNum)
+            self.cnc.rpc_runset_switch_run(set_id, new_num)
 
-            (numEvts, numMoni, numSN, numTcal) = rateTracker.getTotals()
+            (num_evts, num_moni, num_sn, num_tcal) = rateTracker.getTotals()
 
-            runNum = newNum
+            run_num = new_num
 
             catchall.checkStatus(100)
             dashlog.checkStatus(100)
@@ -995,7 +1000,7 @@ class CnCServerTest(unittest.TestCase):
             for log in comp.loggers:
                 log.checkStatus(100)
 
-        self.cnc.closeServer()
+        self.cnc.close_server()
 
     def test_everything(self):
         self.__run_everything()

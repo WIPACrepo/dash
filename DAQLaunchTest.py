@@ -54,7 +54,7 @@ class TestDAQLaunch(unittest.TestCase):
         for name, host in list(comp_host_dict.items()):
             if host not in clu_hosts:
                 clu_hosts[host] = clu_cfg_file.addHost(host)
-            clu_hosts[host].addComponent(name)
+            clu_hosts[host].add_component(name)
 
         sim = clu_cfg_file.addHost("simhost")
         sim.addSimHubs(10, 1)
@@ -103,18 +103,18 @@ class TestDAQLaunch(unittest.TestCase):
         shell.addExpectedPython(True, dash_dir, config_dir, log_dir,
                                 daq_data_dir, spade_dir, clu_cfg_file.name,
                                 cfg_name, copy_dir, log_port, live_port,
-                                forceRestart=force_restart)
+                                force_restart=force_restart)
 
         args = MockArguments()
         add_arguments_both(args)
         add_arguments_launch(args)
-        args.set_argument("clusterDesc", clu_cfg_file.name)
+        args.set_argument("cluster_desc", clu_cfg_file.name)
         args.set_argument("config_name", cfg_name)
         args.set_argument("validate", False)
         args.set_argument("verbose", False)
-        args.set_argument("dryRun", False)
+        args.set_argument("dry_run", False)
         args.set_argument("event_check", False)
-        args.set_argument("forceRestart", force_restart)
+        args.set_argument("force_restart", force_restart)
 
         launch(config_dir, dash_dir, logger, args=args, parallel=shell,
                check_exists=check_exists)
@@ -156,11 +156,11 @@ class TestDAQLaunch(unittest.TestCase):
         args = MockArguments()
         add_arguments_both(args)
         add_arguments_kill(args)
-        args.set_argument("clusterDesc", clu_cfg_file.name)
+        args.set_argument("cluster_desc", clu_cfg_file.name)
         args.set_argument("validate", False)
         args.set_argument("serverKill", True)
         args.set_argument("verbose", False)
-        args.set_argument("dryRun", False)
+        args.set_argument("dry_run", False)
         args.set_argument("kill_with_9", kill_with_9)
         args.set_argument("force", True)
 

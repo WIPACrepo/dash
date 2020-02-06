@@ -572,8 +572,8 @@ class WatchdogRule(object):
             if max_order is None or order > max_order:
                 max_order = order
 
-        cls.DOM_COMP.set_order(min_order - 1)
-        cls.DISPATCH_COMP.set_order(max_order + 1)
+        cls.DOM_COMP.order = min_order - 1
+        cls.DISPATCH_COMP.order = max_order + 1
 
 
 class StringHubRule(WatchdogRule):

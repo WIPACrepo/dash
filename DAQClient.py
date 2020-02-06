@@ -528,7 +528,7 @@ class DAQClient(ComponentName):
             return True
 
         for conn in self.__connectors:
-            if conn.isInput:
+            if conn.is_input:
                 return False
 
         return True
@@ -584,6 +584,11 @@ class DAQClient(ComponentName):
         "Return the order for this component"
         return self.__cmd_order
 
+    @order.setter
+    def order(self, num):
+        "Set the order in which components are started/stopped"
+        self.__cmd_order = num
+
     @property
     def port(self):
         "Return the port number used by this component's XML-RPC server"
@@ -620,10 +625,6 @@ class DAQClient(ComponentName):
             self.__client.xmlrpc.setLastGoodTime(str(pay_time) + "L")
         except:
             self.__log.error(exc_string())
-
-    def set_order(self, order_num):
-        "Set the order in which components are started/stopped"
-        self.__cmd_order = order_num
 
     def set_replay_offset(self, offset):
         "Get the time offset for a replay hub"

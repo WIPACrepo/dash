@@ -133,15 +133,15 @@ class MonitorTaskTest(unittest.TestCase):
                 if isinstance(c, BadComponent):
                     if raiseSocketError:
                         if i == 3:
-                            errMsg = ("ERROR: Not monitoring %s:" +
+                            errmsg = ("ERROR: Not monitoring %s:" +
                                       " Connect failed %d times") % \
                                       (c.fullname, i)
-                            logger.addExpectedExact(errMsg)
+                            logger.addExpectedExact(errmsg)
                         elif i >= 0 and i < 3:
                             c.mbean.raiseSocketError()
                     elif i > 0 and raiseException:
-                        errMsg = "Ignoring %s:(.*:)? Exception.*$" % c.fullname
-                        logger.addExpectedRegexp(errMsg)
+                        errmsg = "Ignoring %s:(.*:)? Exception.*$" % c.fullname
+                        logger.addExpectedRegexp(errmsg)
                         c.mbean.raiseException()
 
             timer.trigger()

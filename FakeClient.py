@@ -35,7 +35,7 @@ class PortNumber(object):
         return port
 
     @classmethod
-    def set_first(cls, number):
+    def set_next_number(cls, number):
         cls.NEXT_PORT = number
 
 

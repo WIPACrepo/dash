@@ -63,7 +63,7 @@ def update_virtualenv(args):
         finally:
             venv.close()
 
-    cluname = ClusterDescription.getClusterName()
+    cluname = ClusterDescription.get_cluster_name()
     print "Linked %s to %s on %s" % (args.basename, envname, cluname)
 
 

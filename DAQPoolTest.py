@@ -39,9 +39,9 @@ class FakeCluster(object):
 
 
 class MockRunData(object):
-    def __init__(self, runNum, clusterConfigName, runOptions, versionInfo,
-                 spadeDir, copyDir, logDir, testing=True):
-        self.__run_number = runNum
+    def __init__(self, run_num, clusterConfigName, runOptions, version_info,
+                 spade_dir, copy_dir, log_dir, testing=True):
+        self.__run_number = run_num
 
         self.__logger = None
         self.__finished = False
@@ -80,6 +80,7 @@ class MockRunData(object):
     def send_event_counts(self, run_set=None):
         pass
 
+    @property
     def set_finished(self):
         self.__finished = True
 
@@ -91,20 +92,20 @@ class MockRunData(object):
 
 
 class MyRunSet(RunSet):
-    def __init__(self, parent, runConfig, compList, logger):
+    def __init__(self, parent, run_config, comp_list, logger):
         self.__logger = logger
         self.__logDict = {}
 
-        super(MyRunSet, self).__init__(parent, runConfig, compList, logger)
+        super(MyRunSet, self).__init__(parent, run_config, comp_list, logger)
 
     @classmethod
-    def create_component_log(cls, runDir, comp, host, port, quiet=True):
+    def create_component_log(cls, run_dir, comp, host, port, quiet=True):
         return FakeLogger(port)
 
-    def create_run_data(self, runNum, clusterConfigName, runOptions,
-                        versionInfo, spadeDir, copyDir=None, logDir=None):
-        mrd = MockRunData(runNum, clusterConfigName, runOptions, versionInfo,
-                          spadeDir, copyDir, logDir, True)
+    def create_run_data(self, run_num, clusterConfigName, runOptions,
+                        version_info, spade_dir, copy_dir=None, log_dir=None):
+        mrd = MockRunData(run_num, clusterConfigName, runOptions, version_info,
+                          spade_dir, copy_dir, log_dir, True)
         mrd.set_mock_logger(self.getLog("dashLog"))
         return mrd
 
@@ -142,50 +143,50 @@ class MyDAQPool(DAQPool):
     def __init__(self):
         super(MyDAQPool, self).__init__()
 
-    def createRunset(self, runConfig, compList, logger):
-        return MyRunSet(self, runConfig, compList, logger)
+    def create_runset(self, run_config, comp_list, logger):
+        return MyRunSet(self, run_config, comp_list, logger)
 
-    def returnRunsetComponents(self, rs, verbose=False, kill_with_9=False,
-                               event_check=False):
+    def return_runset_components(self, rs, verbose=False, kill_with_9=False,
+                                 event_check=False):
         rs.return_components(self, None, None, None, None, None,
                              verbose=verbose, kill_with_9=kill_with_9,
                              event_check=event_check)
 
-    def saveCatchall(self, runDir):
+    def save_catchall(self, run_dir):
         pass
 
 
 class TestDAQPool(unittest.TestCase):
-    def __checkRunsetState(self, runset, expState):
+    def __check_runset_state(self, runset, exp_state):
         for c in runset.components():
-            self.assertEqual(c.state, expState,
+            self.assertEqual(c.state, exp_state,
                              "Comp %s state should be %s, not %s" %
-                             (c.name, expState, c.state))
+                             (c.name, exp_state, c.state))
 
-    def __createRunConfigFile(self, compList):
-        rcFile = MockRunConfigFile(self.__runConfigDir)
+    def __createRunConfigFile(self, comp_list):
+        rcFile = MockRunConfigFile(self.__run_config_dir)
 
-        runCompList = []
-        for c in compList:
-            runCompList.append(c.fullname)
+        run_comp_list = []
+        for c in comp_list:
+            run_comp_list.append(c.fullname)
 
-        return rcFile.create(runCompList, {})
+        return rcFile.create(run_comp_list, {})
 
     def setUp(self):
-        self.__runConfigDir = None
+        self.__run_config_dir = None
 
         set_pdaq_config_dir(None, override=True)
 
     def tearDown(self):
-        if self.__runConfigDir is not None:
-            shutil.rmtree(self.__runConfigDir, ignore_errors=True)
+        if self.__run_config_dir is not None:
+            shutil.rmtree(self.__run_config_dir, ignore_errors=True)
 
         set_pdaq_config_dir(None, override=True)
 
     def testEmpty(self):
         mgr = DAQPool()
 
-        runset = mgr.findRunset(1)
+        runset = mgr.find_runset(1)
         self.assertFalse(runset is not None, 'Found set in empty manager')
 
         mgr.remove(MockComponent('foo', 0))
@@ -193,186 +194,187 @@ class TestDAQPool(unittest.TestCase):
     def testAddRemove(self):
         mgr = DAQPool()
 
-        compList = []
+        comp_list = []
 
         comp = MockComponent('foo', 0)
-        compList.append(comp)
+        comp_list.append(comp)
 
         comp = MockComponent('bar', 0)
-        compList.append(comp)
+        comp_list.append(comp)
 
-        self.assertEqual(mgr.numUnused(), 0)
-        self.assertEqual(mgr.numComponents(), 0)
+        self.assertEqual(mgr.num_unused, 0)
+        self.assertEqual(mgr.num_components, 0)
 
-        for c in compList:
+        for c in comp_list:
             mgr.add(c)
 
-        self.assertEqual(mgr.numUnused(), len(compList))
-        self.assertEqual(mgr.numComponents(), len(compList))
+        self.assertEqual(mgr.num_unused, len(comp_list))
+        self.assertEqual(mgr.num_components, len(comp_list))
 
-        for c in compList:
+        for c in comp_list:
             mgr.remove(c)
 
-        self.assertEqual(mgr.numUnused(), 0)
-        self.assertEqual(mgr.numComponents(), 0)
+        self.assertEqual(mgr.num_unused, 0)
+        self.assertEqual(mgr.num_components, 0)
 
     def testBuildReturnSet(self):
-        self.__runConfigDir = tempfile.mkdtemp()
+        self.__run_config_dir = tempfile.mkdtemp()
 
         mgr = MyDAQPool()
 
-        compList = []
+        comp_list = []
 
         comp = MockComponent('fooHub', 0)
         comp.addOutput('aaa')
-        compList.append(comp)
+        comp_list.append(comp)
 
         comp = MockComponent('bar', 0)
         comp.addInput('aaa', 1234)
-        compList.append(comp)
+        comp_list.append(comp)
 
-        self.assertEqual(mgr.numComponents(), 0)
+        self.assertEqual(mgr.num_components, 0)
 
-        for c in compList:
+        for c in comp_list:
             mgr.add(c)
-        self.assertEqual(mgr.numComponents(), len(compList))
+        self.assertEqual(mgr.num_components, len(comp_list))
 
-        runConfig = self.__createRunConfigFile(compList)
+        run_config = self.__createRunConfigFile(comp_list)
 
         logger = MockLogger('main')
         logger.addExpectedExact("Loading run configuration \"%s\"" %
-                                runConfig)
-        logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
+                                run_config)
+        logger.addExpectedExact("Loaded run configuration \"%s\"" % run_config)
         logger.addExpectedRegexp(r"Built runset #\d+: .*")
 
-        daqDataDir = None
+        daq_data_dir = None
 
-        runset = mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
-                                daqDataDir, forceRestart=False, strict=False)
+        runset = mgr.make_runset(self.__run_config_dir, run_config, 0, 0,
+                                 logger, daq_data_dir, force_restart=False,
+                                 strict=False)
 
-        self.assertEqual(mgr.numComponents(), 0)
+        self.assertEqual(mgr.num_components, 0)
 
-        found = mgr.findRunset(runset.id)
+        found = mgr.find_runset(runset.id)
         self.assertFalse(found is None, "Couldn't find runset #%d" % runset.id)
 
-        mgr.returnRunset(runset, logger)
+        mgr.return_runset(runset, logger)
 
-        self.assertEqual(mgr.numComponents(), len(compList))
+        self.assertEqual(mgr.num_components, len(comp_list))
 
-        for c in compList:
+        for c in comp_list:
             mgr.remove(c)
 
-        self.assertEqual(mgr.numComponents(), 0)
+        self.assertEqual(mgr.num_components, 0)
 
         logger.checkStatus(10)
 
     def testBuildMissingOneOutput(self):
-        self.__runConfigDir = tempfile.mkdtemp()
+        self.__run_config_dir = tempfile.mkdtemp()
 
         mgr = MyDAQPool()
 
-        compList = []
+        comp_list = []
 
         inputName = "xxx"
 
         comp = MockComponent('fooHub', 0)
         comp.addOutput('aaa')
         comp.addInput(inputName, 123)
-        compList.append(comp)
+        comp_list.append(comp)
 
         comp = MockComponent('bar', 0)
         comp.addInput('aaa', 456)
-        compList.append(comp)
+        comp_list.append(comp)
 
-        self.assertEqual(mgr.numComponents(), 0)
+        self.assertEqual(mgr.num_components, 0)
 
-        for c in compList:
+        for c in comp_list:
             mgr.add(c)
 
-        self.assertEqual(mgr.numComponents(), len(compList))
+        self.assertEqual(mgr.num_components, len(comp_list))
 
-        runConfig = self.__createRunConfigFile(compList)
+        run_config = self.__createRunConfigFile(comp_list)
 
         logger = MockLogger('main')
         logger.addExpectedExact("Loading run configuration \"%s\"" %
-                                runConfig)
-        logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
+                                run_config)
+        logger.addExpectedExact("Loaded run configuration \"%s\"" % run_config)
 
-        daqDataDir = None
+        daq_data_dir = None
 
         try:
-            mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
-                           daqDataDir, forceRestart=False, strict=False)
-            self.fail("makeRunset should not succeed")
+            mgr.make_runset(self.__run_config_dir, run_config, 0, 0, logger,
+                            daq_data_dir, force_restart=False, strict=False)
+            self.fail("make_runset should not succeed")
         except ConnectionException as ce:
             if str(ce).find("No outputs found for %s inputs" % inputName) < 0:
                 raise
 
-        self.assertEqual(mgr.numComponents(), len(compList))
+        self.assertEqual(mgr.num_components, len(comp_list))
 
-        for c in compList:
+        for c in comp_list:
             mgr.remove(c)
 
-        self.assertEqual(mgr.numComponents(), 0)
+        self.assertEqual(mgr.num_components, 0)
 
         logger.checkStatus(10)
 
     def testBuildMissingMultiOutput(self):
-        self.__runConfigDir = tempfile.mkdtemp()
+        self.__run_config_dir = tempfile.mkdtemp()
 
         mgr = MyDAQPool()
 
-        compList = []
+        comp_list = []
 
         inputName = "xxx"
 
         comp = MockComponent('fooHub', 0)
         comp.addInput(inputName, 123)
-        compList.append(comp)
+        comp_list.append(comp)
 
         comp = MockComponent('bar', 0)
         comp.addInput(inputName, 456)
-        compList.append(comp)
+        comp_list.append(comp)
 
-        self.assertEqual(mgr.numComponents(), 0)
+        self.assertEqual(mgr.num_components, 0)
 
-        for c in compList:
+        for c in comp_list:
             mgr.add(c)
 
-        self.assertEqual(mgr.numComponents(), len(compList))
+        self.assertEqual(mgr.num_components, len(comp_list))
 
-        runConfig = self.__createRunConfigFile(compList)
+        run_config = self.__createRunConfigFile(comp_list)
 
         logger = MockLogger('main')
         logger.addExpectedExact("Loading run configuration \"%s\"" %
-                                runConfig)
-        logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
+                                run_config)
+        logger.addExpectedExact("Loaded run configuration \"%s\"" % run_config)
 
-        daqDataDir = None
+        daq_data_dir = None
 
         try:
-            mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
-                           daqDataDir, forceRestart=False, strict=False)
-            self.fail("makeRunset should not succeed")
+            mgr.make_runset(self.__run_config_dir, run_config, 0, 0, logger,
+                            daq_data_dir, force_restart=False, strict=False)
+            self.fail("make_runset should not succeed")
         except ConnectionException as ce:
             if str(ce).find("No outputs found for %s inputs" % inputName) < 0:
                 raise
 
-        self.assertEqual(mgr.numComponents(), len(compList))
+        self.assertEqual(mgr.num_components, len(comp_list))
 
-        for c in compList:
+        for c in comp_list:
             mgr.remove(c)
 
-        self.assertEqual(mgr.numComponents(), 0)
+        self.assertEqual(mgr.num_components, 0)
 
         logger.checkStatus(10)
 
     def testBuildMatchPlusMissingMultiOutput(self):
-        self.__runConfigDir = tempfile.mkdtemp()
+        self.__run_config_dir = tempfile.mkdtemp()
 
         mgr = MyDAQPool()
 
-        compList = []
+        comp_list = []
 
         inputNames = ["xxx", "yyy"]
         outputName = "aaa"
@@ -383,319 +385,320 @@ class TestDAQPool(unittest.TestCase):
         comp.addInput(inputNames[0], 123)
         comp.addInput(inputNames[1], 456)
         comp.addOutput(outputName)
-        compList.append(comp)
+        comp_list.append(comp)
 
         comp = MockComponent('bar', 0)
         comp.addInput(outputName, 789)
-        compList.append(comp)
+        comp_list.append(comp)
 
-        self.assertEqual(mgr.numComponents(), 0)
+        self.assertEqual(mgr.num_components, 0)
 
-        for c in compList:
+        for c in comp_list:
             mgr.add(c)
 
-        self.assertEqual(mgr.numComponents(), len(compList))
+        self.assertEqual(mgr.num_components, len(comp_list))
 
-        runConfig = self.__createRunConfigFile(compList)
+        run_config = self.__createRunConfigFile(comp_list)
 
         logger = MockLogger('main')
         logger.addExpectedExact("Loading run configuration \"%s\"" %
-                                runConfig)
-        logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
+                                run_config)
+        logger.addExpectedExact("Loaded run configuration \"%s\"" % run_config)
 
-        daqDataDir = None
+        daq_data_dir = None
 
         try:
-            mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
-                           daqDataDir, forceRestart=False, strict=False)
-            self.fail("makeRunset should not succeed")
+            mgr.make_runset(self.__run_config_dir, run_config, 0, 0, logger,
+                            daq_data_dir, force_restart=False, strict=False)
+            self.fail("make_runset should not succeed")
         except ConnectionException as ce:
             if str(ce).find("No outputs found for %s inputs" %
                             inputNames[0]) < 0:
                 raise
 
-        self.assertEqual(mgr.numComponents(), len(compList))
+        self.assertEqual(mgr.num_components, len(comp_list))
 
-        for c in compList:
+        for c in comp_list:
             mgr.remove(c)
 
-        self.assertEqual(mgr.numComponents(), 0)
+        self.assertEqual(mgr.num_components, 0)
 
         logger.checkStatus(10)
 
     def testBuildMissingOneInput(self):
-        self.__runConfigDir = tempfile.mkdtemp()
+        self.__run_config_dir = tempfile.mkdtemp()
 
         mgr = MyDAQPool()
 
-        compList = []
+        comp_list = []
 
         outputName = "xxx"
 
         comp = MockComponent('fooHub', 0)
         comp.addOutput('aaa')
-        compList.append(comp)
+        comp_list.append(comp)
 
         comp = MockComponent('bar', 0)
         comp.addInput('aaa', 123)
         comp.addOutput(outputName)
-        compList.append(comp)
+        comp_list.append(comp)
 
-        self.assertEqual(mgr.numComponents(), 0)
+        self.assertEqual(mgr.num_components, 0)
 
-        for c in compList:
+        for c in comp_list:
             mgr.add(c)
 
-        self.assertEqual(mgr.numComponents(), len(compList))
+        self.assertEqual(mgr.num_components, len(comp_list))
 
-        runConfig = self.__createRunConfigFile(compList)
+        run_config = self.__createRunConfigFile(comp_list)
 
         logger = MockLogger('main')
         logger.addExpectedExact("Loading run configuration \"%s\"" %
-                                runConfig)
-        logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
+                                run_config)
+        logger.addExpectedExact("Loaded run configuration \"%s\"" % run_config)
 
-        daqDataDir = None
+        daq_data_dir = None
 
         try:
-            mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
-                           daqDataDir, forceRestart=False, strict=False)
-            self.fail("makeRunset should not succeed")
+            mgr.make_runset(self.__run_config_dir, run_config, 0, 0, logger,
+                            daq_data_dir, force_restart=False, strict=False)
+            self.fail("make_runset should not succeed")
         except ConnectionException as ce:
             if str(ce).find("No inputs found for %s outputs" %
                             outputName) < 0:
                 raise
 
-        self.assertEqual(mgr.numComponents(), len(compList))
+        self.assertEqual(mgr.num_components, len(comp_list))
 
-        for c in compList:
+        for c in comp_list:
             mgr.remove(c)
 
-        self.assertEqual(mgr.numComponents(), 0)
+        self.assertEqual(mgr.num_components, 0)
 
         logger.checkStatus(10)
 
     def testBuildMatchPlusMissingInput(self):
-        self.__runConfigDir = tempfile.mkdtemp()
+        self.__run_config_dir = tempfile.mkdtemp()
 
         mgr = MyDAQPool()
 
-        compList = []
+        comp_list = []
 
         comp = MockComponent('fooHub', 0)
-        compList.append(comp)
+        comp_list.append(comp)
 
         outputName = "xxx"
 
         comp = MockComponent('bar', 0)
         comp.addOutput('xxx')
         comp.addOutput('yyy')
-        compList.append(comp)
+        comp_list.append(comp)
 
-        self.assertEqual(mgr.numComponents(), 0)
+        self.assertEqual(mgr.num_components, 0)
 
-        for c in compList:
+        for c in comp_list:
             mgr.add(c)
 
-        self.assertEqual(mgr.numComponents(), len(compList))
+        self.assertEqual(mgr.num_components, len(comp_list))
 
-        runConfig = self.__createRunConfigFile(compList)
+        run_config = self.__createRunConfigFile(comp_list)
 
         logger = MockLogger('main')
         logger.addExpectedExact("Loading run configuration \"%s\"" %
-                                runConfig)
-        logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
+                                run_config)
+        logger.addExpectedExact("Loaded run configuration \"%s\"" % run_config)
 
-        daqDataDir = None
+        daq_data_dir = None
 
         try:
-            mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
-                           daqDataDir, forceRestart=False, strict=False)
-            self.fail("makeRunset should not succeed")
+            mgr.make_runset(self.__run_config_dir, run_config, 0, 0, logger,
+                            daq_data_dir, force_restart=False, strict=False)
+            self.fail("make_runset should not succeed")
         except ConnectionException as ce:
             if str(ce).find("No inputs found for %s outputs" %
                             outputName) < 0:
                 raise
 
-        self.assertEqual(mgr.numComponents(), len(compList))
+        self.assertEqual(mgr.num_components, len(comp_list))
 
-        for c in compList:
+        for c in comp_list:
             mgr.remove(c)
 
-        self.assertEqual(mgr.numComponents(), 0)
+        self.assertEqual(mgr.num_components, 0)
 
         logger.checkStatus(10)
 
     def testBuildMatchPlusMissingMultiInput(self):
-        self.__runConfigDir = tempfile.mkdtemp()
+        self.__run_config_dir = tempfile.mkdtemp()
 
         mgr = MyDAQPool()
 
-        compList = []
+        comp_list = []
 
         outputName = "xxx"
 
         comp = MockComponent('fooHub', 0)
         comp.addOutput('aaa')
         comp.addOutput(outputName)
-        compList.append(comp)
+        comp_list.append(comp)
 
         comp = MockComponent('bar', 0)
         comp.addInput('aaa', 123)
         comp.addOutput(outputName)
-        compList.append(comp)
+        comp_list.append(comp)
 
-        self.assertEqual(mgr.numComponents(), 0)
+        self.assertEqual(mgr.num_components, 0)
 
-        for c in compList:
+        for c in comp_list:
             mgr.add(c)
 
-        self.assertEqual(mgr.numComponents(), len(compList))
+        self.assertEqual(mgr.num_components, len(comp_list))
 
-        runConfig = self.__createRunConfigFile(compList)
+        run_config = self.__createRunConfigFile(comp_list)
 
         logger = MockLogger('main')
         logger.addExpectedExact("Loading run configuration \"%s\"" %
-                                runConfig)
-        logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
+                                run_config)
+        logger.addExpectedExact("Loaded run configuration \"%s\"" % run_config)
 
-        daqDataDir = None
+        daq_data_dir = None
 
         try:
-            mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
-                           daqDataDir, forceRestart=False, strict=False)
-            self.fail("makeRunset should not succeed")
+            mgr.make_runset(self.__run_config_dir, run_config, 0, 0, logger,
+                            daq_data_dir, force_restart=False, strict=False)
+            self.fail("make_runset should not succeed")
         except ConnectionException as ce:
             if str(ce).find("No inputs found for %s outputs" %
                             outputName) < 0:
                 raise
 
-        self.assertEqual(mgr.numComponents(), len(compList))
+        self.assertEqual(mgr.num_components, len(comp_list))
 
-        for c in compList:
+        for c in comp_list:
             mgr.remove(c)
 
-        self.assertEqual(mgr.numComponents(), 0)
+        self.assertEqual(mgr.num_components, 0)
 
         logger.checkStatus(10)
 
     def testBuildMultiMissing(self):
-        self.__runConfigDir = tempfile.mkdtemp()
+        self.__run_config_dir = tempfile.mkdtemp()
 
         mgr = MyDAQPool()
 
-        compList = []
+        comp_list = []
 
         outputName = "xxx"
 
         comp = MockComponent('fooHub', 0)
         comp.addInput(outputName, 123)
-        compList.append(comp)
+        comp_list.append(comp)
 
         comp = MockComponent('bar', 0)
         comp.addOutput(outputName)
-        compList.append(comp)
+        comp_list.append(comp)
 
         comp = MockComponent('feeHub', 0)
         comp.addInput(outputName, 456)
-        compList.append(comp)
+        comp_list.append(comp)
 
         comp = MockComponent('baz', 0)
         comp.addOutput(outputName)
-        compList.append(comp)
+        comp_list.append(comp)
 
-        self.assertEqual(mgr.numComponents(), 0)
+        self.assertEqual(mgr.num_components, 0)
 
-        for c in compList:
+        for c in comp_list:
             mgr.add(c)
 
-        self.assertEqual(mgr.numComponents(), len(compList))
+        self.assertEqual(mgr.num_components, len(comp_list))
 
-        runConfig = self.__createRunConfigFile(compList)
+        run_config = self.__createRunConfigFile(comp_list)
 
         logger = MockLogger('main')
         logger.addExpectedExact("Loading run configuration \"%s\"" %
-                                runConfig)
-        logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
+                                run_config)
+        logger.addExpectedExact("Loaded run configuration \"%s\"" % run_config)
 
-        daqDataDir = None
+        daq_data_dir = None
 
         try:
-            mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
-                           daqDataDir, forceRestart=False, strict=False)
-            self.fail("makeRunset should not succeed")
+            mgr.make_runset(self.__run_config_dir, run_config, 0, 0, logger,
+                            daq_data_dir, force_restart=False, strict=False)
+            self.fail("make_runset should not succeed")
         except ConnectionException as ce:
             if str(ce).find("Found 2 %s inputs for 2 outputs" %
                             (outputName, )) < 0:
                 raise
 
-        self.assertEqual(mgr.numComponents(), len(compList))
+        self.assertEqual(mgr.num_components, len(comp_list))
 
-        for c in compList:
+        for c in comp_list:
             mgr.remove(c)
 
-        self.assertEqual(mgr.numComponents(), 0)
+        self.assertEqual(mgr.num_components, 0)
 
         logger.checkStatus(10)
 
     def testBuildMultiInput(self):
-        self.__runConfigDir = tempfile.mkdtemp()
+        self.__run_config_dir = tempfile.mkdtemp()
 
         mgr = MyDAQPool()
 
-        compList = []
+        comp_list = []
 
         comp = MockComponent('fooHub', 0)
         comp.addOutput('conn')
-        compList.append(comp)
+        comp_list.append(comp)
 
         comp = MockComponent('bar', 0)
         comp.addInput('conn', 123)
-        compList.append(comp)
+        comp_list.append(comp)
 
         comp = MockComponent('baz', 0)
         comp.addInput('conn', 456)
-        compList.append(comp)
+        comp_list.append(comp)
 
-        self.assertEqual(mgr.numComponents(), 0)
+        self.assertEqual(mgr.num_components, 0)
 
-        for c in compList:
+        for c in comp_list:
             mgr.add(c)
 
-        self.assertEqual(mgr.numComponents(), len(compList))
+        self.assertEqual(mgr.num_components, len(comp_list))
 
-        runConfig = self.__createRunConfigFile(compList)
+        run_config = self.__createRunConfigFile(comp_list)
 
         logger = MockLogger('main')
         logger.addExpectedExact("Loading run configuration \"%s\"" %
-                                runConfig)
-        logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
+                                run_config)
+        logger.addExpectedExact("Loaded run configuration \"%s\"" % run_config)
         logger.addExpectedRegexp(r"Built runset #\d+: .*")
 
-        daqDataDir = None
+        daq_data_dir = None
 
-        runset = mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
-                                daqDataDir, forceRestart=False, strict=False)
+        runset = mgr.make_runset(self.__run_config_dir, run_config, 0, 0,
+                                 logger, daq_data_dir, force_restart=False,
+                                 strict=False)
 
-        self.assertEqual(mgr.numComponents(), 0)
+        self.assertEqual(mgr.num_components, 0)
 
-        found = mgr.findRunset(runset.id)
+        found = mgr.find_runset(runset.id)
         self.assertFalse(found is None, "Couldn't find runset #%d" % runset.id)
 
-        mgr.returnRunset(runset, logger)
+        mgr.return_runset(runset, logger)
 
-        self.assertEqual(mgr.numComponents(), len(compList))
+        self.assertEqual(mgr.num_components, len(comp_list))
 
-        for c in compList:
+        for c in comp_list:
             mgr.remove(c)
 
-        self.assertEqual(mgr.numComponents(), 0)
+        self.assertEqual(mgr.num_components, 0)
 
         logger.checkStatus(10)
 
     def testStartRun(self):
-        self.__runConfigDir = tempfile.mkdtemp()
-        set_pdaq_config_dir(self.__runConfigDir, override=True)
+        self.__run_config_dir = tempfile.mkdtemp()
+        set_pdaq_config_dir(self.__run_config_dir, override=True)
 
         mgr = MyDAQPool()
 
@@ -709,48 +712,49 @@ class TestDAQPool(unittest.TestCase):
         cComp = MockComponent('eventBuilder', 0)
         cComp.addInput('bc', 456)
 
-        compList = [cComp, aComp, bComp]
+        comp_list = [cComp, aComp, bComp]
 
-        self.assertEqual(mgr.numComponents(), 0)
+        self.assertEqual(mgr.num_components, 0)
 
-        for c in compList:
+        for c in comp_list:
             mgr.add(c)
 
-        self.assertEqual(mgr.numComponents(), len(compList))
+        self.assertEqual(mgr.num_components, len(comp_list))
 
-        MockLeapsecondFile(self.__runConfigDir).create()
+        MockLeapsecondFile(self.__run_config_dir).create()
 
-        runConfig = self.__createRunConfigFile(compList)
+        run_config = self.__createRunConfigFile(comp_list)
 
         logger = MockLogger('main')
         logger.addExpectedExact("Loading run configuration \"%s\"" %
-                                runConfig)
-        logger.addExpectedExact("Loaded run configuration \"%s\"" % runConfig)
+                                run_config)
+        logger.addExpectedExact("Loaded run configuration \"%s\"" % run_config)
         logger.addExpectedRegexp(r"Built runset #\d+: .*")
 
-        daqDataDir = None
+        daq_data_dir = None
 
-        runset = mgr.makeRunset(self.__runConfigDir, runConfig, 0, 0, logger,
-                                daqDataDir, forceRestart=False, strict=False)
+        runset = mgr.make_runset(self.__run_config_dir, run_config, 0, 0,
+                                 logger, daq_data_dir, force_restart=False,
+                                 strict=False)
 
-        self.assertEqual(mgr.numComponents(), 0)
-        self.assertEqual(runset.size(), len(compList))
+        self.assertEqual(mgr.num_components, 0)
+        self.assertEqual(runset.size(), len(comp_list))
 
-        self.__checkRunsetState(runset, 'ready')
+        self.__check_runset_state(runset, 'ready')
 
         clusterCfg = FakeCluster("cluster-foo")
 
-        self.__checkRunsetState(runset, 'ready')
+        self.__check_runset_state(runset, 'ready')
 
-        runNum = 1
+        run_num = 1
         moniType = RunOption.MONI_TO_NONE
 
         logger.addExpectedExact("Starting run #%d on \"%s\"" %
-                                (runNum, clusterCfg.description))
+                                (run_num, clusterCfg.description))
 
         dashLog = runset.getLog("dashLog")
 
-        dashLog.addExpectedExact("Starting run %d..." % runNum)
+        dashLog.addExpectedExact("Starting run %d..." % run_num)
 
         logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
         logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for Hubs")
@@ -758,7 +762,7 @@ class TestDAQPool(unittest.TestCase):
         aComp.mbean.addData("stringhub", "LatestFirstChannelHitTime", 10)
         aComp.mbean.addData("stringhub", "NumberOfNonZombies", 1)
 
-        versionInfo = {
+        version_info = {
             "filename": "fName",
             "revision": "1234",
             "date": "date",
@@ -768,30 +772,30 @@ class TestDAQPool(unittest.TestCase):
             "repo_rev": "1repoRev",
         }
 
-        spadeDir = "/tmp"
-        copyDir = None
+        spade_dir = "/tmp"
+        copy_dir = None
 
-        runset.start_run(runNum, clusterCfg, moniType, versionInfo, spadeDir,
-                         copyDir)
+        runset.start_run(run_num, clusterCfg, moniType, version_info,
+                         spade_dir, copy_dir)
 
-        self.__checkRunsetState(runset, 'running')
+        self.__check_runset_state(runset, 'running')
         dashLog.checkStatus(10)
 
-        numEvts = 1
-        numMoni = 0
-        numSN = 0
-        numTcal = 0
+        num_evts = 1
+        num_moni = 0
+        num_sn = 0
+        num_tcal = 0
 
         firstTime = 12345678
         lastTime = 23456789
 
         cComp.mbean.addData("backEnd", "FirstEventTime", firstTime)
         cComp.mbean.addData("backEnd", "EventData",
-                            (runNum, numEvts, lastTime))
+                            (run_num, num_evts, lastTime))
         cComp.mbean.addData("backEnd", "GoodTimes", (firstTime, lastTime))
 
-        monDict = runset.get_event_counts(runNum)
-        self.assertEqual(monDict["physicsEvents"], numEvts)
+        monDict = runset.get_event_counts(run_num)
+        self.assertEqual(monDict["physicsEvents"], num_evts)
 
         dashLog.addExpectedExact("Not logging to file so cannot queue to"
                                  " SPADE")
@@ -806,68 +810,68 @@ class TestDAQPool(unittest.TestCase):
         self.assertFalse(runset.stop_run(stopName),
                          "stop_run() encountered error")
 
-        self.__checkRunsetState(runset, 'ready')
+        self.__check_runset_state(runset, 'ready')
         dashLog.checkStatus(10)
 
-        mgr.returnRunset(runset, logger)
+        mgr.return_runset(runset, logger)
 
         self.assertEqual(runset.id, None)
         self.assertEqual(runset.configured(), False)
         self.assertEqual(runset.run_number(), None)
 
-        self.assertEqual(mgr.numComponents(), len(compList))
+        self.assertEqual(mgr.num_components, len(comp_list))
         self.assertEqual(runset.size(), 0)
 
         logger.checkStatus(10)
         dashLog.checkStatus(10)
 
     def testMonitorClients(self):
-        self.__runConfigDir = tempfile.mkdtemp()
+        self.__run_config_dir = tempfile.mkdtemp()
 
         mgr = MyDAQPool()
 
-        compList = []
+        comp_list = []
 
         fooHub = MockComponent('fooHub', 0)
         fooHub.addOutput('conn')
-        compList.append(fooHub)
+        comp_list.append(fooHub)
 
         barComp = MockComponent('bar', 0)
         barComp.addInput('conn', 123)
-        compList.append(barComp)
+        comp_list.append(barComp)
 
         bazComp = MockComponent('baz', 0)
         bazComp.addInput('conn', 456)
-        compList.append(bazComp)
+        comp_list.append(bazComp)
 
-        self.assertEqual(mgr.numComponents(), 0)
+        self.assertEqual(mgr.num_components, 0)
 
-        for c in compList:
+        for c in comp_list:
             mgr.add(c)
 
-        self.assertEqual(mgr.numComponents(), len(compList))
+        self.assertEqual(mgr.num_components, len(comp_list))
 
-        for c in compList:
+        for c in comp_list:
             c.setMonitorState("idle")
 
-        cnt = mgr.monitorClients()
-        self.assertEqual(cnt, len(compList))
+        cnt = mgr.monitor_clients()
+        self.assertEqual(cnt, len(comp_list))
 
-        for c in compList:
-            self.assertEqual(c.monitorCount(), 1)
+        for c in comp_list:
+            self.assertEqual(c.monitor_count, 1)
 
         fooHub.setMonitorState(DAQClientState.DEAD)
         bazComp.setMonitorState(DAQClientState.MISSING)
 
-        self.assertEqual(mgr.numComponents(), len(compList))
+        self.assertEqual(mgr.num_components, len(comp_list))
 
-        cnt = mgr.monitorClients()
+        cnt = mgr.monitor_clients()
 
         self.assertEqual(cnt, 1)
-        self.assertEqual(mgr.numComponents(), 2)
+        self.assertEqual(mgr.num_components, 2)
 
-        for c in compList:
-            self.assertEqual(c.monitorCount(), 2)
+        for c in comp_list:
+            self.assertEqual(c.monitor_count, 2)
 
 
 if __name__ == '__main__':

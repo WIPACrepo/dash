@@ -418,13 +418,13 @@ def main():
 
     try:
         clusterConfig = \
-            DAQConfigParser.getClusterConfiguration(args.clusterConfigName,
-                                                    validate=args.validation)
+            DAQConfigParser.get_cluster_configuration(args.clusterConfigName,
+                                                      validate=args.validation)
     except DAQConfigException as e:
         print('Cluster configuration file problem:\n%s' % e, file=sys.stderr)
         raise SystemExit
 
-    hublist = clusterConfig.getHubNodes()
+    hublist = clusterConfig.get_hub_nodes()
 
     # Copy phase - copy mainboard release.hex file to remote nodes
     copySet = ThreadSet(args.verbose)

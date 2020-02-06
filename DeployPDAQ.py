@@ -37,7 +37,7 @@ def add_arguments(parser, config_as_arg=True):
     """
     Declare all arguments here (this is also called by the `pdaq` metacommand)
     """
-    parser.add_argument("-C", "--cluster-desc", dest="clusterDesc",
+    parser.add_argument("-C", "--cluster-desc", dest="cluster_desc",
                         help="Cluster description name")
     if config_as_arg:
         parser.add_argument("-c", "--config-name", dest="config_name",
@@ -417,11 +417,11 @@ def run_deploy(args):
         raise SystemExit
 
     try:
-        cdesc = args.clusterDesc
+        cdesc = args.cluster_desc
         config = \
-            DAQConfigParser.getClusterConfiguration(args.config_name,
-                                                    clusterDesc=cdesc,
-                                                    validate=args.validation)
+            DAQConfigParser.get_cluster_configuration(args.config_name,
+                                                      cluster_desc=cdesc,
+                                                      validate=args.validation)
     except XMLBadFileError:
         print('Configuration "%s" not found' % args.config_name,
               file=sys.stderr)

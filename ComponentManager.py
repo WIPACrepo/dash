@@ -66,12 +66,12 @@ class ComponentManager(object):
             comp = HubComponent(cdict["compName"], cdict["compNum"],
                                 "??logLevel??", False)
             comp.host = cdict["host"]
-            comp.setJVMOptions(None, "??jvmPath??", "??jvmServer??",
-                               "??jvmHeapInit??", "??jvmHeapMax??",
-                               "??jvmArgs??", "??jvmExtra??")
-            comp.setHitSpoolOptions(None, "??hsDir??", "??hsInterval??",
-                                    "??hsMaxFiles??")
-            comp.setHubOptions(None, "??alertEMail??", "??ntpHost??")
+            comp.set_jvm_options(None, "??jvmPath??", "??jvmServer??",
+                                 "??jvmHeapInit??", "??jvmHeapMax??",
+                                 "??jvmArgs??", "??jvmExtra??")
+            comp.set_hit_spool_options(None, "??hsDir??", "??hsInterval??",
+                                       "??hsMaxFiles??")
+            comp.set_hub_options(None, "??alertEMail??", "??ntpHost??")
             comps.append(comp)
         return comps
 
@@ -221,43 +221,43 @@ class ComponentManager(object):
                              (comp.name, jar_path))
             return None
 
-        jvm_path = comp.jvmPath
+        jvm_path = comp.jvm_path
 
         jvm_args = "-Dicecube.daq.component.configDir='%s'" % config_dir
-        if comp.jvmServer is not None and comp.jvmServer:
+        if comp.jvm_server is not None and comp.jvm_server:
             jvm_args += " -server"
-        if comp.jvmHeapInit is not None and len(comp.jvmHeapInit) > 0:
-            jvm_args += " -Xms" + comp.jvmHeapInit
-        if comp.jvmHeapMax is not None and len(comp.jvmHeapMax) > 0:
-            jvm_args += " -Xmx" + comp.jvmHeapMax
-        if comp.jvmArgs is not None and len(comp.jvmArgs) > 0:
-            jvm_args += " " + comp.jvmArgs
-        if comp.jvmExtraArgs is not None and len(comp.jvmExtraArgs) > 0:
-            jvm_args += " " + comp.jvmExtraArgs
+        if comp.jvm_heap_init is not None and len(comp.jvm_heap_init) > 0:
+            jvm_args += " -Xms" + comp.jvm_heap_init
+        if comp.jvm_heap_max is not None and len(comp.jvm_heap_max) > 0:
+            jvm_args += " -Xmx" + comp.jvm_heap_max
+        if comp.jvm_args is not None and len(comp.jvm_args) > 0:
+            jvm_args += " " + comp.jvm_args
+        if comp.jvm_extra_args is not None and len(comp.jvm_extra_args) > 0:
+            jvm_args += " " + comp.jvm_extra_args
 
         if comp.is_real_hub:
-            if comp.ntpHost is not None:
+            if comp.ntp_host is not None:
                 jvm_args += " -Dicecube.daq.time.monitoring.ntp-host=%s" % \
-                  (comp.ntpHost, )
-            if comp.alertEMail is not None:
+                  (comp.ntp_host, )
+            if comp.alert_email is not None:
                 jvm_args += " -Dicecube.daq.stringhub.alert-email=%s" % \
-                  (comp.alertEMail, )
+                  (comp.alert_email, )
         else:
-            if comp.numReplayFilesToSkip is not None and \
-              comp.numReplayFilesToSkip > 0:
+            if comp.num_replay_files_to_skip is not None and \
+              comp.num_replay_files_to_skip > 0:
                 jvm_args += " -Dreplay.skipFiles=%d" % \
-                  (comp.numReplayFilesToSkip, )
+                  (comp.num_replay_files_to_skip, )
 
-        if comp.hasHitSpoolOptions:
-            if comp.hitspoolDirectory is not None:
+        if comp.has_hitspool_options:
+            if comp.hitspool_directory is not None:
                 jvm_args += " -Dhitspool.directory=\"%s\"" % \
-                  (comp.hitspoolDirectory, )
-            if comp.hitspoolInterval is not None:
+                  (comp.hitspool_directory, )
+            if comp.hitspool_interval is not None:
                 jvm_args += " -Dhitspool.interval=%.4f" % \
-                  (comp.hitspoolInterval, )
-            if comp.hitspoolMaxFiles is not None:
+                  (comp.hitspool_interval, )
+            if comp.hitspool_max_files is not None:
                 jvm_args += " -Dhitspool.maxfiles=%d" % \
-                  (comp.hitspoolMaxFiles, )
+                  (comp.hitspool_max_files, )
 
         switches = "-d %s" % daq_data_dir
         switches += " -c %s:%d" % (my_ip_addr, DAQPort.CNCSERVER)
@@ -289,29 +289,31 @@ class ComponentManager(object):
         comp_list = []
         for node in cluster_config.nodes():
             for comp in node.components():
-                if not comp.isControlServer:
-                    if comp.hasHitSpoolOptions:
-                        if comp.hasReplayOptions:
+                if not comp.is_control_server:
+                    if comp.has_hitspool_options:
+                        if comp.has_replay_options:
                             rcomp = ReplayHubComponent(comp.name, comp.id,
                                                        comp.log_level, False)
-                            rcomp.setNumberToSkip(comp.numReplayFilesToSkip)
+                            rcomp.num_replay_files_to_skip \
+                              = comp.num_replay_files_to_skip
                         else:
                             rcomp = HubComponent(comp.name, comp.id,
                                                  comp.log_level, False)
-                        rcomp.setHitSpoolOptions(None, comp.hitspoolDirectory,
-                                                 comp.hitspoolInterval,
-                                                 comp.hitspoolMaxFiles)
+                        rcomp.set_hit_spool_options(None,
+                                                    comp.hitspool_directory,
+                                                    comp.hitspool_interval,
+                                                    comp.hitspool_max_files)
                         if comp.is_real_hub:
-                            rcomp.setHubOptions(None, comp.alertEMail,
-                                                comp.ntpHost)
+                            rcomp.set_hub_options(None, comp.alert_email,
+                                                  comp.ntp_host)
                     else:
                         rcomp = JavaComponent(comp.name, comp.id,
                                               comp.log_level, False)
 
                     rcomp.host = node.hostname
-                    rcomp.setJVMOptions(None, comp.jvmPath, comp.jvmServer,
-                                        comp.jvmHeapInit, comp.jvmHeapMax,
-                                        comp.jvmArgs, comp.jvmExtraArgs)
+                    rcomp.set_jvm_options(None, comp.jvm_path, comp.jvm_server,
+                                          comp.jvm_heap_init, comp.jvm_heap_max,
+                                          comp.jvm_args, comp.jvm_extra_args)
 
                     comp_list.append(rcomp)
         return comp_list
@@ -425,12 +427,9 @@ class ComponentManager(object):
         if comps is None:
             try:
                 active_config = \
-                    DAQConfigParser.\
-                    getClusterConfiguration(None,
-                                            useActiveConfig=True,
-                                            clusterDesc=cluster_desc,
-                                            config_dir=config_dir,
-                                            validate=validate)
+                    DAQConfigParser.get_cluster_configuration\
+                    (None, use_active_config=True, cluster_desc=cluster_desc,
+                     config_dir=config_dir, validate=validate)
             except DAQConfigException as dce:
                 if str(dce).find("RELAXNG") >= 0:
                     reraise_excinfo(sys.exc_info())
@@ -504,12 +503,12 @@ class ComponentManager(object):
         Kill the processes of the listed components
         """
         if parallel is None:
-            parallel = ParallelShell(dryRun=dry_run, verbose=verbose,
+            parallel = ParallelShell(dry_run=dry_run, verbose=verbose,
                                      trace=verbose, timeout=30)
 
         cmd2host = {}
         for comp in comp_list:
-            if comp.jvmPath is None:
+            if comp.jvm_path is None:
                 continue
 
             if comp.is_hub:
@@ -535,9 +534,9 @@ class ComponentManager(object):
             for cmd in cmd_results_dict:
                 rtn_code, results = cmd_results_dict[cmd]
                 if cmd in cmd2host:
-                    nodeName = cmd2host[cmd]
+                    node_name = cmd2host[cmd]
                 else:
-                    nodeName = "unknown"
+                    node_name = "unknown"
                 # pkill return codes
                 # 0 -> killed something
                 # 1 -> no matched process to kill
@@ -545,7 +544,7 @@ class ComponentManager(object):
                 if rtn_code > 1 and logger is not None:
                     logger.error(("Error non-zero return code ( %s ) "
                                   "for host: %s, cmd: %s") %
-                                 (rtn_code, nodeName, cmd))
+                                 (rtn_code, node_name, cmd))
                     logger.error("Results '%s'" % results)
 
     @classmethod
@@ -653,7 +652,7 @@ class ComponentManager(object):
         (All list elements should be Component objects)
         """
         if parallel is None:
-            parallel = ParallelShell(dryRun=dry_run, verbose=verbose,
+            parallel = ParallelShell(dry_run=dry_run, verbose=verbose,
                                      trace=verbose, timeout=30)
 
         meta_dir = find_pdaq_trunk()
@@ -676,7 +675,7 @@ class ComponentManager(object):
 
         cmd2host = {}
         for comp in comp_list:
-            if comp.jvmPath is None:
+            if comp.jvm_path is None:
                 continue
 
             basecmd = cls.__build_start_cmd(comp, dry_run, verbose, config_dir,
@@ -713,13 +712,13 @@ class ComponentManager(object):
                 for cmd in cmd_results_dict:
                     rtn_code, results = cmd_results_dict[cmd]
                     if cmd in cmd2host:
-                        nodeName = cmd2host[cmd]
+                        node_name = cmd2host[cmd]
                     else:
-                        nodeName = "unknown"
+                        node_name = "unknown"
                     if rtn_code != 0 and logger is not None:
                         logger.error(("Error non zero return code ( %s )" +
                                       " for host: %s, cmd: %s") %
-                                     (rtn_code, nodeName, cmd))
+                                     (rtn_code, node_name, cmd))
                         logger.error("Results '%s'" % results)
 
 

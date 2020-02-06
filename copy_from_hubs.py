@@ -23,15 +23,15 @@ class DAQState(object):
 
     def __init__(self):
         "Get current run state from 'livecmd check' on expcont"
-        self.__runnum = None
+        self.__run_num = None
         self.__time_since_start = None
         self.__time_left = None
 
     def __str__(self):
-        if self.__runnum is None:
+        if self.__run_num is None:
             rstr = "**NO ACTIVE RUN**"
         else:
-            rstr = "Run %s" % self.__runnum
+            rstr = "Run %s" % self.__run_num
         if self.__time_left is not None:
             rstr += ": %ds left" % self.__time_left
         return rstr
@@ -78,7 +78,7 @@ class DAQState(object):
     @property
     def running(self):
         "Return True if a run is active"
-        return self.__runnum is not None
+        return self.__run_num is not None
 
     @property
     def time_left(self):
@@ -96,7 +96,7 @@ class DAQState(object):
 
         if dry_run:
             print(" ".join(cmd_args))
-            self.__runnum = 123456
+            self.__run_num = 123456
             self.__time_left = 9999
             self.__time_since_start = 9999
             return
@@ -114,9 +114,9 @@ class DAQState(object):
                 back = back.rstrip()
                 if front == "run":
                     try:
-                        self.__runnum = int(back)
+                        self.__run_num = int(back)
                     except:
-                        self.__runnum = back
+                        self.__run_num = back
                 elif front == "Time until stop":
                     self.__time_left \
                       = self.__parse_time("time left", back)

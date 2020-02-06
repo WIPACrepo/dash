@@ -37,7 +37,7 @@ def add_arguments(parser):
     parser.add_argument("-v", "--verbose", dest="verbose",
                         action="store_true", default=False,
                         help="Verbose mode")
-    parser.add_argument("runConfig", nargs=1,
+    parser.add_argument("run_config", nargs=1,
                         help="Original run configuration file")
     parser.add_argument("hubOrRack", nargs="+",
                         help="Hub IDs can be \"6\", \"06\", \"6i\", \"6t\","
@@ -212,15 +212,15 @@ def remove_hubs(args):
     hub_list, rack_list = parse_hub_rack_strings(args.hubOrRack)
 
     # verify that original run configuration file exists
-    if len(args.runConfig) != 1:
+    if len(args.run_config) != 1:
         raise SystemExit("Unexpected number of runConfig arguments (%d)" %
-                         (len(args.runConfig), ))
-    rc_path = os.path.join(args.config_dir, args.runConfig[0])
+                         (len(args.run_config), ))
+    rc_path = os.path.join(args.config_dir, args.run_config[0])
     if not rc_path.endswith(".xml"):
         rc_path += ".xml"
     if not os.path.exists(rc_path):
         raise SystemExit("Run configuration \"%s\" does not exist" %
-                         (args.runConfig[0], ))
+                         (args.run_config[0], ))
 
     try:
         run_config = DAQConfigParser.parse(args.config_dir, rc_path)

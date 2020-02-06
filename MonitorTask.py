@@ -49,14 +49,15 @@ class MonitorThread(CnCThread):
         "Return True if the user has been warned"
         return self.__warned
 
+    @is_warned.setter
+    def is_warned(self, val):
+        "Set the 'is_warned' flag"
+        self.__warned = val
+
     @property
     def refused_count(self):
         "Return count of failed monitoring requests"
         raise NotImplementedError("Unimplemented")
-
-    def set_warned(self):
-        "Remember that the user has been warned"
-        self.__warned = True
 
 
 class MBeanThread(MonitorThread):
@@ -332,7 +333,7 @@ class MonitorTask(CnCTask):
                                " %d times") % \
                                (key.fullname, thrd.refused_count)
                         self.log_error(msg)
-                        thrd.set_warned()
+                        thrd.is_warned = True
                     continue
                 self.__thread_list[key] = thrd.get_new_thread()
                 self.__thread_list[key].start()

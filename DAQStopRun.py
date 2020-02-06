@@ -66,10 +66,10 @@ def stoprun(args):
         listRS = False
 
     if listRS:
-        errMsg = "Valid runset IDs:"
+        errmsg = "Valid runset IDs:"
         for rsid in rsids:
-            errMsg += " %d" % rsid
-        raise SystemExit(errMsg)
+            errmsg += " %d" % rsid
+        raise SystemExit(errmsg)
 
     for rsid in stopIds:
         try:

@@ -128,16 +128,17 @@ class TinyClient(object):
     def order(self):
         return self.__order
 
+    @order.setter
+    def order(self, num):
+        self.__order = num
+
     def reset(self):
         self.__state = 'idle'
 
     def reset_logging(self):
         pass
 
-    def set_order(self, orderNum):
-        self.__order = orderNum
-
-    def start_run(self, runNum):
+    def start_run(self, run_num):
         self.__state = 'running'
 
     @property
@@ -149,8 +150,8 @@ class TinyClient(object):
 
 
 class FakeRunData(object):
-    def __init__(self, runNum, runCfg, cluCfg):
-        self.__run_number = runNum
+    def __init__(self, run_num, runCfg, cluCfg):
+        self.__run_number = run_num
         self.__run_config = runCfg
         self.__cluster_config = cluCfg
 
@@ -208,6 +209,7 @@ class FakeRunData(object):
     def send_event_counts(self, run_set=None):
         pass
 
+    @property
     def set_finished(self):
         self.__finished = True
 
@@ -219,20 +221,20 @@ class FakeRunData(object):
 
 
 class MockRunSet(RunSet):
-    def __init__(self, parent, runConfig, compList, logger, clientLog=None):
-        self.__runConfig = runConfig
+    def __init__(self, parent, run_config, compList, logger, clientLog=None):
+        self.__run_config = run_config
         self.__dashLog = logger
         self.__clientLog = clientLog
         self.__deadComp = []
 
-        super(MockRunSet, self).__init__(parent, runConfig, compList, logger)
+        super(MockRunSet, self).__init__(parent, run_config, compList, logger)
 
-    def create_component_log(self, runDir, comp, host, port, quiet=True):
+    def create_component_log(self, run_dir, comp, host, port, quiet=True):
         return self.__clientLog
 
-    def create_run_data(self, runNum, clusterConfig, runOptions, versionInfo,
+    def create_run_data(self, run_num, clusterConfig, runOptions, version_info,
                         spade_dir, copy_dir=None, log_dir=None, testing=True):
-        mrd = FakeRunData(runNum, self.__runConfig, clusterConfig)
+        mrd = FakeRunData(run_num, self.__run_config, clusterConfig)
         mrd.set_mock_logger(self.__dashLog)
         return mrd
 
@@ -262,46 +264,46 @@ class MockRunSet(RunSet):
 class MockServer(CnCServer):
     APPENDER = MockLogger('server')
 
-    def __init__(self, clusterConfigObject=None, copyDir=None,
-                 runConfigDir=None, daqDataDir=None, spadeDir=None,
-                 log_port=None, live_port=None, forceRestart=False,
+    def __init__(self, clusterConfigObject=None, copy_dir=None,
+                 run_config_dir=None, daq_data_dir=None, spade_dir=None,
+                 log_port=None, live_port=None, force_restart=False,
                  clientLog=None, logFactory=None):
         self.__clusterConfig = clusterConfigObject
         self.__clientLog = clientLog
         self.__logFactory = logFactory
 
-        super(MockServer, self).__init__(copyDir=copyDir,
-                                         runConfigDir=runConfigDir,
-                                         daqDataDir=daqDataDir,
-                                         spadeDir=spadeDir,
-                                         logIP='localhost',
-                                         logPort=log_port,
-                                         liveIP='localhost',
-                                         livePort=live_port,
-                                         forceRestart=forceRestart,
-                                         testOnly=True)
+        super(MockServer, self).__init__(copy_dir=copy_dir,
+                                         run_config_dir=run_config_dir,
+                                         daq_data_dir=daq_data_dir,
+                                         spade_dir=spade_dir,
+                                         log_host='localhost',
+                                         log_port=log_port,
+                                         live_host='localhost',
+                                         live_port=live_port,
+                                         force_restart=force_restart,
+                                         test_only=True)
 
-    def createClient(self, name, num, host, port, mbean_port, connectors):
+    def create_client(self, name, num, host, port, mbean_port, connectors):
         return TinyClient(name, num, host, port, mbean_port, connectors)
 
-    def createCnCLogger(self, quiet):
+    def create_cnc_logger(self, quiet):
         return MockCnCLogger("CnC", appender=MockServer.APPENDER, quiet=quiet)
 
-    def createRunset(self, runConfig, compList, logger):
-        return MockRunSet(self, runConfig, compList, logger,
+    def create_runset(self, run_config, compList, logger):
+        return MockRunSet(self, run_config, compList, logger,
                           clientLog=self.__clientLog)
 
-    def getClusterConfig(self, runConfig=None):
+    def get_cluster_config(self, run_config=None):
         return self.__clusterConfig
 
-    def openLogServer(self, port, logDir):
+    def open_log_server(self, port, log_dir):
         if self.__logFactory is None:
             raise Exception("MockServer log factory has not been set")
         return self.__logFactory.createLog("catchall", port,
                                            expectStartMsg=False,
                                            startServer=False)
 
-    def saveCatchall(self, runDir):
+    def save_catchall(self, run_dir):
         pass
 
 
@@ -340,8 +342,8 @@ class TestDAQServer(unittest.TestCase):
     def setUp(self):
         self.__logFactory = SocketReaderFactory()
 
-        self.__runConfigDir = None
-        self.__daqDataDir = None
+        self.__run_config_dir = None
+        self.__daq_data_dir = None
 
         set_pdaq_config_dir(None, override=True)
 
@@ -351,12 +353,12 @@ class TestDAQServer(unittest.TestCase):
         except:
             traceback.print_exc()
 
-        if self.__runConfigDir is not None:
-            shutil.rmtree(self.__runConfigDir, ignore_errors=True)
-            self.__runConfigDir = None
-        if self.__daqDataDir is not None:
-            shutil.rmtree(self.__daqDataDir, ignore_errors=True)
-            self.__daqDataDir = None
+        if self.__run_config_dir is not None:
+            shutil.rmtree(self.__run_config_dir, ignore_errors=True)
+            self.__run_config_dir = None
+        if self.__daq_data_dir is not None:
+            shutil.rmtree(self.__daq_data_dir, ignore_errors=True)
+            self.__daq_data_dir = None
 
         MockServer.APPENDER.checkStatus(10)
 
@@ -453,44 +455,44 @@ class TestDAQServer(unittest.TestCase):
 
         logger.checkStatus(100)
 
-        moniType = RunOption.MONI_TO_NONE
+        moni_type = RunOption.MONI_TO_NONE
 
         self.assertRaises(CnCServerException, dc.rpc_runset_break, 1)
         self.assertRaises(CnCServerException, dc.rpc_runset_list, 1)
         self.assertRaises(CnCServerException, dc.rpc_runset_start_run, 1, 1,
-                          moniType)
+                          moni_type)
         self.assertRaises(CnCServerException, dc.rpc_runset_stop_run, 1)
 
         logger.checkStatus(100)
 
     def testRunset(self):
-        self.__runConfigDir = tempfile.mkdtemp()
-        self.__daqDataDir = tempfile.mkdtemp()
+        self.__run_config_dir = tempfile.mkdtemp()
+        self.__daq_data_dir = tempfile.mkdtemp()
 
-        set_pdaq_config_dir(self.__runConfigDir, override=True)
+        set_pdaq_config_dir(self.__run_config_dir, override=True)
 
         log_port = 21765
 
         logger = self.__createLog('main', log_port)
 
-        clientPort = DAQPort.EPHEMERAL_BASE
+        client_port = DAQPort.EPHEMERAL_BASE
 
-        clientLogger = self.__createLog('client', clientPort)
+        clientLogger = self.__createLog('client', client_port)
 
-        compId = DAQClient.ID.peek_next()
+        comp_id = DAQClient.ID.peek_next()
         compName = 'stringHub'
         compNum = self.HUB_NUMBER
         compHost = 'localhost'
-        compPort = 666
-        compBeanPort = 0
+        comp_port = 666
+        comp_bean_port = 0
 
         cluCfg = MockClusterConfig("clusterFoo")
-        cluCfg.addComponent("%s#%d" % (compName, compNum), "java", "",
-                            compHost)
+        cluCfg.add_component("%s#%d" % (compName, compNum), "java", "",
+                             compHost)
 
-        dc = MockServer(clusterConfigObject=cluCfg, copyDir="copyDir",
-                        runConfigDir=self.__runConfigDir,
-                        daqDataDir=self.__daqDataDir, spadeDir="/tmp",
+        dc = MockServer(clusterConfigObject=cluCfg, copy_dir="copyDir",
+                        run_config_dir=self.__run_config_dir,
+                        daq_data_dir=self.__daq_data_dir, spade_dir="/tmp",
                         log_port=log_port, clientLog=clientLogger,
                         logFactory=self.__logFactory)
 
@@ -507,8 +509,8 @@ class TestDAQServer(unittest.TestCase):
 
         logger.addExpectedText('Registered %s' % fullName)
 
-        dc.rpc_component_register(compName, compNum, compHost, compPort,
-                                  compBeanPort, [])
+        dc.rpc_component_register(compName, compNum, compHost, comp_port,
+                                  comp_bean_port, [])
 
         logger.checkStatus(100)
 
@@ -516,10 +518,10 @@ class TestDAQServer(unittest.TestCase):
         self.assertEqual(dc.rpc_runset_count(), 0)
 
         connErr = "No connection map entry for ID#%s %s#%d .*" % \
-            (compId, compName, compNum)
+            (comp_id, compName, compNum)
         logger.addExpectedTextRegexp(connErr)
 
-        rcFile = MockRunConfigFile(self.__runConfigDir)
+        rcFile = MockRunConfigFile(self.__run_config_dir)
 
         hubDomDict = {
             self.HUB_NUMBER:
@@ -527,20 +529,20 @@ class TestDAQServer(unittest.TestCase):
                                          "DSrvrTst", "Z98765"), ],
         }
 
-        runConfig = rcFile.create([], hubDomDict)
+        run_config = rcFile.create([], hubDomDict)
 
-        leapFile = MockLeapsecondFile(self.__runConfigDir)
+        leapFile = MockLeapsecondFile(self.__run_config_dir)
         leapFile.create()
 
-        MockDefaultDomGeometryFile.create(self.__runConfigDir, hubDomDict)
+        MockDefaultDomGeometryFile.create(self.__run_config_dir, hubDomDict)
 
         logger.addExpectedTextRegexp('Loading run configuration .*')
         logger.addExpectedTextRegexp('Loaded run configuration .*')
         logger.addExpectedTextRegexp(r"Built runset #\d+: .*")
 
-        runNum = 456
+        run_num = 456
 
-        setId = dc.rpc_runset_make(runConfig, runNum, strict=False)
+        setId = dc.rpc_runset_make(run_config, run_num, strict=False)
 
         logger.checkStatus(100)
 
@@ -551,33 +553,33 @@ class TestDAQServer(unittest.TestCase):
         self.assertEqual(len(rs), 1)
 
         rsc = rs[0]
-        self.assertEqual(compId, rsc["id"])
+        self.assertEqual(comp_id, rsc["id"])
         self.assertEqual(compName, rsc["compName"])
         self.assertEqual(compNum, rsc["compNum"])
         self.assertEqual(compHost, rsc["host"])
-        self.assertEqual(compPort, rsc["rpcPort"])
-        self.assertEqual(compBeanPort, rsc["mbeanPort"])
+        self.assertEqual(comp_port, rsc["rpcPort"])
+        self.assertEqual(comp_bean_port, rsc["mbeanPort"])
         self.assertEqual("ready", rsc["state"])
 
         logger.checkStatus(100)
 
         logger.addExpectedText("Starting run #%d on \"%s\"" %
-                               (runNum, cluCfg.description))
+                               (run_num, cluCfg.description))
 
         logger.addExpectedTextRegexp(r"Version info: \S+ \S+ \S+ \S+")
         clientLogger.addExpectedTextRegexp(r"Version info: \S+ \S+ \S+ \S+")
 
-        logger.addExpectedText("Run configuration: %s" % runConfig)
+        logger.addExpectedText("Run configuration: %s" % run_config)
         logger.addExpectedText("Cluster: %s" % cluCfg.description)
 
-        moniType = RunOption.MONI_TO_NONE
+        moni_type = RunOption.MONI_TO_NONE
 
-        logger.addExpectedText("Starting run %d..." % runNum)
+        logger.addExpectedText("Starting run %d..." % run_num)
 
         logger.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
         logger.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for Hubs")
 
-        self.assertEqual(dc.rpc_runset_start_run(setId, runNum, moniType),
+        self.assertEqual(dc.rpc_runset_start_run(setId, run_num, moni_type),
                          'OK')
 
         logger.checkStatus(10)

@@ -108,6 +108,7 @@ class Component(object):
         "Return the order of this component in the DAQ 'supply chain'"
         return self.__order
 
-    def set_order(self, num):
+    @order.setter
+    def order(self, num):
         "Set the order for this component"
         self.__order = num

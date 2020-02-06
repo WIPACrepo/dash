@@ -24,7 +24,7 @@ class RunNumber(object):
     DEFAULT_FILE = os.path.join(os.environ["HOME"], ".i3live-run")
 
     @classmethod
-    def getLast(cls, filename=None):
+    def get_last(cls, filename=None):
         "Return the last run and subrun numbers as a tuple"
         num = 1
         subnum = 0
@@ -48,7 +48,7 @@ class RunNumber(object):
         return (num, subnum)
 
     @classmethod
-    def setLast(cls, number, subrun=0, filename=None):
+    def set_last(cls, number, subrun=0, filename=None):
         "Set the last run and subrun numbers"
         try:
             goodRun = int(number)
@@ -73,7 +73,7 @@ class RunNumber(object):
 
 
 def add_arguments(parser):
-    parser.add_argument("runNumber",
+    parser.add_argument("run_number",
                         type=int, default=None, nargs="?",
                         help="Last run number")
     parser.add_argument("-s", "--subrun", dest="subrun",
@@ -82,24 +82,24 @@ def add_arguments(parser):
 
 
 def get_or_set_run_number(args):
-    (runNum, subrun) = RunNumber.getLast()
+    (run_num, subrun) = RunNumber.get_last()
 
-    if args.runNumber is None:
+    if args.run_number is None:
         action = "is"
-    elif not verify_change(runNum, subrun, args.runNumber, args.subrun):
+    elif not verify_change(run_num, subrun, args.run_number, args.subrun):
         action = "not changed from"
     else:
         # update file with new run and subrun numbers
-        RunNumber.setLast(args.runNumber, subrun=args.subrun)
+        RunNumber.set_last(args.run_number, subrun=args.subrun)
         action = "set to"
 
         # reread file to make sure all is well
-        (runNum, subrun) = RunNumber.getLast()
+        (run_num, subrun) = RunNumber.get_last()
 
     if subrun == 0:
-        print("Run number %s %s" % (action, runNum))
+        print("Run number %s %s" % (action, run_num))
     else:
-        print("Run number %s %s (subrun %d)" % (action, runNum, subrun))
+        print("Run number %s %s (subrun %d)" % (action, run_num, subrun))
 
 
 def run_subrun_str(run, subrun):

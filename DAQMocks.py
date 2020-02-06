@@ -84,7 +84,7 @@ class BaseLiveChecker(BaseChecker):
         varName = m.group(2)
         varType = m.group(3)
         # msgPrio = m.group(4)
-        # msgTime = m.group(5)
+        # msg_time = m.group(5)
         msgText = m.group(6)
 
         if svcName != SERVICE_NAME:
@@ -478,7 +478,7 @@ class LogChecker(object):
 class MockClusterWriter(object):
     """Base class for MockClusterConfigFile classes"""
     @classmethod
-    def __appendAttr(cls, oldStr, attrName, newStr):
+    def __append_attr(cls, oldStr, attrName, newStr):
         if newStr is not None:
             if oldStr is None:
                 oldStr = ""
@@ -488,36 +488,37 @@ class MockClusterWriter(object):
         return oldStr
 
     @classmethod
-    def writeHSXML(cls, fd, indent, path, interval, maxFiles):
+    def writeHSXML(cls, file_handle, indent, path, interval, max_files):
 
         jStr = "hitspool"
-        jStr = cls.__appendAttr(jStr, 'directory', path)
-        jStr = cls.__appendAttr(jStr, 'interval', interval)
-        jStr = cls.__appendAttr(jStr, 'maxfiles', maxFiles)
-        print("%s<%s/>" % (indent, jStr), file=fd)
+        jStr = cls.__append_attr(jStr, 'directory', path)
+        jStr = cls.__append_attr(jStr, 'interval', interval)
+        jStr = cls.__append_attr(jStr, 'maxfiles', max_files)
+        print("%s<%s/>" % (indent, jStr), file=file_handle)
 
     @classmethod
-    def writeJVMXML(cls, fd, indent, path, isServer, heapInit, heapMax, args,
-                    extraArgs):
+    def writeJVMXML(cls, file_handle, indent, path, is_server, heap_init,
+                    heap_max, args, extra_args):
 
-        if path is not None or isServer or heapInit is not None or \
-           heapMax is not None or args is not None or extraArgs is not None:
+        if path is not None or is_server or heap_init is not None or \
+           heap_max is not None or args is not None or extra_args is not None:
             jStr = "jvm"
-            jStr = cls.__appendAttr(jStr, 'path', path)
-            if isServer:
-                jStr = cls.__appendAttr(jStr, 'server', isServer)
-            jStr = cls.__appendAttr(jStr, 'heapInit', heapInit)
-            jStr = cls.__appendAttr(jStr, 'heapMax', heapMax)
-            jStr = cls.__appendAttr(jStr, 'args', args)
-            jStr = cls.__appendAttr(jStr, 'extraArgs', extraArgs)
-            print("%s<%s/>" % (indent, jStr), file=fd)
+            jStr = cls.__append_attr(jStr, 'path', path)
+            if is_server:
+                jStr = cls.__append_attr(jStr, 'server', is_server)
+            jStr = cls.__append_attr(jStr, 'heapInit', heap_init)
+            jStr = cls.__append_attr(jStr, 'heapMax', heap_max)
+            jStr = cls.__append_attr(jStr, 'args', args)
+            jStr = cls.__append_attr(jStr, 'extraArgs', extra_args)
+            print("%s<%s/>" % (indent, jStr), file=file_handle)
 
     @classmethod
-    def writeLine(cls, fd, indent, name, value):
+    def writeLine(cls, file_handle, indent, name, value):
         if value is None or value == "":
-            print("%s<%s/>" % (indent, name), file=fd)
+            print("%s<%s/>" % (indent, name), file=file_handle)
         else:
-            print("%s<%s>%s</%s>" % (indent, name, value, name), file=fd)
+            print("%s<%s>%s</%s>" % (indent, name, value, name),
+                  file=file_handle)
 
 
 class MockCluCfgCtlSrvr(object):
@@ -526,47 +527,47 @@ class MockCluCfgCtlSrvr(object):
         pass
 
     @property
-    def hitspoolDirectory(self):
+    def hitspool_directory(self):
         return None
 
     @property
-    def hitspoolInterval(self):
+    def hitspool_interval(self):
         return None
 
     @property
-    def hitspoolMaxFiles(self):
+    def hitspool_max_files(self):
         return None
 
     @property
-    def isControlServer(self):
+    def is_control_server(self):
         return True
 
     @property
-    def isSimHub(self):
+    def is_sim_hub(self):
         return False
 
     @property
-    def jvmArgs(self):
+    def jvm_args(self):
         return None
 
     @property
-    def jvmExtraArgs(self):
+    def jvm_extra_args(self):
         return None
 
     @property
-    def jvmHeapInit(self):
+    def jvm_heap_init(self):
         return None
 
     @property
-    def jvmHeapMax(self):
+    def jvm_heap_max(self):
         return None
 
     @property
-    def jvmPath(self):
+    def jvm_path(self):
         return None
 
     @property
-    def jvmServer(self):
+    def jvm_server(self):
         return False
 
     @property
@@ -585,30 +586,30 @@ class MockCluCfgCtlSrvr(object):
     def required(self):
         return True
 
-    def write(self, fd, indent):
-        print(indent + "<controlServer/>", file=fd)
+    def write(self, file_handle, indent):
+        print(indent + "<controlServer/>", file=file_handle)
 
 
 class MockCluCfgFileComp(MockClusterWriter):
     """Used by MockClusterConfigFile for <component>"""
-    def __init__(self, name, num=0, required=False, hitspoolDirectory=None,
-                 hitspoolInterval=None, hitspoolMaxFiles=None, jvmPath=None,
-                 jvmServer=None, jvmHeapInit=None, jvmHeapMax=None,
-                 jvmArgs=None, jvmExtraArgs=None, log_level=None):
+    def __init__(self, name, num=0, required=False, hitspool_directory=None,
+                 hitspool_interval=None, hitspool_max_files=None, jvm_path=None,
+                 jvm_server=None, jvm_heap_init=None, jvm_heap_max=None,
+                 jvm_args=None, jvm_extra_args=None, log_level=None):
         self.__name = name
         self.__num = num
         self.__required = required
 
-        self.__hitspoolDir = hitspoolDirectory
-        self.__hitspoolInterval = hitspoolInterval
-        self.__hitspoolMaxFiles = hitspoolMaxFiles
+        self.__hitspoolDir = hitspool_directory
+        self.__hitspool_interval = hitspool_interval
+        self.__hitspool_max_files = hitspool_max_files
 
-        self.__jvmPath = jvmPath
-        self.__jvmServer = jvmServer is True
-        self.__jvmHeapInit = jvmHeapInit
-        self.__jvmHeapMax = jvmHeapMax
-        self.__jvmArgs = jvmArgs
-        self.__jvmExtraArgs = jvmExtraArgs
+        self.__jvm_path = jvm_path
+        self.__jvm_server = jvm_server is True
+        self.__jvm_heap_init = jvm_heap_init
+        self.__jvm_heap_max = jvm_heap_max
+        self.__jvm_args = jvm_args
+        self.__jvm_extra_args = jvm_extra_args
 
         self.__log_level = log_level
 
@@ -616,48 +617,48 @@ class MockCluCfgFileComp(MockClusterWriter):
         return "%s#%s" % (self.__name, self.__num)
 
     @property
-    def hitspoolDirectory(self):
+    def hitspool_directory(self):
         return self.__hitspoolDir
 
     @property
-    def hitspoolInterval(self):
-        return self.__hitspoolInterval
+    def hitspool_interval(self):
+        return self.__hitspool_interval
 
     @property
-    def hitspoolMaxFiles(self):
-        return self.__hitspoolMaxFiles
+    def hitspool_max_files(self):
+        return self.__hitspool_max_files
 
     @property
-    def isControlServer(self):
+    def is_control_server(self):
         return False
 
     @property
-    def isSimHub(self):
+    def is_sim_hub(self):
         return False
 
     @property
-    def jvmArgs(self):
-        return self.__jvmArgs
+    def jvm_args(self):
+        return self.__jvm_args
 
     @property
-    def jvmExtraArgs(self):
-        return self.__jvmExtraArgs
+    def jvm_extra_args(self):
+        return self.__jvm_extra_args
 
     @property
-    def jvmHeapInit(self):
-        return self.__jvmHeapInit
+    def jvm_heap_init(self):
+        return self.__jvm_heap_init
 
     @property
-    def jvmHeapMax(self):
-        return self.__jvmHeapMax
+    def jvm_heap_max(self):
+        return self.__jvm_heap_max
 
     @property
-    def jvmPath(self):
-        return self.__jvmPath
+    def jvm_path(self):
+        return self.__jvm_path
 
     @property
-    def jvmServer(self):
-        return self.__jvmServer
+    def jvm_server(self):
+        return self.__jvm_server
 
     @property
     def log_level(self):
@@ -682,33 +683,33 @@ class MockCluCfgFileComp(MockClusterWriter):
         self.__hitspoolDir = value
 
     def setHitspoolInterval(self, value):
-        self.__hitspoolInterval = value
+        self.__hitspool_interval = value
 
     def setHitspoolMaxFiles(self, value):
-        self.__hitspoolMaxFiles = value
+        self.__hitspool_max_files = value
 
-    def setJVMArgs(self, value):
-        self.__jvmArgs = value
+    def set_jvm_args(self, value):
+        self.__jvm_args = value
 
-    def setJVMExtraArgs(self, value):
-        self.__jvmExtraArgs = value
+    def set_jvm_extra_args(self, value):
+        self.__jvm_extra_args = value
 
-    def setJVMHeapInit(self, value):
-        self.__jvmHeapInit = value
+    def set_jvm_heap_init(self, value):
+        self.__jvm_heap_init = value
 
-    def setJVMHeapMax(self, value):
-        self.__jvmHeapMax = value
+    def set_jvm_heap_max(self, value):
+        self.__jvm_heap_max = value
 
-    def setJVMServer(self, value):
-        self.__jvmServer = value
+    def set_jvm_server(self, value):
+        self.__jvm_server = value
 
-    def setJVMPath(self, value):
-        self.__jvmPath = value
+    def set_jvm_path(self, value):
+        self.__jvm_path = value
 
     def set_log_level(self, value):
         self.__log_level = value
 
-    def write(self, fd, indent):
+    def write(self, file_handle, indent):
         if self.__num == 0:
             numstr = ""
         else:
@@ -720,14 +721,14 @@ class MockCluCfgFileComp(MockClusterWriter):
             reqstr = " required=\"true\""
 
         hasHSFields = self.__hitspoolDir is not None or \
-                      self.__hitspoolInterval is not None or \
-                      self.__hitspoolMaxFiles is not None
-        hasJVMFields = self.__jvmPath is not None or \
-                       self.__jvmArgs is not None or \
-                       self.__jvmExtraArgs is not None or \
-                       self.__jvmHeapInit is not None or \
-                       self.__jvmHeapMax is not None or \
-                       self.__jvmServer is not None
+                      self.__hitspool_interval is not None or \
+                      self.__hitspool_max_files is not None
+        hasJVMFields = self.__jvm_path is not None or \
+                       self.__jvm_args is not None or \
+                       self.__jvm_extra_args is not None or \
+                       self.__jvm_heap_init is not None or \
+                       self.__jvm_heap_max is not None or \
+                       self.__jvm_server is not None
         multiline = hasHSFields or hasJVMFields or self.__log_level is not None
 
         if multiline:
@@ -736,24 +737,26 @@ class MockCluCfgFileComp(MockClusterWriter):
             endstr = "/"
 
         print("%s<component name=\"%s\"%s%s%s>" % \
-            (indent, self.__name, numstr, reqstr, endstr), file=fd)
+            (indent, self.__name, numstr, reqstr, endstr), file=file_handle)
 
         if multiline:
             indent2 = indent + "  "
 
             if hasHSFields:
-                self.writeHSXML(fd, indent2, self.__hitspoolDir,
-                                self.__hitspoolInterval,
-                                self.__hitspoolMaxFiles)
+                self.writeHSXML(file_handle, indent2, self.__hitspoolDir,
+                                self.__hitspool_interval,
+                                self.__hitspool_max_files)
             if hasJVMFields:
-                self.writeJVMXML(fd, indent2, self.__jvmPath, self.__jvmServer,
-                                 self.__jvmHeapInit, self.__jvmHeapMax,
-                                 self.__jvmArgs, self.__jvmExtraArgs)
+                self.writeJVMXML(file_handle, indent2, self.__jvm_path,
+                                 self.__jvm_server, self.__jvm_heap_init,
+                                 self.__jvm_heap_max, self.__jvm_args,
+                                 self.__jvm_extra_args)
 
             if self.__log_level is not None:
-                self.writeLine(fd, indent2, "logLevel", self.__log_level)
+                self.writeLine(file_handle, indent2, "logLevel",
+                               self.__log_level)
 
-            print("%s</component>" % indent, file=fd)
+            print("%s</component>" % indent, file=file_handle)
 
 
 class MockCluCfgFileCtlSrvr(object):
@@ -762,47 +765,47 @@ class MockCluCfgFileCtlSrvr(object):
         pass
 
     @property
-    def hitspoolDirectory(self):
+    def hitspool_directory(self):
         return None
 
     @property
-    def hitspoolInterval(self):
+    def hitspool_interval(self):
         return None
 
     @property
-    def hitspoolMaxFiles(self):
+    def hitspool_max_files(self):
         return None
 
     @property
-    def isControlServer(self):
+    def is_control_server(self):
         return True
 
     @property
-    def isSimHub(self):
+    def is_sim_hub(self):
         return False
 
     @property
-    def jvmArgs(self):
+    def jvm_args(self):
         return None
 
     @property
-    def jvmExtraArgs(self):
+    def jvm_extra_args(self):
         return None
 
     @property
-    def jvmHeapInit(self):
+    def jvm_heap_init(self):
         return None
 
     @property
-    def jvmHeapMax(self):
+    def jvm_heap_max(self):
         return None
 
     @property
-    def jvmPath(self):
+    def jvm_path(self):
         return None
 
     @property
-    def jvmServer(self):
+    def jvm_server(self):
         return False
 
     @property
@@ -821,8 +824,8 @@ class MockCluCfgFileCtlSrvr(object):
     def required(self):
         return True
 
-    def write(self, fd, indent):
-        print(indent + "<controlServer/>", file=fd)
+    def write(self, file_handle, indent):
+        print(indent + "<controlServer/>", file=file_handle)
 
 
 class MockCluCfgFileHost(object):
@@ -832,23 +835,23 @@ class MockCluCfgFileHost(object):
         self.__parent = parent
         self.__comps = None
 
-    def __addComp(self, comp):
+    def __add_comp(self, comp):
         if self.__comps is None:
             self.__comps = []
         self.__comps.append(comp)
         return comp
 
-    def addComponent(self, name, num=0, required=False):
+    def add_component(self, name, num=0, required=False):
         c = MockCluCfgFileComp(name, num=num, required=required)
 
-        return self.__addComp(c)
+        return self.__add_comp(c)
 
     def addControlServer(self):
-        return self.__addComp(MockCluCfgCtlSrvr())
+        return self.__add_comp(MockCluCfgCtlSrvr())
 
-    def addSimHubs(self, number, priority, ifUnused=False):
-        return self.__addComp(MockCluCfgFileSimHubs(number, priority,
-                                                    ifUnused=ifUnused))
+    def addSimHubs(self, number, priority, if_unused=False):
+        return self.__add_comp(MockCluCfgFileSimHubs(number, priority,
+                                                    if_unused=if_unused))
 
     @property
     def components(self):
@@ -858,74 +861,74 @@ class MockCluCfgFileHost(object):
     def name(self):
         return self.__name
 
-    def write(self, fd, indent, split_hosts=False):
+    def write(self, file_handle, indent, split_hosts=False):
         printed_host = False
         indent2 = indent + "  "
         if self.__comps:
             for c in self.__comps:
                 if split_hosts or not printed_host:
                     print("%s<host name=\"%s\">" % (indent, self.__name),
-                          file=fd)
+                          file=file_handle)
                     printed_host = True
 
-                c.write(fd, indent2)
+                c.write(file_handle, indent2)
 
                 if split_hosts:
-                    print("%s</host>" % indent, file=fd)
+                    print("%s</host>" % indent, file=file_handle)
 
             if printed_host and not split_hosts:
-                print("%s</host>" % indent, file=fd)
+                print("%s</host>" % indent, file=file_handle)
 
 
 class MockCluCfgFileSimHubs(MockClusterWriter):
     """Used by MockClusterConfigFile for <simulatedHub/>"""
-    def __init__(self, number, priority=1, ifUnused=False):
+    def __init__(self, number, priority=1, if_unused=False):
         self.__number = number
         self.__priority = priority
-        self.__ifUnused = ifUnused
+        self.__if_unused = if_unused
 
     @property
-    def hitspoolDirectory(self):
+    def hitspool_directory(self):
         return None
 
     @property
-    def hitspoolInterval(self):
+    def hitspool_interval(self):
         return None
 
     @property
-    def hitspoolMaxFiles(self):
+    def hitspool_max_files(self):
         return None
 
     @property
-    def isControlServer(self):
+    def is_control_server(self):
         return False
 
     @property
-    def isSimHub(self):
+    def is_sim_hub(self):
         return True
 
     @property
-    def jvmArgs(self):
+    def jvm_args(self):
         return None
 
     @property
-    def jvmExtraArgs(self):
+    def jvm_extra_args(self):
         return None
 
     @property
-    def jvmHeapInit(self):
+    def jvm_heap_init(self):
         return None
 
     @property
-    def jvmHeapMax(self):
+    def jvm_heap_max(self):
         return None
 
     @property
-    def jvmPath(self):
+    def jvm_path(self):
         return None
 
     @property
-    def jvmServer(self):
+    def jvm_server(self):
         return False
 
     @property
@@ -944,18 +947,18 @@ class MockCluCfgFileSimHubs(MockClusterWriter):
     def required(self):
         return False
 
-    def write(self, fd, indent):
-        if self.__ifUnused:
+    def write(self, file_handle, indent):
+        if self.__if_unused:
             iustr = " ifUnused=\"true\""
         else:
             iustr = ""
 
         print("%s<simulatedHub number=\"%d\" priority=\"%d\"%s/>" % \
-            (indent, self.__number, self.__priority, iustr), file=fd)
+            (indent, self.__number, self.__priority, iustr), file=file_handle)
 
 
 class MockClusterComponent(Component):
-    def __init__(self, fullname, jvmPath, jvmArgs, host):
+    def __init__(self, fullname, jvm_path, jvm_args, host):
         sep = fullname.rfind("#")
         if sep < 0:
             sep = fullname.rfind("-")
@@ -967,8 +970,8 @@ class MockClusterComponent(Component):
             name = fullname[:sep]
             num = int(fullname[sep + 1:])
 
-        self.__jvmPath = jvmPath
-        self.__jvmArgs = jvmArgs
+        self.__jvm_path = jvm_path
+        self.__jvm_args = jvm_args
         self.__host = host
 
         super(MockClusterComponent, self).__init__(name, num, None)
@@ -976,12 +979,12 @@ class MockClusterComponent(Component):
     def __str__(self):
         return "%s(%s)" % (self.fullname, self.__host)
 
-    def dump(self, fd, indent):
+    def dump(self, file_handle, indent):
         print("%s<location name=\"%s\" host=\"%s\">" % \
-            (indent, self.__host, self.__host), file=fd)
+            (indent, self.__host, self.__host), file=file_handle)
         print("%s    <module name=\"%s\" id=\"%02d\"/?>" % \
-            (indent, self.name, self.id), file=fd)
-        print("%s</location>" % indent, file=fd)
+            (indent, self.name, self.id), file=file_handle)
+        print("%s</location>" % indent, file=file_handle)
 
     @property
     def host(self):
@@ -991,11 +994,11 @@ class MockClusterComponent(Component):
     def is_localhost(self):
         return True
 
-    def jvmPath(self):
-        return self.__jvmPath
+    def jvm_path(self):
+        return self.__jvm_path
 
-    def jvmArgs(self):
-        return self.__jvmArgs
+    def jvm_args(self):
+        return self.__jvm_args
 
 
 class MockClusterConfig(object):
@@ -1008,10 +1011,10 @@ class MockClusterConfig(object):
     def __repr__(self):
         return "MockClusterConfig(%s)" % self.__config_name
 
-    def addComponent(self, comp, jvmPath, jvmArgs, host):
+    def add_component(self, comp, jvm_path, jvm_args, host):
         if host not in self.__nodes:
             self.__nodes[host] = MockClusterNode(host)
-        self.__nodes[host].add(comp, jvmPath, jvmArgs, host)
+        self.__nodes[host].add(comp, jvm_path, jvm_args, host)
 
     @property
     def config_name(self):
@@ -1021,10 +1024,10 @@ class MockClusterConfig(object):
     def description(self):
         return self.__descName
 
-    def extractComponents(self, masterList):
-        nodeComps = list(self.__nodes.values())
-        return RunCluster.extractComponentsFromNodes(nodeComps,
-                                                     masterList)
+    def extract_components(self, masterList):
+        node_comps = list(self.__nodes.values())
+        return RunCluster.extract_components_from_nodes(node_comps,
+                                                        masterList)
 
     @property
     def name(self):
@@ -1040,35 +1043,35 @@ class MockClusterConfigFile(MockClusterWriter):
         self.__config_dir = config_dir
         self.__name = name
 
-        self.__dataDir = None
-        self.__logDir = None
-        self.__spadeDir = None
+        self.__data_dir = None
+        self.__log_dir = None
+        self.__spade_dir = None
 
-        self.__defaultHSDir = None
-        self.__defaultHSInterval = None
-        self.__defaultHSMaxFiles = None
+        self.__default_hs_dir = None
+        self.__default_hs_interval = None
+        self.__default_hs_max_files = None
 
-        self.__defaultJVMArgs = None
-        self.__defaultJVMExtraArgs = None
-        self.__defaultJVMHeapInit = None
-        self.__defaultJVMHeapMax = None
-        self.__defaultJVMPath = None
-        self.__defaultJVMServer = None
+        self.__default_jvm_args = None
+        self.__default_jvm_extra_args = None
+        self.__default_jvm_heap_init = None
+        self.__default_jvm_heap_max = None
+        self.__default_jvm_path = None
+        self.__default_jvm_server = None
 
-        self.__defaultAlertEMail = None
-        self.__defaultNTPHost = None
+        self.__default_alert_email = None
+        self.__default_ntp_host = None
 
-        self.__defaultLogLevel = None
+        self.__default_log_level = None
 
-        self.__defaultComps = None
+        self.__default_comps = None
 
         self.__hosts = {}
 
     def addDefaultComponent(self, comp):
-        if not self.__defaultComps:
-            self.__defaultComps = []
+        if not self.__default_comps:
+            self.__default_comps = []
 
-        self.__defaultComps.append(comp)
+        self.__default_comps.append(comp)
 
     def addHost(self, name):
         if name in self.__hosts:
@@ -1084,182 +1087,188 @@ class MockClusterConfigFile(MockClusterWriter):
         if not os.path.exists(self.__config_dir):
             os.makedirs(self.__config_dir)
 
-        with open(path, 'w') as fd:
-            print("<cluster name=\"%s\">" % self.__name, file=fd)
+        with open(path, 'w') as file_handle:
+            print("<cluster name=\"%s\">" % self.__name, file=file_handle)
 
             indent = "  "
 
-            if self.__dataDir is not None:
-                self.writeLine(fd, indent, "daqDataDir", self.__dataDir)
-            if self.__logDir is not None:
-                self.writeLine(fd, indent, "daqLogDir", self.__logDir)
-            if self.__spadeDir is not None:
-                self.writeLine(fd, indent, "logDirForSpade", self.__spadeDir)
+            if self.__data_dir is not None:
+                self.writeLine(file_handle, indent, "daqDataDir",
+                               self.__data_dir)
+            if self.__log_dir is not None:
+                self.writeLine(file_handle, indent, "daqLogDir",
+                               self.__log_dir)
+            if self.__spade_dir is not None:
+                self.writeLine(file_handle, indent, "logDirForSpade",
+                               self.__spade_dir)
 
-            hasHSXML = self.__defaultHSDir is not None or \
-                       self.__defaultHSInterval is not None or \
-                       self.__defaultHSMaxFiles is not None
+            hasHSXML = self.__default_hs_dir is not None or \
+                       self.__default_hs_interval is not None or \
+                       self.__default_hs_max_files is not None
 
-            hasJVMXML = self.__defaultJVMArgs is not None or \
-                        self.__defaultJVMExtraArgs is not None or \
-                        self.__defaultJVMHeapInit is not None or \
-                        self.__defaultJVMHeapMax is not None or \
-                        self.__defaultJVMPath is not None or \
-                        self.__defaultJVMServer is not None
+            hasJVMXML = self.__default_jvm_args is not None or \
+                        self.__default_jvm_extra_args is not None or \
+                        self.__default_jvm_heap_init is not None or \
+                        self.__default_jvm_heap_max is not None or \
+                        self.__default_jvm_path is not None or \
+                        self.__default_jvm_server is not None
 
-            hasHubXML = self.__defaultAlertEMail is not None or \
-                        self.__defaultNTPHost is not None
+            hasHubXML = self.__default_alert_email is not None or \
+                        self.__default_ntp_host is not None
 
             if hasHSXML or hasJVMXML or hasHubXML or \
-               self.__defaultLogLevel is not None or \
-               self.__defaultComps is not None:
-                print(indent + "<default>", file=fd)
+               self.__default_log_level is not None or \
+               self.__default_comps is not None:
+                print(indent + "<default>", file=file_handle)
 
                 indent2 = indent + "  "
 
                 if hasHSXML:
-                    self.writeHSXML(fd, indent2, self.__defaultHSDir,
-                                    self.__defaultHSInterval,
-                                    self.__defaultHSMaxFiles)
+                    self.writeHSXML(file_handle, indent2,
+                                    self.__default_hs_dir,
+                                    self.__default_hs_interval,
+                                    self.__default_hs_max_files)
 
                 if hasJVMXML:
-                    self.writeJVMXML(fd, indent2, self.__defaultJVMPath,
-                                     self.__defaultJVMServer,
-                                     self.__defaultJVMHeapInit,
-                                     self.__defaultJVMHeapMax,
-                                     self.__defaultJVMArgs,
-                                     self.__defaultJVMExtraArgs)
+                    self.writeJVMXML(file_handle, indent2,
+                                     self.__default_jvm_path,
+                                     self.__default_jvm_server,
+                                     self.__default_jvm_heap_init,
+                                     self.__default_jvm_heap_max,
+                                     self.__default_jvm_args,
+                                     self.__default_jvm_extra_args)
 
                 if hasHubXML:
-                    #self.writeHubXML(fd, indent2, self.__defaultAlertEMail,
-                    #                 self.__defaultNTPHost)
+                    #self.writeHubXML(file_handle, indent2,
+                    #                 self.__default_alert_email,
+                    #                 self.__default_ntp_host)
                     raise NotImplementedError("writeHubXML")
 
-                if self.__defaultLogLevel is not None:
-                    self.writeLine(fd, indent2, "logLevel",
-                                   self.__defaultLogLevel)
+                if self.__default_log_level is not None:
+                    self.writeLine(file_handle, indent2, "logLevel",
+                                   self.__default_log_level)
 
-                if self.__defaultComps:
-                    for c in self.__defaultComps:
-                        c.write(fd, indent2)
+                if self.__default_comps:
+                    for c in self.__default_comps:
+                        c.write(file_handle, indent2)
 
-                print(indent + "</default>", file=fd)
+                print(indent + "</default>", file=file_handle)
 
             for h in list(self.__hosts.values()):
-                h.write(fd, indent, split_hosts=split_hosts)
+                h.write(file_handle, indent, split_hosts=split_hosts)
 
-            print("</cluster>", file=fd)
+            print("</cluster>", file=file_handle)
 
     @property
-    def dataDir(self):
-        if self.__dataDir is None:
+    def data_dir(self):
+        if self.__data_dir is None:
             return ClusterDescription.DEFAULT_DATA_DIR
 
-        return self.__dataDir
+        return self.__data_dir
 
-    def defaultAlertEMail(self):
-        return self.__defaultAlertEMail
+    def default_alert_email(self):
+        return self.__default_alert_email
 
-    def defaultHSDirectory(self):
-        return self.__defaultHSDir
+    def default_hs_directory(self):
+        return self.__default_hs_dir
 
-    def defaultHSInterval(self):
-        return self.__defaultHSInterval
+    def default_hs_interval(self):
+        return self.__default_hs_interval
 
-    def defaultHSMaxFiles(self):
-        return self.__defaultHSMaxFiles
+    def default_hs_max_files(self):
+        return self.__default_hs_max_files
 
-    def defaultJVMArgs(self):
-        return self.__defaultJVMArgs
+    def default_jvm_args(self):
+        return self.__default_jvm_args
 
-    def defaultJVMExtraArgs(self):
-        return self.__defaultJVMExtraArgs
+    def default_jvm_extra_args(self):
+        return self.__default_jvm_extra_args
 
-    def defaultJVMHeapInit(self):
-        return self.__defaultJVMHeapInit
+    def default_jvm_heap_init(self):
+        return self.__default_jvm_heap_init
 
-    def defaultJVMHeapMax(self):
-        return self.__defaultJVMHeapMax
+    def default_jvm_heap_max(self):
+        return self.__default_jvm_heap_max
 
-    def defaultJVMPath(self):
-        return self.__defaultJVMPath
+    def default_jvm_path(self):
+        return self.__default_jvm_path
 
-    def defaultJVMServer(self):
-        return self.__defaultJVMServer
+    def default_jvm_server(self):
+        return self.__default_jvm_server
 
     @property
-    def defaultLogLevel(self):
-        if self.__defaultLogLevel is None:
+    def default_log_level(self):
+        if self.__default_log_level is None:
             return ClusterDescription.DEFAULT_LOG_LEVEL
 
-        return self.__defaultLogLevel
+        return self.__default_log_level
 
-    def defaultNTPHost(self):
-        return self.__defaultNTPHost
+    def default_ntp_host(self):
+        return self.__default_ntp_host
 
     @property
     def hosts(self):
         return self.__hosts.copy()
 
     @property
-    def logDir(self):
-        if self.__logDir is None:
+    def log_dir(self):
+        if self.__log_dir is None:
             return ClusterDescription.DEFAULT_LOG_DIR
 
-        return self.__logDir
+        return self.__log_dir
 
     @property
     def name(self):
         return self.__name
 
     def setDataDir(self, value):
-        self.__dataDir = value
+        self.__data_dir = value
 
-    def setDefaultAlertEMail(self, value):
-        self.__defaultAlertEMail = value
+    def setDefault_alert_email(self, value):
+        self.__default_alert_email = value
 
-    def setDefaultHSDirectory(self, value):
-        self.__defaultHSDir = value
+    def set_default_hs_directory(self, value):
+        self.__default_hs_dir = value
 
-    def setDefaultHSInterval(self, value):
-        self.__defaultHSInterval = value
+    def set_default_hs_interval(self, value):
+        self.__default_hs_interval = value
 
-    def setDefaultHSMaxFiles(self, value):
-        self.__defaultHSMaxFiles = value
+    def set_default_hs_max_files(self, value):
+        self.__default_hs_max_files = value
 
-    def setDefaultJVMArgs(self, value):
-        self.__defaultJVMArgs = value
+    def set_default_jvm_args(self, value):
+        self.__default_jvm_args = value
 
-    def setDefaultJVMExtraArgs(self, value):
-        self.__defaultJVMExtraArgs = value
+    def set_default_jvm_extra_args(self, value):
+        self.__default_jvm_extra_args = value
 
-    def setDefaultJVMHeapInit(self, value):
-        self.__defaultJVMHeapInit = value
+    def set_default_jvm_heap_init(self, value):
+        self.__default_jvm_heap_init = value
 
-    def setDefaultJVMHeapMax(self, value):
-        self.__defaultJVMHeapMax = value
+    def set_default_jvm_heap_max(self, value):
+        self.__default_jvm_heap_max = value
 
-    def setDefaultJVMPath(self, value):
-        self.__defaultJVMPath = value
+    def set_default_jvm_path(self, value):
+        self.__default_jvm_path = value
 
-    def setDefaultJVMServer(self, value):
-        self.__defaultJVMServer = value
+    def set_default_jvm_server(self, value):
+        self.__default_jvm_server = value
 
     def setDefaultLogLevel(self, value):
-        self.__defaultLogLevel = value
+        self.__default_log_level = value
 
     def setDefaultNTPHost(self, value):
-        self.__defaultNTPHost = value
+        self.__default_ntp_host = value
 
     def setLogDir(self, value):
-        self.__logDir = value
+        self.__log_dir = value
 
     def setSpadeDir(self, value):
-        self.__spadeDir = value
+        self.__spade_dir = value
 
     @property
-    def spadeDir(self):
-        return self.__spadeDir
+    def spade_dir(self):
+        return self.__spade_dir
 
 
 class MockClusterNode(object):
@@ -1267,8 +1276,9 @@ class MockClusterNode(object):
         self.__host = host
         self.__comps = []
 
-    def add(self, comp, jvmPath, jvmArgs, host):
-        self.__comps.append(MockClusterComponent(comp, jvmPath, jvmArgs, host))
+    def add(self, comp, jvm_path, jvm_args, host):
+        self.__comps.append(MockClusterComponent(comp, jvm_path, jvm_args,
+                                                 host))
 
     def components(self):
         return self.__comps[:]
@@ -1303,11 +1313,11 @@ class MockConnection(object):
         return '=>' + self.__name
 
     @property
-    def isInput(self):
+    def is_input(self):
         return self.__connCh == self.INPUT or self.__connCh == self.OPT_INPUT
 
     @property
-    def isOptional(self):
+    def is_optional(self):
         return self.__connCh == self.OPT_INPUT or \
                self.__connCh == self.OPT_OUTPUT
 
@@ -1321,53 +1331,53 @@ class MockConnection(object):
 
 
 class MockDeployComponent(Component):
-    def __init__(self, name, id, log_level, hsDir, hsInterval, hsMaxFiles,
-                 jvmPath, jvmServer, jvmHeapInit, jvmHeapMax, jvmArgs,
-                 jvmExtraArgs, alertEMail, ntpHost, numReplayFiles=None,
+    def __init__(self, name, id, log_level, hs_dir, hs_interval, hs_max_files,
+                 jvm_path, jvm_server, jvm_heap_init, jvm_heap_max, jvm_args,
+                 jvm_extra_args, alert_email, ntp_host, numReplayFiles=None,
                  host=None):
-        self.__hsDir = hsDir
-        self.__hsInterval = hsInterval
-        self.__hsMaxFiles = hsMaxFiles
-        self.__jvmPath = jvmPath
-        self.__jvmServer = jvmServer is True
-        self.__jvmHeapInit = jvmHeapInit
-        self.__jvmHeapMax = jvmHeapMax
-        self.__jvmArgs = jvmArgs
-        self.__jvmExtraArgs = jvmExtraArgs
-        self.__alertEMail = alertEMail
-        self.__ntpHost = ntpHost
+        self.__hs_dir = hs_dir
+        self.__hs_interval = hs_interval
+        self.__hs_max_files = hs_max_files
+        self.__jvm_path = jvm_path
+        self.__jvm_server = jvm_server is True
+        self.__jvm_heap_init = jvm_heap_init
+        self.__jvm_heap_max = jvm_heap_max
+        self.__jvm_args = jvm_args
+        self.__jvm_extra_args = jvm_extra_args
+        self.__alert_email = alert_email
+        self.__ntp_host = ntp_host
         self.__numReplayFiles = numReplayFiles
         self.__host = host
 
         super(MockDeployComponent, self).__init__(name, id, log_level)
 
     @property
-    def alertEMail(self):
-        return self.__alertEMail
+    def alert_email(self):
+        return self.__alert_email
 
     @property
-    def hasHitSpoolOptions(self):
-        return self.__hsDir is not None or self.__hsInterval is not None or \
-            self.__hsMaxFiles is not None
+    def has_hitspool_options(self):
+        return self.__hs_dir is not None or self.__hs_interval is not None or \
+            self.__hs_max_files is not None
 
     @property
-    def hasReplayOptions(self):
+    def has_replay_options(self):
         return self.__numReplayFiles is not None
 
     @property
-    def hitspoolDirectory(self):
-        return self.__hsDir
+    def hitspool_directory(self):
+        return self.__hs_dir
 
     @property
-    def hitspoolInterval(self):
-        return self.__hsInterval
+    def hitspool_interval(self):
+        return self.__hs_interval
 
     @property
-    def hitspoolMaxFiles(self):
-        return self.__hsMaxFiles
+    def hitspool_max_files(self):
+        return self.__hs_max_files
 
     @property
-    def isControlServer(self):
+    def is_control_server(self):
         return False
 
     @property
@@ -1379,35 +1389,35 @@ class MockDeployComponent(Component):
         return self.__host is not None and self.__host == "localhost"
 
     @property
-    def jvmArgs(self):
-        return self.__jvmArgs
+    def jvm_args(self):
+        return self.__jvm_args
 
     @property
-    def jvmExtraArgs(self):
-        return self.__jvmExtraArgs
+    def jvm_extra_args(self):
+        return self.__jvm_extra_args
 
     @property
-    def jvmHeapInit(self):
-        return self.__jvmHeapInit
+    def jvm_heap_init(self):
+        return self.__jvm_heap_init
 
     @property
-    def jvmHeapMax(self):
-        return self.__jvmHeapMax
+    def jvm_heap_max(self):
+        return self.__jvm_heap_max
 
     @property
-    def jvmPath(self):
-        return self.__jvmPath
+    def jvm_path(self):
+        return self.__jvm_path
 
     @property
-    def jvmServer(self):
-        return self.__jvmServer
+    def jvm_server(self):
+        return self.__jvm_server
 
     @property
-    def ntpHost(self):
-        return self.__ntpHost
+    def ntp_host(self):
+        return self.__ntp_host
 
     @property
-    def numReplayFilesToSkip(self):
+    def num_replay_files_to_skip(self):
         return self.__numReplayFiles
 
 
@@ -1487,26 +1497,26 @@ class MockComponent(Comparable):
         self.__host = host
 
         self.__connectors = []
-        self.__cmdOrder = None
+        self.__cmd_order = None
 
-        self.runNum = None
+        self.__run_number = None
 
         self.__isBldr = name.endswith("Builder") or name.endswith("Builders")
         self.__isSrc = name.endswith("Hub") or name == "amandaTrigger"
         self.__connected = False
         self.__configured = False
         self.__configWait = 0
-        self.__monitorCount = 0
-        self.__monitorState = None
+        self.__monitor_count = 0
+        self.__monitor_state = None
         self.__isBadHub = False
         self.__hangType = 0
         self.__stopping = 0
-        self.__updatedRates = False
+        self.__updated_rates = False
         self.__deadCount = 0
         self.__stopFail = False
         self.__replayHub = False
-        self.__firstGoodTime = None
-        self.__lastGoodTime = None
+        self.__first_good_time = None
+        self.__last_good_time = None
         self.__mbeanClient = None
 
     def __cmp__(self, other):
@@ -1554,7 +1564,7 @@ class MockComponent(Comparable):
     def close(self):
         pass
 
-    def commit_subrun(self, id, startTime):
+    def commit_subrun(self, id, start_time):
         pass
 
     @property
@@ -1587,7 +1597,7 @@ class MockComponent(Comparable):
             pass
         elif self.__stopping == 1:
             if self.__hangType != 2:
-                self.runNum = None
+                self.__run_number = None
                 self.__stopping = 0
             else:
                 self.__stopping = 2
@@ -1605,35 +1615,35 @@ class MockComponent(Comparable):
     def getConfigureWait(self):
         return self.__configWait
 
-    def get_run_data(self, runnum):
+    def get_run_data(self, run_num):
         if self.__mbeanClient is None:
             self.__mbeanClient = self.create_mbean_client()
 
         if self.__num == 0:
             if self.__name.startswith("event"):
                 evtData = self.__mbeanClient.get("backEnd", "EventData")
-                numEvts = int(evtData[0])
-                lastTime = int(evtData[1])
+                num_evts = int(evtData[0])
+                last_time = int(evtData[1])
 
                 val = self.__mbeanClient.get("backEnd", "FirstEventTime")
-                firstTime = int(val)
+                first_time = int(val)
 
                 good = self.__mbeanClient.get("backEnd", "GoodTimes")
                 firstGood = int(good[0])
                 lastGood = int(good[1])
-                return (numEvts, firstTime, lastTime, firstGood, lastGood)
+                return (num_evts, first_time, last_time, firstGood, lastGood)
             elif self.__name.startswith("secondary"):
                 for bldr in ("tcal", "sn", "moni"):
                     val = self.__mbeanClient.get(bldr + "Builder",
                                                  "NumDispatchedData")
                     if bldr == "tcal":
-                        numTcal = int(val)
+                        num_tcal = int(val)
                     elif bldr == "sn":
-                        numSN = int(val)
+                        num_sn = int(val)
                     elif bldr == "moni":
-                        numMoni = int(val)
+                        num_moni = int(val)
 
-                return (numTcal, numSN, numMoni)
+                return (num_tcal, num_sn, num_moni)
 
         return (None, None, None)
 
@@ -1671,7 +1681,7 @@ class MockComponent(Comparable):
     def list_connector_states(self):
         return ""
 
-    def log_to(self, logIP, logPort, liveIP, livePort):
+    def log_to(self, log_host, log_port, live_host, live_port):
         pass
 
     @property
@@ -1681,8 +1691,9 @@ class MockComponent(Comparable):
 
         return self.__mbeanClient
 
-    def monitorCount(self):
-        return self.__monitorCount
+    @property
+    def monitor_count(self):
+        return self.__monitor_count
 
     @property
     def name(self):
@@ -1694,7 +1705,11 @@ class MockComponent(Comparable):
 
     @property
     def order(self):
-        return self.__cmdOrder
+        return self.__cmd_order
+
+    @order.setter
+    def order(self, num):
+        self.__cmd_order = num
 
     def prepare_subrun(self, id):
         pass
@@ -1702,11 +1717,15 @@ class MockComponent(Comparable):
     def reset(self):
         self.__connected = False
         self.__configured = False
-        self.__updatedRates = False
-        self.runNum = None
+        self.__updated_rates = False
+        self.__run_number = None
 
     def reset_logging(self):
         pass
+
+    @property
+    def run_number(self):
+        return self.__run_number
 
     def setBadHub(self):
         self.__isBadHub = True
@@ -1718,25 +1737,22 @@ class MockComponent(Comparable):
         self.__stopFail = True
 
     def set_first_good_time(self, time):
-        self.__firstGoodTime = time
+        self.__first_good_time = time
 
     def set_hang_type(self, hangType):
         self.__hangType = hangType
 
     def set_last_good_time(self, time):
-        self.__lastGoodTime = time
+        self.__last_good_time = time
 
-    def setMonitorState(self, newState):
-        self.__monitorState = newState
+    def setMonitorState(self, new_state):
+        self.__monitor_state = new_state
 
-    def set_order(self, num):
-        self.__cmdOrder = num
-
-    def start_run(self, runNum):
+    def start_run(self, run_num):
         if not self.__configured:
             raise Exception(self.__name + ' has not been configured')
 
-        self.runNum = runNum
+        self.__run_number = run_num
 
     def start_subrun(self, data):
         if self.__isBadHub:
@@ -1745,9 +1761,9 @@ class MockComponent(Comparable):
 
     @property
     def state(self):
-        if self.__monitorState is not None:
-            self.__monitorCount += 1
-            return self.__monitorState
+        if self.__monitor_state is not None:
+            self.__monitor_count += 1
+            return self.__monitor_state
 
         if not self.__connected:
             return 'idle'
@@ -1759,25 +1775,25 @@ class MockComponent(Comparable):
             return "stopping"
         elif self.__stopping == 2:
             return "forcingStop"
-        if not self.runNum:
+        if not self.__run_number:
             return 'ready'
 
         return 'running'
 
     def stop_run(self):
-        if self.runNum is None:
+        if self.__run_number is None:
             raise Exception(self.__name + ' is not running')
 
         if self.__hangType > 0 or self.__stopFail:
             self.__stopping = 1
         else:
-            self.runNum = None
+            self.__run_number = None
 
-    def updateRates(self):
-        self.__updatedRates = True
+    def update_rates(self):
+        self.__updated_rates = True
 
     def wasUpdated(self):
-        return self.__updatedRates
+        return self.__updated_rates
 
 
 class MockDefaultDomGeometryFile(object):
@@ -1790,22 +1806,25 @@ class MockDefaultDomGeometryFile(object):
         """
         path = os.path.join(config_dir, DefaultDomGeometry.FILENAME)
         if not os.path.exists(path):
-            with open(path, "w") as fd:
-                print("<domGeometry>", file=fd)
+            with open(path, "w") as file_handle:
+                print("<domGeometry>", file=file_handle)
                 for hub in hub_dom_dict:
-                    print("  <string>", file=fd)
-                    print("    <number>%d</number>" % hub, file=fd)
+                    print("  <string>", file=file_handle)
+                    print("    <number>%d</number>" % hub, file=file_handle)
                     for dom in hub_dom_dict[hub]:
-                        print("    <dom>", file=fd)
-                        print("      <mainBoardId>%012x</mainBoardId>" % dom.mbid, file=fd)
-                        print("      <position>%d</position>" % dom.pos, file=fd)
-                        print("      <name>%s</name>" % dom.name, file=fd)
+                        print("    <dom>", file=file_handle)
+                        print("      <mainBoardId>%012x</mainBoardId>" %
+                              dom.mbid, file=file_handle)
+                        print("      <position>%d</position>" % dom.pos,
+                              file=file_handle)
+                        print("      <name>%s</name>" % dom.name,
+                              file=file_handle)
                         print("      <productionId>%s</productionId>" % \
-                            dom.prod_id, file=fd)
-                        print("    </dom>", file=fd)
-                    print("  </string>", file=fd)
+                            dom.prod_id, file=file_handle)
+                        print("    </dom>", file=file_handle)
+                    print("  </string>", file=file_handle)
 
-                print("</domGeometry>", file=fd)
+                print("</domGeometry>", file=file_handle)
 
 
 class MockDAQClient(DAQClient):
@@ -1850,9 +1869,9 @@ class MockDAQClient(DAQClient):
         self.__state = 'idle'
         return super(MockDAQClient, self).reset()
 
-    def start_run(self, runNum):
+    def start_run(self, run_num):
         self.__state = 'running'
-        return super(MockDAQClient, self).start_run(runNum)
+        return super(MockDAQClient, self).start_run(run_num)
 
     @property
     def state(self):
@@ -1869,9 +1888,6 @@ class MockIntervalTimer(object):
     def __str__(self):
         return "Timer#%s%s" % \
             (self.__name, self.__is_time and "!is_time!" or "")
-
-    def gotTime(self):
-        return self.__got_time
 
     def is_time(self, now=None):
         self.__got_time = True
@@ -2018,8 +2034,8 @@ class MockParallelShell(object):
     def add(self, cmd):
         self.__checkCmd(cmd)
 
-    def addExpectedJava(self, comp, config_dir, daqDataDir, logPort, livePort,
-                        verbose, event_check, host):
+    def addExpectedJava(self, comp, config_dir, daq_data_dir, log_port,
+                        live_port, verbose, event_check, host):
 
         ipAddr = ip.getLocalIpAddr(host)
         jarPath = os.path.join(MockParallelShell.BINDIR,
@@ -2030,34 +2046,34 @@ class MockParallelShell(object):
         else:
             redir = ' </dev/null >/dev/null 2>&1'
 
-        cmd = comp.jvmPath
+        cmd = comp.jvm_path
         cmd += " -Dicecube.daq.component.configDir='%s'" % config_dir
 
-        if comp.jvmServer is not None and comp.jvmServer:
+        if comp.jvm_server is not None and comp.jvm_server:
             cmd += " -server"
-        if comp.jvmHeapInit is not None:
-            cmd += " -Xms" + comp.jvmHeapInit
-        if comp.jvmHeapMax is not None:
-            cmd += " -Xmx" + comp.jvmHeapMax
-        if comp.jvmArgs is not None:
-            cmd += " " + comp.jvmArgs
-        if comp.jvmExtraArgs is not None:
-            cmd += " " + comp.jvmExtraArgs
+        if comp.jvm_heap_init is not None:
+            cmd += " -Xms" + comp.jvm_heap_init
+        if comp.jvm_heap_max is not None:
+            cmd += " -Xmx" + comp.jvm_heap_max
+        if comp.jvm_args is not None:
+            cmd += " " + comp.jvm_args
+        if comp.jvm_extra_args is not None:
+            cmd += " " + comp.jvm_extra_args
 
         if comp.is_real_hub:
-            if comp.ntpHost is not None:
+            if comp.ntp_host is not None:
                 cmd += " -Dicecube.daq.time.monitoring.ntp-host=" + \
-                       comp.ntpHost
-            if comp.alertEMail is not None:
+                       comp.ntp_host
+            if comp.alert_email is not None:
                 cmd += " -Dicecube.daq.stringhub.alert-email=" + \
-                       comp.alertEMail
+                       comp.alert_email
 
-        if comp.hitspoolDirectory is not None:
-            cmd += " -Dhitspool.directory=\"%s\"" % comp.hitspoolDirectory
-        if comp.hitspoolInterval is not None:
-            cmd += " -Dhitspool.interval=%.4f" % comp.hitspoolInterval
-        if comp.hitspoolMaxFiles is not None:
-            cmd += " -Dhitspool.maxfiles=%d" % comp.hitspoolMaxFiles
+        if comp.hitspool_directory is not None:
+            cmd += " -Dhitspool.directory=\"%s\"" % comp.hitspool_directory
+        if comp.hitspool_interval is not None:
+            cmd += " -Dhitspool.interval=%.4f" % comp.hitspool_interval
+        if comp.hitspool_max_files is not None:
+            cmd += " -Dhitspool.maxfiles=%d" % comp.hitspool_max_files
 
         if comp.is_hub:
             cmd += " -Dicecube.daq.stringhub.componentId=%d" % comp.id
@@ -2065,14 +2081,14 @@ class MockParallelShell(object):
             cmd += ' -Dicecube.daq.eventBuilder.validateEvents'
 
         cmd += ' -jar %s' % jarPath
-        if daqDataDir is not None:
-            cmd += ' -d %s' % daqDataDir
+        if daq_data_dir is not None:
+            cmd += ' -d %s' % daq_data_dir
         cmd += ' -c %s:%d' % (ipAddr, DAQPort.CNCSERVER)
 
-        if logPort is not None:
-            cmd += ' -l %s:%d,%s' % (ipAddr, logPort, comp.log_level)
-        if livePort is not None:
-            cmd += ' -L %s:%d,%s' % (ipAddr, livePort, comp.log_level)
+        if log_port is not None:
+            cmd += ' -l %s:%d,%s' % (ipAddr, log_port, comp.log_level)
+        if live_port is not None:
+            cmd += ' -L %s:%d,%s' % (ipAddr, live_port, comp.log_level)
             cmd += ' -M %s:%d' % (ipAddr, MoniPort)
         cmd += ' %s &' % redir
 
@@ -2109,27 +2125,27 @@ class MockParallelShell(object):
             self.__addExpected('sleep 2; %spkill -9%s \"%s\"' %
                                (sshCmd, pkillOpt, killPat))
 
-    def addExpectedPython(self, doCnC, dashDir, config_dir, logDir, daqDataDir,
-                          spadeDir, cluCfgName, cfgName, copyDir, logPort,
-                          livePort, forceRestart=True):
+    def addExpectedPython(self, doCnC, dash_dir, config_dir, log_dir,
+                          daq_data_dir, spade_dir, cluCfgName, cfgName,
+                          copy_dir, log_port, live_port, force_restart=True):
         if doCnC:
-            cmd = os.path.join(dashDir, 'CnCServer.py')
+            cmd = os.path.join(dash_dir, 'CnCServer.py')
             cmd += ' -c %s' % config_dir
-            cmd += ' -o %s' % logDir
-            cmd += ' -q %s' % daqDataDir
-            cmd += ' -s %s' % spadeDir
+            cmd += ' -o %s' % log_dir
+            cmd += ' -q %s' % daq_data_dir
+            cmd += ' -s %s' % spade_dir
             if cluCfgName is not None:
                 if cluCfgName.endswith("-cluster"):
                     cmd += ' -C %s' % cluCfgName
                 else:
                     cmd += ' -C %s-cluster' % cluCfgName
-            if logPort is not None:
-                cmd += ' -l localhost:%d' % logPort
-            if livePort is not None:
-                cmd += ' -L localhost:%d' % livePort
-            if copyDir is not None:
-                cmd += ' -a %s' % copyDir
-            if not forceRestart:
+            if log_port is not None:
+                cmd += ' -l localhost:%d' % log_port
+            if live_port is not None:
+                cmd += ' -L localhost:%d' % live_port
+            if copy_dir is not None:
+                cmd += ' -a %s' % copy_dir
+            if not force_restart:
                 cmd += ' -F'
             cmd += ' -d'
 
@@ -2138,7 +2154,7 @@ class MockParallelShell(object):
     def addExpectedPythonKill(self, doCnC, kill_with_9):
         pass
 
-    def addExpectedRsync(self, dir, subdirs, delete, dryRun, remoteHost,
+    def addExpectedRsync(self, dir, subdirs, delete, dry_run, remoteHost,
                          rtnCode, result="",
                          niceAdj=DeployPDAQ.NICE_LEVEL_DEFAULT,
                          express=DeployPDAQ.EXPRESS_DEFAULT):
@@ -2153,7 +2169,7 @@ class MockParallelShell(object):
         else:
             dOpt = " --delete"
 
-        if not dryRun:
+        if not dry_run:
             drOpt = ""
         else:
             drOpt = " --dry-run"
@@ -2224,11 +2240,11 @@ class MockRPCClient(object):
 
 
 class MockRunComponent(object):
-    def __init__(self, name, id, inetAddr, rpcPort, mbean_port):
+    def __init__(self, name, id, inetAddr, rpc_port, mbean_port):
         self.__name = name
         self.__id = id
         self.__inetAddr = inetAddr
-        self.__rpcPort = rpcPort
+        self.__rpc_port = rpc_port
         self.__mbean_port = mbean_port
 
     def __str__(self):
@@ -2258,8 +2274,8 @@ class MockRunComponent(object):
         return self.__name
 
     @property
-    def rpcPort(self):
-        return self.__rpcPort
+    def rpc_port(self):
+        return self.__rpc_port
 
 
 class SimDOMXML(object):
@@ -2285,10 +2301,11 @@ class SimDOMXML(object):
     def prod_id(self):
         return self.__prod_id
 
-    def printXML(self, fd, indent):
-        print("%s<domConfig mbid=\"%012x\">" % (indent, self.__mbid), file=fd)
-        print("%s%s<xxx>xxx</xxx>" % (indent, indent), file=fd)
-        print("%s</domConfig>" % indent, file=fd)
+    def printXML(self, file_handle, indent):
+        print("%s<domConfig mbid=\"%012x\">" % (indent, self.__mbid),
+              file=file_handle)
+        print("%s%s<xxx>xxx</xxx>" % (indent, indent), file=file_handle)
+        print("%s</domConfig>" % indent, file=file_handle)
 
 
 class MockAlgorithm(object):
@@ -2300,8 +2317,8 @@ class MockAlgorithm(object):
         self.__paramDict = {}
         self.__readouts = []
 
-    def __printElement(self, fd, indent, tag, val):
-        print("%s<%s>%s</%s>" % (indent, tag, val, tag), file=fd)
+    def __printElement(self, file_handle, indent, tag, val):
+        print("%s<%s>%s</%s>" % (indent, tag, val, tag), file=file_handle)
 
     def addParameter(self, name, value):
         self.__paramDict[name] = value
@@ -2309,30 +2326,33 @@ class MockAlgorithm(object):
     def addReadout(self, rdoutType, offset, minus, plus):
         self.__readouts.append((rdoutType, offset, minus, plus))
 
-    def printXML(self, fd, indent):
+    def printXML(self, file_handle, indent):
         i2 = indent + "    "
-        print("%s<triggerConfig>" % indent, file=fd)
+        print("%s<triggerConfig>" % indent, file=file_handle)
 
-        self.__printElement(fd, i2, "triggerType", self.__type)
-        self.__printElement(fd, i2, "triggerConfigId", self.__cfgId)
-        self.__printElement(fd, i2, "sourceId", self.__srcId)
-        self.__printElement(fd, i2, "triggerName", self.__name)
+        self.__printElement(file_handle, i2, "triggerType", self.__type)
+        self.__printElement(file_handle, i2, "triggerConfigId", self.__cfgId)
+        self.__printElement(file_handle, i2, "sourceId", self.__srcId)
+        self.__printElement(file_handle, i2, "triggerName", self.__name)
 
         for k, v in self.__paramDict:
-            print("%s<parameterConfig>", file=fd)
-            print("%s    <parameterName>%s<parameterName>" % (i2, k), file=fd)
-            print("%s    <parameterValue>%s<parameterValue>" % (i2, v), file=fd)
-            print("%s</parameterConfig>", file=fd)
+            print("%s<parameterConfig>", file=file_handle)
+            print("%s    <parameterName>%s<parameterName>" % (i2, k),
+                  file=file_handle)
+            print("%s    <parameterValue>%s<parameterValue>" % (i2, v),
+                  file=file_handle)
+            print("%s</parameterConfig>", file=file_handle)
 
         for r in self.__readouts:
             tag = ["readoutType", "timeOffset", "timeMinus", "timePlus"]
 
-            print("%s<readoutConfig>", file=fd)
+            print("%s<readoutConfig>", file=file_handle)
             for i in range(4):
-                print("%s    <%s>%d<%s>" % (i2, tag[i], r[i], tag[i]), file=fd)
-            print("%s</readoutConfig>", file=fd)
+                print("%s    <%s>%d<%s>" % (i2, tag[i], r[i], tag[i]),
+                      file=file_handle)
+            print("%s</readoutConfig>", file=file_handle)
 
-        print("%s</triggerConfig>" % indent, file=fd)
+        print("%s</triggerConfig>" % indent, file=file_handle)
 
 
 class MockLeapsecondFile(object):
@@ -2375,32 +2395,33 @@ class MockTriggerConfig(object):
         return algo
 
     def create(self, config_dir, debug=False):
-        cfgDir = os.path.join(config_dir, "trigger")
-        if not os.path.exists(cfgDir):
-            os.makedirs(cfgDir)
+        cfg_dir = os.path.join(config_dir, "trigger")
+        if not os.path.exists(cfg_dir):
+            os.makedirs(cfg_dir)
 
-        path = os.path.join(cfgDir, self.__name)
+        path = os.path.join(cfg_dir, self.__name)
         if not path.endswith(".xml"):
             path = path + ".xml"
-        with open(path, "w") as fd:
-            print("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", file=fd)
+        with open(path, "w") as file_handle:
+            print("<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+                  file=file_handle)
             if len(self.__algorithms) == 0:
-                print("<activeTriggers/>", file=fd)
+                print("<activeTriggers/>", file=file_handle)
             else:
-                print("<activeTriggers>", file=fd)
+                print("<activeTriggers>", file=file_handle)
                 needNL = False
                 for a in self.__algorithms:
                     if not needNL:
                         needNL = True
                     else:
-                        print(file=fd)
-                    a.printXML(fd, "    ")
-                print("</activeTriggers>", file=fd)
+                        print(file=file_handle)
+                    a.printXML(file_handle, "    ")
+                print("</activeTriggers>", file=file_handle)
 
         if debug:
-            with open(path, "r") as fd:
+            with open(path, "r") as file_handle:
                 print("=== %s ===" % path)
-                for line in fd:
+                for line in file_handle:
                     print(line, end=' ')
 
     @property
@@ -2413,28 +2434,29 @@ class MockRunConfigFile(object):
         self.__config_dir = config_dir
 
     def __makeDomConfig(self, cfgName, domList, debug=False):
-        cfgDir = os.path.join(self.__config_dir, "domconfigs")
-        if not os.path.exists(cfgDir):
-            os.makedirs(cfgDir)
+        cfg_dir = os.path.join(self.__config_dir, "domconfigs")
+        if not os.path.exists(cfg_dir):
+            os.makedirs(cfg_dir)
 
         if cfgName.endswith(".xml"):
             fileName = cfgName
         else:
             fileName = cfgName + ".xml"
 
-        path = os.path.join(cfgDir, fileName)
-        with open(path, 'w') as fd:
-            print("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", file=fd)
-            print("<domConfigList>", file=fd)
+        path = os.path.join(cfg_dir, fileName)
+        with open(path, 'w') as file_handle:
+            print("<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+                  file=file_handle)
+            print("<domConfigList>", file=file_handle)
             if domList is not None:
                 for d in domList:
-                    d.printXML(fd, "  ")
-            print("</domConfigList>", file=fd)
+                    d.printXML(file_handle, "  ")
+            print("</domConfigList>", file=file_handle)
 
         if debug:
-            with open(path, "r") as fd:
+            with open(path, "r") as file_handle:
                 print("=== %s ===" % path)
-                for line in fd:
+                for line in file_handle:
                     print(line, end=' ')
 
     def create(self, compList, hubDomDict, trigCfg=None, debug=False):
@@ -2446,30 +2468,33 @@ class MockRunConfigFile(object):
             trigCfg = MockTriggerConfig("empty-trigger")
         trigCfg.create(self.__config_dir, debug=debug)
 
-        with open(path, 'w') as fd:
-            print("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", file=fd)
-            print("<runConfig>", file=fd)
+        with open(path, 'w') as file_handle:
+            print("<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+                  file=file_handle)
+            print("<runConfig>", file=file_handle)
             for hub, domList in list(hubDomDict.items()):
                 domCfg = "string-%d-config" % hub
                 self.__makeDomConfig(domCfg, domList, debug=debug)
 
                 print("    <stringHub hubId=\"%s\" domConfig=\"%s\"/>" % \
-                    (hub, domCfg), file=fd)
+                    (hub, domCfg), file=file_handle)
 
-            print("    <triggerConfig>%s</triggerConfig>" % trigCfg.name, file=fd)
-            for c in compList:
-                pound = c.rfind("#")
+            print("    <triggerConfig>%s</triggerConfig>" % trigCfg.name,
+                  file=file_handle)
+            for comp in compList:
+                pound = comp.rfind("#")
                 if pound > 0:
-                    val = int(c[pound + 1:])
+                    val = int(comp[pound + 1:])
                     if val == 0:
-                        c = c[:pound]
-                print("    <runComponent name=\"%s\"/>" % c, file=fd)
-            print("</runConfig>", file=fd)
+                        comp = comp[:pound]
+                print("    <runComponent name=\"%s\"/>" % comp,
+                      file=file_handle)
+            print("</runConfig>", file=file_handle)
 
         if debug:
-            with open(path, "r") as fd:
+            with open(path, "r") as file_handle:
                 print("=== %s ===" % path)
-                for line in fd:
+                for line in file_handle:
                     print(line, end=' ')
 
         name = os.path.basename(path)
@@ -2534,7 +2559,7 @@ class MockXMLRPC(object):
                                   l['compName'], l.getCompNum()))
 
         if len(tmpLinks) > 0:
-            errMsg = 'Component ' + self.name + '#' + str(self.num) + \
+            errmsg = 'Component ' + self.name + '#' + str(self.num) + \
                 ' is not connected to '
 
             first = True
@@ -2543,9 +2568,9 @@ class MockXMLRPC(object):
                     if first:
                         first = False
                     else:
-                        errMsg += ', '
-                    errMsg += k + ':' + t.name + '#' + str(t.num)
-            raise ValueError(errMsg)
+                        errmsg += ', '
+                    errmsg += k + ':' + t.name + '#' + str(t.num)
+            raise ValueError(errmsg)
 
         return 'OK'
 
@@ -2555,7 +2580,7 @@ class MockXMLRPC(object):
     def getVersionInfo(self):
         return ''
 
-    def logTo(self, logIP, logPort, liveIP, livePort):
+    def logTo(self, log_host, log_port, live_host, live_port):
         pass
 
     def reset(self):
@@ -2564,7 +2589,7 @@ class MockXMLRPC(object):
     def resetLogging(self):
         pass
 
-    def startRun(self, runNum):
+    def startRun(self, run_num):
         pass
 
     def stopRun(self):
@@ -2581,7 +2606,7 @@ class SocketReader(LogChecker):
         self.__name = name
         self.__port = port
 
-        self.__errMsg = None
+        self.__errmsg = None
 
         self.__thread = None
         self.__serving = False
@@ -2669,8 +2694,8 @@ class SocketReader(LogChecker):
             self.__serving = False
 
     def _checkError(self):
-        if self.__errMsg is not None:
-            raise Exception(self.__errMsg)
+        if self.__errmsg is not None:
+            raise Exception(self.__errmsg)
 
     @property
     def port(self):
@@ -2680,8 +2705,8 @@ class SocketReader(LogChecker):
         return self.__serving
 
     def set_error(self, msg):
-        if self.__errMsg is None:
-            self.__errMsg = msg
+        if self.__errmsg is None:
+            self.__errmsg = msg
 
     def stop_serving(self):
         "Signal listening thread to exit; wait for thread to finish"
@@ -2798,8 +2823,9 @@ class RunXMLValidator(object):
             raise ValueError("Found unexpected run.xml file")
 
     @classmethod
-    def validate(cls, test_case, runNum, cfgName, cluster, startTime, endTime,
-                 numEvts, numMoni, numSN, numTcal, failed, run_dir=None):
+    def validate(cls, test_case, run_num, cfgName, cluster, start_time,
+                 end_time, num_evts, num_moni, num_sn, num_tcal, failed,
+                 run_dir=None):
         if run_dir is None:
             path = "run.xml"
         else:
@@ -2811,9 +2837,9 @@ class RunXMLValidator(object):
 
             run = DashXMLLog.parse(dir_name=run_dir)
 
-            test_case.assertEqual(run.getRun(), runNum,
+            test_case.assertEqual(run.getRun(), run_num,
                                   "Expected run number %s, not %s" %
-                                  (runNum, run.getRun()))
+                                  (run_num, run.getRun()))
 
             test_case.assertEqual(run.getConfig(), cfgName,
                                   "Expected config \"%s\", not \"%s\"" %
@@ -2823,17 +2849,17 @@ class RunXMLValidator(object):
                                   "Expected cluster \"%s\", not \"%s\"" %
                                   (cluster, run.getCluster()))
 
-            if startTime is not None:
-                test_case.assertEqual(run.getStartTime(), startTime,
+            if start_time is not None:
+                test_case.assertEqual(run.getStartTime(), start_time,
                                       "Expected start time %s<%s>,"
                                       " not %s<%s>" %
-                                      (startTime, type(startTime).__name__,
+                                      (start_time, type(start_time).__name__,
                                        run.getStartTime(),
                                        type(run.getStartTime()).__name__))
-            if endTime is not None:
-                test_case.assertEqual(run.getEndTime(), endTime,
+            if end_time is not None:
+                test_case.assertEqual(run.getEndTime(), end_time,
                                       "Expected end time %s<%s>, not %s<%s>" %
-                                      (endTime, type(endTime).__name__,
+                                      (end_time, type(end_time).__name__,
                                        run.getEndTime(),
                                        type(run.getEndTime()).__name__))
 
@@ -2841,21 +2867,21 @@ class RunXMLValidator(object):
                                   "Expected terminal condition %s, not %s" %
                                   (failed, run.getTermCond()))
 
-            test_case.assertEqual(run.getEvents(), numEvts,
+            test_case.assertEqual(run.getEvents(), num_evts,
                                   "Expected number of events %s, not %s" %
-                                  (numEvts, run.getEvents()))
+                                  (num_evts, run.getEvents()))
 
-            test_case.assertEqual(run.getMoni(), numMoni,
+            test_case.assertEqual(run.getMoni(), num_moni,
                                   "Expected number of monitoring events %s, "
-                                  "not %s" % (numMoni, run.getMoni()))
+                                  "not %s" % (num_moni, run.getMoni()))
 
-            test_case.assertEqual(run.getTcal(), numTcal,
+            test_case.assertEqual(run.getTcal(), num_tcal,
                                   "Expected number of time cal events %s, "
-                                  "not %s" % (numTcal, run.getTcal()))
+                                  "not %s" % (num_tcal, run.getTcal()))
 
-            test_case.assertEqual(run.getSN(), numSN,
+            test_case.assertEqual(run.getSN(), num_sn,
                                   "Expected number of supernova events %s, "
-                                  "not %s" % (numSN, run.getSN()))
+                                  "not %s" % (num_sn, run.getSN()))
         finally:
             try:
                 os.remove("run.xml")
@@ -2869,11 +2895,11 @@ class MockRunSet(object):
         self.__running = False
 
         self.__run_number = 123456
-        self.__numEvts = 10
+        self.__num_evts = 10
         self.__rate = 123.45
-        self.__numMoni = 11
-        self.__numSN = 12
-        self.__numTcal = 13
+        self.__num_moni = 11
+        self.__num_sn = 12
+        self.__num_tcal = 13
 
         self.__id = "MockRS"
 
@@ -2884,15 +2910,15 @@ class MockRunSet(object):
         return self.__comps[:]
 
     def getRates(self):
-        return (self.__numEvts, self.__rate, self.__numMoni, self.__numSN,
-                self.__numTcal)
+        return (self.__num_evts, self.__rate, self.__num_moni, self.__num_sn,
+                self.__num_tcal)
 
     @property
     def id(self):
         return self.__id
 
     @property
-    def isRunning(self):
+    def is_running(self):
         return self.__running
 
     def run_number(self):
@@ -2912,7 +2938,7 @@ class MockRunSet(object):
 
     def update_rates(self):
         for c in self.__comps:
-            c.updateRates()
+            c.update_rates()
         return self.getRates()
 
 

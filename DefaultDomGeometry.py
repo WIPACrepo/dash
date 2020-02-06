@@ -120,8 +120,16 @@ class DomGeometry(object):
     def __str__(self):
         return "%s[%s] %s" % (self.__mbid, self.__name, self.location())
 
-    def channelId(self):
+    @property
+    def channel_id(self):
         return self.__chanId
+
+    @channel_id.setter
+    def channel_id(self, chanId):
+        if chanId > self.MAX_CHAN_ID:
+            raise DomGeometryException("Bad channel ID %d for %s" %
+                                       (chanId, self))
+        self.__chanId = chanId
 
     def desc(self):
         if self.__desc is None:
@@ -226,7 +234,8 @@ class DomGeometry(object):
                 if verbose and self.__chanId is not None and \
                    self.__chanId != newChanId:
                     print("Rewriting %s channel ID from %s to %d" % \
-                          (self.__name, self.__chanId, newChanId), file=sys.stderr)
+                          (self.__name, self.__chanId, newChanId),
+                          file=sys.stderr)
                 self.__chanId = newChanId
             elif verbose and self.__chanId is None:
                 print("Not setting channel ID for %s" % \
@@ -268,12 +277,6 @@ class DomGeometry(object):
             changedString = True
 
         return changedString
-
-    def setChannelId(self, chanId):
-        if chanId > self.MAX_CHAN_ID:
-            raise DomGeometryException("Bad channel ID %d for %s" %
-                                       (chanId, self))
-        self.__chanId = chanId
 
     def setDesc(self, desc):
         if desc is None or desc == "-" or desc == "NULL":
@@ -576,9 +579,9 @@ class DefaultDomGeometry(object):
                 if dom.pos() is not None:
                     print("%s<position>%d</position>" % \
                           (domIndent, dom.pos()), file=out)
-                if dom.channelId() is not None:
-                    print("%s<channelId>%d</channelId>" % \
-                          (domIndent, dom.channelId()), file=out)
+                if dom.channel_id is not None:
+                    print("%s<channel_id>%d</channel_id>" % \
+                          (domIndent, dom.channel_id), file=out)
                 if dom.mbid() is not None:
                     print("%s<mainBoardId>%s</mainBoardId>" % \
                           (domIndent, dom.mbid()), file=out)
@@ -818,15 +821,16 @@ class DefaultDomGeometry(object):
                     # don't bother validating AMANDA entries
                     continue
 
-                newId = compute_channel_id(strNum, dom.pos())
-                if dom.channelId() is None:
+                new_id = compute_channel_id(strNum, dom.pos())
+                if dom.channel_id is None:
                     if dom.pos() <= DomGeometry.MAX_POSITION:
                         print("No channel ID for DOM %s \"%s\"" % \
                             (dom.location(), dom.name), file=sys.stderr)
-                elif newId != dom.channelId():
+                elif new_id != dom.channel_id:
                     print("DOM %s \"%s\" should have channel ID %d, not %d" % \
-                        (dom.location(), dom.name, newId, dom.channelId()), file=sys.stderr)
-                    dom.setChannelId(newId)
+                        (dom.location(), dom.name, new_id, dom.channel_id),
+                          file=sys.stderr)
+                    dom.channel_id = new_id
 
 
 class DefaultDomGeometryReader(XMLParser):

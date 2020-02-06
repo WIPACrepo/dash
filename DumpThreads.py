@@ -4,7 +4,7 @@
 #
 #     if sys.version_info > (2, 3):
 #         from DumpThreads import DumpThreadsOnSignal
-#         DumpThreadsOnSignal(fd=sys.stderr, logger=self.__log)
+#         DumpThreadsOnSignal(file_handle=sys.stderr, logger=self.__log)
 #
 # then type ^\ (control-backslash) to dump all threads while running
 
@@ -17,11 +17,11 @@ import traceback
 
 
 class DumpThreadsOnSignal(object):
-    def __init__(self, fd=None, logger=None, signum=signal.SIGQUIT):
-        if fd is None and logger is None:
-            self.__fd = sys.stderr
+    def __init__(self, file_handle=None, logger=None, signum=signal.SIGQUIT):
+        if file_handle is None and logger is None:
+            self.__file_handle = sys.stderr
         else:
-            self.__fd = fd
+            self.__file_handle = file_handle
         self.__logger = logger
 
         signal.signal(signum, self.__handleSignal)
@@ -35,10 +35,10 @@ class DumpThreadsOnSignal(object):
         return None
 
     def __handleSignal(self, signum, frame):
-        self.dumpThreads(self.__fd, self.__logger)
+        self.dumpThreads(self.__file_handle, self.__logger)
 
     @classmethod
-    def dumpThreads(cls, fd=None, logger=None):
+    def dumpThreads(cls, file_handle=None, logger=None):
         first = True
         for tId, stack in list(sys._current_frames().items()):
             thrd = cls.__findThread(tId)
@@ -52,8 +52,8 @@ class DumpThreadsOnSignal(object):
 
             if first:
                 first = False
-            elif fd is not None:
-                print(file=fd)
+            elif file_handle is not None:
+                print(file=file_handle)
 
             for filename, lineno, name, line in traceback.extract_stack(stack):
                 tStr += "\n  File \"%s\", line %d, in %s" % \
@@ -61,10 +61,11 @@ class DumpThreadsOnSignal(object):
                 if line is not None:
                     tStr += "\n    %s" % line.strip()
 
-            if fd is not None:
-                print(tStr, file=fd)
+            if file_handle is not None:
+                print(tStr, file=file_handle)
             if logger is not None:
                 logger.error(tStr)
 
-        if fd is not None:
-            print("---------------------------------------------", file=fd)
+        if file_handle is not None:
+            print("---------------------------------------------",
+                  file=file_handle)
