@@ -93,19 +93,19 @@ class FlasherDataParser(XMLParser):
 
             if kid.nodeType == Node.ELEMENT_NODE:
                 if kid.nodeName == "stringHub":
-                    hub = int(cls.getChildText(kid))
+                    hub = int(cls.get_child_text(kid))
                 elif kid.nodeName == "domPosition":
-                    pos = int(cls.getChildText(kid))
+                    pos = int(cls.get_child_text(kid))
                 elif kid.nodeName == "brightness":
-                    bright = int(cls.getChildText(kid))
+                    bright = int(cls.get_child_text(kid))
                 elif kid.nodeName == "window":
-                    window = int(cls.getChildText(kid))
+                    window = int(cls.get_child_text(kid))
                 elif kid.nodeName == "delay":
-                    delay = int(cls.getChildText(kid))
+                    delay = int(cls.get_child_text(kid))
                 elif kid.nodeName == "mask":
-                    mask = int(cls.getChildText(kid))
+                    mask = int(cls.get_child_text(kid))
                 elif kid.nodeName == "rate":
-                    rate = int(cls.getChildText(kid))
+                    rate = int(cls.get_child_text(kid))
 
         if hub is None or \
            pos is None:
@@ -482,6 +482,8 @@ class CnCRun(BaseRun):
 
 
 def main():
+    "Main program"
+
     run = CnCRun(show_commands=True, show_command_output=True, dry_run=False)
     run.run("spts64-dirtydozen-hlc-006", "spts64-dirtydozen-hlc-006", 30,
             (("flash-21.xml", 5), (None, 10), ("flash-21.xml", 5)),

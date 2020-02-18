@@ -23,7 +23,7 @@ class MostlyDAQClient(DAQClient):
 
 
 class TestDAQClient(unittest.TestCase):
-    def testInit(self):
+    def test_init(self):
         appender = MockLogger('test')
         MostlyDAQClient('foo', 0, 'localhost', 543, 0, [], appender)
 

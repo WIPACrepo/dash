@@ -468,7 +468,7 @@ def store_scmversion(svn_dir=None):
 
 
 def main():
-    "Main method"
+    "Main program"
     import argparse
     import pprint
 

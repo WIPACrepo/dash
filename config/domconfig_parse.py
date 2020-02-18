@@ -7,7 +7,8 @@ import glob
 import os
 import sys
 
-if __name__ == "__main__":
+def main():
+    "Main program"
 
     sys.path.append('..')
     from locate_pdaq import find_pdaq_config
@@ -43,3 +44,7 @@ if __name__ == "__main__":
             print("Reason: %s" % errors)
             print("-" * 60)
             print("\n" * 2)
+
+
+if __name__ == "__main__":
+    main()

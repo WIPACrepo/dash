@@ -28,7 +28,7 @@ class CnCThread(threading.Thread):
         self.__log.error(msg)
 
     @property
-    def isClosed(self):
+    def is_closed(self):
         return self.__closed
 
     @property

@@ -11,8 +11,6 @@ import sys
 import threading
 import time
 
-import Daemon
-
 try:
     from SocketServer import ThreadingMixIn
 except ModuleNotFoundError:
@@ -30,6 +28,7 @@ from DAQConst import DAQPort
 from DAQLive import DAQLive
 from DAQLog import LogSocketServer
 from DAQRPC import RPCClient, RPCServer
+from Daemon import Daemon
 from ListOpenFiles import ListOpenFiles
 from Process import find_python_process
 from RunSet import RunSet
@@ -171,7 +170,7 @@ class DAQPool(object):
         logger.info("Loaded run configuration \"%s\"" % run_config_name)
 
         name_list = []
-        for comp in run_config.components():
+        for comp in run_config.components:
             name_list.append(comp.fullname)
 
         if name_list is None or len(name_list) == 0:
@@ -215,7 +214,7 @@ class DAQPool(object):
                     conn_map = runset.build_connection_map()
                 if self.__starting:
                     # connect components to each other
-                    runset.connect(conn_map, logger)
+                    runset.connect(conn_map)
                 if self.__starting:
                     # set the order in which components should be configured
                     runset.set_order(conn_map, logger)
@@ -224,7 +223,7 @@ class DAQPool(object):
                     runset.configure()
                 if self.__starting:
                     # if this is a replay run, compute the offset for hit times
-                    if run_config.updateHitSpoolTimes:
+                    if run_config.update_hitspool_times:
                         runset.init_replay_hubs()
                 if not self.__starting:
                     # if the process was interrupted at any point,
@@ -238,7 +237,7 @@ class DAQPool(object):
                     self.restart_runset(runset, logger)
                 raise
 
-            cstr = ComponentManager.format_component_list(runset.components())
+            cstr = ComponentManager.format_component_list(runset.components)
             logger.info("Built runset #%d: %s" % (runset.id, cstr))
 
         return runset
@@ -271,8 +270,7 @@ class DAQPool(object):
 
             if len(dead_list) > 0:
                 self.cycle_components(dead_list, run_config.configdir,
-                                      daq_data_dir, logger, logger.log_port,
-                                      logger.live_port)
+                                      daq_data_dir, logger)
 
     def __return_components(self, comp_list, logger):
         ComponentGroup.run_simple(OpResetComponent, comp_list, (), logger,
@@ -293,6 +291,7 @@ class DAQPool(object):
         finally:
             self.__pool_lock.release()
 
+    @property
     def components(self):
         comp_list = []
         self.__pool_lock.acquire()
@@ -309,11 +308,9 @@ class DAQPool(object):
         return RunSet(self, run_config, comp_list, logger)
 
     def cycle_components(self, comp_list, run_config_dir, daq_data_dir, logger,
-                         log_port, live_port, verbose=False, kill_with_9=False,
-                         event_check=False):
+                         verbose=False, kill_with_9=False, event_check=False):
         RunSet.cycle_components(comp_list, run_config_dir, daq_data_dir, logger,
-                                log_port, live_port, verbose=verbose,
-                                kill_with_9=kill_with_9,
+                                verbose=verbose, kill_with_9=kill_with_9,
                                 event_check=event_check)
 
     def find_runset(self, rsid):
@@ -332,10 +329,6 @@ class DAQPool(object):
     def get_cluster_config(self, run_config=None):
         raise NotImplementedError("Unimplemented")
 
-    @property
-    def release(self):
-        return (None, None)
-
     def get_runsets_in_error_state(self):
         problems = []
         for runset in self.__sets:
@@ -346,20 +339,6 @@ class DAQPool(object):
     @property
     def is_starting(self):
         return self.__starting
-
-    @property
-    def runset_ids(self):
-        "List active runset IDs"
-        rsids = []
-
-        self.__sets_lock.acquire()
-        try:
-            for runset in self.__sets:
-                rsids.append(runset.id)
-        finally:
-            self.__sets_lock.release()
-
-        return rsids
 
     def make_runset(self, run_config_dir, run_config_name, run_num, timeout,
                     logger, daq_data_dir, force_restart=True, strict=False):
@@ -439,6 +418,10 @@ class DAQPool(object):
     @property
     def num_unused(self):
         return len(self.__pool)
+
+    @property
+    def release(self):
+        return (None, None)
 
     def remove(self, comp):
         "Remove a component from the pool"
@@ -538,6 +521,20 @@ class DAQPool(object):
 
     def runset(self, num):
         return self.__sets[num]
+
+    @property
+    def runset_ids(self):
+        "List active runset IDs"
+        rsids = []
+
+        self.__sets_lock.acquire()
+        try:
+            for runset in self.__sets:
+                rsids.append(runset.id)
+        finally:
+            self.__sets_lock.release()
+
+        return rsids
 
     def stop_collecting(self):
         if self.__starting:
@@ -749,14 +746,14 @@ class CnCServer(DAQPool):
         return count
 
     def __find_component_by_id(self, comp_id, include_runset_components=False):
-        for comp in self.components():
+        for comp in self.components:
             if comp.id == comp_id:
                 return comp
 
         if include_runset_components:
             for rsid in self.runset_ids:
                 runset = self.find_runset(rsid)
-                for comp in runset.components():
+                for comp in runset.components:
                     if comp.id == comp_id:
                         return comp
 
@@ -766,9 +763,9 @@ class CnCServer(DAQPool):
         comp_list = []
 
         if id_list is None or len(id_list) == 0:
-            comp_list += self.components()
+            comp_list += self.components
         else:
-            for comp in self.components():
+            for comp in self.components:
                 for i in [j for j, cid in enumerate(id_list)
                           if cid == comp.id]:
                     comp_list.append(comp)
@@ -779,9 +776,9 @@ class CnCServer(DAQPool):
             for rsid in self.runset_ids:
                 runset = self.find_runset(rsid)
                 if get_all:
-                    comp_list += runset.components()
+                    comp_list += runset.components
                 else:
-                    for comp in runset.components():
+                    for comp in runset.components:
                         for idx in [j for j, cid in enumerate(id_list)
                                     if cid == comp.id]:
                             comp_list.append(comp)
@@ -866,6 +863,7 @@ class CnCServer(DAQPool):
             self.__log.error("Failed to break %s: %s" %
                              (runset, exc_string()))
 
+    @property
     def client_statistics(self):
         return RPCClient.client_statistics()
 
@@ -880,7 +878,7 @@ class CnCServer(DAQPool):
         if self.__server is not None:
             self.__server.server_close()
 
-        ComponentGroup.run_simple(OpClose, self.components(), (), self.__log,
+        ComponentGroup.run_simple(OpClose, self.components, (), self.__log,
                                   report_errors=True)
 
         self.__log.close_final()
@@ -991,8 +989,7 @@ class CnCServer(DAQPool):
                                   event_check=False):
         clu_cfg = self.get_cluster_config(run_config=runset.run_config_data)
         runset.restart_all_components(clu_cfg, self.__run_config_dir,
-                                      self.__daq_data_dir, self.__log.log_port,
-                                      self.__log.live_port, verbose=verbose,
+                                      self.__daq_data_dir, verbose=verbose,
                                       kill_with_9=kill_with_9,
                                       event_check=event_check)
 
@@ -1000,8 +997,7 @@ class CnCServer(DAQPool):
                                  event_check=False):
         clu_cfg = self.get_cluster_config(run_config=runset.run_config_data)
         runset.return_components(self, clu_cfg, self.__run_config_dir,
-                                 self.__daq_data_dir, self.__log.log_port,
-                                 self.__log.live_port, verbose=verbose,
+                                 self.__daq_data_dir, verbose=verbose,
                                  kill_with_9=kill_with_9,
                                  event_check=event_check)
 
@@ -1061,13 +1057,13 @@ class CnCServer(DAQPool):
     def rpc_component_list(self, include_runset_components=False):
         "return dictionary of component names -> IDs"
         id_dict = {}
-        for comp in self.components():
+        for comp in self.components:
             id_dict[comp.fullname] = comp.id
 
         if include_runset_components:
             for rsid in self.runset_ids:
                 runset = self.find_runset(rsid)
-                for comp in runset.components():
+                for comp in runset.components:
                     id_dict[comp.fullname] = comp.id
 
         return id_dict
@@ -1147,7 +1143,7 @@ class CnCServer(DAQPool):
             self.__log.debug("Ignoring previously registered %s" %
                              client.fullname)
 
-        log_host = ip.convertLocalhostToIpAddr(self.__log.log_host)
+        log_host = ip.convert_localhost_to_address(self.__log.log_host)
 
         log_port = self.__log.log_port
         if log_port is None:
@@ -1157,7 +1153,7 @@ class CnCServer(DAQPool):
                 log_host = ""
                 log_port = 0
 
-        live_host = ip.convertLocalhostToIpAddr(self.__log.live_host)
+        live_host = ip.convert_localhost_to_address(self.__log.live_host)
 
         live_port = self.__log.live_port
         if live_port is None:
@@ -1178,7 +1174,7 @@ class CnCServer(DAQPool):
 
     def rpc_end_all(self):
         "reset all clients"
-        ComponentGroup.run_simple(OpResetComponent, self.components(), (),
+        ComponentGroup.run_simple(OpResetComponent, self.components, (),
                                   self.__log, report_errors=True)
         return 1
 
@@ -1268,7 +1264,7 @@ class CnCServer(DAQPool):
         if not runset:
             raise CnCServerException('Could not find runset#%d' % rsid)
 
-        return self.__list_component_dicts(runset.components())
+        return self.__list_component_dicts(runset.components)
 
     def rpc_runset_make(self, run_config, run_num=None, strict=False,
                         timeout=REGISTRATION_TIMEOUT):
@@ -1431,6 +1427,7 @@ class CnCServer(DAQPool):
         if self.__log_server is not None:
             self.__log_server.start_serving()
 
+    @property
     def server_statistics(self):
         return self.__server.server_statistics()
 
@@ -1510,6 +1507,8 @@ class CnCServer(DAQPool):
 
 
 def main():
+    "Main program"
+
     import argparse
 
     parser = argparse.ArgumentParser()
@@ -1530,8 +1529,8 @@ def main():
                         help="Force components to restart after every run")
     parser.add_argument("-F", "--no-force-restart", dest="force_restart",
                         action="store_false", default=True,
-                        help="Don't force components to restart"
-                             " after every run")
+                        help=("Don't force components to restart"
+                              " after every run"))
     parser.add_argument("-k", "--kill", dest="kill",
                         action="store_true", default=False,
                         help="Kill running CnCServer instance(s)")
@@ -1551,11 +1550,11 @@ def main():
                         help="Restart components if the run ends in an error")
     parser.add_argument("-R", "--no-restart-on-error", dest="restart_on_error",
                         action="store_false", default=True,
-                        help="Don't restart components if the run ends"
-                             " in an error")
+                        help=("Don't restart components if the run ends"
+                              " in an error"))
     parser.add_argument("-s", "--spade-dir", dest="spade_dir",
-                        help="Directory where SPADE will pick up"
-                             " logs/moni files")
+                        help=("Directory where SPADE will pick up"
+                              " logs/moni files"))
     parser.add_argument("-v", "--verbose", dest="quiet",
                         action="store_false", default=True,
                         help="Write catchall messages to console")
@@ -1621,7 +1620,7 @@ def main():
         live_port = int(args.liveLog[colon + 1:])
 
     if args.daemon:
-        Daemon.Daemon().Daemonize()
+        Daemon().daemonize()
 
     if args.config_dir is not None:
         config_dir = args.config_dir

@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import logging
 import os
 
@@ -11,6 +13,7 @@ from utils.Machineid import Machineid
 
 
 CHOICES = ["26", "27", "2.6", "2.7", "old", "OLD"]
+
 
 def add_arguments(parser):
     "Add command-line arguments"
@@ -34,7 +37,7 @@ def add_arguments(parser):
 def update_virtualenv(args):
     if args.print_choices:
         for entry in CHOICES:
-            print entry
+            print(entry)
         raise SystemExit
 
     # this script is meant to be run on spts-access
@@ -56,7 +59,7 @@ def update_virtualenv(args):
     # get the list of hosts from the cluster configuration file
     clucfg = ClusterDescription()
     for host in clucfg.hosts:
-        print "Updating %s" % (host, )
+        print("Updating %s" % (host, ))
         venv = VirtualEnvironment(host)
         try:
             venv.update_symlink(args.basename, envname, dry_run=args.dry_run)
@@ -64,7 +67,7 @@ def update_virtualenv(args):
             venv.close()
 
     cluname = ClusterDescription.get_cluster_name()
-    print "Linked %s to %s on %s" % (args.basename, envname, cluname)
+    print("Linked %s to %s on %s" % (args.basename, envname, cluname))
 
 
 class ListEntry(object):
@@ -130,11 +133,12 @@ class VirtualEnvironment(object):
 
         self.__client.connect(self.__host)
 
-    def __parse_line(self, line):
+    @classmethod
+    def __parse_line(cls, line):
         "Parse a single line from 'ls'"
-        (ftstr, nlinks, user, group, size, dstr1, dstr2, dstr3, fname) \
-          = line.split(None, 8)
-        if len(ftstr) == 0:
+        (ftstr, nlinks, user, group, size, dstr1, dstr2, dstr3,
+         fname) = line.split(None, 8)
+        if ftstr == "":
             raise Exception("Found empty file type in \"%s\"" % (line, ))
 
         if ftstr[0] == "-":
@@ -175,8 +179,8 @@ class VirtualEnvironment(object):
             cur_name = self.backup_name(filename, idx - 1)
 
             # increment the "revision number" on this file/directory
-            logging.info("Renaming \"%s:%s\" to \"%s\"" %
-                         (self.__host, cur_name, new_name))
+            logging.info("Renaming \"%s:%s\" to \"%s\"", self.__host, cur_name,
+                         new_name)
             cmd = "mv \"%s\" \"%s\"" % (cur_name, new_name)
             self.run_remote_no_output(cmd, dry_run=dry_run)
 
@@ -217,9 +221,9 @@ class VirtualEnvironment(object):
         # make sure the target directory exists
         tgtbase = os.path.basename(tgtdir)
         if tgtbase not in file_dict:
-            logging.error("Target '%s' does not exist on host \"%s\"" %
-                          (tgtdir, self.__host))
-            return
+            logging.error("Target '%s' does not exist on host \"%s\"", tgtdir,
+                          self.__host)
+            return False
 
         # extract the name of the symlink to be created
         basename = os.path.basename(srcdir)
@@ -248,8 +252,8 @@ class VirtualEnvironment(object):
                 extra = ""
             else:
                 extra = " (%s)" % (tgtdir, )
-            print "\"%s\" already points to \"%s\"%s on %s" % \
-            (srcdir, tgtbase, extra, self.__host)
+            print("\"%s\" already points to \"%s\"%s on %s" %
+                  (srcdir, tgtbase, extra, self.__host))
             return False
 
         # if target isn't a directory or symlink, give up
@@ -289,8 +293,8 @@ class VirtualEnvironment(object):
 
         # log any errors
         if not_found:
-            logging.error("Cannot find \"%s\" on \"%s\"" %
-                          (filespec, self.__host))
+            logging.error("Cannot find \"%s\" on \"%s\"", filespec,
+                          self.__host)
         if errstr is not None:
             logging.error(errstr)
 
@@ -304,7 +308,7 @@ class VirtualEnvironment(object):
         from standard output, False if from standard error.
         """
         if dry_run:
-            print "%s: %s" % (self.__host, cmd, )
+            print("%s: %s" % (self.__host, cmd, ))
             return
 
         stdin, stdout, stderr = self.__client.exec_command(cmd)
@@ -337,9 +341,8 @@ class VirtualEnvironment(object):
         "Update 'tgtdir' on remote host to point at 'srcdir'"
         # list entries which are variations of the source file
         file_dict = self.list_entries(srcdir + "*")
-        if len(file_dict) == 0:
-            logging.info("No '%s' directories on \"%s\"" %
-                         (srcdir, self.__host, ))
+        if len(file_dict) == 0:  # pylint: disable=len-as-condition
+            logging.info("No '%s' directories on \"%s\"", srcdir, self.__host)
             return
 
         # if target directory doesn't link to the requested target...
@@ -349,11 +352,17 @@ class VirtualEnvironment(object):
             self.run_remote_no_output(cmd, dry_run=dry_run)
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     import argparse
 
-    aparser = argparse.ArgumentParser()
-    add_arguments(aparser)
-    args = aparser.parse_args()
+    parser = argparse.ArgumentParser()
+    add_arguments(parser)
+    args = parser.parse_args()
 
     update_virtualenv(args)
+
+
+if __name__ == "__main__":
+    main()

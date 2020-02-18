@@ -28,8 +28,8 @@ def add_arguments(parser):
                         help="Include non-standard cluster configurations")
     parser.add_argument("-D", "--log-directory", dest="log_directory",
                         default="/mnt/data/pdaq/log",
-                        help="Directory where 'daqrunXXXXXX' directories"
-                        " are stored")
+                        help=("Directory where 'daqrunXXXXXX' directories"
+                              " are stored"))
     parser.add_argument("-n", "--no-color", dest="no_color",
                         action="store_true", default=False,
                         help="Do not add color to output")
@@ -76,7 +76,7 @@ class DashLog2RunXML(BaseLog):
         runxml = DashXMLLog(dirname, file_name=xmlname)
         runxml.set_first_good_time(0)
         runxml.set_last_good_time(0)
-        runxml.setTermCond(None)
+        runxml.run_status = None
 
         with open(dashpath, "r") as rdr:
             for line in rdr:
@@ -91,13 +91,13 @@ class DashLog2RunXML(BaseLog):
                 if not has_version:
                     match = cls.LOGVERS_PAT.match(dash_text)
                     if match is not None:
-                        runxml.setVersionInfo(match.group(1), match.group(2))
+                        runxml.version_info = (match.group(1), match.group(2))
                         has_version = True
                         continue
 
                     match = cls.OLDVERS_PAT.match(dash_text)
                     if match is not None:
-                        runxml.setVersionInfo(match.group(1), match.group(2))
+                        runxml.version_info = (match.group(1), match.group(2))
                         has_version = True
                         continue
 
@@ -105,7 +105,7 @@ class DashLog2RunXML(BaseLog):
                     target = "Run configuration: "
                     idx = dash_text.find(target)
                     if idx >= 0:
-                        runxml.setConfig(dash_text[idx + len(target):])
+                        runxml.run_config_name = dash_text[idx + len(target):]
                         has_config = True
                         if not has_version:
                             logging.error("Missing \"Version Info\" line"
@@ -116,7 +116,8 @@ class DashLog2RunXML(BaseLog):
                     target = "Cluster: "
                     idx = dash_text.find(target)
                     if idx >= 0:
-                        runxml.setCluster(dash_text[idx + len(target):])
+                        runxml.cluster_config_name \
+                          = dash_text[idx + len(target):]
                         has_cluster = True
                         if not has_config:
                             logging.error("Missing \"Run Configuration\" line"
@@ -137,8 +138,8 @@ class DashLog2RunXML(BaseLog):
                         if numidx < 0:
                             numstr = numstr[:numidx]
 
-                        runxml.setRun(numstr)
-                        runxml.setStartTime(dash_date)
+                        runxml.run_number = numstr
+                        runxml.start_time = dash_date
                         has_run_num = True
                         if not has_cluster:
                             logging.error("Missing \"Cluster\" line"
@@ -157,15 +158,15 @@ class DashLog2RunXML(BaseLog):
 
                 if dash_text.find("Run terminated") >= 0:
                     cond = dash_text.find("ERROR") > 0
-                    runxml.setTermCond(cond)
+                    runxml.run_status = cond
                     continue
 
         if phys_evts is not None:
-            runxml.setEvents(phys_evts)
-            runxml.setMoni(moni_evts)
-            runxml.setSN(sn_evts)
-            runxml.setTcal(tcal_evts)
-            runxml.setEndTime(end_time)
+            runxml.num_physics = phys_evts
+            runxml.num_moni = moni_evts
+            runxml.num_sn = sn_evts
+            runxml.num_tcal = tcal_evts
+            runxml.end_time = end_time
 
         return runxml
 
@@ -173,19 +174,19 @@ class DashLog2RunXML(BaseLog):
     def from_summary(cls, summary):
         runxml = DashXMLLog()
 
-        runxml.setRun(summary["num"])
-        runxml.setConfig(summary["config"])
-        runxml.setStartTime(summary["startTime"])
-        runxml.setEndTime(summary["endTime"])
-        runxml.setEvents(summary["numEvents"])
-        runxml.setMoni(summary["numMoni"])
-        runxml.setSN(summary["numSN"])
-        runxml.setTcal(summary["numTcal"])
+        runxml.run_number = summary["num"]
+        runxml.run_config_name = summary["config"]
+        runxml.start_time = summary["startTime"]
+        runxml.end_time = summary["endTime"]
+        runxml.num_physics = summary["numEvents"]
+        runxml.num_moni = summary["numMoni"]
+        runxml.num_sn = summary["numSN"]
+        runxml.num_tcal = summary["numTcal"]
         if summary["result"] is None:
             termcond = None
         else:
             termcond = summary["result"] == "SUCCESS"
-        runxml.setTermCond(termcond)
+        runxml.run_status = termcond
 
         return runxml
 
@@ -201,8 +202,8 @@ class Sum(object):
         rate = ""
         duration = "???"
 
-        xml_start_time = runxml.getStartTime()
-        xml_end_time = runxml.getEndTime()
+        xml_start_time = runxml.start_time
+        xml_end_time = runxml.end_time
         if xml_start_time is not None and xml_end_time is not None:
             timediff = xml_end_time - xml_start_time
             if timediff.days >= 0:
@@ -224,7 +225,7 @@ class Sum(object):
                     duration = "%d:%02d:%02d:%02d" % (days, dhrs, dmin, dsec)
 
                 if verbose:
-                    evts = runxml.getEvents()
+                    evts = runxml.num_physics
                     if evts is None or total == 0:
                         rate = ""
                     else:
@@ -308,12 +309,12 @@ class Sum(object):
         duration, rate = self.__compute_duration_and_rate(runxml,
                                                           verbose=verbose)
 
-        timestr = str(runxml.getStartTime())
+        timestr = str(runxml.start_time)
         idx = timestr.find(".")
         if idx > 0:
             timestr = timestr[:idx]
 
-        cond = runxml.getTermCond()
+        cond = runxml.run_status
         if cond is None:
             color = ANSIEscapeCode.FG_WHITE + ANSIEscapeCode.BG_BLUE
             status = "RUNNING"
@@ -326,15 +327,15 @@ class Sum(object):
         if not no_color:
             status = color + status + ANSIEscapeCode.OFF
 
-        run = runxml.getRun()
+        run = runxml.run_number
         if run is None:
             run = "???"
 
         if not verbose:
             if std_clucfg is None:
-                cfgstr = runxml.getConfig()
+                cfgstr = runxml.run_config_name
             else:
-                cfgstr = runxml.getCluster()
+                cfgstr = runxml.cluster_config_name
                 if cfgstr is None or cfgstr == "":
                     cfgstr = std_clucfg
 
@@ -343,21 +344,21 @@ class Sum(object):
             return
 
         # get cluster config
-        cluster = strip_clucfg(runxml.getCluster())
+        cluster = strip_clucfg(runxml.cluster_config_name)
 
         if std_clucfg is None:
-            cfgstr = runxml.getConfig()
+            cfgstr = runxml.run_config_name
             cfgfmt = "%-27.27s"
         else:
             # get config, make sure cluster config is visible
-            config = runxml.getConfig()
+            config = runxml.run_config_name
             if len(config) + len(cluster) + 2 > 35:
                 config = config[:35-(len(cluster) + 2)]
 
             cfgstr = "%s(%s)" % (config, cluster, )
             cfgfmt = "%-35.35s"
 
-        (rel, rev) = runxml.getVersionInfo()
+        (rel, rev) = runxml.version_info
         if rel is None:
             relstr = ""
         else:

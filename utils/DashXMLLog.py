@@ -18,7 +18,7 @@ class MalformedFileException(DashXMLLogException):
     pass
 
 
-class DashXMLLog:
+class DashXMLLog(object):
     """
     This class will generate an xml logging file for dash.
     The purpose is to generate this for Kirill.
@@ -26,7 +26,7 @@ class DashXMLLog:
     The parsing would break as people changed the format of the
     dash.log file.  This code will let you generate an xml log that
     will meet at least his requirements.  You can add more fields to
-    this with the 'setField' method.
+    this with the 'set_field' method.
 
     A minimum xml logging file should look like this:
 
@@ -74,29 +74,30 @@ class DashXMLLog:
                                  "TermCondition", "Events", "Moni", "Tcal",
                                  "SN"]
 
-    def __parseDateTime(self, fld):
+    def __parse_date_time(self, fld):
         if fld is None:
             return None
         if isinstance(fld, DAQDateTime) or isinstance(fld, datetime):
             return fld
-        m = self.DATE_PAT.match(str(fld))
-        if not m:
+        mtch = self.DATE_PAT.match(str(fld))
+        if mtch is None:
             raise ValueError("Unparseable date string \"%s\"" % fld)
         dtflds = []
         for i in range(6):
-            dtflds.append(int(m.group(i+1)))
-        if m.group(8) is None:
-            subsec = 0
-        else:
-            ss = m.group(8)
-            if len(ss) > 10:
-                raise ValueError("Bad subseconds for date string \"%s\"" % fld)
-            ss += "0" * (10 - len(ss))
-            dtflds.append(int(ss))
-        return DAQDateTime(dtflds[0], dtflds[1], dtflds[2], dtflds[3],
-                           dtflds[4], dtflds[5], dtflds[6])
+            dtflds.append(int(mtch.group(i+1)))
+        if mtch.group(8) is None:
+            return DAQDateTime(dtflds[0], dtflds[1], dtflds[2], dtflds[3],
+                               dtflds[4], dtflds[5], dtflds[6])
 
-    def getPath(self):
+        sstr = mtch.group(8)
+        if len(sstr) > 10:
+            raise ValueError("Bad subseconds for date string \"%s\"" % fld)
+        sstr += "0" * (10 - len(sstr))
+        return DAQDateTime(dtflds[0], dtflds[1], dtflds[2], dtflds[3],
+                           dtflds[4], dtflds[5], dtflds[6], int(sstr))
+
+    @property
+    def path(self):
         if self._path is None:
             if self._dir_name is not None:
                 file_name = os.path.join(self._dir_name, self._file_name)
@@ -112,7 +113,7 @@ class DashXMLLog:
 
         return self._path
 
-    def setField(self, field_name, field_val):
+    def set_field(self, field_name, field_val):
         """Store the name and value for a field in this log file
 
         Args:
@@ -133,74 +134,84 @@ class DashXMLLog:
 
         self._fields[field_name] = field_val
 
-    def getField(self, field_name):
+    def get_field(self, field_name):
         if field_name not in self._fields:
             return None
         return self._fields[field_name]
 
-    def setRun(self, run_num):
+    @property
+    def run_number(self):
+        """Get the value for the required 'run' field"""
+        fld = self.get_field("run")
+        if fld is None:
+            return None
+        return int(fld)
+
+    @run_number.setter
+    def run_number(self, run_num):
         """Set the value for the required 'run' field
 
         Args:
             run_num: a run number
         """
 
-        self.setField("run", run_num)
+        self.set_field("run", run_num)
 
-    def getRun(self):
-        """Get the value for the required 'run' field"""
-        fld = self.getField("run")
-        if fld is None:
-            return None
-        return int(fld)
+    @property
+    def run_config_name(self):
+        """Get the name of the config file used for this run"""
+        return self.get_field("Config")
 
-    def setConfig(self, config_name):
+    @run_config_name.setter
+    def run_config_name(self, config_name):
         """Set the name of the config file used for this run
 
         Args:
             config_name: the name of the config file for this run
         """
-        self.setField("Config", config_name)
+        self.set_field("Config", config_name)
 
-    def getConfig(self):
-        """Get the name of the config file used for this run"""
-        return self.getField("Config")
+    @property
+    def cluster_config_name(self):
+        """Get the name of the cluster file used for this run"""
+        return self.get_field("Cluster")
 
-    def setCluster(self, cluster):
+    @cluster_config_name.setter
+    def cluster_config_name(self, cluster):
         """Set the name of the cluster used for this run
 
         Args:
             cluster: the name of the cluster for this run
         """
-        self.setField("Cluster", cluster)
+        self.set_field("Cluster", cluster)
 
-    def getCluster(self):
-        """Get the name of the cluster file used for this run"""
-        return self.getField("Cluster")
+    @property
+    def start_time(self):
+        """Get the start time for this run"""
+        return self.__parse_date_time(self.get_field("StartTime"))
 
-    def setStartTime(self, start_time):
+    @start_time.setter
+    def start_time(self, start_time):
         """Set the start time for this run
 
         Args:
             start_time: the start time for this run
         """
-        self.setField("StartTime", start_time)
+        self.set_field("StartTime", start_time)
 
-    def getStartTime(self):
-        """Get the start time for this run"""
-        return self.__parseDateTime(self.getField("StartTime"))
+    @property
+    def end_time(self):
+        """Get the end time for this run"""
+        return self.__parse_date_time(self.get_field("EndTime"))
 
-    def setEndTime(self, end_time):
+    @end_time.setter
+    def end_time(self, end_time):
         """Set the end time for this run
 
         Args:
             end_time: the end time for this run
         """
-        self.setField("EndTime", end_time)
-
-    def getEndTime(self):
-        """Get the end time for this run"""
-        return self.__parseDateTime(self.getField("EndTime"))
+        self.set_field("EndTime", end_time)
 
     def set_first_good_time(self, first_time):
         """Set the first good time for this run
@@ -208,11 +219,12 @@ class DashXMLLog:
         Args:
             first_time: the first good time for this run
         """
-        self.setField("FirstGoodTime", first_time)
+        self.set_field("FirstGoodTime", first_time)
 
-    def getFirstGoodTime(self):
+    @property
+    def first_good_time(self):
         """Get the first good time for this run"""
-        return self.__parseDateTime(self.getField("FirstGoodTime"))
+        return self.__parse_date_time(self.get_field("FirstGoodTime"))
 
     def set_last_good_time(self, last_time):
         """Set the last time for this run
@@ -220,30 +232,22 @@ class DashXMLLog:
         Args:
             last_time: the last time for this run
         """
-        self.setField("LastGoodTime", last_time)
+        self.set_field("LastGoodTime", last_time)
 
-    def getLastGoodTime(self):
+    @property
+    def last_good_time(self):
         """Get the last time for this run"""
-        return self.__parseDateTime(self.getField("LastGoodTime"))
+        return self.__parse_date_time(self.get_field("LastGoodTime"))
 
-    def setTermCond(self, had_error):
-        """Set the termination condition for this run
-
-        Args:
-            term_cond: the termination condition for this run
-            (False if the run succeeded, True if there was an error)
+    @property
+    def run_status(self):
         """
-        if had_error:
-            term_cond = self.FAILURE
-        elif had_error is not None:
-            term_cond = self.SUCCESS
-        else:
-            term_cond = self.IN_PROGRESS
-        self.setField("TermCondition", term_cond)
-
-    def getTermCond(self):
-        """Get the termination condition for this run"""
-        fld = self.getField("TermCondition")
+        Get the final status for this run:
+        True - the run succeeded
+        False - the run failed
+        None - The status is unknown
+        """
+        fld = self.get_field("TermCondition")
         if fld is None:
             return None
         if fld == self.FAILURE:
@@ -254,84 +258,118 @@ class DashXMLLog:
             return None
         raise ValueError("Bad termination condition \"%s\"" % fld)
 
-    def setEvents(self, events):
+    @run_status.setter
+    def run_status(self, had_error):
+        """
+        Set the termination condition for this run
+
+        If 'has_error' is:
+        True - the run succeeded
+        False - the run failed
+        None - The status is unknown
+        """
+        if had_error:
+            term_cond = self.FAILURE
+        elif had_error is not None:
+            term_cond = self.SUCCESS
+        else:
+            term_cond = self.IN_PROGRESS
+        self.set_field("TermCondition", term_cond)
+
+    @property
+    def num_physics(self):
+        """Get the number of events for this run"""
+        fld = self.get_field("Events")
+        if fld is None:
+            return None
+        return int(fld)
+
+    @num_physics.setter
+    def num_physics(self, events):
         """Set the number of events for this run
 
         Args:
             events: the number of events for this run
         """
-        self.setField("Events", events)
+        self.set_field("Events", events)
 
-    def getEvents(self):
-        """Get the number of events for this run"""
-        fld = self.getField("Events")
+    @property
+    def num_moni(self):
+        """Get the number of monitoring events for this run"""
+        fld = self.get_field("Moni")
         if fld is None:
             return None
         return int(fld)
 
-    def setMoni(self, moni):
+    @num_moni.setter
+    def num_moni(self, moni):
         """Set the number of monitoring events for this run
 
         Args:
             moni: the number of monitoring events for this run
         """
-        self.setField("Moni", moni)
+        self.set_field("Moni", moni)
 
-    def getMoni(self):
-        """Get the number of monitoring events for this run"""
-        fld = self.getField("Moni")
+    @property
+    def num_tcal(self):
+        """Get the number of time calibration events for this run"""
+        fld = self.get_field("Tcal")
         if fld is None:
             return None
         return int(fld)
 
-    def setTcal(self, tcal):
+    @num_tcal.setter
+    def num_tcal(self, tcal):
         """Set the number of time calibration events for this run
 
         Args:
             tcal: the number of time calibration events for this run
         """
-        self.setField("Tcal", tcal)
+        self.set_field("Tcal", tcal)
 
-    def getTcal(self):
-        """Get the number of time calibration events for this run"""
-        fld = self.getField("Tcal")
+    @property
+    def num_sn(self):
+        """Get the number of supernova events for this run"""
+        fld = self.get_field("SN")
         if fld is None:
             return None
         return int(fld)
 
-    def setSN(self, sn):
+    @num_sn.setter
+    def num_sn(self, val):
         """Set the number of supernova events for this run
 
         Args:
             sn: the number of supernova events for this run
         """
-        self.setField("SN", sn)
+        self.set_field("SN", val)
 
-    def getSN(self):
-        """Get the number of supernova events for this run"""
-        fld = self.getField("SN")
-        if fld is None:
-            return None
-        return int(fld)
+    @property
+    def version_info(self):
+        """Get the release/revision tuple for this run"""
+        rel = self.get_field("Release")
+        if rel is not None:
+            rev = self.get_field("Revision")
+            if rev is not None:
+                return (rel, rev)
+        return (None, None)
 
-    def setVersionInfo(self, rel, rev):
+    @version_info.setter
+    def version_info(self, args):
         """Set the pDAQ release/revision info
 
         Args:
             rel: pDAQ release name
             rev: pDAQ revision information
         """
-        self.setField("Release", rel)
-        self.setField("Revision", rev)
+        try:
+            rel, rev = args
+        except ValueError:
+            raise ValueError("Expected list/tuple argument, not %s (%s)" %
+                             (type(args), str(args)))
 
-    def getVersionInfo(self):
-        """Get the release/revision tuple for this run"""
-        rel = self.getField("Release")
-        if rel is not None:
-            rev = self.getField("Revision")
-            if rev is not None:
-                return (rel, rev)
-        return (None, None)
+        self.set_field("Release", rel)
+        self.set_field("Revision", rev)
 
     def _build_document(self):
         """Take the internal fields dictionary, the _root_elem_name,
@@ -339,16 +377,16 @@ class DashXMLLog:
         """
         # check for all required xml fields
         fields_known = list(self._fields.keys())
-        for requiredKey in self._required_fields:
-            if requiredKey not in fields_known:
+        for required_key in self._required_fields:
+            if required_key not in fields_known:
                 raise DashXMLLogException("Missing Required Field %s" %
-                                          (requiredKey, ))
+                                          (required_key, ))
 
         doc = minidom.Document()
-        processingInstr = doc.createProcessingInstruction(
+        processing_instr = doc.createProcessingInstruction(
             "xml-stylesheet",
             "type=\"text/xsl\" href=\"%s\"" % self._style_sheet_url)
-        doc.appendChild(processingInstr)
+        doc.appendChild(processing_instr)
 
         # create the base element
         base = doc.createElement(self._root_elem_name)
@@ -363,20 +401,19 @@ class DashXMLLog:
 
         return doc
 
-    def writeLog(self):
+    def write_log(self):
         """Build an xml document with stored state and write it to a file
 
         Args:
             file_name: the name of the file to which we should write the
             xml log file
         """
-        docStr = self.documentToKirillString()
+        doc_str = self.document_to_kirill_string()
 
-        fd = open(self.getPath(), "w")
-        fd.write(docStr)
-        fd.close()
+        with open(self.path, "w") as fout:
+            fout.write(doc_str)
 
-    def documentToString(self, indent="\t"):
+    def document_to_string(self, indent="\t"):
         """Return a string containing the generated xml document
 
         Args:
@@ -386,7 +423,7 @@ class DashXMLLog:
 
         return doc.toprettyxml(indent=indent)
 
-    def documentToKirillString(self):
+    def document_to_kirill_string(self):
         """Apparently some people don't quite know how to download an
         xml parser so we have to write out xml files in a specific format
         to fit a broken hand rolled xml parser"""
@@ -394,23 +431,23 @@ class DashXMLLog:
         doc = self._build_document()
 
         if doc.encoding is None:
-            dispStr = "<?xml version=\"1.0\"?>"
+            disp_str = "<?xml version=\"1.0\"?>"
         else:
-            dispStr = "<?xml version=\"1.0\" encoding=\"%s\"?>" % \
+            disp_str = "<?xml version=\"1.0\" encoding=\"%s\"?>" % \
                 (doc.encoding)
 
         # okay here look for any and all processing instructions
-        for n in doc.childNodes:
-            if(n.nodeType == doc.PROCESSING_INSTRUCTION_NODE):
-                dispStr = "%s\n%s" % (dispStr, n.toxml())
+        for node in doc.childNodes:
+            if node.nodeType == doc.PROCESSING_INSTRUCTION_NODE:
+                disp_str = "%s\n%s" % (disp_str, node.toxml())
 
-        n = doc.getElementsByTagName(self._root_elem_name)[0]
-        dispStr = "%s\n<%s>" % (dispStr, self._root_elem_name)
-        for n in n.childNodes:
-            dispStr = "%s\n\t%s" % (dispStr, n.toxml())
-        dispStr = "%s\n</%s>" % (dispStr, self._root_elem_name)
+        root_kids = doc.getElementsByTagName(self._root_elem_name)[0]
+        disp_str = "%s\n<%s>" % (disp_str, self._root_elem_name)
+        for kid in root_kids.childNodes:
+            disp_str = "%s\n\t%s" % (disp_str, kid.toxml())
+        disp_str = "%s\n</%s>" % (disp_str, self._root_elem_name)
 
-        return dispStr
+        return disp_str
 
     @classmethod
     def format_summary(cls, num, config, result, start_time, end_time,
@@ -442,16 +479,16 @@ class DashXMLLog:
             raise MalformedFileException(
                 "Bad run file \"%s\": %s" % (path, ex))
 
-        rootList = parsed.getElementsByTagName("DAQRunlog")
-        if len(rootList) == 0:
+        root_list = parsed.getElementsByTagName("DAQRunlog")
+        if len(root_list) == 0:
             raise MalformedFileException("No DAQRunlog entries found" +
                                          " in \"%s\"" % path)
-        elif len(rootList) > 1:
+        elif len(root_list) > 1:
             raise MalformedFileException("Multiple DAQRunlog entries found" +
                                          " in \"%s\"" % path)
 
-        runXML = DashXMLLog()
-        for node in rootList[0].childNodes:
+        run_xml = DashXMLLog()
+        for node in root_list[0].childNodes:
             if node.nodeType != minidom.Node.ELEMENT_NODE:
                 continue
             for kid in node.childNodes:
@@ -460,43 +497,49 @@ class DashXMLLog:
                 val = kid.nodeValue.strip()
                 if val == "None":
                     val = None
-                runXML.setField(node.tagName, val)
+                run_xml.set_field(node.tagName, val)
 
-        return runXML
+        return run_xml
 
     def summary(self):
         "Return a dictionary of run summary data"
-        fld = self.getField("TermCondition")
+        fld = self.get_field("TermCondition")
         if fld == self.FAILURE:
-            termCond = "FAILED"
+            term_cond = "FAILED"
         elif fld == self.SUCCESS:
-            termCond = "SUCCESS"
+            term_cond = "SUCCESS"
         elif fld == self.IN_PROGRESS:
-            termCond = "RUNNING"
+            term_cond = "RUNNING"
         else:
-            termCond = "??%s??" % fld
+            term_cond = "??%s??" % fld
 
-        return self.format_summary(self.getRun(), self.getConfig(), termCond,
-                                   str(self.getStartTime()),
-                                   str(self.getEndTime()), self.getEvents(),
-                                   self.getMoni(), self.getTcal(),
-                                   self.getSN())
+        return self.format_summary(self.run_number, self.run_config_name,
+                                   term_cond, str(self.start_time),
+                                   str(self.end_time), self.num_physics,
+                                   self.num_moni, self.num_tcal,
+                                   self.num_sn)
+
+
+def main():
+    "Main program"
+
+    dashlog = DashXMLLog()
+    dashlog.run_number = 117554
+    dashlog.run_config_name = "sps-IC79-Erik-Changed-TriggerIDs-V151"
+    dashlog.start_time = 55584.113903
+    dashlog.end_time = 55584.227695
+    dashlog.set_first_good_time(55584.113903)
+    dashlog.set_last_good_time(55584.227695)
+    dashlog.run_status = False
+    dashlog.num_physics = 24494834
+    dashlog.num_moni = 60499244
+    dashlog.num_tcal = 4653819
+    dashlog.num_sn = 47624256
+
+    dashlog.set_field("ExtraField", 50)
+    # print dashlog.document_to_string()
+    # dashlog.dispLog()
 
 
 if __name__ == "__main__":
-    a = DashXMLLog()
-    a.setRun(117554)
-    a.setConfig("sps-IC79-Erik-Changed-TriggerIDs-V151")
-    a.setStartTime(55584.113903)
-    a.setEndTime(55584.227695)
-    a.set_first_good_time(55584.113903)
-    a.set_last_good_time(55584.227695)
-    a.setTermCond(False)
-    a.setEvents(24494834)
-    a.setMoni(60499244)
-    a.setTcal(4653819)
-    a.setSN(47624256)
-
-    a.setField("ExtraField", 50)
-    # print a.documentToString()
-    # a.dispLog()
+    main()

@@ -204,7 +204,7 @@ class BaseLog(object):
                 return None
 
         try:
-            date = PayloadTime.fromString(date_str)
+            date = PayloadTime.from_string(date_str)
         except ValueError:
             return BadLine(line)
 
@@ -473,15 +473,17 @@ class LogSorter(object):
         if run_xml is None:
             cond = ""
         else:
-            if run_xml.getTermCond():
+            if run_xml.run_status:
                 cond = "ERROR"
-            else:
+            elif run_xml.run_status is not None:
                 cond = "SUCCESS"
+            else:
+                cond = "UNKNOWN"
 
-            if run_xml.getEndTime() is None or run_xml.getStartTime() is None:
+            if run_xml.end_time is None or run_xml.start_time is None:
                 secs = 0
             else:
-                delta = run_xml.getEndTime() - run_xml.getStartTime()
+                delta = run_xml.end_time - run_xml.start_time
                 secs = float(delta.seconds) + \
                        (float(delta.microseconds) / 1000000.0)
 
@@ -489,10 +491,11 @@ class LogSorter(object):
             print("-v-v-v-v-v-v-v-v-v-v ERROR v-v-v-v-v-v-v-v-v-v-", file=out)
         if run_xml is not None:
             print("Run %s: %s, %d evts, %s secs" % \
-                (run_xml.getRun(), cond, run_xml.getEvents(), secs), file=out)
-            print("    %s" % run_xml.getConfig(), file=out)
+                (run_xml.run_number, cond, run_xml.num_physics, secs),
+                  file=out)
+            print("    %s" % run_xml.run_config_name, file=out)
             print("    from %s to %s" % \
-                (run_xml.getStartTime(), run_xml.getEndTime()), file=out)
+                (run_xml.start_time, run_xml.end_time), file=out)
         log = sorted(self.__process_dir(self.__run_dir, verbose=verbose,
                                         show_tcal=show_tcal,
                                         hide_rates=hide_rates,
@@ -578,7 +581,7 @@ def sort_logs(args):
         run_dir = cdesc.daq_log_dir
 
     for arg in args.run_number:
-        (path, run_num) = get_dir_and_run_num(run_dir, arg)
+        (path, run_num) = get_dir_and_runnum(run_dir, arg)
         if path is None or run_num is None:
             print("Bad run number \"%s\"" % arg, file=sys.stderr)
             continue
@@ -591,6 +594,8 @@ def sort_logs(args):
 
 
 def main():
+    "Main program"
+
     parser = argparse.ArgumentParser()
     add_arguments(parser)
     args = parser.parse_args()

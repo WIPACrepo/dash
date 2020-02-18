@@ -7,7 +7,9 @@ import glob
 import os
 import sys
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     sys.path.append('..')
     from locate_pdaq import find_pdaq_config
     config_path = find_pdaq_config()
@@ -34,3 +36,7 @@ if __name__ == "__main__":
 
     if not invalid_found:
         print("No invalid trigger configuration files found")
+
+
+if __name__ == "__main__":
+    main()

@@ -26,12 +26,14 @@ import time
 
 
 class TimeoutException(Exception):
-    pass
+    "Exception thrown when a running command exceeds the timeout value"
+    pass  # pylint: disable=unnecessary-pass
 
 
 class PCmd(object):
-    """ Class for handling individual shell commands to be executed in
-    parallel. """
+    """
+    Handle individual shell commands to be executed in parallel.
+    """
 
     # class variable to guarantee unique filenames
     counter = 0
@@ -55,9 +57,9 @@ class PCmd(object):
         """
 
         self.cmd = cmd
-        self.origCmd = cmd
+        self.orig_cmd = cmd
         self.subproc = None
-        self.parallel = parallel
+        self.__parallel = parallel
         self.dry_run = dry_run
         self.verbose = verbose
         self.trace = trace
@@ -65,10 +67,11 @@ class PCmd(object):
         self.tstart = None
         self.counter = PCmd.counter
         self.pid = os.getpid()
-        self.outFile = os.path.join("/", "tmp",
-                                    "__pcmd__%d__%d.txt" % (self.pid,
-                                                            self.counter))
-        self.output = ""
+
+        filename = "__pcmd__%d__%d.txt" % (self.pid, self.counter)
+        self.__out_file = os.path.join("/", "tmp", filename)
+
+        self.__output = ""
         self.done = False
 
         PCmd.counter += 1
@@ -76,28 +79,26 @@ class PCmd(object):
     def __str__(self):
         """ Return info about this command, the pid used and
         return code. """
-        state_str = "%s%s%s%s" % (self.parallel and 'p' or '',
+        state_str = "%s%s%s%s" % (self.__parallel and 'p' or '',
                                   self.dry_run and 'd' or '',
                                   self.verbose and 'v' or '',
                                   self.trace and 't' or '')
         if self.subproc is None:  # Nothing started yet or dry run
             return "'%s' [%s] Not started or dry run" % (self.cmd, state_str)
-        elif self.subproc.returncode is None:
+
+        if self.subproc.returncode is None:
             return "'%s' [%s] running as pid %d" % (self.cmd,
                                                     state_str,
                                                     self.subproc.pid)
-        elif self.subproc.returncode < 0:
+        if self.subproc.returncode < 0:
             return ("'%s' [%s] terminated (pid was %d) "
                     "by signal %d") % (self.cmd,
                                        state_str,
                                        self.subproc.pid,
                                        -self.subproc.returncode)
-        else:
-            return "'%s' [%s] (pid was %d) returned %d " % \
-                (self.cmd,
-                 state_str,
-                 self.subproc.pid,
-                 self.subproc.returncode)
+
+        return "'%s' [%s] (pid was %d) returned %d " % \
+          (self.cmd, state_str, self.subproc.pid, self.subproc.returncode)
 
     def start(self):
         """ Start this command. """
@@ -113,7 +114,7 @@ class PCmd(object):
                 controlop = ";"
             self.cmd = "{ %s %c } >%s 2>&1" % (self.cmd,
                                                controlop,
-                                               self.outFile)
+                                               self.__out_file)
 
         if self.subproc is not None:
             raise RuntimeError("Attempt to start a running command!")
@@ -129,7 +130,7 @@ class PCmd(object):
 
         # If not running in parallel, then wait for this command (at
         # least the shell) to return
-        if not self.parallel:
+        if not self.__parallel:
             self.wait()
 
     def wait(self):
@@ -148,16 +149,16 @@ class PCmd(object):
         else:  # Handle polling/timeout case
             status = self.subproc.poll()
             if status is None:
-                if (datetime.datetime.now() - self.tstart >
-                    datetime.timedelta(seconds=self.timeout)):
-                    # Kill child process - note that this may fail
-                    # to clean up everything if child has spawned more proc's
-                    os.kill(self.subproc.pid, signal.SIGKILL)
-                    self.done = True
-                    self.output += "TIMEOUT exceeded (%d seconds)" % \
-                        self.timeout
-                else:
-                    return None  # Not done yet - check back again
+                elapsed = datetime.datetime.now() - self.tstart
+                if elapsed < datetime.timedelta(seconds=self.timeout):
+                    # we haven't timed out yet
+                    return
+
+                # Kill child process - note that this may fail
+                # to clean up everything if child has spawned more proc's
+                os.kill(self.subproc.pid, signal.SIGKILL)
+                self.done = True
+                self.__output += "TIMEOUT exceeded (%d seconds)" % self.timeout
 
         self.done = True
         if self.verbose:
@@ -165,20 +166,23 @@ class PCmd(object):
 
         # Harvest results
         if self.trace:
-            self.output += "Output not available: went to stdout!"
+            self.__output += "Output not available: went to stdout!"
         else:
             try:
-                for l in file(self.outFile):
-                    self.output += l
-                os.unlink(self.outFile)
-            except Exception as e:
-                self.output += ("Could not read or delete "
-                                "result file %s (%s)!") % (self.outFile, e)
+                with open(self.__out_file, "r") as fin:
+                    self.__output += "".join(fin.readlines())
+                os.unlink(self.__out_file)
+            except Exception as exc:
+                self.__output += \
+                  "Could not read or delete result file %s (%s)!" % \
+                  (self.__out_file, exc)
 
         return
 
-    def getResult(self):
-        return self.output
+    @property
+    def output(self):
+        "Return the output from this command"
+        return self.__output
 
 
 class ParallelShell(object):
@@ -190,121 +194,139 @@ class ParallelShell(object):
         verbose and trace options are identical to and used for each
         added PCmd object. """
         self.pcmds = []
-        self.parallel = parallel
+        self.__parallel = parallel
         self.dry_run = dry_run
         self.verbose = verbose
         self.trace = trace
         self.timeout = timeout
 
     def add(self, cmd):
-        """ Add command to list of pending operations. """
-        self.pcmds.append(PCmd(cmd, self.parallel, self.dry_run,
+        "Add command to list of pending operations."
+        self.pcmds.append(PCmd(cmd, self.__parallel, self.dry_run,
                                self.verbose, self.trace, self.timeout))
         return len(self.pcmds) - 1  # Start w/ 0
 
     def shuffle(self):
+        """
+        Randomize the list of commands as a lame attempt to avoid hammering
+        a single machine
+        """
         random.shuffle(self.pcmds)
 
     def start(self):
         """ Start all unstarted commands. """
-        for c in self.pcmds:
-            if c.subproc is None:
-                c.start()
+        for cmd in self.pcmds:
+            if cmd.subproc is None:
+                cmd.start()
 
-    def wait(self, monitorIval=None):
+    def wait(self, monitor_ival=None):
         """ Wait for all started commands to complete (or time out).  If the
         commands are backgrounded (or fork then return in their
         parent) then this will return immediately. """
 
-        t = datetime.datetime.now()
-        t0 = t
-        nToDo = len(self.pcmds)
+        start_time = datetime.datetime.now()
+        num_to_do = len(self.pcmds)
         while True:
-            stillWaiting = False
-            nDone = 0
-            for c in self.pcmds:
-                if c.subproc:
-                    if c.done:
-                        nDone += 1
+            still_waiting = False
+            num_done = 0
+            for cmd in self.pcmds:
+                if cmd.subproc:
+                    if cmd.done:
+                        num_done += 1
                     else:
-                        c.wait()  # Can raise TimeoutException
-                        stillWaiting = True
+                        cmd.wait()  # Can raise TimeoutException
+                        still_waiting = True
 
-            if not stillWaiting:
+            if not still_waiting:
                 break
 
-            if monitorIval and \
-                    (datetime.datetime.now() - t >
-                     datetime.timedelta(seconds=monitorIval)):
-                t = datetime.datetime.now()
-                dt = t - t0
-                print("%d of %d done (%s)." % (nDone, nToDo, str(dt)))
+            stop_time = datetime.datetime.now()
+            if monitor_ival is not None:
+                monitor_delta = datetime.timedelta(seconds=monitor_ival)
+                if stop_time - start_time > monitor_delta:
+                    dttm = stop_time - start_time
+                    print("%d of %d done (%s)." % (num_done, num_to_do, dttm))
+
             time.sleep(0.3)
 
-    def showAll(self):
-        """ Show commands and (if running or finished) with their
-        process IDs and (if finished) with return codes. """
-        for c in self.pcmds:
-            print(c)
+    def show_all(self):
+        """
+        Show commands and (if running or finished) with their
+        process IDs and (if finished) with return codes.
+        """
+        for cmd in self.pcmds:
+            print(cmd)
 
-    def getCommand(self, job):
-        return self.pcmds[job].origCmd
+    def __get_job_command(self, job_id):
+        return self.pcmds[job_id].orig_cmd
 
-    def getResult(self, job):
-        return self.pcmds[job].getResult()
+    def get_output_by_id(self, job_id):
+        "Return the output from a specific command"
+        return self.pcmds[job_id].output
 
-    def getAllResults(self):
+    @property
+    def __all_results(self):
+        "Return a formatted list of all commands and their output"
+
         ret = ""
-        for c in self.pcmds:
-            ret += "Job: %s\nResult: %s\n" % (c, c.getResult())
+        for cmd in self.pcmds:
+            ret += "Job: %s\nResult: %s\n" % (cmd, cmd.output)
         return ret
 
-    def getReturnCodes(self):
+    @property
+    def __return_codes(self):
         """Get the return codes set by wait/poll
         Setting a default value of 0 assumes success if not done.
         Is that correct???"""
         ret = []
-        for c in self.pcmds:
-            if c.subproc and c.done:
-                ret.append(c.subproc.returncode)
+        for cmd in self.pcmds:
+            if cmd.subproc and cmd.done:
+                ret.append(cmd.subproc.returncode)
             else:
                 ret.append(0)
         return ret
 
-    def getCmdResults(self):
-        """Return a dictionary of commands and the return codes generated
-        by running those commands.  If a command is not done it is assumed
-        to be unsuccesful.  This is different behaviour from getReturnCodes
-        above.
+    @property
+    def command_results(self):
+        """
+        Return a dictionary of commands and the return codes generated by
+        running those commands.  If a command is not done it is assumed to be
+        unsuccesful.
         """
         ret = {}
-        for c in self.pcmds:
+        for cmd in self.pcmds:
             # this
-            if (c.subproc and c.done):
-                ret[c.origCmd] = (c.subproc.returncode, c.getResult())
+            if (cmd.subproc and cmd.done):
+                ret[cmd.orig_cmd] = (cmd.subproc.returncode, cmd.output)
             else:
-                ret[c.origCmd] = (-1, '')
+                ret[cmd.orig_cmd] = (-1, '')
 
         return ret
 
-    def system(self, cmd):
-        return os.system(cmd)
-
     @property
-    def isParallel(self):
-        return self.parallel
+    def is_parallel(self):
+        """
+        If True, commands are run in parallel
+        If False, commands are run serially
+        """
+        return self.__parallel
+
+    def system(self, cmd):
+        "Unit tests override this to check `os.system` calls"
+        return os.system(cmd)
 
 
 def main():
-    p = ParallelShell(timeout=5)
+    "Main program"
+    psh = ParallelShell(timeout=5)
     jobs = []
-    jobs.append(p.add("ls"))
-    jobs.append(p.add("sleep 10"))
-    jobs.append(p.add("sleep 4; echo done sleeping four"))
-    p.start()
-    p.wait()
+    jobs.append(psh.add("ls"))
+    jobs.append(psh.add("sleep 10"))
+    jobs.append(psh.add("sleep 4; echo done sleeping four"))
+    psh.start()
+    psh.wait()
     for job in jobs:
-        print("Job %d: result %s" % (job, p.getResult(job)))
+        print("Job %d: result %s" % (job, psh.get_output_by_id(job)))
 
 
 if __name__ == "__main__":

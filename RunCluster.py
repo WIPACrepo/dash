@@ -53,6 +53,7 @@ class RunNode(Comparable):
     def compare_tuple(self):
         return (self.__hostname, self.__loc_name)
 
+    @property
     def components(self):
         return self.__comps[:]
 
@@ -154,7 +155,7 @@ class RunCluster(CachedConfigName):
         for node in self.__nodes:
             if node_str != "":
                 node_str += " "
-            node_str += "%s*%d" % (node.hostname, len(node.components()))
+            node_str += "%s*%d" % (node.hostname, len(node.components))
         return self.config_name + "[" + node_str + "]"
 
     @classmethod
@@ -389,7 +390,7 @@ class RunCluster(CachedConfigName):
     def __extract_hubs(cls, runcfg):
         "build a list of hub components used by the run configuration"
         hub_list = []
-        for comp in runcfg.components():
+        for comp in runcfg.components:
             if comp.is_hub:
                 hub_list.append(comp)
         return hub_list
@@ -467,7 +468,7 @@ class RunCluster(CachedConfigName):
         for comp in master_list:
             found = False
             for node in node_list:
-                for node_comp in node.components():
+                for node_comp in node.components:
                     if comp.name.lower() == node_comp.name.lower() \
                        and comp.num == node_comp.id:
                         found_list.append(node_comp)
@@ -484,7 +485,7 @@ class RunCluster(CachedConfigName):
         host_map = {}
         for node in self.__nodes:
             add_host = False
-            for comp in node.components():
+            for comp in node.components:
                 if comp.is_hub:
                     add_host = True
                     break
@@ -596,7 +597,7 @@ def main():
         for node in run_cluster.nodes():
             print('  %s@%s logLevel %s' % \
                 (node.location, node.hostname, node.default_log_level))
-            comps = sorted(node.components())
+            comps = sorted(node.components)
             for comp in comps:
                 print('    %s %s' % (comp, comp.log_level))
 

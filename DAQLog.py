@@ -151,7 +151,7 @@ class LogSocketServer(object):
         return self.__serving
 
     @classproperty
-    def next_log_port(cls):
+    def next_log_port(cls):  # pylint: disable=no-self-argument
         with cls.NEXT_LOCK:
             port = cls.NEXT_PORT
             cls.NEXT_PORT += 1
@@ -473,7 +473,7 @@ if __name__ == "__main__":
         parser.add_argument("port", type=int)
 
     def main():
-        "Main method"
+        "Main program"
         parser = argparse.ArgumentParser()
         add_arguments(parser)
         args = parser.parse_args()

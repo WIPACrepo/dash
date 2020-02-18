@@ -24,7 +24,7 @@ class CnCTask(object):
         else:
             # create and start the timer for this task
             self.__timer = \
-                task_mgr.createIntervalTimer(timerName, timerPeriod)
+                task_mgr.create_interval_timer(timerName, timerPeriod)
 
     def __str__(self):
         return self.__name

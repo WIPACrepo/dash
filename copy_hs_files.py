@@ -300,10 +300,10 @@ def process_args(args):
 
 
 def main():
-    "Main method"
-    argp = argparse.ArgumentParser()
-    add_arguments(argp)
-    args = argp.parse_args()
+    "Main program"
+    parser = argparse.ArgumentParser()
+    add_arguments(parser)
+    parser = argp.parse_args()
 
     copy_files_in_range(args)
 

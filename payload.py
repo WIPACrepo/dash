@@ -1,19 +1,23 @@
 #!/usr/bin/env python
-#
-# IceCube payloads and associated classes
-#
-# If you find/fix any bugs or add improvements, please also broadcast them
-# on daq-dev@icecube.wisc.edu
+"""
+IceCube payloads and associated classes
+
+If you find/fix any bugs or add improvements, please also broadcast them
+on daq-dev@icecube.wisc.edu
+"""
 
 from __future__ import print_function
 
 import bz2
-import cStringIO
 import gzip
 import numbers
 import os
 import struct
 
+try:
+    from cStringIO import StringIO
+except ModuleNotFoundError:
+    from io import StringIO
 
 class PayloadException(Exception):
     "Payload exception"
@@ -115,9 +119,9 @@ class Payload(object):
 
         if comp_type == 3:
             return "icetopHandler-%d" % comp_num
-        elif comp_type == 12:
+        if comp_type == 12:
             return "stringHub-%d" % comp_num
-        elif comp_type == 13:
+        if comp_type == 13:
             return "simHub-%d" % comp_num
 
         if comp_num != 0:
@@ -257,7 +261,7 @@ class delta_codec(object):
     """
     def __init__(self, buf):
         "Load the buffer and prepare to decode"
-        self.tape = cStringIO.StringIO(buf)
+        self.tape = StringIO(buf)
         self.valid_bits = 0
         self.register = 0
         self.bpw = None
@@ -1173,7 +1177,7 @@ class PayloadReader(object):
         Decode and return the next payload
         """
         envelope = stream.read(Payload.ENVELOPE_LENGTH)
-        if len(envelope) == 0:
+        if len(envelope) == 0:  # pylint: disable=len-as-condition
             return None
 
         length, type_id, utime = struct.unpack(">iiq", envelope)
@@ -1222,7 +1226,8 @@ if __name__ == "__main__":
                 out.close()
 
     def main():
-        "Dump all payloads"
+        "Main program"
+
         import argparse
 
         parser = argparse.ArgumentParser()

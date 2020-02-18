@@ -21,54 +21,54 @@ class XMLBadFileError(XMLError):
 class XMLParser(object):
 
     @staticmethod
-    def buildPath(config_dir, config_name, suffix='.xml'):
-        fileName = os.path.join(config_dir, config_name)
-        if os.path.exists(fileName):
-            return fileName
-        if not fileName.endswith(suffix):
-            fileName += suffix
-            if os.path.exists(fileName):
-                return fileName
+    def build_path(config_dir, config_name, suffix='.xml'):
+        file_name = os.path.join(config_dir, config_name)
+        if os.path.exists(file_name):
+            return file_name
+        if not file_name.endswith(suffix):
+            file_name += suffix
+            if os.path.exists(file_name):
+                return file_name
         return None
 
     @classmethod
-    def getAttr(cls, node, attrName, defaultVal=None):
+    def get_attribute(cls, node, attr_name, default_val=None):
         "Return the text from this node's attribute"
 
         if node.attributes is not None:
             try:
-                found = attrName in node.attributes
+                found = attr_name in node.attributes
             except KeyError:
                 # Python2 xml.dom.Node doesn't support "name in attributes"
-                found = node.attributes.has_key(attrName)
+                found = node.attributes.has_key(attr_name)
 
             # return named attribute value
             if found:
-                return node.attributes[attrName].value
+                return node.attributes[attr_name].value
 
-        return defaultVal
+        return default_val
 
     @classmethod
-    def getChildNodes(cls, node, name):
+    def get_child_nodes(cls, node, name):
         if node.childNodes is not None:
             for kid in node.childNodes:
                 if kid.nodeType == Node.ELEMENT_NODE and kid.nodeName == name:
                     yield kid
 
     @classmethod
-    def getChildText(cls, node, strict=False):
+    def get_child_text(cls, node, strict=False):
         "Return the text from this node's child"
 
         if strict and (node.childNodes is None or len(node.childNodes) == 0):
             raise XMLFormatError("No %s child nodes" %
-                                 cls.getNodeName(node))
+                                 cls.fix_node_name(node))
 
         text = None
         for kid in node.childNodes:
             if kid.nodeType == Node.TEXT_NODE:
                 if text is not None:
                     raise XMLFormatError("Found multiple %s text nodes" %
-                                         cls.getNodeName(node))
+                                         cls.fix_node_name(node))
                 text = kid.nodeValue
                 continue
 
@@ -78,21 +78,21 @@ class XMLParser(object):
             if strict:
                 if kid.nodeType == Node.ELEMENT_NODE:
                     raise XMLFormatError("Unexpected %s child <%s>" %
-                                         (cls.getNodeName(node),
-                                          cls.getNodeName(kid)))
+                                         (cls.fix_node_name(node),
+                                          cls.fix_node_name(kid)))
 
                 raise XMLFormatError("Found unknown %s node <%s>" %
-                                     (cls.getNodeName(node),
-                                      cls.getNodeName(kid)))
+                                     (cls.fix_node_name(node),
+                                      cls.fix_node_name(kid)))
 
         if strict and text is None:
             raise XMLFormatError("No text child node for %s" %
-                                 cls.getNodeName(node))
+                                 cls.fix_node_name(node))
 
         return text
 
     @classmethod
-    def getNode(cls, node, name):
+    def get_node_xxx(cls, node, name):
         """Get single subnode named 'name'"""
         kids = node.getElementsByTagName(name)
         if len(kids) < 1:
@@ -104,53 +104,53 @@ class XMLParser(object):
         return kids[0]
 
     @classmethod
-    def getNodeName(cls, node):
-        nodeName = '<%s>' % str(node.nodeName)
-        if nodeName == '<#document>':
-            nodeName = 'top-level'
-        return nodeName
+    def fix_node_name(cls, node):
+        node_name = '<%s>' % str(node.nodeName)
+        if node_name == '<#document>':
+            node_name = 'top-level'
+        return node_name
 
     @classmethod
-    def getValue(cls, node, name, defaultVal=None, strict=False):
+    def get_value(cls, node, name, default_val=None, strict=False):
         """
         Get text value of either attribute (<node name=xxx/>)
         or subnode (<node><name>xxx</name></node>).  If neither is found,
-        return defaultVal
+        return default_val
         """
-        attrVal = cls.getAttr(node, name)
-        if attrVal is not None:
+        attr_val = cls.get_attribute(node, name)
+        if attr_val is not None:
             # return named attribute value
-            return attrVal
+            return attr_val
 
         kids = node.getElementsByTagName(name)
         if len(kids) < 1:
             # if no named attribute or node, return default value
-            return defaultVal
+            return default_val
 
         if len(kids) > 1:
             raise XMLFormatError('Multiple <%s> nodes found' % name)
 
-        val = cls.getChildText(kids[0], strict=strict)
+        val = cls.get_child_text(kids[0], strict=strict)
         if val is None:
-            return defaultVal
+            return default_val
 
         return val
 
     @staticmethod
-    def parseBooleanString(valstr):
+    def parse_boolean_string(valstr):
         "Return None if the value is not a valid boolean value"
         if valstr is None:
             return None
 
         lstr = valstr.lower()
-        if lstr == "true" or lstr == "yes":
+        if lstr in ("true", "yes"):
             return True
-        if lstr == "false" or lstr == "no":
+        if lstr in ("false", "no"):
             return False
         try:
             val = int(valstr)
             return val == 0
-        except:
+        except ValueError:
             pass
 
         return None

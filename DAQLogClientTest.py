@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+Test the DAQ log client
+"""
 
 import os
 import tempfile
@@ -8,12 +11,16 @@ from DAQLog import FileAppender
 
 
 class TestDAQLogClient(unittest.TestCase):
+    "Test the DAQ log client"
+
     DIR_PATH = None
 
-    def readLog(self, logPath):
+    @classmethod
+    def read_log(cls, log_path):
+        "Return a list of text lines from 'log_path'"
         lines = []
-        with open(logPath, 'r') as fd:
-            for line in fd:
+        with open(log_path, 'r') as fin:
+            for line in fin:
                 lines.append(line.rstrip())
             return lines
 
@@ -38,13 +45,14 @@ class TestDAQLogClient(unittest.TestCase):
         os.rmdir(TestDAQLogClient.DIR_PATH)
         TestDAQLogClient.DIR_PATH = None
 
-    def testDAQLogClient(self):
-        logName = 'foo'
-        logPath = os.path.join(TestDAQLogClient.DIR_PATH, "dash.log")
+    def test_daq_log_client(self):
+        "Test FileAppender"
+        log_name = 'foo'
+        log_path = os.path.join(TestDAQLogClient.DIR_PATH, "dash.log")
 
-        self.collector = FileAppender(logName, logPath)
+        self.collector = FileAppender(log_name, log_path)
 
-        self.assertTrue(os.path.exists(logPath), 'Log file was not created')
+        self.assertTrue(os.path.exists(log_path), 'Log file was not created')
 
         msg = 'Test msg'
 
@@ -52,10 +60,10 @@ class TestDAQLogClient(unittest.TestCase):
 
         self.collector.close()
 
-        lines = self.readLog(logPath)
+        lines = self.read_log(log_path)
         self.assertEqual(1, len(lines), 'Expected 1 line, not %d' % len(lines))
 
-        prefix = logName + ' ['
+        prefix = log_name + ' ['
 
         line = lines[0].rstrip()
         self.assertTrue(line.startswith(prefix),
@@ -65,13 +73,14 @@ class TestDAQLogClient(unittest.TestCase):
                         'Log entry "%s" should start with "%s"' %
                         (line, '] ' + msg))
 
-    def testDAQLogClientBadPath(self):
-        logName = 'foo'
-        badPath = os.path.join('a', 'bad', 'path')
-        while os.path.exists(badPath):
-            badPath = os.path.join(badPath, 'x')
+    def test_daq_log_client_bad_path(self):
+        "Test FileAppender bad path handling"
+        log_name = 'foo'
+        bad_path = os.path.join('a', 'bad', 'path')
+        while os.path.exists(bad_path):
+            bad_path = os.path.join(bad_path, 'x')
 
-        self.assertRaises(Exception, FileAppender, logName, badPath)
+        self.assertRaises(Exception, FileAppender, log_name, bad_path)
 
 
 if __name__ == '__main__':

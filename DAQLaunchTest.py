@@ -43,21 +43,21 @@ class TestDAQLaunch(unittest.TestCase):
                                      log_dir, spade_dir, comp_host_dict):
         clu_cfg_file = MockClusterConfigFile(config_dir, clu_desc)
 
-        clu_cfg_file.setDataDir(daq_data_dir)
-        clu_cfg_file.setLogDir(log_dir)
-        clu_cfg_file.setSpadeDir(spade_dir)
+        clu_cfg_file.set_data_dir(daq_data_dir)
+        clu_cfg_file.set_log_dir(log_dir)
+        clu_cfg_file.set_spade_dir(spade_dir)
 
-        ctlhost = clu_cfg_file.addHost("ctlhost")
-        ctlhost.addControlServer()
+        ctlhost = clu_cfg_file.add_host("ctlhost")
+        ctlhost.add_control_server()
 
         clu_hosts = {}
         for name, host in list(comp_host_dict.items()):
             if host not in clu_hosts:
-                clu_hosts[host] = clu_cfg_file.addHost(host)
+                clu_hosts[host] = clu_cfg_file.add_host(host)
             clu_hosts[host].add_component(name)
 
-        sim = clu_cfg_file.addHost("simhost")
-        sim.addSimHubs(10, 1)
+        sim = clu_cfg_file.add_host("simhost")
+        sim.add_sim_hubs(10, 1)
 
         clu_cfg_file.create()
 
@@ -100,10 +100,10 @@ class TestDAQLaunch(unittest.TestCase):
         check_exists = False
 
         shell = MockParallelShell()
-        shell.addExpectedPython(True, dash_dir, config_dir, log_dir,
-                                daq_data_dir, spade_dir, clu_cfg_file.name,
-                                cfg_name, copy_dir, log_port, live_port,
-                                force_restart=force_restart)
+        shell.add_expected_python(True, dash_dir, config_dir, log_dir,
+                                  daq_data_dir, spade_dir, clu_cfg_file.name,
+                                  cfg_name, copy_dir, log_port, live_port,
+                                  force_restart=force_restart)
 
         args = MockArguments()
         add_arguments_both(args)
@@ -143,7 +143,7 @@ class TestDAQLaunch(unittest.TestCase):
         logger = None
 
         shell = MockParallelShell()
-        shell.addExpectedPythonKill(True, kill_with_9=kill_with_9)
+        shell.add_expected_python_kill(True, kill_with_9=kill_with_9)
 
         run_cfg_file = MockRunConfigFile(config_dir)
         cfg_name = run_cfg_file.create(list(comp_host_dict.keys()), {})

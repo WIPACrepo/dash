@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 import shutil
+import socket
 import sys
 import tempfile
 import threading
@@ -30,7 +31,7 @@ from locate_pdaq import set_pdaq_config_dir
 from DAQMocks \
     import MockClusterConfig, MockCnCLogger, MockDefaultDomGeometryFile, \
     MockLeapsecondFile, MockLogger, MockRunConfigFile, SocketReaderFactory, \
-    SocketReader, SocketWriter
+    SocketWriter
 
 
 class MostlyDAQClient(DAQClient):
@@ -125,7 +126,6 @@ class FakeRunData(object):
     def send_event_counts(self, run_set=None):
         pass
 
-    @property
     def set_finished(self):
         self.__finished = True
 
@@ -146,35 +146,33 @@ class MostlyRunSet(RunSet):
         self.__cluster_config = cluster_config
         self.__catchall = catchall
         self.__dashlog = dashlog
-        self.__logDict = {}
+        self.__log_dict = {}
 
         super(MostlyRunSet, self).__init__(parent, run_config, components,
                                            catchall)
 
     @classmethod
-    def create_component_log(cls, run_dir, comp, host, port, quiet=True):
+    def create_component_log(cls, run_dir, comp, port, quiet=True):
         if comp.fullname in cls.LOGDICT:
             return cls.LOGDICT[comp.fullname]
 
         if port is not None:
-            log = cls.LOGFACTORY.createLog(comp.fullname, port,
-                                           expectStartMsg=True)
+            log = cls.LOGFACTORY.create_log(comp.fullname, port,
+                                            expect_start_msg=True)
         else:
             while True:
                 port = LogSocketServer.next_log_port
 
                 try:
-                    log = cls.LOGFACTORY.createLog(comp.fullname, port,
-                                                   expectStartMsg=True)
+                    log = cls.LOGFACTORY.create_log(comp.fullname, port,
+                                                    expect_start_msg=True)
                     break
                 except socket.error:
                     pass
 
         cls.LOGDICT[comp.fullname] = log
 
-        #log.addExpectedRegexp(r'Howdy from \S+#\d+')
-
-        comp.log_to(host, port, None, None)
+        comp.log_to("localhost", port, None, None)
 
         return log
 
@@ -184,21 +182,21 @@ class MostlyRunSet(RunSet):
                            dashlog=self.__dashlog)
 
     def cycle_components(self, comp_list, config_dir, daq_data_dir, logger,
-                         log_port, live_port, verbose=False, kill_with_9=False,
-                         event_check=False, check_exists=True):
+                         verbose=False, kill_with_9=False, event_check=False,
+                         check_exists=True):
         logger.error("Cycling components %s" %
                      (ComponentManager.format_component_list(comp_list), ))
 
-    def final_report(self, comps, runData, had_error=False, switching=False):
+    def final_report(self, comps, run_data, had_error=False, switching=False):
         num_evts = 600
         num_moni = 0
         num_sn = 0
         num_tcal = 0
-        numSecs = 6
+        num_secs = 6
 
         self.__dashlog.error("%d physics events collected in %d seconds"
-                             " (%.2f Hz)" % (num_evts, numSecs,
-                                             float(num_evts) / float(numSecs)))
+                             " (%.2f Hz)" % (num_evts, num_secs,
+                                             float(num_evts) / float(num_secs)))
         self.__dashlog.error("%d moni events, %d SN events, %d tcals" %
                              (num_moni, num_sn, num_tcal))
 
@@ -220,11 +218,11 @@ class MostlyRunSet(RunSet):
                        (run_data.cluster_configuration.description, ))
 
     @staticmethod
-    def report_good_time(run_data, name, daq_time):
+    def report_good_time(run_data, name, pay_time):
         pass
 
     @staticmethod
-    def switch_component_log(oldLog, run_dir, comp):
+    def switch_component_log(sock, run_dir, comp):
         pass
 
 
@@ -232,13 +230,13 @@ class MostlyCnCServer(CnCServer):
     SERVER_NAME = "MostlyCnC"
     APPENDERS = {}
 
-    def __init__(self, clusterConfigObject, copy_dir=None, run_config_dir=None,
-                 daq_data_dir=None, spade_dir=None, log_host='localhost',
-                 log_port=-1, logFactory=None, dashlog=None,
-                 force_restart=False):
+    def __init__(self, cluster_config_object, copy_dir=None,
+                 run_config_dir=None, daq_data_dir=None, spade_dir=None,
+                 log_host='localhost', log_port=-1, log_factory=None,
+                 dashlog=None, force_restart=False):
 
-        self.__clusterConfig = clusterConfigObject
-        self.__logFactory = logFactory
+        self.__cluster_config = cluster_config_object
+        self.__log_factory = log_factory
         self.__dashlog = dashlog
 
         super(MostlyCnCServer, self).__init__(name=MostlyCnCServer.SERVER_NAME,
@@ -268,12 +266,12 @@ class MostlyCnCServer(CnCServer):
         return MockCnCLogger(key, appender=MostlyCnCServer.APPENDERS[key],
                              quiet=quiet)
 
-    def create_runset(self, run_cfg, comp_list, logger):
-        return MostlyRunSet(self, run_cfg, self.__clusterConfig, comp_list,
+    def create_runset(self, run_config, comp_list, logger):
+        return MostlyRunSet(self, run_config, self.__cluster_config, comp_list,
                             logger, self.__dashlog)
 
     def get_cluster_config(self, run_config=None):
-        return self.__clusterConfig
+        return self.__cluster_config
 
     def monitor_loop(self):
         pass
@@ -281,9 +279,9 @@ class MostlyCnCServer(CnCServer):
     def open_log_server(self, port, log_dir):
         if MostlyRunSet.LOGFACTORY is None:
             raise Exception("MostlyRunSet log factory has not been set")
-        return MostlyRunSet.LOGFACTORY.createLog("catchall", port,
-                                                 expectStartMsg=False,
-                                                 startServer=False)
+        return MostlyRunSet.LOGFACTORY.create_log("catchall", port,
+                                                  expect_start_msg=False,
+                                                  start_server=False)
 
     def save_catchall(self, run_dir):
         pass
@@ -307,7 +305,7 @@ class RealComponent(Component):
         self.__bean_data = {}
         self.__event_counts = None
 
-        self.__UNUSEDconnections = []
+        #self.__connections = []
 
         self.__cmd = self.__create_cmd_server()
         self.__mbean = self.__create_mbean_server()
@@ -316,7 +314,15 @@ class RealComponent(Component):
                                  DAQPort.CNCSERVER, verbose=verbose)
 
     def __create_cmd_server(self):
-        cmd_srvr = RPCServer(LogSocketServer.next_log_port)
+        for _ in range(4):
+            try:
+                cmd_srvr = RPCServer(LogSocketServer.next_log_port)
+            except socket.error as serr:
+                if serr[0] != 98:
+                    raise
+                # previous unit test's server may not be closed yet; try again
+                continue
+
         cmd_srvr.register_function(self.__cmd_configure, 'xmlrpc.configure')
         cmd_srvr.register_function(self.__cmd_connect, 'xmlrpc.connect')
         cmd_srvr.register_function(self.__cmd_get_run_number,
@@ -344,13 +350,21 @@ class RealComponent(Component):
         return cmd_srvr
 
     def __create_mbean_server(self):
-        mbean_srvr = RPCServer(LogSocketServer.next_log_port)
+        for _ in range(4):
+            try:
+                mbean_srvr = RPCServer(LogSocketServer.next_log_port)
+            except socket.error as serr:
+                if serr[0] != 98:
+                    raise
+                # previous unit test's server may not be closed yet; try again
+                continue
+
         mbean_srvr.register_function(self.__mbean_get_value, 'mbean.get')
         mbean_srvr.register_function(self.__mbean_list, 'mbean.listMBeans')
         mbean_srvr.register_function(self.__mbean_get_attributes,
-                                       'mbean.getAttributes')
+                                     'mbean.getAttributes')
         mbean_srvr.register_function(self.__mbean_list_getters,
-                                       'mbean.listGetters')
+                                     'mbean.listGetters')
 
         tname = "MBeanSrvr*" + str(self.fullname)
         thrd = threading.Thread(name=tname, target=mbean_srvr.serve_forever,
@@ -371,13 +385,13 @@ class RealComponent(Component):
         try:
             return self.__cmd_connect_internal(conn_list)
         except:
-            import traceback; traceback.print_exc()
+            traceback.print_exc()
             raise
 
     def __cmd_connect_internal(self, conn_list=None):
-        if conn_list is not None:
-            for cdict in conn_list:
-                self.__UNUSEDconnections.append(cdict)
+        #if conn_list is not None:
+        #    for cdict in conn_list:
+        #        self.__connections.append(cdict)
 
         self.__state = "connected"
         return "CONNECTED"
@@ -402,12 +416,12 @@ class RealComponent(Component):
 
     def __cmd_reset_logging(self):
         if self.__daqlog is not None:
-            self.__daqlog.checkStatus(100)
+            self.__daqlog.check_status(100)
             self.__daqlog.close()
             self.__daqlog = None
 
         if self.__livelog is not None:
-            self.__livelog.checkStatus(100)
+            self.__livelog.check_status(100)
             self.__livelog.close()
             self.__livelog = None
 
@@ -416,7 +430,7 @@ class RealComponent(Component):
     def __cmd_set_first_good_time(self, first_time):
         return "SetFGT"
 
-    def __cmd_set_last_good_time(self):
+    def __cmd_set_last_good_time(self, last_time):
         print("Not setting %s LastGoodTime to %s" %
               (self.fullname, last_time), file=sys.stderr)
         return "SetLGT"
@@ -471,10 +485,10 @@ class RealComponent(Component):
     def check_status(self, reps=100):
         rtnval = True
         if self.__daqlog is not None:
-            rtnval &= self.__daqlog.checkStatus(100)
+            rtnval &= self.__daqlog.check_status(reps)
 
         if self.__livelog is not None:
-            rtnval &= self.__livelog.checkStatus(100)
+            rtnval &= self.__livelog.check_status(reps)
 
         return rtnval
 
@@ -484,8 +498,8 @@ class RealComponent(Component):
 
         for lname, log in (("DAQ", self.__daqlog), ("LIVE", self.__livelog)):
             if log is not None:
-                log.checkStatus(100)
-                if not log.isEmpty:
+                log.check_status(100)
+                if not log.is_empty:
                     raise Exception("%s log for %s is not empty" %
                                     (lname, self.fullname, ))
                 log.close()
@@ -533,11 +547,12 @@ class RealComponent(Component):
             self.__bean_data[bean_name] = {}
         self.__bean_data[bean_name][fld_name] = value
 
-    def set_run_data(self, v1, v2, v3, v4=None, v5=None):
-        if v4 is None and v5 is None:
-            self.__event_counts = (int(v1), int(v2), int(v3))
+    def set_run_data(self, val1, val2, val3, val4=None, val5=None):
+        if val4 is None and val5 is None:
+            self.__event_counts = (int(val1), int(val2), int(val3))
         else:
-            self.__event_counts = (int(v1), int(v2), int(v3), int(v4), int(v5))
+            self.__event_counts = (int(val1), int(val2), int(val3), int(val4),
+                                   int(val5))
 
     @property
     def state(self):
@@ -545,68 +560,71 @@ class RealComponent(Component):
 
 
 class RateTracker(object):
-    def __init__(self, run_num, ticksInc, evtsInc, moniInc, snInc,
-                 tcalInc):
+    def __init__(self, run_num, ticks_inc, evts_inc, moni_inc, sn_inc,
+                 tcal_inc):
         self.__run_number = run_num
-        self.__ticksInc = ticksInc
-        self.__evtsInc = evtsInc
-        self.__moniInc = moniInc
-        self.__snInc = snInc
-        self.__tcalInc = tcalInc
+        self.__ticks_inc = ticks_inc
+        self.__evts_inc = evts_inc
+        self.__moni_inc = moni_inc
+        self.__sn_inc = sn_inc
+        self.__tcal_inc = tcal_inc
+
+        self.__first_evt_time = None
 
         self.reset()
 
-    def addFinalLogMsgs(self, logger):
-        numSecs = self.__numTicks / 10000000000
-        logger.addExpectedExact(("%d physics events collected" +
-                                 " in %d seconds (%0.2f Hz)") %
-                                (self.__num_evts, numSecs,
-                                 float(self.__num_evts) /
-                                 float(numSecs)))
-        logger.addExpectedExact("%d moni events, %d SN events, %d tcals" %
-                                (self.__num_moni, self.__num_sn,
-                                 self.__num_tcal))
+    def add_final_log_msgs(self, logger):
+        num_secs = self.__num_ticks / 10000000000
+        logger.add_expected_exact("%d physics events collected"
+                                  " in %d seconds (%0.2f Hz)" %
+                                  (self.__num_evts, num_secs,
+                                   float(self.__num_evts) /
+                                   float(num_secs)))
+        logger.add_expected_exact("%d moni events, %d SN events, %d tcals" %
+                                  (self.__num_moni, self.__num_sn,
+                                   self.__num_tcal))
 
-    def getTotals(self):
+    def get_totals(self):
         return (self.__num_evts, self.__num_moni, self.__num_sn,
                 self.__num_tcal)
 
     def reset(self):
-        self.__firstEvtTime = None
-        self.__numTicks = 0
+        self.__first_evt_time = None
+        self.__num_ticks = 0
         self.__num_evts = 0
         self.__num_moni = 0
         self.__num_sn = 0
         self.__num_tcal = 0
 
-    def updateRunData(self, cnc, runsetId, comps):
-        self.__numTicks += self.__ticksInc
-        self.__num_evts += self.__evtsInc
-        self.__num_moni += self.__moniInc
-        self.__num_sn += self.__snInc
-        self.__num_tcal += self.__tcalInc
+    def update_run_data(self, cnc, rsid, comps):
+        self.__num_ticks += self.__ticks_inc
+        self.__num_evts += self.__evts_inc
+        self.__num_moni += self.__moni_inc
+        self.__num_sn += self.__sn_inc
+        self.__num_tcal += self.__tcal_inc
 
-        if self.__firstEvtTime is None:
-            self.__firstEvtTime = self.__numTicks
+        if self.__first_evt_time is None:
+            self.__first_evt_time = self.__num_ticks
 
-        lastEvtTime = self.__firstEvtTime + self.__numTicks
+        last_evt_time = self.__first_evt_time + self.__num_ticks
 
         for comp in comps:
             if comp.name == "eventBuilder":
-                comp.set_run_data(self.__num_evts, self.__firstEvtTime,
-                                  lastEvtTime, self.__firstEvtTime, lastEvtTime)
+                comp.set_run_data(self.__num_evts, self.__first_evt_time,
+                                  last_evt_time, self.__first_evt_time,
+                                  last_evt_time)
                 comp.set_bean_field_value("backEnd", "EventData",
                                           (self.__run_number, self.__num_evts,
-                                           lastEvtTime))
+                                           last_evt_time))
                 comp.set_bean_field_value("backEnd", "FirstEventTime",
-                                          self.__firstEvtTime)
+                                          self.__first_evt_time)
                 comp.set_bean_field_value("backEnd", "GoodTimes",
-                                          (self.__firstEvtTime, lastEvtTime))
+                                          (self.__first_evt_time, last_evt_time))
             elif comp.name == "secondaryBuilders":
                 comp.set_run_data(self.__num_tcal, self.__num_sn,
                                   self.__num_moni)
 
-        cnc.update_rates(runsetId)
+        cnc.update_rates(rsid)
 
 
 class CnCServerTest(unittest.TestCase):
@@ -628,7 +646,7 @@ class CnCServerTest(unittest.TestCase):
 
     def tearDown(self):
         for key in MostlyCnCServer.APPENDERS:
-            MostlyCnCServer.APPENDERS[key].checkStatus(10)
+            MostlyCnCServer.APPENDERS[key].check_status(10)
 
         if self.cnc is not None:
             try:
@@ -655,55 +673,56 @@ class CnCServerTest(unittest.TestCase):
 
         set_pdaq_config_dir(None, override=True)
 
-    def __addRange(self, rangeStr, rStart, rCurr):
-        if not rangeStr.endswith(" "):
-            rangeStr += ","
-        if rStart == rCurr:
-            rangeStr += "%d" % rCurr
+    def __add_range(self, range_str, rstart, rcurrent):
+        if not range_str.endswith(" "):
+            range_str += ","
+        if rstart == rcurrent:
+            range_str += "%d" % rcurrent
         else:
-            rangeStr += "%d-%d" % (rStart, rCurr)
-        return rangeStr
+            range_str += "%d-%d" % (rstart, rcurrent)
+        return range_str
 
     def __list_components_legibly(self, comps):
-        cycleList = sorted(self.comps[:])
+        cycle_list = sorted(self.comps[:])
 
-        compDict = {}
-        for c in cycleList:
-            if c.name not in compDict:
-                compDict[c.name] = []
-            compDict[c.name].append(c.num)
+        comp_dict = {}
+        for comp in cycle_list:
+            if comp.name not in comp_dict:
+                comp_dict[comp.name] = []
+            comp_dict[comp.name].append(comp.num)
 
-        strList = []
-        for name in compDict:
-            numList = compDict[name]
+        str_list = []
+        for name in comp_dict:
+            num_list = comp_dict[name]
 
-            if len(numList) == 1:
-                num = numList[0]
+            if len(num_list) == 1:
+                num = num_list[0]
                 if num == 0:
-                    strList.append(name)
+                    str_list.append(name)
                 else:
-                    strList.append("%s#%d" % (name, num))
+                    str_list.append("%s#%d" % (name, num))
                 continue
 
-            rangeStr = "name "
-            rStart = None
-            rCurr = None
-            for n in numList:
-                if rCurr is None:
-                    rStart = n
-                    rCurr = n
-                elif rCurr == n - 1:
-                    rCurr = n
+            range_str = "name "
+            rstart = None
+            rcurrent = None
+            for num in num_list:
+                if rcurrent is None:
+                    rstart = num
+                    rcurrent = num
+                elif rcurrent == num - 1:
+                    rcurrent = num
                 else:
-                    rangeStr = self.__addRange(rangeStr, rStart, rCurr)
-                    rStart = n
-                    rCurr = n
-                    strList.append(self.__addRange(rangeStr, rStart, rCurr))
+                    range_str = self.__add_range(range_str, rstart, rcurrent)
+                    rstart = num
+                    rcurrent = num
+                    str_list.append(self.__add_range(range_str, rstart,
+                                                     rcurrent))
 
-        return ", ".join(strList)
+        return ", ".join(str_list)
 
     def __run_everything(self, force_restart=False, switch_run=False):
-        catchall = MostlyRunSet.LOGFACTORY.createLog("master", 18999)
+        catchall = MostlyRunSet.LOGFACTORY.create_log("master", 18999)
         dashlog = MockLogger('dashlog')
 
         comp_data = [('stringHub', self.HUB_NUMBER, (("hit", "o", 1), )),
@@ -716,9 +735,9 @@ class CnCServerTest(unittest.TestCase):
             clu_cfg.add_component("%s#%d" % (cdata[0], cdata[1]), "java", "",
                                   comp_host)
 
-        catchall.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+')
+        catchall.add_expected_text_regexp(r'\S+ \S+ \S+ \S+')
 
-        self.cnc = MostlyCnCServer(clusterConfigObject=clu_cfg,
+        self.cnc = MostlyCnCServer(cluster_config_object=clu_cfg,
                                    copy_dir=self.__copy_dir,
                                    run_config_dir=self.__run_config_dir,
                                    daq_data_dir=self.__daq_data_dir,
@@ -726,18 +745,18 @@ class CnCServerTest(unittest.TestCase):
                                    log_port=catchall.port,
                                    dashlog=dashlog,
                                    force_restart=force_restart)
-        t = threading.Thread(name="CnCRun", target=self.cnc.run, args=())
-        t.setDaemon(True)
-        t.start()
+        thrd = threading.Thread(name="CnCRun", target=self.cnc.run, args=())
+        thrd.setDaemon(True)
+        thrd.start()
 
-        catchall.checkStatus(100)
+        catchall.check_status(100)
 
         for cdata in comp_data:
             if cdata[1] == 0:
                 fullname = cdata[0]
             else:
                 fullname = "%s#%d" % (cdata[0], cdata[1])
-            catchall.addExpectedText('Registered %s' % (fullname, ))
+            catchall.add_expected_text('Registered %s' % (fullname, ))
 
             comp = RealComponent(cdata[0], cdata[1], "localhost",
                                  catchall.port)
@@ -745,32 +764,33 @@ class CnCServerTest(unittest.TestCase):
 
             self.comps.append(comp)
 
-        catchall.checkStatus(100)
+        catchall.check_status(100)
 
-        cdict = self.cnc.rpc_component_list_dicts()
-        self.assertEqual(len(self.comps), len(cdict),
+        comp_dicts = self.cnc.rpc_component_list_dicts()
+        self.assertEqual(len(self.comps), len(comp_dicts),
                          'Expected %s components, not %d' %
-                         (len(self.comps), len(cdict)))
-        for d in cdict:
+                         (len(self.comps), len(comp_dicts)))
+        for cdict in comp_dicts:
             comp = None
-            for c in self.comps:
-                if d["compName"] == c.name and d["compNum"] == c.num:
-                    comp = c
+            for tmp in self.comps:
+                if cdict["compName"] == tmp.name and \
+                  cdict["compNum"] == tmp.num:
+                    comp = tmp
                     break
 
             self.assertTrue(comp is not None,
                             "Unknown component %s#%d" %
-                            (d["compName"], d["compNum"]))
-            self.assertEqual(comp_host, d["host"],
+                            (cdict["compName"], cdict["compNum"]))
+            self.assertEqual(comp_host, cdict["host"],
                              'Expected %s host %s, not %s' %
-                             (comp.fullname, comp_host, d["host"]))
-            self.assertEqual(comp.cmd_port, d["rpcPort"],
+                             (comp.fullname, comp_host, cdict["host"]))
+            self.assertEqual(comp.cmd_port, cdict["rpcPort"],
                              'Expected %s cmdPort %d, not %d' %
-                             (comp.fullname, comp.cmd_port, d["rpcPort"]))
-            self.assertEqual(comp.mbean_port, d["mbeanPort"],
+                             (comp.fullname, comp.cmd_port, cdict["rpcPort"]))
+            self.assertEqual(comp.mbean_port, cdict["mbeanPort"],
                              'Expected %s mbeanPort %d, not %d' %
                              (comp.fullname, comp.mbean_port,
-                              d["mbeanPort"]))
+                              cdict["mbeanPort"]))
 
         run_cfg_file = MockRunConfigFile(self.__run_config_dir)
 
@@ -781,8 +801,8 @@ class CnCServerTest(unittest.TestCase):
 
         hub2dom = {
             self.HUB_NUMBER:
-            [MockRunConfigFile.createDOM(self.DOM_MAINBOARD_ID, 2,
-                                         "SrvrTst", "ABCDEF"), ],
+            [MockRunConfigFile.create_dom(self.DOM_MAINBOARD_ID, 2,
+                                          "SrvrTst", "ABCDEF"), ],
         }
 
         run_cfg = run_cfg_file.create(comp_list, hub2dom)
@@ -792,14 +812,14 @@ class CnCServerTest(unittest.TestCase):
         leap_file = MockLeapsecondFile(self.__run_config_dir)
         leap_file.create()
 
-        catchall.addExpectedTextRegexp('Loading run configuration .*')
-        catchall.addExpectedTextRegexp('Loaded run configuration .*')
+        catchall.add_expected_text_regexp('Loading run configuration .*')
+        catchall.add_expected_text_regexp('Loaded run configuration .*')
 
         for comp in self.comps:
-            catchall.addExpectedExact('Config %s#%d with %s' %
-                                      (comp.name, comp.num, run_cfg))
+            catchall.add_expected_exact("Config %s#%d with %s" %
+                                        (comp.name, comp.num, run_cfg))
 
-        catchall.addExpectedTextRegexp(r"Built runset #\d+: .*")
+        catchall.add_expected_text_regexp(r"Built runset #\d+: .*")
 
         run_num = 444
 
@@ -811,7 +831,7 @@ class CnCServerTest(unittest.TestCase):
 
         time.sleep(1)
 
-        catchall.checkStatus(100)
+        catchall.check_status(100)
 
         rscomps = self.cnc.rpc_runset_list(set_id)
         self.assertEqual(len(self.comps), len(rscomps),
@@ -853,31 +873,32 @@ class CnCServerTest(unittest.TestCase):
                                  (comp.id, comp.fullname, comp.mbean_port,
                                   rscomp["mbeanPort"]))
 
-        catchall.checkStatus(100)
+        catchall.check_status(100)
         for comp in self.comps:
             comp.check_status(100)
 
         for comp in self.comps:
             for log in comp.loggers:
-                log.addExpectedTextRegexp(r"Start of log at LOG=log(\S+:\d+)")
-                log.addExpectedExact('Test msg')
-                log.addExpectedTextRegexp(r'\S+ \S+ \S+ \S+')
+                log.add_expected_text_regexp(r"Start of log at"
+                                             r" LOG=log(\S+:\d+)")
+                log.add_expected_exact("Test msg")
+                log.add_expected_text_regexp(r'\S+ \S+ \S+ \S+')
 
-        catchall.addExpectedText("Starting run #%d on \"%s\"" %
-                                 (run_num, clu_cfg.description))
+        catchall.add_expected_text("Starting run #%d on \"%s\"" %
+                                   (run_num, clu_cfg.description))
 
-        dashlog.addExpectedRegexp(r"Version info: \S+ \S+ \S+ \S+")
-        dashlog.addExpectedExact("Run configuration: %s" % (run_cfg, ))
-        dashlog.addExpectedExact("Cluster: %s" % clu_cfg.description)
+        dashlog.add_expected_regexp(r"Version info: \S+ \S+ \S+ \S+")
+        dashlog.add_expected_exact("Run configuration: %s" % (run_cfg, ))
+        dashlog.add_expected_exact("Cluster: %s" % clu_cfg.description)
 
-        moniType = RunOption.MONI_TO_NONE
+        moni_type = RunOption.MONI_TO_NONE
 
         for comp in self.comps:
             for log in comp.loggers:
-                log.addExpectedExact('Start #%d on %s' %
-                                     (run_num, comp.fullname))
+                log.add_expected_exact("Start #%d on %s" %
+                                       (run_num, comp.fullname))
 
-        dashlog.addExpectedExact("Starting run %d..." % run_num)
+        dashlog.add_expected_exact("Starting run %d..." % run_num)
 
         for comp in self.comps:
             if comp.name == "stringHub":
@@ -886,93 +907,95 @@ class CnCServerTest(unittest.TestCase):
                 comp.set_bean_field_value("stringhub",
                                           "NumberOfNonZombies", 10)
 
-        catchall.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
-        catchall.addExpectedTextRegexp(r"Waited \d+\.\d+ seconds for Hubs")
+        catchall.add_expected_text_regexp(r"Waited \d+\.\d+ seconds"
+                                          r" for NonHubs")
+        catchall.add_expected_text_regexp(r"Waited \d+\.\d+ seconds"
+                                          r" for Hubs")
 
         self.assertEqual(self.cnc.rpc_runset_start_run(set_id, run_num,
-                                                       moniType), 'OK')
+                                                       moni_type), 'OK')
 
-        catchall.checkStatus(100)
-        dashlog.checkStatus(100)
+        catchall.check_status(100)
+        dashlog.check_status(100)
         for comp in self.comps:
             comp.check_status(100)
 
-        rateTracker = RateTracker(run_num, 10000000000, 100, 0, 0, 0)
+        rate_tracker = RateTracker(run_num, 10000000000, 100, 0, 0, 0)
 
         if switch_run:
             for _ in range(5):
-                rateTracker.updateRunData(self.cnc, set_id, self.comps)
+                rate_tracker.update_run_data(self.cnc, set_id, self.comps)
 
             for comp in self.comps:
                 for log in comp.loggers:
-                    log.addExpectedExact('Switch %s to run#%d' %
-                                         (comp.fullname, run_num + 1))
+                    log.add_expected_exact("Switch %s to run#%d" %
+                                           (comp.fullname, run_num + 1))
 
-            dashlog.addExpectedRegexp(r"Version info: \S+ \S+ \S+ \S+")
-            dashlog.addExpectedExact("Run configuration: %s" % (run_cfg, ))
-            dashlog.addExpectedExact("Cluster: %s" % clu_cfg.description)
+            dashlog.add_expected_regexp(r"Version info: \S+ \S+ \S+ \S+")
+            dashlog.add_expected_exact("Run configuration: %s" % (run_cfg, ))
+            dashlog.add_expected_exact("Cluster: %s" % clu_cfg.description)
 
             new_num = run_num + 1
 
-            dashlog.addExpectedExact("Switching to run %d..." % new_num)
+            dashlog.add_expected_exact("Switching to run %d..." % new_num)
 
-            rateTracker.updateRunData(self.cnc, set_id, self.comps)
+            rate_tracker.update_run_data(self.cnc, set_id, self.comps)
 
-            rateTracker.addFinalLogMsgs(dashlog)
-            dashlog.addExpectedExact("Run switched SUCCESSFULLY.")
+            rate_tracker.add_final_log_msgs(dashlog)
+            dashlog.add_expected_exact("Run switched SUCCESSFULLY.")
 
-            dashlog.addExpectedExact("Not logging to file so cannot queue to"
-                                     " SPADE")
+            dashlog.add_expected_exact("Not logging to file so cannot queue"
+                                       " to SPADE")
 
             self.cnc.rpc_runset_switch_run(set_id, new_num)
 
-            (num_evts, num_moni, num_sn, num_tcal) = rateTracker.getTotals()
+            _ = rate_tracker.get_totals()
 
             run_num = new_num
 
-            catchall.checkStatus(100)
-            dashlog.checkStatus(100)
+            catchall.check_status(100)
+            dashlog.check_status(100)
             for comp in self.comps:
                 for log in comp.loggers:
-                    log.checkStatus(100)
+                    log.check_status(100)
 
-            rateTracker.reset()
+            rate_tracker.reset()
 
         for _ in range(5):
-            rateTracker.updateRunData(self.cnc, set_id, self.comps)
+            rate_tracker.update_run_data(self.cnc, set_id, self.comps)
 
-        rateTracker.updateRunData(self.cnc, set_id, self.comps)
+        rate_tracker.update_run_data(self.cnc, set_id, self.comps)
 
         for comp in self.comps:
             for log in comp.loggers:
-                log.addExpectedExact("Stop %s" % comp.fullname)
+                log.add_expected_exact("Stop %s" % comp.fullname)
 
-        rateTracker.addFinalLogMsgs(dashlog)
+        rate_tracker.add_final_log_msgs(dashlog)
 
-        dashlog.addExpectedExact("Run terminated SUCCESSFULLY.")
+        dashlog.add_expected_exact("Run terminated SUCCESSFULLY.")
 
-        dashlog.addExpectedExact("Not logging to file so cannot queue to"
-                                 " SPADE")
+        dashlog.add_expected_exact("Not logging to file so cannot queue to"
+                                   " SPADE")
         for comp in self.comps:
             if comp.name == "stringHub":
                 comp.set_bean_field_value("stringhub",
                                           "EarliestLastChannelHitTime", 10)
 
         if force_restart:
-            cycleStr = self.__list_components_legibly(self.comps)
-            catchall.addExpectedText("Cycling components %s" % cycleStr)
+            cycle_str = self.__list_components_legibly(self.comps)
+            catchall.add_expected_text("Cycling components %s" % cycle_str)
 
         self.assertEqual(self.cnc.rpc_runset_stop_run(set_id), 'OK')
 
-        catchall.checkStatus(100)
-        dashlog.checkStatus(100)
+        catchall.check_status(100)
+        dashlog.check_status(100)
         for comp in self.comps:
             for log in comp.loggers:
-                log.checkStatus(100)
+                log.check_status(100)
 
         if force_restart:
             try:
-                rs = self.cnc.rpc_runset_list(set_id)
+                _ = self.cnc.rpc_runset_list(set_id)
                 self.fail("Runset #%d should have been destroyed" % set_id)
             except CnCServerException:
                 pass
@@ -984,21 +1007,21 @@ class CnCServerTest(unittest.TestCase):
             self.assertEqual(self.cnc.rpc_component_count(), 0)
             self.assertEqual(self.cnc.rpc_runset_count(), 1)
 
-            serverAppender = MostlyCnCServer.APPENDERS['server']
+            server_appender = MostlyCnCServer.APPENDERS['server']
 
             self.assertEqual(self.cnc.rpc_runset_break(set_id), 'OK')
 
-            serverAppender.checkStatus(100)
+            server_appender.check_status(100)
 
             self.assertEqual(self.cnc.rpc_component_count(), len(comp_data))
             self.assertEqual(self.cnc.rpc_runset_count(), 0)
 
-            serverAppender.checkStatus(100)
+            server_appender.check_status(100)
 
-        catchall.checkStatus(100)
+        catchall.check_status(100)
         for comp in self.comps:
             for log in comp.loggers:
-                log.checkStatus(100)
+                log.check_status(100)
 
         self.cnc.close_server()
 

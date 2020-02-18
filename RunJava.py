@@ -82,9 +82,9 @@ class JavaCommand(object):
             if isinstance(java_args, str):
                 if java_args != "":
                     self.__cmd.append(java_args)
-            elif isinstance(java_args, list) or isinstance(java_args, tuple):
+            elif isinstance(java_args, (list, tuple)):
                 for arg in java_args:
-                    if arg is not None and len(arg) > 0:
+                    if arg is not None and arg != "":
                         self.__cmd.append(arg)
             else:
                 raise RunnerException("Bad java_args type %s for %s" %
@@ -118,13 +118,15 @@ class JavaCommand(object):
         """Record the signal which caused the program to be killed"""
         self.__killsig = val
 
-    def process(self, line, is_stderr=False):
+    @classmethod
+    def process(cls, line, is_stderr=False):
         """Process a line of output from the program"""
+        fixed = line.decode("utf-8")
         if not is_stderr:
-            sys.stdout.write(line)
+            sys.stdout.write(fixed)
             sys.stdout.flush()
         else:
-            sys.stderr.write(line)
+            sys.stderr.write(fixed)
 
     @property
     def returncode(self):
@@ -195,14 +197,14 @@ class JavaRunner(object):
             daq_release = cls.__DEFAULT_DAQ_RELEASE
 
         if repo_dir is None:
-            tmpDir = cls.__maven_repository_path()
-            if tmpDir is not None:
-                repo_dir = tmpDir
+            tmp_dir = cls.__maven_repository_path()
+            if tmp_dir is not None:
+                repo_dir = tmp_dir
 
         pdaq_home = cls.__pdaq_home()
         dist_dir = cls.__distribution_path(daq_release)
 
-        daqjars = cls.__find_DAQ_jars(daq_deps, daq_release, pdaq_home,
+        daqjars = cls.__find_daq_jars(daq_deps, daq_release, pdaq_home,
                                       dist_dir, repo_dir)
 
         mavenjars = cls.__find_maven_jars(maven_deps, repo_dir, dist_dir)
@@ -224,14 +226,14 @@ class JavaRunner(object):
         if java_args is not None:
             if isinstance(java_args, str):
                 cmd.append(java_args)
-            elif isinstance(java_args, list) or isinstance(java_args, tuple):
+            elif isinstance(java_args, (list, tuple)):
                 cmd += java_args
             else:
                 raise RunnerException("Bad java_args type %s for %s" %
                                       (type(java_args), java_args))
 
         cmd.append(self.__main_class)
-        if app_args is not None and len(app_args) > 0:
+        if app_args is not None and app_args != "":
             cmd += app_args
 
         return cmd
@@ -245,15 +247,15 @@ class JavaRunner(object):
 
             pdaq_home = cls.__pdaq_home()
             if pdaq_home is not None:
-                tmpDir = os.path.join(pdaq_home, "target",
-                                      "pDAQ-" + daq_release + "-dist", "lib")
-                if os.path.exists(tmpDir):
+                tmp_dir = os.path.join(pdaq_home, "target",
+                                       "pDAQ-" + daq_release + "-dist", "lib")
+                if os.path.exists(tmp_dir):
                     cls.__DIST_RELEASE = daq_release
-                    cls.__DIST_DIR = tmpDir
+                    cls.__DIST_DIR = tmp_dir
         return cls.__DIST_DIR
 
     @classmethod
-    def __find_DAQ_jar(cls, proj, daq_release, pdaq_home, dist_dir, repo_dir):
+    def __find_daq_jar(cls, proj, daq_release, pdaq_home, dist_dir, repo_dir):
         jarname = cls.__build_jar_name(proj, daq_release)
 
         # check foo/target/foo-X.Y.Z.jar (if we're in top-level project dir)
@@ -288,7 +290,7 @@ class JavaRunner(object):
         raise SystemExit("Cannot find %s jar file %s" % (proj, jarname))
 
     @classmethod
-    def __find_DAQ_jars(cls, daq_deps, daq_release, pdaq_home, dist_dir,
+    def __find_daq_jars(cls, daq_deps, daq_release, pdaq_home, dist_dir,
                         repo_dir):
         """
         Find pDAQ jar files in all likely places, starting with the current
@@ -297,7 +299,7 @@ class JavaRunner(object):
         jars = []
         if daq_deps is not None:
             for proj in daq_deps:
-                jars.append(cls.__find_DAQ_jar(proj, daq_release, pdaq_home,
+                jars.append(cls.__find_daq_jar(proj, daq_release, pdaq_home,
                                                dist_dir, repo_dir))
 
         return jars
@@ -379,65 +381,24 @@ class JavaRunner(object):
     def __maven_repository_path(cls):
         """Maven repository directory"""
         if cls.__MAVEN_REPO is None and "HOME" in os.environ:
-            tmpDir = os.path.join(os.environ["HOME"], ".m2", "repository")
-            if tmpDir is not None and os.path.exists(tmpDir):
-                cls.__MAVEN_REPO = tmpDir
+            tmp_dir = os.path.join(os.environ["HOME"], ".m2", "repository")
+            if tmp_dir is not None and os.path.exists(tmp_dir):
+                cls.__MAVEN_REPO = tmp_dir
         return cls.__MAVEN_REPO
 
     @classmethod
     def __pdaq_home(cls):
         """Current active pDAQ directory"""
         if cls.__PDAQ_HOME is None and "PDAQ_HOME" in os.environ:
-            tmpDir = os.environ["PDAQ_HOME"]
-            if tmpDir is not None and os.path.exists(tmpDir):
-                cls.__PDAQ_HOME = tmpDir
+            tmp_dir = os.environ["PDAQ_HOME"]
+            if tmp_dir is not None and os.path.exists(tmp_dir):
+                cls.__PDAQ_HOME = tmp_dir
         return cls.__PDAQ_HOME
 
     def __quickexit(self, sig, frame):
         """Kill the program if we get an interrupt signal"""
         self.__send_signal(sig, frame)
         self.__exitsig = sig
-
-    def __run(self, command, debug=False):
-        """Run the Java program"""
-        if debug:
-            print(" ".join(command))
-
-        self.__proc = subprocess.Popen(command, stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE,
-                                       preexec_fn=os.setsid)
-        num_err = 0
-        while True:
-            reads = [self.__proc.stdout.fileno(), self.__proc.stderr.fileno()]
-            try:
-                ret = select.select(reads, [], [])
-            except select.error:
-                # ignore a single interrupt
-                if num_err > 0:
-                    break
-                num_err += 1
-                continue
-
-            for fd in ret[0]:
-                if fd == self.__proc.stdout.fileno():
-                    line = self.__proc.stdout.readline()
-                    sys.stdout.write(line)
-                    sys.stdout.flush()
-                if fd == self.__proc.stderr.fileno():
-                    line = self.__proc.stderr.readline()
-                    sys.stderr.write(line)
-
-            if self.__proc.poll() is not None:
-                break
-
-        self.__proc.stdout.close()
-        self.__proc.stderr.close()
-
-        self.__proc.wait()
-
-        rtncode = self.__proc.returncode
-        self.__proc = None
-        return rtncode
 
     def __run_command(self, data, debug=False):
         """Run the Java program, tracking relevant run-related statistics"""
@@ -449,9 +410,18 @@ class JavaRunner(object):
 
         start_time = datetime.datetime.now()
 
-        self.__proc = subprocess.Popen(data.command, stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE,
-                                       preexec_fn=os.setsid)
+        if sys.version_info < (3, 0):
+            # pylint: disable=subprocess-popen-preexec-fn
+            self.__proc = subprocess.Popen(data.command,
+                                           stdout=subprocess.PIPE,
+                                           stderr=subprocess.PIPE,
+                                           preexec_fn=os.setsid)
+        else:
+            self.__proc = subprocess.Popen(data.command,
+                                           stdout=subprocess.PIPE,
+                                           stderr=subprocess.PIPE,
+                                           start_new_session=True)
+
         num_err = 0
         while True:
             reads = [self.__proc.stdout.fileno(), self.__proc.stderr.fileno()]
@@ -464,11 +434,11 @@ class JavaRunner(object):
                 num_err += 1
                 continue
 
-            for fd in ret[0]:
-                if fd == self.__proc.stdout.fileno():
+            for fno in ret[0]:
+                if fno == self.__proc.stdout.fileno():
                     line = self.__proc.stdout.readline()
                     data.process(line, False)
-                if fd == self.__proc.stderr.fileno():
+                if fno == self.__proc.stderr.fileno():
                     line = self.__proc.stderr.readline()
                     data.process(line, True)
 
@@ -501,12 +471,12 @@ class JavaRunner(object):
 
     def __set_class_path(self, debug=False):
         if "CLASSPATH" not in os.environ:
-            cp = self.__classpath
+            clspath = self.__classpath
         else:
-            cp = self.__classpath[:] + os.environ["CLASSPATH"].split(":")
+            clspath = self.__classpath[:] + os.environ["CLASSPATH"].split(":")
 
-        if len(cp) > 0:
-            os.environ["CLASSPATH"] = ":".join(cp)
+        if len(clspath) > 0:  # pylint: disable=len-as-condition
+            os.environ["CLASSPATH"] = ":".join(clspath)
             if debug:
                 print("export CLASSPATH=\"%s\"" % os.environ["CLASSPATH"])
 
@@ -529,7 +499,10 @@ class JavaRunner(object):
         self.__exitsig = sig
 
     def run(self, java_cmd=None, java_args=None, sys_args=None, debug=False):
-        """Run the Java program, handling ^C or ^\ as appropriate"""
+        # pylint: disable=anomalous-backslash-in-string
+        """
+        Run the Java program, handling ^C or ^\ as appropriate
+        """
         self.__set_class_path(debug=debug)
 
         signal.signal(signal.SIGINT, self.quickexit)
@@ -551,8 +524,8 @@ class JavaRunner(object):
             os.killpg(self.__proc.pid, sig)
 
 
-def runJava(main_class, java_args, app_args, daq_deps, maven_deps,
-            java_cmd=None, daq_release=None, repo_dir=None, debug=False):
+def run_java(main_class, java_args, app_args, daq_deps, maven_deps,
+             java_cmd=None, daq_release=None, repo_dir=None, debug=False):
     """
     Run the Java program after adding all requested pDAQ and external jar
     files in the CLASSPATH envvar
@@ -564,24 +537,30 @@ def runJava(main_class, java_args, app_args, daq_deps, maven_deps,
                debug=debug)
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     import argparse
 
-    p = argparse.ArgumentParser()
-    add_arguments(p)
-    args = p.parse_args()
+    parser = argparse.ArgumentParser()
+    add_arguments(parser)
+    args = parser.parse_args()
 
     # convert java dependencies into triplets
     maven_deps = []
-    for j in args.maven_deps:
-        jtup = j.split(":")
+    for dep in args.maven_deps:
+        jtup = dep.split(":")
         if len(jtup) < 2 or len(jtup) > 3:
-            raise SystemExit("Invalid Maven dependency \"%s\"" % j)
+            raise SystemExit("Invalid Maven dependency \"%s\"" % dep)
 
         maven_deps.append(jtup)
 
     # fix any extra java arguments
-    for i in range(len(args.extra_java)):
-        args.extra_java[i] = "-X" + args.extra_java[i]
-    runJava(args.app, args.extra_java, args.extra, args.daq_deps, maven_deps,
-            daq_release=args.daq_release, repo_dir=args.repo_dir)
+    for idx in range(len(args.extra_java)):
+        args.extra_java[idx] = "-X" + args.extra_java[idx]
+    run_java(args.app, args.extra_java, args.extra, args.daq_deps, maven_deps,
+             daq_release=args.daq_release, repo_dir=args.repo_dir)
+
+
+if __name__ == "__main__":
+    main()

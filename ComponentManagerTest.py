@@ -10,7 +10,6 @@ import threading
 import unittest
 
 from CachedConfigName import CachedFile
-from ClusterDescription import ClusterDescription
 from ComponentManager import ComponentManager
 from DAQConst import DAQPort
 from DAQMocks import MockParallelShell, MockDeployComponent
@@ -40,6 +39,7 @@ class MockNode(object):
         self.__comps.append(comp)
         return comp
 
+    @property
     def components(self):
         return self.__comps
 
@@ -67,7 +67,7 @@ class MockClusterConfig(object):
         pass
 
 
-class MockServer(RPCServer):
+class MockServer(object):
     STATE_KEY = "state"
     COMPS_KEY = "comps"
 
@@ -93,7 +93,7 @@ class MockServer(RPCServer):
         thrd.setDaemon(True)
         thrd.start()
 
-    def __list_comp_dicts(self, idList=None, getAll=True):
+    def __list_comp_dicts(self, id_list=None, get_all=True):
         dictlist = []
         for comp in self.__unused:
             newc = {}
@@ -162,7 +162,7 @@ class ComponentManagerTest(unittest.TestCase):
             self.__srvr.close()
         CachedFile.clear_active_config()
 
-    def test_start_java(self):
+    def test_start_java(self):  # pylint: disable=no-self-use
         dry_run = False
         config_dir = '/foo/cfg'
         daq_data_dir = '/foo/baz'
@@ -183,7 +183,7 @@ class ComponentManagerTest(unittest.TestCase):
         ntp_host = "NtPhOsT"
 
         verbose = False
-        chk_exists = False
+        ck_exst = False
 
         log_level = 'DEBUG'
 
@@ -210,25 +210,26 @@ class ComponentManagerTest(unittest.TestCase):
                     else:
                         live_port = None
 
-                    for event_check in (True, False):
+                    for evt_chk in (True, False):
                         parallel = MockParallelShell()
 
-                        parallel.addExpectedJava(comp, config_dir, daq_data_dir,
-                                                 log_port, live_port, verbose,
-                                                 event_check, host)
+                        parallel.add_expected_java(comp, config_dir,
+                                                   daq_data_dir, log_port,
+                                                   live_port, verbose,
+                                                   evt_chk, host)
 
-                        ComponentManager.start_components(node.components(),
+                        ComponentManager.start_components(node.components,
                                                           dry_run, verbose,
                                                           config_dir,
                                                           daq_data_dir,
                                                           log_port, live_port,
-                                                          event_check=event_check,
-                                                          check_exists=chk_exists,
+                                                          event_check=evt_chk,
+                                                          check_exists=ck_exst,
                                                           parallel=parallel)
 
                         parallel.check()
 
-    def test_kill_java(self):
+    def test_kill_java(self):  # pylint: disable=no-self-use
         for comp_name in ComponentManager.list_known_component_names():
             if comp_name[-3:] == 'hub':
                 comp_id = 17
@@ -264,10 +265,10 @@ class ComponentManagerTest(unittest.TestCase):
                 for kill_with_9 in (True, False):
                     parallel = MockParallelShell()
 
-                    parallel.addExpectedJavaKill(comp_name, comp_id, kill_with_9,
-                                                 verbose, host)
+                    parallel.add_expected_java_kill(comp_name, comp_id,
+                                                    kill_with_9, verbose, host)
 
-                    ComponentManager.kill_components(node.components(),
+                    ComponentManager.kill_components(node.components,
                                                      dry_run=dry_run,
                                                      verbose=verbose,
                                                      kill_with_9=kill_with_9,
@@ -275,7 +276,7 @@ class ComponentManagerTest(unittest.TestCase):
 
                     parallel.check()
 
-    def test_launch(self):
+    def test_launch(self):  # pylint: disable=no-self-use
         tmpdir = tempfile.mkdtemp()
         dry_run = False
         config_dir = os.path.join(tmpdir, 'cfg')
@@ -335,16 +336,16 @@ class ComponentManagerTest(unittest.TestCase):
 
                         clu_desc = None
 
-                        parallel.addExpectedPython(do_cnc, dash_dir,
-                                                   config_dir, log_dir,
-                                                   daq_data_dir, spade_dir,
-                                                   clu_desc, cfg_name,
-                                                   copy_dir, log_port,
-                                                   live_port)
-                        parallel.addExpectedJava(comp, config_dir,
-                                                 daq_data_dir,
-                                                 DAQPort.CATCHALL, live_port,
-                                                 verbose, evt_chk, host)
+                        parallel.add_expected_python(do_cnc, dash_dir,
+                                                     config_dir, log_dir,
+                                                     daq_data_dir, spade_dir,
+                                                     clu_desc, cfg_name,
+                                                     copy_dir, log_port,
+                                                     live_port)
+                        parallel.add_expected_java(comp, config_dir,
+                                                   daq_data_dir,
+                                                   DAQPort.CATCHALL, live_port,
+                                                   verbose, evt_chk, host)
 
                         dry_run = False
                         log_dir_fallback = None
@@ -361,7 +362,7 @@ class ComponentManagerTest(unittest.TestCase):
 
                         parallel.check()
 
-    def test_do_kill(self):
+    def test_do_kill(self):  # pylint: disable=no-self-use
         dry_run = False
         verbose = False
 
@@ -399,11 +400,11 @@ class ComponentManagerTest(unittest.TestCase):
                 for kill_with_9 in (True, False):
                     parallel = MockParallelShell()
 
-                    parallel.addExpectedPythonKill(do_cnc, kill_with_9)
-                    parallel.addExpectedJavaKill(comp_name, comp_id,
-                                                 kill_with_9, verbose, host)
+                    parallel.add_expected_python_kill(do_cnc, kill_with_9)
+                    parallel.add_expected_java_kill(comp_name, comp_id,
+                                                    kill_with_9, verbose, host)
 
-                    ComponentManager.kill(node.components(), verbose=verbose,
+                    ComponentManager.kill(node.components, verbose=verbose,
                                           dry_run=dry_run, kill_cnc=do_cnc,
                                           kill_with_9=kill_with_9,
                                           logger=run_logger, parallel=parallel)
@@ -511,6 +512,7 @@ class ComponentManagerTest(unittest.TestCase):
 
 def main():
     "Main program"
+
     # make sure icecube.wisc.edu is valid
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -518,7 +520,7 @@ def main():
         try:
             sock.connect((rmt_host, 7))
             MockNode.LIST.append(rmt_host)
-        except:
+        except:  # pylint: disable=bare-except
             print("Warning: Remote host %s is not valid" % rmt_host,
                   file=sys.stderr)
 

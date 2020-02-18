@@ -41,7 +41,7 @@ class FakeRunConfig(object):
     def basename(self):
         return self.__name
 
-    def hasDOM(self, mbid):
+    def has_dom(self, mbid):
         return True
 
 
@@ -193,7 +193,6 @@ class FakeRunData(object):
     def send_event_counts(self, run_set=None):
         pass
 
-    @property
     def set_finished(self):
         self.__finished = True
 
@@ -221,7 +220,7 @@ class MyRunSet(RunSet):
         super(MyRunSet, self).__init__(parent, run_config, comp_list, logger)
 
     @classmethod
-    def create_component_log(cls, run_dir, comp, host, port, quiet=True):
+    def create_component_log(cls, run_dir, comp, port, quiet=True):
         return FakeLogger(port)
 
     def create_run_data(self, run_num, cluster_config, run_options,
@@ -233,8 +232,8 @@ class MyRunSet(RunSet):
 
     @classmethod
     def cycle_components(cls, comp_list, config_dir, daq_data_dir, logger,
-                         log_port, live_port, verbose=False, kill_with_9=False,
-                         event_check=False, check_exists=True):
+                         verbose=False, kill_with_9=False, event_check=False,
+                         check_exists=True):
         pass
 
     def final_report(self, comps, run_data, had_error=False, switching=False):
@@ -306,7 +305,7 @@ class TestRunSet(unittest.TestCase):
                     try:
                         comp.mbean.get(bean, fld)
                     except:
-                        comp.mbean.addData(bean, fld, 1)
+                        comp.mbean.add_mock_data(bean, fld, 1)
 
     def __add_moni_run_update(self, runset, moni_client, run_num):
         ec_dict = runset.get_event_counts(run_num)
@@ -322,7 +321,7 @@ class TestRunSet(unittest.TestCase):
                     if fld != "Time":
                         run_update[key] = ec_dict[key]
                     elif isinstance(ec_dict[key], numbers.Number):
-                        dttm = PayloadTime.toDateTime(ec_dict[key])
+                        dttm = PayloadTime.to_date_time(ec_dict[key])
                         run_update[key] = str(dttm)
                     else:
                         run_update[key] = str(ec_dict[key])
@@ -396,7 +395,7 @@ class TestRunSet(unittest.TestCase):
 
     def __is_comp_list_configured(self, comp_list):
         for comp in comp_list:
-            if not comp.isConfigured:
+            if not comp.is_configured:
                 return False
 
         return True
@@ -432,7 +431,7 @@ class TestRunSet(unittest.TestCase):
                          (runset.id, exp_state))
 
         self.__check_status(runset, comp_list, exp_state)
-        logger.checkStatus(10)
+        logger.check_status(10)
 
         runset.configure()
 
@@ -442,7 +441,7 @@ class TestRunSet(unittest.TestCase):
                          (runset.id, exp_state))
 
         self.__check_status(runset, comp_list, exp_state)
-        logger.checkStatus(10)
+        logger.check_status(10)
 
         if len(comp_list) > 0:
             self.assertTrue(self.__is_comp_list_configured(comp_list),
@@ -451,7 +450,7 @@ class TestRunSet(unittest.TestCase):
                              "Components should not be running")
 
         self.__check_status(runset, comp_list, exp_state)
-        logger.checkStatus(10)
+        logger.check_status(10)
 
         exp_state = "running"
 
@@ -466,15 +465,15 @@ class TestRunSet(unittest.TestCase):
 
         for comp in comp_list:
             if comp.is_source:
-                comp.mbean.addData("stringhub", "LatestFirstChannelHitTime",
-                                   10)
-                comp.mbean.addData("stringhub", "NumberOfNonZombies", 1)
+                comp.mbean.add_mock_data("stringhub",
+                                         "LatestFirstChannelHitTime", 10)
+                comp.mbean.add_mock_data("stringhub", "NumberOfNonZombies", 1)
 
         self.__start_run(runset, run_num, run_config, clu_cfg,
                          components=comp_list, logger=logger)
 
         self.__check_status(runset, comp_list, exp_state)
-        logger.checkStatus(10)
+        logger.check_status(10)
 
         dom_list = [('53494d550101', 0, 1, 2, 3, 4),
                     ['1001', '22', 1, 2, 3, 4, 5],
@@ -484,8 +483,8 @@ class TestRunSet(unittest.TestCase):
 
         subrun_num = -1
 
-        logger.addExpectedExact("Subrun %d: flashing DOM (%s)" %
-                                (subrun_num, data))
+        logger.add_expected_exact("Subrun %d: flashing DOM (%s)" %
+                                  (subrun_num, data))
 
         try:
             runset.subrun(subrun_num, data)
@@ -499,12 +498,12 @@ class TestRunSet(unittest.TestCase):
                           (expect_error, str(vex)))
 
         self.__check_status(runset, comp_list, exp_state)
-        logger.checkStatus(10)
+        logger.check_status(10)
 
         for comp in comp_list:
             if comp.is_source:
-                comp.mbean.addData("stringhub", "EarliestLastChannelHitTime",
-                                   10)
+                comp.mbean.add_mock_data("stringhub",
+                                         "EarliestLastChannelHitTime", 10)
 
         self.__stop_run(runset, run_num, run_config, clu_cfg, moni_client,
                         components=comp_list, logger=logger)
@@ -536,7 +535,7 @@ class TestRunSet(unittest.TestCase):
                          (runset.id, exp_state))
 
         self.__check_status(runset, comp_list, exp_state)
-        logger.checkStatus(10)
+        logger.check_status(10)
 
         exp_state = "configuring"
 
@@ -544,7 +543,7 @@ class TestRunSet(unittest.TestCase):
         while True:
             cfg_wait_str = None
             for comp in comp_list:
-                if comp.getConfigureWait() > i:
+                if comp.configure_wait > i:
                     if cfg_wait_str is None:
                         cfg_wait_str = comp.fullname
                     else:
@@ -553,8 +552,9 @@ class TestRunSet(unittest.TestCase):
             if cfg_wait_str is None:
                 break
 
-            logger.addExpectedExact("RunSet #%d (%s): Waiting for %s %s" %
-                                    (exp_id, exp_state, exp_state, cfg_wait_str))
+            logger.add_expected_exact("RunSet #%d (%s): Waiting for %s %s" %
+                                      (exp_id, exp_state, exp_state,
+                                       cfg_wait_str))
             i += 1
 
         runset.configure()
@@ -565,7 +565,7 @@ class TestRunSet(unittest.TestCase):
                          (runset.id, exp_state))
 
         self.__check_status(runset, comp_list, exp_state)
-        logger.checkStatus(10)
+        logger.check_status(10)
 
         if len(comp_list) > 0:
             self.assertTrue(self.__is_comp_list_configured(comp_list),
@@ -574,10 +574,10 @@ class TestRunSet(unittest.TestCase):
                              "Components should not be running")
 
         self.__check_status(runset, comp_list, exp_state)
-        logger.checkStatus(10)
+        logger.check_status(10)
 
         self.assertRaises(RunSetException, runset.stop_run, ("RunTest"))
-        logger.checkStatus(10)
+        logger.check_status(10)
 
         exp_state = "running"
 
@@ -598,14 +598,14 @@ class TestRunSet(unittest.TestCase):
             return
 
         self.__check_status(runset, comp_list, exp_state)
-        logger.checkStatus(10)
+        logger.check_status(10)
 
         exp_state = "stopping"
 
         for comp in comp_list:
             if comp.is_source:
-                comp.mbean.addData("stringhub", "EarliestLastChannelHitTime",
-                                   10)
+                comp.mbean.add_mock_data("stringhub",
+                                         "EarliestLastChannelHitTime", 10)
 
         self.__stop_run(runset, run_num, run_config, clu_cfg, moni_client,
                         components=comp_list, logger=logger, hang_type=hang_type)
@@ -622,7 +622,7 @@ class TestRunSet(unittest.TestCase):
                 else:
                     exp_state_dict[comp] = "forcingStop"
             self.__check_status_dict(runset, comp_list, exp_state_dict)
-        logger.checkStatus(10)
+        logger.check_status(10)
 
         runset.reset()
 
@@ -638,7 +638,7 @@ class TestRunSet(unittest.TestCase):
                              "Components should not be running")
 
         self.__check_status(runset, comp_list, exp_state)
-        logger.checkStatus(10)
+        logger.check_status(10)
 
     def __start_run(self, runset, run_num, run_config, clu_cfg,
                     run_options=RunOption.MONI_TO_NONE, version_info=None,
@@ -648,7 +648,7 @@ class TestRunSet(unittest.TestCase):
 
         if not LIVE_IMPORT and not CAUGHT_WARNING:
             CAUGHT_WARNING = True
-            logger.addExpectedRegexp(r"^Cannot import IceCube Live.*")
+            logger.add_expected_regexp(r"^Cannot import IceCube Live.*")
 
         has_source = False
         if components is not None:
@@ -661,7 +661,7 @@ class TestRunSet(unittest.TestCase):
                         try:
                             comp.mbean.get(bean, fld)
                         except:
-                            comp.mbean.addData(bean, fld, 10)
+                            comp.mbean.add_mock_data(bean, fld, 10)
 
         if version_info is None:
             version_info = {
@@ -676,20 +676,20 @@ class TestRunSet(unittest.TestCase):
 
         exp_state = "running"
 
-        logger.addExpectedExact("Starting run #%d on \"%s\"" %
-                                (run_num, clu_cfg.description))
+        logger.add_expected_exact("Starting run #%d on \"%s\"" %
+                                  (run_num, clu_cfg.description))
 
         if has_source:
-            logger.addExpectedExact("Version info: " +
-                                    get_scmversion_str(info=version_info))
-            logger.addExpectedExact("Run configuration: %s" %
-                                    run_config.basename)
-            logger.addExpectedExact("Cluster: %s" % clu_cfg.description)
+            logger.add_expected_exact("Version info: " +
+                                      get_scmversion_str(info=version_info))
+            logger.add_expected_exact("Run configuration: %s" %
+                                      run_config.basename)
+            logger.add_expected_exact("Cluster: %s" % clu_cfg.description)
 
-            logger.addExpectedExact("Starting run %d..." % run_num)
+            logger.add_expected_exact("Starting run %d..." % run_num)
 
-            logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for NonHubs")
-            logger.addExpectedRegexp(r"Waited \d+\.\d+ seconds for Hubs")
+            logger.add_expected_regexp(r"Waited \d+\.\d+ seconds for NonHubs")
+            logger.add_expected_regexp(r"Waited \d+\.\d+ seconds for Hubs")
 
         try:
             runset.start_run(run_num, clu_cfg, run_options, version_info,
@@ -708,7 +708,7 @@ class TestRunSet(unittest.TestCase):
                             'Components should not be running')
 
         self.__check_status(runset, components, exp_state)
-        logger.checkStatus(10)
+        logger.check_status(10)
 
         return True
 
@@ -732,7 +732,7 @@ class TestRunSet(unittest.TestCase):
             stop_name = "TestHang2"
         else:
             stop_name = "Test"
-        logger.addExpectedExact("Stopping the run (%s)" % stop_name)
+        logger.add_expected_exact("Stopping the run (%s)" % stop_name)
 
         hang_str = None
         force_str = None
@@ -740,7 +740,7 @@ class TestRunSet(unittest.TestCase):
             hang_list = []
             force_list = []
             for comp in components:
-                if comp.isHanging:
+                if comp.is_hanging:
                     extra = "(ERROR)"
                     hang_list.append(comp.fullname + extra)
                     force_list.append(comp.fullname)
@@ -748,38 +748,39 @@ class TestRunSet(unittest.TestCase):
             force_str = ", ".join(force_list)
 
             if len(hang_list) < len(components):
-                logger.addExpectedExact("RunSet #%d run#%d (%s):"
-                                        " Waiting for %s %s" %
-                                        (runset.id, run_num, exp_state,
-                                         exp_state, hang_str))
+                logger.add_expected_exact("RunSet #%d run#%d (%s):"
+                                          " Waiting for %s %s" %
+                                          (runset.id, run_num, exp_state,
+                                           exp_state, hang_str))
 
             if len(force_list) == 1:
                 plural = ""
             else:
                 plural = "s"
-            logger.addExpectedExact("RunSet #%d run#%d (%s):"
-                                    " Forcing %d component%s to stop: %s" %
-                                    (runset.id, run_num, "forcingStop",
-                                     len(hang_list), plural, force_str))
+            logger.add_expected_exact("RunSet #%d run#%d (%s):"
+                                      " Forcing %d component%s to stop: %s" %
+                                      (runset.id, run_num, "forcingStop",
+                                       len(hang_list), plural, force_str))
             if hang_type > 1:
-                logger.addExpectedExact("ForcedStop failed for " + force_str)
+                logger.add_expected_exact("ForcedStop failed for " + force_str)
 
-        logger.addExpectedExact("0 physics events collected in 0 seconds")
-        logger.addExpectedExact("0 moni events, 0 SN events, 0 tcals")
+        logger.add_expected_exact("0 physics events collected in 0 seconds")
+        logger.add_expected_exact("0 moni events, 0 SN events, 0 tcals")
 
         exp_state = "ready"
 
         if hang_type > 1:
             exp_state = "forcingStop"
-            logger.addExpectedExact("Run terminated WITH ERROR.")
-            logger.addExpectedExact("RunSet #%d run#%d (%s):"
-                                    " Could not stop %s" %
-                                    (runset.id, run_num, exp_state, force_str))
+            logger.add_expected_exact("Run terminated WITH ERROR.")
+            logger.add_expected_exact("RunSet #%d run#%d (%s):"
+                                      " Could not stop %s" %
+                                      (runset.id, run_num, exp_state,
+                                       force_str))
         else:
-            logger.addExpectedExact("Run terminated SUCCESSFULLY.")
+            logger.add_expected_exact("Run terminated SUCCESSFULLY.")
 
-        logger.addExpectedExact("Not logging to file so cannot queue to"
-                                " SPADE")
+        logger.add_expected_exact("Not logging to file so cannot queue to"
+                                  " SPADE")
 
         self.__add_moni_run_update(runset, moni_client, run_num)
 
@@ -811,7 +812,7 @@ class TestRunSet(unittest.TestCase):
 
         if hang_type == 0:
             self.__check_status(runset, components, exp_state)
-        logger.checkStatus(10)
+        logger.check_status(10)
 
     def setUp(self):
         set_pdaq_config_dir("src/test/resources/config", override=True)
@@ -830,7 +831,7 @@ class TestRunSet(unittest.TestCase):
 
     def test_set(self):
         comp_list = self.__build_comp_list(("foo", "bar"))
-        comp_list[0].setConfigureWait(1)
+        comp_list[0].configure_wait = 1
 
         self.__run_tests(comp_list, 2)
 
@@ -844,7 +845,7 @@ class TestRunSet(unittest.TestCase):
     def test_subrun_one_bad(self):
 
         comp_list = self.__build_comp_list(("fooHub", "barHub", "bazBuilder"))
-        comp_list[1].setBadHub()
+        comp_list[1].set_bad_hub()
 
         moni_client = FakeMoniClient()
 
@@ -854,8 +855,8 @@ class TestRunSet(unittest.TestCase):
     def test_subrun_both_bad(self):
 
         comp_list = self.__build_comp_list(("fooHub", "barHub", "bazBuilder"))
-        comp_list[0].setBadHub()
-        comp_list[1].setBadHub()
+        comp_list[0].set_bad_hub()
+        comp_list[1].set_bad_hub()
 
         moni_client = FakeMoniClient()
 
@@ -898,9 +899,9 @@ class TestRunSet(unittest.TestCase):
 
         cluster_cfg = self.__build_cluster_config(comp_list[1:], base_name)
 
-        logger.addExpectedExact(("Cannot restart %s: Not found" +
-                                 " in cluster config %s") %
-                                (comp_list[0].fullname, cluster_cfg))
+        logger.add_expected_exact("Cannot restart %s: Not found"
+                                  " in cluster config %s" %
+                                  (comp_list[0].fullname, cluster_cfg))
 
         cycle_list = sorted(comp_list[1:])
 
@@ -911,10 +912,10 @@ class TestRunSet(unittest.TestCase):
             else:
                 errmsg += ", " + comp.fullname
         if errmsg is not None:
-            logger.addExpectedExact(errmsg)
+            logger.add_expected_exact(errmsg)
 
-        runset.restart_components(comp_list[:], cluster_cfg, None, None, None,
-                                  None, verbose=False, kill_with_9=False,
+        runset.restart_components(comp_list[:], cluster_cfg, None, None,
+                                  verbose=False, kill_with_9=False,
                                   event_check=False)
 
     def test_restart_extra_comp(self):
@@ -938,8 +939,9 @@ class TestRunSet(unittest.TestCase):
 
         cluster_cfg = self.__build_cluster_config(long_list, base_name)
 
-        logger.addExpectedExact("Cannot remove component %s from RunSet #%d" %
-                                (extra_comp.fullname, runset.id))
+        logger.add_expected_exact("Cannot remove component %s from"
+                                  " RunSet #%d" %
+                                  (extra_comp.fullname, runset.id))
 
         long_list.sort()
 
@@ -950,10 +952,10 @@ class TestRunSet(unittest.TestCase):
             else:
                 errmsg += ", " + comp.fullname
         if errmsg is not None:
-            logger.addExpectedExact(errmsg)
+            logger.add_expected_exact(errmsg)
 
-        runset.restart_components(long_list, cluster_cfg, None, None, None,
-                                  None, verbose=False, kill_with_9=False,
+        runset.restart_components(long_list, cluster_cfg, None, None,
+                                  verbose=False, kill_with_9=False,
                                   event_check=False)
 
     def test_restart(self):
@@ -977,10 +979,10 @@ class TestRunSet(unittest.TestCase):
             else:
                 errmsg += ", " + comp.fullname
         if errmsg is not None:
-            logger.addExpectedExact(errmsg)
+            logger.add_expected_exact(errmsg)
 
-        runset.restart_components(comp_list[:], cluster_cfg, None, None, None,
-                                  None, verbose=False, kill_with_9=False,
+        runset.restart_components(comp_list[:], cluster_cfg, None, None,
+                                  verbose=False, kill_with_9=False,
                                   event_check=False)
 
     def test_restart_all(self):
@@ -1004,11 +1006,10 @@ class TestRunSet(unittest.TestCase):
             else:
                 errmsg += ", " + comp.fullname
         if errmsg is not None:
-            logger.addExpectedExact(errmsg)
+            logger.add_expected_exact(errmsg)
 
-        runset.restart_all_components(cluster_cfg, None, None, None, None,
-                                      verbose=False, kill_with_9=False,
-                                      event_check=False)
+        runset.restart_all_components(cluster_cfg, None, None, verbose=False,
+                                      kill_with_9=False, event_check=False)
 
     def test_short_stop_without_start(self):
         comp_list = self.__build_comp_list(("one", "two", "three"))
@@ -1017,18 +1018,19 @@ class TestRunSet(unittest.TestCase):
 
         moni_client = FakeMoniClient()
 
-        runset = MyRunSet(MyParent(), run_config, comp_list, logger, moni_client)
+        runset = MyRunSet(MyParent(), run_config, comp_list, logger,
+                          moni_client)
 
         comp_str = "one#1, two#2, three#3"
 
         stop_name = "ShortStop"
-        logger.addExpectedExact("Stopping the run (%s)" % stop_name)
+        logger.add_expected_exact("Stopping the run (%s)" % stop_name)
 
-        logger.addExpectedRegexp("Could not stop run .* RunSetException.*")
-        logger.addExpectedExact("Failed to transition to ready: idle[%s]" %
-                                comp_str)
-        logger.addExpectedExact("RunSet #%d (error): Could not stop idle[%s]" %
-                                (runset.id, comp_str))
+        logger.add_expected_regexp("Could not stop run .* RunSetException.*")
+        logger.add_expected_exact("Failed to transition to ready: idle[%s]" %
+                                  comp_str)
+        logger.add_expected_exact("RunSet #%d (error): Could not stop"
+                                  " idle[%s]" % (runset.id, comp_str))
 
         try:
             self.assertFalse(runset.stop_run(stop_name, timeout=0),
@@ -1110,32 +1112,32 @@ class TestRunSet(unittest.TestCase):
                          components=comp_list, logger=logger)
 
         for comp in comp_list:
-            comp.setStopFail()
+            comp.set_stop_fail()
 
         RunSet.TIMEOUT_SECS = 5
 
         comp_str = self.__build_comp_string(comp_names)
 
         stop_name = "BadStop"
-        logger.addExpectedExact("Stopping the run (%s)" % stop_name)
+        logger.add_expected_exact("Stopping the run (%s)" % stop_name)
 
-        logger.addExpectedExact("0 physics events collected in 0 seconds")
-        logger.addExpectedExact("0 moni events, 0 SN events, 0 tcals")
-        logger.addExpectedExact("Run terminated SUCCESSFULLY.")
+        logger.add_expected_exact("0 physics events collected in 0 seconds")
+        logger.add_expected_exact("0 moni events, 0 SN events, 0 tcals")
+        logger.add_expected_exact("Run terminated SUCCESSFULLY.")
 
-        logger.addExpectedExact("Not logging to file so cannot queue to"
-                                " SPADE")
+        logger.add_expected_exact("Not logging to file so cannot queue to"
+                                  " SPADE")
 
-        logger.addExpectedExact(("RunSet #1 run#%d (forcingStop):" +
-                                 " Forcing 6 components to stop: %s") %
-                                (run_num, comp_str))
-        logger.addExpectedExact("StopRun failed for " + comp_str)
-        logger.addExpectedExact("Failed to transition to ready: stopping[%s]" %
-                                comp_str)
+        logger.add_expected_exact("RunSet #1 run#%d (forcingStop):"
+                                  " Forcing 6 components to stop: %s" %
+                                  (run_num, comp_str))
+        logger.add_expected_exact("StopRun failed for " + comp_str)
+        logger.add_expected_exact("Failed to transition to ready:"
+                                  " stopping[%s]" % comp_str)
 
         stop_errmsg = ("RunSet #%d run#%d (error): Could not stop" +
-                        " stopping[%s]") % (runset.id, run_num, comp_str)
-        logger.addExpectedExact(stop_errmsg)
+                       " stopping[%s]") % (runset.id, run_num, comp_str)
+        logger.add_expected_exact(stop_errmsg)
 
         self.__add_moni_run_update(runset, moni_client, run_num)
 
@@ -1171,10 +1173,10 @@ class TestRunSet(unittest.TestCase):
 
         compstr = ComponentManager.format_component_list(comp_list)
 
-        exp_str = "fooHub#1,3-5,9-10, barHub#2,6-7,11, zabTrigger, bazBuilder"
-        self.assertEqual(compstr, exp_str,
+        expstr = "fooHub#1,3-5,9-10, barHub#2,6-7,11, zabTrigger, bazBuilder"
+        self.assertEqual(compstr, expstr,
                          "Expected legible list \"%s\", not \"%s\"" %
-                         (exp_str, compstr))
+                         (expstr, compstr))
 
 
 if __name__ == '__main__':

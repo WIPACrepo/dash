@@ -1,9 +1,12 @@
 #!/usr/bin/env python
+"""
+A simplistic ThreadGroup implementation
+"""
 
 import threading
 
 
-class Thread(threading.Thread):
+class GThread(threading.Thread):
     "Thread which is part of a group of threads"
 
     def __init__(self, target=None, name=None, args=(), kwargs=None,
@@ -23,13 +26,13 @@ class Thread(threading.Thread):
         self.__result = None
         self.__error = None
 
-        super(Thread, self).__init__(name=name)
+        super(GThread, self).__init__(name=name)
         if is_daemon:
             self.setDaemon(True)
 
     def __str__(self):
         return "Thread[tgt %s super %s]" % \
-            (self.__run_method, str(super(Thread, self)))
+            (self.__run_method, str(super(GThread, self)))
 
     @property
     def error(self):
@@ -43,7 +46,7 @@ class Thread(threading.Thread):
 
     def report_exception(self, exception):
         "Don't report exceptions"
-        pass
+        return
 
     def result(self):
         "Return cached result"
@@ -56,7 +59,7 @@ class Thread(threading.Thread):
         else:
             try:
                 self.__run_method(*self.__args, **self.__kwargs)
-            except Exception as exception:
+            except Exception as exception:  # pylint: disable=broad-except
                 self.report_exception(exception)
                 self.__error = exception
 
@@ -91,7 +94,7 @@ class ThreadGroup(object):
             try:
                 if thrd.is_error:
                     num_errors += 1
-            except:
+            except AttributeError:  # thrown when 'thrd' is a plain Thread
                 num_errors += 1
 
         return (num_alive, num_errors)
@@ -112,7 +115,7 @@ class ThreadGroup(object):
         "Summarize errors to logger"
         if logger is None:
             # This can happen when multiple threads are trying to stop a run
-            return
+            return None
 
         (num_alive, num_errors) = self.__get_errors()
 

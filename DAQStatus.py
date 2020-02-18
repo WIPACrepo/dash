@@ -19,151 +19,151 @@ def add_arguments(parser):
                         help="Don't check the host type for run permission")
     parser.add_argument("-n", "--numeric", dest="numeric",
                         action="store_true", default=False,
-                        help="Show IP addresses instead of hostnames"
-                             " in verbose output")
+                        help=("Show IP addresses instead of hostnames"
+                              " in verbose output"))
     parser.add_argument("-v", "--verbose", dest="verbose",
                         action="store_true", default=False,
                         help="Print detailed list")
 
 
-def cmpComp(x, y):
-    c = cmp(x["state"], y["state"])
-    if c == 0:
-        c = cmp(x["compName"], y["compName"])
-        if c == 0:
-            c = cmp(x["compNum"], y["compNum"])
+def cmp_comp(comp1, comp2):
+    val = cmp(comp1["state"], comp2["state"])
+    if val == 0:
+        val = cmp(comp1["compName"], comp2["compName"])
+        if val == 0:
+            val = cmp(comp1["compNum"], comp2["compNum"])
 
-    return c
+    return val
 
 
-def dumpComp(comp, numList, indent, indent2):
+def dump_comp(comp, num_list, indent, indent2):
     """Dump list of component instances, breaking long lists across lines"""
 
-    if comp is None or len(numList) == 0:
+    if comp is None or len(num_list) == 0:
         return
 
-    if len(numList) == 1 and numList[0] == 0:
+    if len(num_list) == 1 and num_list[0] == 0:
         print(indent + indent2 + comp)
         return
 
-    numStr = None
-    prevNum = -1
-    inRange = False
-    for n in numList:
-        if numStr is None:
-            numStr = str(n)
+    num_str = None
+    prev_num = -1
+    in_range = False
+    for num in num_list:
+        if num_str is None:
+            num_str = str(num)
         else:
-            if prevNum + 1 == n:
-                if not inRange:
-                    inRange = True
+            if prev_num + 1 == num:
+                if not in_range:
+                    in_range = True
             else:
-                if inRange:
-                    numStr += "-" + str(prevNum)
-                    inRange = False
-                numStr += " " + str(n)
-        prevNum = n
-    if numStr is None:
-        numStr = ""
-    elif inRange:
-        numStr += "-" + str(prevNum)
+                if in_range:
+                    num_str += "-" + str(prev_num)
+                    in_range = False
+                num_str += " " + str(num)
+        prev_num = num
+    if num_str is None:
+        num_str = ""
+    elif in_range:
+        num_str += "-" + str(prev_num)
 
-    plural = getPlural(len(numList))
-    front = "%s%s%d %s%s: " % (indent, indent2, len(numList), comp, plural)
-    frontLen = len(front)
-    frontCleared = False
+    plural = get_plural(len(num_list))
+    front = "%s%s%d %s%s: " % (indent, indent2, len(num_list), comp, plural)
+    front_len = len(front)
+    front_cleared = False
 
-    while len(numStr) > 0:
+    while num_str != "":
         # if list of numbers fits on the line, print it
-        if frontLen + len(numStr) < LINE_LENGTH:
-            print(front + numStr)
+        if front_len + len(num_str) < LINE_LENGTH:
+            print(front + num_str)
             break
 
         # look for break point
-        tmpLen = LINE_LENGTH - frontLen
-        if tmpLen >= len(numStr):
-            tmpLen = len(numStr) - 1
-        while tmpLen > 0 and numStr[tmpLen] != " ":
-            tmpLen -= 1
-        if tmpLen == 0:
-            tmpLen = LINE_LENGTH - frontLen
-            while tmpLen < len(numStr) and numStr[tmpLen] != " ":
-                tmpLen += 1
+        tmp_len = LINE_LENGTH - front_len
+        if tmp_len >= len(num_str):
+            tmp_len = len(num_str) - 1
+        while tmp_len > 0 and num_str[tmp_len] != " ":
+            tmp_len -= 1
+        if tmp_len == 0:
+            tmp_len = LINE_LENGTH - front_len
+            while tmp_len < len(num_str) and num_str[tmp_len] != " ":
+                tmp_len += 1
 
         # split line at break point
-        print(front + numStr[0:tmpLen])
+        print(front + num_str[0:tmp_len])
 
-        # set numStr to remainder of string and strip leading whitespace
-        numStr = numStr[tmpLen:]
-        while len(numStr) > 0 and numStr[0] == " ":
-            numStr = numStr[1:]
+        # set num_str to remainder of string and strip leading whitespace
+        num_str = num_str[tmp_len:]
+        while num_str != "" and num_str[0] == " ":
+            num_str = num_str[1:]
 
         # after first line, set front string to whitespace
-        if not frontCleared:
+        if not front_cleared:
             front = " " * len(front)
-            frontCleared = True
+            front_cleared = True
 
 
-def getPlural(num):
+def get_plural(num):
     if num == 1:
         return ""
     return "s"
 
 
-def listTerse(compList, indent, indent2):
-    compList.sort(cmpComp)
+def list_terse(comp_list, indent, indent2):
+    comp_list.sort(cmp_comp)
 
-    prevState = None
-    prevComp = None
+    prev_state = None
+    prev_comp = None
 
-    numList = []
-    for c in compList:
-        compChanged = cmp(prevComp, c["compName"]) != 0
-        stateChanged = cmp(prevState, c["state"]) != 0
-        if compChanged or stateChanged:
-            dumpComp(prevComp, numList, indent, indent2)
-            prevComp = c["compName"]
-            numList = []
-        if stateChanged:
-            prevState = c["state"]
-            print(indent + prevState)
-        numList.append(c["compNum"])
-    dumpComp(prevComp, numList, indent, indent2)
+    num_list = []
+    for comp in comp_list:
+        comp_changed = cmp(prev_comp, comp["compName"]) != 0
+        state_changed = cmp(prev_state, comp["state"]) != 0
+        if comp_changed or state_changed:
+            dump_comp(prev_comp, num_list, indent, indent2)
+            prev_comp = comp["compName"]
+            num_list = []
+        if state_changed:
+            prev_state = comp["state"]
+            print(indent + prev_state)
+        num_list.append(comp["compNum"])
+    dump_comp(prev_comp, num_list, indent, indent2)
 
 
-def listVerbose(compList, indent, indent2, useNumeric=True):
-    compList.sort(cmpComp)
+def list_verbose(comp_list, indent, indent2, use_numeric=True):
+    comp_list.sort(cmp_comp)
 
-    for c in compList:
-        if useNumeric:
-            hostname = c["host"]
+    for comp in comp_list:
+        if use_numeric:
+            hostname = comp["host"]
         else:
-            hostname = socket.getfqdn(c["host"])
+            hostname = socket.getfqdn(comp["host"])
             idx = hostname.find(".")
             if idx > 0:
                 hostname = hostname[:idx]
 
         print("%s%s#%d %s#%d at %s:%d M#%d %s" % \
-            (indent, indent2, c["id"], c["compName"], c["compNum"], hostname,
-             c["rpcPort"], c["mbeanPort"], c["state"]))
+            (indent, indent2, comp["id"], comp["compName"], comp["compNum"],
+             hostname, comp["rpcPort"], comp["mbeanPort"], comp["state"]))
 
 
 def print_status(args):
     cncrpc = RPCClient("localhost", DAQPort.CNCSERVER)
 
     try:
-        nc = cncrpc.rpc_component_count()
+        ncomps = cncrpc.rpc_component_count()
     except:
-        nc = 0
+        ncomps = 0
 
     try:
-        lc = cncrpc.rpc_component_list_dicts([], False)
+        complist = cncrpc.rpc_component_list_dicts([], False)
     except:
-        lc = []
+        complist = []
 
     try:
-        ns = cncrpc.rpc_runset_count()
+        nsets = cncrpc.rpc_runset_count()
     except:
-        ns = 0
+        nsets = 0
 
     try:
         ids = cncrpc.rpc_runset_list_ids()
@@ -171,8 +171,8 @@ def print_status(args):
         ids = []
 
     try:
-        versInfo = cncrpc.rpc_version()
-        vers = " (%s:%s)" % (versInfo["release"], versInfo["repo_rev"])
+        vers_info = cncrpc.rpc_version()
+        vers = " (%s:%s)" % (vers_info["release"], vers_info["repo_rev"])
     except:
         vers = " ??"
 
@@ -180,28 +180,28 @@ def print_status(args):
 
     indent = "    "
 
-    if len(indent) == 0:
+    if indent == "":
         indent2 = "  "
     else:
         indent2 = indent
 
     print("=======================")
-    print("%d unused component%s" % (nc, getPlural(nc)))
+    print("%d unused component%s" % (ncomps, get_plural(ncomps)))
     if args.verbose or args.numeric:
-        listVerbose(lc, indent, indent2, args.numeric)
+        list_verbose(complist, indent, indent2, args.numeric)
     else:
-        listTerse(lc, indent, indent2)
+        list_terse(complist, indent, indent2)
 
     print("-----------------------")
-    print("%d run set%s" % (ns, getPlural(ns)))
+    print("%d run set%s" % (nsets, get_plural(nsets)))
     for runid in ids:
         cfg = cncrpc.rpc_runset_configname(runid)
-        ls = cncrpc.rpc_runset_list(runid)
+        lst = cncrpc.rpc_runset_list(runid)
         print("%sRunSet#%d (%s)" % (indent, runid, cfg))
         if args.verbose or args.numeric:
-            listVerbose(ls, indent, indent2, args.numeric)
+            list_verbose(lst, indent, indent2, args.numeric)
         else:
-            listTerse(ls, indent, indent2)
+            list_terse(lst, indent, indent2)
 
     liverpc = RPCClient("localhost", DAQPort.DAQLIVE)
 
@@ -216,13 +216,14 @@ def print_status(args):
     print("Status: %s" % lst)
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     import argparse
 
-    p = argparse.ArgumentParser()
-
-    add_arguments(p)
-    args = p.parse_args()
+    parser = argparse.ArgumentParser()
+    add_arguments(parser)
+    args = parser.parse_args()
 
     if not args.nohostcheck:
         # exit if not running on expcont
@@ -233,3 +234,7 @@ if __name__ == "__main__":
                              " on the correct host?")
 
     print_status(args)
+
+
+if __name__ == "__main__":
+    main()

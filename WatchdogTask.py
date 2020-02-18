@@ -474,7 +474,7 @@ class WatchdogThread(CnCThread):
 
     def _run(self):
         "Run this task"
-        if self.isClosed:
+        if self.is_closed:
             return
 
         if self.__data is None:
@@ -482,7 +482,7 @@ class WatchdogThread(CnCThread):
                 self.__data = self.__rule.create_data(
                     self.__comp,
                     self.__mbean_client,
-                    self.__runset.components(),
+                    self.__runset.components,
                     self.__dashlog)
             except:
                 self.__init_fail += 1
@@ -561,7 +561,7 @@ class WatchdogRule(object):
         min_order = None
         max_order = None
 
-        for comp in runset.components():
+        for comp in runset.components:
             order = comp.order
             if not isinstance(order, int):
                 raise TaskException("Expected integer order for %s, not %s" %
@@ -734,7 +734,7 @@ class WatchdogTask(CnCTask):
     def __create_threads(self, runset, rules, dashlog):
         thread_list = {}
 
-        components = runset.components()
+        components = runset.components
         for comp in components:
             try:
                 found = False
@@ -852,12 +852,12 @@ class WatchdogTask(CnCTask):
             reraise_excinfo(saved_exc)
 
     @classproperty
-    def name(cls):
+    def name(cls):  # pylint: disable=no-self-argument
         "Name of this task"
         return cls.__NAME
 
     @classproperty
-    def period(cls):
+    def period(cls):  # pylint: disable=no-self-argument
         "Number of seconds between tasks"
         return cls.__PERIOD
 

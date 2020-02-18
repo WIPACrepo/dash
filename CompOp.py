@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from DAQClient import BeanTimeoutException
-from ThreadGroup import Thread, ThreadGroup
+from ThreadGroup import GThread, ThreadGroup
 from decorators import classproperty
 
 from exc_string import exc_string, set_exc_string_encoding
@@ -20,14 +20,14 @@ class ComponentOperation(object):
         return self.name
 
     @classproperty
-    def has_result(cls):
+    def has_result(cls):  # pylint: disable=no-self-argument
         "Does this operator return a result?"
         return True
 
     @classproperty
-    def name(cls):
+    def name(cls):  # pylint: disable=no-self-argument
         "Return the name of this operator"
-        name = cls.__name__
+        name = cls.__name__  # pylint: disable=no-member
         if name is not None and name.startswith("Op"):
             return name[2:]
         return name
@@ -35,7 +35,7 @@ class ComponentOperation(object):
 
 class VoidOperation(ComponentOperation):
     @classproperty
-    def has_result(self):
+    def has_result(self):  # pylint: disable=no-self-argument
         return False
 
 
@@ -240,7 +240,7 @@ class ComponentResult(OperationResult):
         return self.__value
 
 
-class ComponentThread(Thread):
+class ComponentThread(GThread):
     def __init__(self, operation, comp, args, logger):
         self.__operation = operation
         self.__comp = comp

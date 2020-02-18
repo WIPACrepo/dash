@@ -2,6 +2,8 @@
 #
 # The pdaq ubercommand which invokes all valid subcommands
 
+from __future__ import print_function
+
 import inspect
 import pdaq_commands
 
@@ -11,59 +13,67 @@ class CmdProblem(object):
         self.__name = name
         self.__errmsg = errmsg
 
-    def is_valid_host(self, args):
+    def is_valid_host(self, args):  # pylint: disable=unused-argument
         return True
 
     def run(self, args):
-        print "Command '%s' cannot be run: %s" % (self.__name, self.__errmsg)
+        print("Command '%s' cannot be run: %s args %s" %
+              (self.__name, self.__errmsg, args))
 
 
 def check_commands():
     for name, obj in inspect.getmembers(pdaq_commands):
         if inspect.isclass(obj) and name.startswith("Cmd"):
             if obj not in pdaq_commands.COMMANDS:
-                print "%s is missing the @command decorator" % (obj.__name__, )
+                print("%s is missing the @command decorator" %
+                      (obj.__name__, ))
 
 
-if __name__ == "__main__":
+def main():
     import argparse
 
-    p = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser()
 
-    sub = p.add_subparsers(dest="cmd")
+    sub = parser.add_subparsers(dest="cmd")
 
     cmdmap = {}
-    for v in pdaq_commands.COMMANDS:
+    for cmd in pdaq_commands.COMMANDS:
         try:
-            v.add_arguments(sub.add_parser(v.name(),
-                                           description=v.description(),
-                                           epilog=v.epilog(),
-            ))
-            cmdmap[v.name()] = v
-        except ImportError, ie:
+            cmd.add_arguments(sub.add_parser(cmd.name,
+                                             description=cmd.description,
+                                             epilog=cmd.epilog,
+                                             ))
+            cmdmap[cmd.name] = cmd
+        except ImportError as iex:
             # missing lxml can cause import problems on hubs
-            cmdmap[v.name()] = CmdProblem(v.name(), "%s: %s" % (type(ie), ie))
+            cmdmap[cmd.name] = CmdProblem(cmd.name, "%s: %s" %
+                                          (type(iex), iex))
 
     # try to parse command-line arguments
-    ns, unknown = p.parse_known_args()
-    if unknown is not None and len(unknown) > 0:
-        # there was a problem with the
-        if ns.cmd not in cmdmap:
-            raise SystemExit("Unknown command \"%s\"" % (ns.cmd, ))
-        if isinstance(cmdmap[ns.cmd], CmdProblem):
-            cmdmap[ns.cmd].run(None)
+    args, unknown = parser.parse_known_args()
+    if unknown is not None and \
+      len(unknown) > 0:  # pylint: disable=len-as-condition
+        # there was a problem with one or more arguments
+        if args.cmd not in cmdmap:
+            raise SystemExit("Unknown command \"%s\"" % (args.cmd, ))
+        if isinstance(cmdmap[args.cmd], CmdProblem):
+            cmdmap[args.cmd].run(None)
             raise SystemExit(1)
         raise SystemExit("Unknown argument(s) for \"%s\": %s" %
-                         (ns.cmd, unknown, ))
+                         (args.cmd, unknown, ))
 
     # True if the user didn't tell us to ignore the host type
-    host_check = not hasattr(ns, 'nohostcheck') or not ns.nohostcheck
+    host_check = not hasattr(args, 'nohostcheck') or not args.nohostcheck
 
-    if host_check and not cmdmap[ns.cmd].is_valid_host(ns):
+    if host_check and not cmdmap[args.cmd].is_valid_host(args):
         raise SystemExit("Are you sure you are running this"
                          " on the correct host?")
 
     try:
-        cmdmap[ns.cmd].run(ns)
+        cmdmap[args.cmd].run(args)
     except KeyboardInterrupt:
         raise SystemExit("Interrupted.")
+
+
+if __name__ == "__main__":
+    main()

@@ -15,7 +15,7 @@ def compare_latestleap(latest, filename, verbose=False):
     # load in the new file
     try:
         newleap = leapseconds(filename)
-    except:
+    except:  # pylint: disable=bare-except
         print("Downloaded NIST file %s is not valid" % filename)
         import traceback
         traceback.print_exc()
@@ -28,7 +28,7 @@ def compare_latestleap(latest, filename, verbose=False):
     # load in the latest file
     try:
         oldleap = leapseconds(latest)
-    except:
+    except:  # pylint: disable=bare-except
         print("Replacing invalid %s" % latest)
         return True
 
@@ -58,7 +58,7 @@ def fetch_latestleap(host='tycho.usno.navy.mil', path='/pub/ntp',
         ftp = FTP(host)
     except socket.error:
         print("Failed to connect to host: '%s'" % host)
-        return
+        return None
 
     if verbose:
         print("Starting FTP session with %s" % host)
@@ -79,16 +79,16 @@ def fetch_latestleap(host='tycho.usno.navy.mil', path='/pub/ntp',
     times_list = []
     match_dict = {}
     for fname in file_list:
-        m = lsec_pattern.match(fname)
-        if m:
-            file_time = int(m.group(1))
+        mtch = lsec_pattern.match(fname)
+        if mtch is not None:
+            file_time = int(mtch.group(1))
             match_dict[file_time] = fname
             times_list.append(file_time)
 
-    if len(times_list) == 0:
+    if len(times_list) == 0:  # pylint: disable=len-as-condition
         print("Did not find any leap second files @ ftp://%s%s" % (host, path))
         ftp.close()
-        return
+        return None
 
     latest_time = max(times_list)
     latest_file = match_dict[latest_time]
@@ -156,7 +156,7 @@ def install_latestleap(latest, filename, verbose=False):
 
         try:
             os.remove(latest)
-        except:
+        except:  # pylint: disable=bare-except
             pass  # ignore all errors
         os.symlink(basename, latest)
 
@@ -165,7 +165,9 @@ def install_latestleap(latest, filename, verbose=False):
                     (basename, ldir, os.path.basename(latest)))
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     import sys
 
     verbose = len(sys.argv) > 1 and sys.argv[1] == "-v"
@@ -177,3 +179,7 @@ if __name__ == "__main__":
 
     if compare_latestleap(latest, newfile, True):
         install_latestleap(latest, newfile, True)
+
+
+if __name__ == "__main__":
+    main()

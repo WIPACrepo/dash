@@ -17,26 +17,26 @@ def main():
     "Main program"
     import argparse
 
-    p = argparse.ArgumentParser()
-    p.add_argument("-c", "--config-name",
-                   dest="clusterConfigName",
-                   help="REQUIRED: Configuration name")
-    p.add_argument("-n", "--dry-run", dest="dry_run",
-                   action="store_true", default=False,
-                   help="Don't actually run DAQGPS - just print what" +
-                   " would be done")
-    p.add_argument("-z", "--no-schema-validation", dest="validation",
-                   action="store_false", default=True,
-                   help="Disable schema validation of xml config files")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--config-name",
+                        dest="clusterConfigName",
+                        help="REQUIRED: Configuration name")
+    parser.add_argument("-n", "--dry-run", dest="dry_run",
+                        action="store_true", default=False,
+                        help=("Don't actually run DAQGPS - just print what"
+                              " would be done"))
+    parser.add_argument("-z", "--no-schema-validation", dest="validation",
+                        action="store_false", default=True,
+                        help="Disable schema validation of xml config files")
 
-    args = p.parse_args()
+    args = parser.parse_args()
 
     try:
         config = DAQConfigParser.\
             get_cluster_configuration(args.clusterConfigName,
                                       validate=args.validation)
-    except DAQConfigException as e:
-        print("Configuration file problem:\n%s" % e, file=sys.stderr)
+    except DAQConfigException as exc:
+        print("Configuration file problem:\n%s" % exc, file=sys.stderr)
         raise SystemExit
 
     if args.doList:
@@ -56,7 +56,7 @@ def main():
 
     for hub in hublist:
         print("Hub %s: " % hub, end=' ')
-        result = cmds.getResult(ids[hub])
+        result = cmds.get_output_by_id(ids[hub])
         result = result.rstrip()
         print(result)
 

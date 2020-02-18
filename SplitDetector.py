@@ -34,15 +34,15 @@ def add_arguments(parser):
     parser.add_argument("-A", "--altconfigs_only", dest="altconfigs_only",
                         action="store_true", default=False,
                         help="Only generate alternate run configurations")
-    parser.add_argument("-d", "--dry-run", dest="dryrun",
-                        action="store_true", default=False,
-                        help="Dry run (do not actually create configurations)")
     parser.add_argument("-f", "--force", dest="force",
                         action="store_true", default=False,
                         help="Overwrite existing configuration file(s)")
-    parser.add_argument("-N", "--noXX_only", dest="noXX_only",
+    parser.add_argument("-N", "--noxx_only", dest="noxx_only",
                         action="store_true", default=False,
-                        help="Only generate -noXX run configurations")
+                        help="Only generate -noxx run configurations")
+    parser.add_argument("-n", "--dry-run", dest="dryrun",
+                        action="store_true", default=False,
+                        help="Dry run (do not actually create configurations)")
     parser.add_argument("-P", "--partitions_only", dest="altconfigs_only",
                         action="store_true", default=False,
                         help="Obsolete alias for --altconfigs_only")
@@ -58,7 +58,7 @@ def add_arguments(parser):
 
 def __make_alternate_config(run_config, altconfigs, it_key, ii_key,
                             dry_run=False, force=False, verbose=False):
-    if it_key != "NORTH" and it_key != "SOUTH":
+    if it_key not in ("NORTH", "SOUTH"):
         raise SplitException("Bad IceTop key \"%s\"" % it_key)
 
     basename = run_config.filename
@@ -114,7 +114,7 @@ def get_altconfigs(verbose=False):
     def_dom_geom = DefaultDomGeometryReader.parse()
 
     # get partition definitions
-    altconfigs = def_dom_geom.getPartitions()
+    altconfigs = def_dom_geom.partitions
 
     if verbose:
         print("Sanity-checking all configurations")
@@ -142,22 +142,22 @@ def range_string(hub_list):
     Create a concise string from a list of numbers
     (e.g. [1, 3, 4, 5, 7, 8, 9] will return "1,3-5,7-9")
     """
-    prevHub = None
-    rangeStr = ""
+    prev_hub = None
+    range_str = ""
     for hub in sorted(hub_list):
-        if prevHub is None:
-            rangeStr += "%d" % hub
-        elif hub == prevHub + 1:
-            if not rangeStr.endswith("-"):
-                rangeStr += "-"
+        if prev_hub is None:
+            range_str += "%d" % hub
+        elif hub == prev_hub + 1:
+            if not range_str.endswith("-"):
+                range_str += "-"
         else:
-            if rangeStr.endswith("-"):
-                rangeStr += "%d" % prevHub
-            rangeStr += ",%d" % hub
-        prevHub = hub
-    if prevHub is not None and rangeStr.endswith("-"):
-        rangeStr += "%d" % prevHub
-    return rangeStr
+            if range_str.endswith("-"):
+                range_str += "%d" % prev_hub
+            range_str += ",%d" % hub
+        prev_hub = hub
+    if prev_hub is not None and range_str.endswith("-"):
+        range_str += "%d" % prev_hub
+    return range_str
 
 
 def sanity_check(altconfigs, name, keys, expected):
@@ -167,14 +167,16 @@ def sanity_check(altconfigs, name, keys, expected):
     """
 
     # first make sure the individual alternate configurations don't overlap
-    for k1 in keys:
-        for k2 in keys:
-            if k1 == k2:
+    for key1 in keys:
+        for key2 in keys:
+            if key1 == key2:
                 continue
-            overlap = [hub for hub in altconfigs[k1] if hub in altconfigs[k2]]
+            overlap = [hub for hub in altconfigs[key1]
+                       if hub in altconfigs[key2]]
             if len(overlap) > 0:
                 raise SystemExit("Alternate configurations \"%s\" and \"%s\""
-                                 " both contain hubs %s" % (k1, k2, overlap))
+                                 " both contain hubs %s" %
+                                 (key1, key2, overlap))
 
     # build a list containing all the hubs from each alternate configuration
     testlist = []
@@ -196,12 +198,12 @@ def sanity_check(altconfigs, name, keys, expected):
 
 def split_detector(args):
     gen_altconfigs = True
-    gen_noXX = True
-    if args.altconfigs_only or args.noXX_only:
+    gen_noxx = True
+    if args.altconfigs_only or args.noxx_only:
         if not args.altconfigs_only:
             gen_altconfigs = False
-        if not args.noXX_only:
-            gen_noXX = False
+        if not args.noxx_only:
+            gen_noxx = False
 
     if args.verbose:
         print("Finding pDAQ configuration directory")
@@ -238,10 +240,10 @@ def split_detector(args):
             if args.print_testdaq:
                 tstlist[tstname] = hubs
 
-    if gen_noXX:
+    if gen_noxx:
         if args.verbose:
-            print("Generating noXX versions of %s" % (run_config.basename, ))
-        for comp in run_config.components():
+            print("Generating noxx versions of %s" % (run_config.basename, ))
+        for comp in run_config.components:
             if comp.is_hub:
                 if not args.dryrun:
                     _ = create_config(run_config, [comp.id, ], None,
@@ -253,7 +255,7 @@ def split_detector(args):
                     print("%s-no%s" % \
                         (run_config.basename, get_hub_name(comp.id)))
 
-                # XXX not adding noXX config to tstlist
+                # XXX not adding noxx config to tstlist
 
     if args.print_testdaq:
         print("domhubConfig.dat sections:")
@@ -274,15 +276,17 @@ def split_detector(args):
                 elif hub < 212:
                     print("sps-ithub%02d" % (hub - 200))
                 else:
-                    return "unknown%02d" % hub
+                    print("unknown%02d" % hub)
 
 
 def main():
+    "Main program"
+
     import argparse
 
-    op = argparse.ArgumentParser()
-    add_arguments(op)
-    args = op.parse_args()
+    parser = argparse.ArgumentParser()
+    add_arguments(parser)
+    args = parser.parse_args()
 
     split_detector(args)
 

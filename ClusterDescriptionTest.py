@@ -12,78 +12,84 @@ from DAQMocks import MockClusterConfigFile, MockCluCfgFileComp
 
 
 class TestClusterDescription(unittest.TestCase):
-    CFGDIR = None
+    cfgdir = None
     DEBUG = False
 
-    def __checkComp(self, h, c, mockComps):
+    def __check_comp(self, comp, mock_comps):
         mock = None
-        for m in mockComps:
-            if c.name == m.name and c.num == m.num:
-                mock = m
+        for mcmp in mock_comps:
+            if comp.name == mcmp.name and comp.num == mcmp.num:
+                mock = mcmp
                 break
 
         self.assertFalse(mock is None, "Cannot find component \"%s\"" %
-                         c.name)
-        self.assertEqual(mock.is_control_server, c.is_control_server,
+                         comp.name)
+        self.assertEqual(mock.is_control_server, comp.is_control_server,
                          "Expected %s ctlSrvr to be %s, not %s for %s<%s>" %
                          (mock.name, mock.is_control_server,
-                          c.is_control_server, c, type(c)))
-        self.assertEqual(mock.is_sim_hub, c.is_sim_hub,
+                          comp.is_control_server, comp, type(comp)))
+        self.assertEqual(mock.is_sim_hub, comp.is_sim_hub,
                          "Expected %s simHub to be %s, not %s for %s<%s>" %
-                         (mock.name, mock.is_sim_hub, c.is_sim_hub,
-                          c, type(c)))
-        self.assertEqual(mock.log_level, c.log_level,
+                         (mock.name, mock.is_sim_hub, comp.is_sim_hub,
+                          comp, type(comp)))
+        self.assertEqual(mock.log_level, comp.log_level,
                          "Expected %s log level \"%s\", not \"%s\""
                          " for %s<%s>" %
-                         (mock.name, mock.log_level, c.log_level, c, type(c)))
-        self.assertEqual(mock.required, c.required,
+                         (mock.name, mock.log_level, comp.log_level,
+                          comp, type(comp)))
+        self.assertEqual(mock.required, comp.required,
                          "Expected %s required to be %s, not %s for %s<%s>" %
-                         (mock.name, mock.required, c.required, c, type(c)))
-        if c.is_control_server:
-            self.assertFalse(c.has_jvm_options,
+                         (mock.name, mock.required, comp.required,
+                          comp, type(comp)))
+        if comp.is_control_server:
+            self.assertFalse(comp.has_jvm_options,
                              "Expected no JVM options for %s<%s>" %
-                             (c, type(c)))
+                             (comp, type(comp)))
         else:
-            self.assertTrue(c.has_jvm_options,
+            self.assertTrue(comp.has_jvm_options,
                             "Expected JVM options for %s<%s>" %
-                            (c, type(c)))
-            self.assertEqual(mock.jvm_extra_args, c.jvm_extra_args,
+                            (comp, type(comp)))
+            self.assertEqual(mock.jvm_extra_args, comp.jvm_extra_args,
                              "Expected %s JVM extra args \"%s\", not \"%s\""
                              " for %s<%s>" %
-                             (mock.name, mock.jvm_extra_args, c.jvm_extra_args,
-                              c, type(c)))
-            self.assertEqual(mock.jvm_heap_init, c.jvm_heap_init, "Expected %s"
-                             " JVM heapInit \"%s\", not \"%s\" for %s<%s>" %
-                             (mock.name, mock.jvm_heap_init, c.jvm_heap_init,
-                              c, type(c)))
-            self.assertEqual(mock.jvm_heap_max, c.jvm_heap_max, "Expected %s"
-                             " JVM heapMax \"%s\", not \"%s\" for %s<%s>" %
-                             (mock.name, mock.jvm_heap_max, c.jvm_heap_max,
-                              c, type(c)))
-            self.assertEqual(mock.jvm_path, c.jvm_path, "Expected %s"
+                             (mock.name, mock.jvm_extra_args,
+                              comp.jvm_extra_args, comp, type(comp)))
+            self.assertEqual(mock.jvm_heap_init, comp.jvm_heap_init,
+                             "Expected %s JVM heapInit \"%s\", not \"%s\""
+                             " for %s<%s>" %
+                             (mock.name, mock.jvm_heap_init,
+                              comp.jvm_heap_init, comp, type(comp)))
+            self.assertEqual(mock.jvm_heap_max, comp.jvm_heap_max,
+                             "Expected %s JVM heapMax \"%s\", not \"%s\""
+                             " for %s<%s>" %
+                             (mock.name, mock.jvm_heap_max, comp.jvm_heap_max,
+                              comp, type(comp)))
+            self.assertEqual(mock.jvm_path, comp.jvm_path, "Expected %s"
                              " JVM path \"%s\", not \"%s\" for %s<%s>" %
-                             (mock.name, mock.jvm_path, c.jvm_path, c, type(c)))
-            self.assertEqual(mock.jvm_server, c.jvm_server, "Expected %s JVM"
-                             " server \"%s\", not \"%s\" for %s<%s>" %
-                             (mock.name, mock.jvm_server, c.jvm_server, c,
-                              type(c)))
+                             (mock.name, mock.jvm_path, comp.jvm_path,
+                              comp, type(comp)))
+            self.assertEqual(mock.jvm_server, comp.jvm_server,
+                             "Expected %s JVM server \"%s\", not \"%s\""
+                             " for %s<%s>" %
+                             (mock.name, mock.jvm_server, comp.jvm_server,
+                              comp, type(comp)))
 
     def setUp(self):
-        if self.CFGDIR is None or not os.path.isdir(self.CFGDIR):
-            self.CFGDIR = tempfile.mkdtemp()
+        if self.cfgdir is None or not os.path.isdir(self.cfgdir):
+            self.cfgdir = tempfile.mkdtemp()
 
     def tearDown(self):
         pass
 
-    def testNoClusterEnd(self):
+    def test_no_cluster_end(self):
         name = "no-cluster-end"
 
-        path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
-        with open(path, "w") as fd:
-            print("<cluster>", file=fd)
+        path = os.path.join(self.cfgdir, name + "-cluster.cfg")
+        with open(path, "w") as out:
+            print("<cluster>", file=out)
 
         try:
-            ClusterDescription(self.CFGDIR, name)
+            ClusterDescription(self.cfgdir, name)
             self.fail("Test %s should not succeed" % name)
         except XMLFormatError as fmterr:
             errmsg = "%s: no element found: line 2, column 0" % path
@@ -91,15 +97,15 @@ class TestClusterDescription(unittest.TestCase):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
                           (errmsg, fmterr))
 
-    def testNoHost(self):
+    def test_no_host(self):
         name = "no-host"
 
-        path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
-        with open(path, "w") as fd:
-            print("<cluster name=\"%s\"/>" % name, file=fd)
+        path = os.path.join(self.cfgdir, name + "-cluster.cfg")
+        with open(path, "w") as out:
+            print("<cluster name=\"%s\"/>" % name, file=out)
 
         try:
-            ClusterDescription(self.CFGDIR, name)
+            ClusterDescription(self.cfgdir, name)
             self.fail("Test %s should not succeed" % name)
         except XMLFormatError as fmterr:
             errmsg = "No hosts defined for cluster \"%s\"" % name
@@ -107,17 +113,17 @@ class TestClusterDescription(unittest.TestCase):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
                           (errmsg, fmterr))
 
-    def testNamelessHost(self):
+    def test_nameless_host(self):
         name = "nameless-host"
 
-        path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
-        with open(path, "w") as fd:
-            print("<cluster name=\"%s\">" % name, file=fd)
-            print("  <host/>", file=fd)
-            print("</cluster>", file=fd)
+        path = os.path.join(self.cfgdir, name + "-cluster.cfg")
+        with open(path, "w") as out:
+            print("<cluster name=\"%s\">" % name, file=out)
+            print("  <host/>", file=out)
+            print("</cluster>", file=out)
 
         try:
-            ClusterDescription(self.CFGDIR, name)
+            ClusterDescription(self.cfgdir, name)
             self.fail("Test %s should not succeed" % name)
         except XMLFormatError as fmterr:
             errmsg = ("Cluster \"%s\" has <host> node without \"name\"" +
@@ -126,19 +132,19 @@ class TestClusterDescription(unittest.TestCase):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
                           (errmsg, fmterr))
 
-    def testMultiName(self):
+    def test_multi_name(self):
         name = "multiname"
 
-        path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
-        with open(path, "w") as fd:
-            print("<cluster name=\"%s\">" % name, file=fd)
-            print("  <host><name>bar</name><name>bar2</name>", file=fd)
-            print("    <jvm/>", file=fd)
-            print("  </host>", file=fd)
-            print("</cluster>", file=fd)
+        path = os.path.join(self.cfgdir, name + "-cluster.cfg")
+        with open(path, "w") as out:
+            print("<cluster name=\"%s\">" % name, file=out)
+            print("  <host><name>bar</name><name>bar2</name>", file=out)
+            print("    <jvm/>", file=out)
+            print("  </host>", file=out)
+            print("</cluster>", file=out)
 
         try:
-            ClusterDescription(self.CFGDIR, name)
+            ClusterDescription(self.cfgdir, name)
             self.fail("Test %s should not succeed" % name)
         except XMLFormatError as fmterr:
             errmsg = "Multiple <name> nodes found"
@@ -146,19 +152,19 @@ class TestClusterDescription(unittest.TestCase):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
                           (errmsg, fmterr))
 
-    def testEmptyNameNode(self):
+    def test_empty_name_node(self):
         name = "empty-name-node"
 
-        path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
-        with open(path, "w") as fd:
-            print("<cluster name=\"%s\">" % name, file=fd)
-            print("  <host><name/>", file=fd)
-            print("    <jvm/>", file=fd)
-            print("  </host>", file=fd)
-            print("</cluster>", file=fd)
+        path = os.path.join(self.cfgdir, name + "-cluster.cfg")
+        with open(path, "w") as out:
+            print("<cluster name=\"%s\">" % name, file=out)
+            print("  <host><name/>", file=out)
+            print("    <jvm/>", file=out)
+            print("  </host>", file=out)
+            print("</cluster>", file=out)
 
         try:
-            ClusterDescription(self.CFGDIR, name)
+            ClusterDescription(self.cfgdir, name)
             self.fail("Test %s should not succeed" % name)
         except XMLFormatError as fmterr:
             errmsg = '"%s" has <host> node without "name" attribute' % name
@@ -166,19 +172,19 @@ class TestClusterDescription(unittest.TestCase):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
                           (errmsg, fmterr))
 
-    def testMultiTextNode(self):
+    def test_multi_text_node(self):
         name = "multitext"
 
-        path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
-        with open(path, "w") as fd:
-            print("<cluster name=\"%s\">" % name, file=fd)
-            print("  <host><name>a<x/>b</name>", file=fd)
-            print("    <jvm/>", file=fd)
-            print("  </host>", file=fd)
-            print("</cluster>", file=fd)
+        path = os.path.join(self.cfgdir, name + "-cluster.cfg")
+        with open(path, "w") as out:
+            print("<cluster name=\"%s\">" % name, file=out)
+            print("  <host><name>a<x/>b</name>", file=out)
+            print("    <jvm/>", file=out)
+            print("  </host>", file=out)
+            print("</cluster>", file=out)
 
         try:
-            ClusterDescription(self.CFGDIR, name)
+            ClusterDescription(self.cfgdir, name)
             self.fail("Test %s should not succeed" % name)
         except XMLFormatError as fmterr:
             errmsg = "Found multiple <name> text nodes"
@@ -186,19 +192,19 @@ class TestClusterDescription(unittest.TestCase):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
                           (errmsg, fmterr))
 
-    def testNoNameText(self):
+    def test_no_name_text(self):
         name = "no-name-text"
 
-        path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
-        with open(path, "w") as fd:
-            print("<cluster name=\"%s\">" % name, file=fd)
-            print("  <host><name><x/></name>", file=fd)
-            print("    <jvm/>", file=fd)
-            print("  </host>", file=fd)
-            print("</cluster>", file=fd)
+        path = os.path.join(self.cfgdir, name + "-cluster.cfg")
+        with open(path, "w") as out:
+            print("<cluster name=\"%s\">" % name, file=out)
+            print("  <host><name><x/></name>", file=out)
+            print("    <jvm/>", file=out)
+            print("  </host>", file=out)
+            print("</cluster>", file=out)
 
         try:
-            ClusterDescription(self.CFGDIR, name)
+            ClusterDescription(self.cfgdir, name)
             self.fail("Test %s should not succeed" % name)
         except XMLFormatError as fmterr:
             errmsg = ("Cluster \"%s\" has <host> node without \"name\"" +
@@ -207,20 +213,20 @@ class TestClusterDescription(unittest.TestCase):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
                           (errmsg, fmterr))
 
-    def testNamelessComp(self):
+    def test_nameless_comp(self):
         name = "nameless-comp"
         hname = "hostx"
 
-        path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
-        with open(path, "w") as fd:
-            print("<cluster name=\"%s\">" % name, file=fd)
-            print("  <host name=\"%s\">" % hname, file=fd)
-            print("    <component/>", file=fd)
-            print("  </host>", file=fd)
-            print("</cluster>", file=fd)
+        path = os.path.join(self.cfgdir, name + "-cluster.cfg")
+        with open(path, "w") as out:
+            print("<cluster name=\"%s\">" % name, file=out)
+            print("  <host name=\"%s\">" % hname, file=out)
+            print("    <component/>", file=out)
+            print("  </host>", file=out)
+            print("</cluster>", file=out)
 
         try:
-            ClusterDescription(self.CFGDIR, name)
+            ClusterDescription(self.cfgdir, name)
             self.fail("Test %s should not succeed" % name)
         except XMLFormatError as fmterr:
             errmsg = ("Cluster \"%s\" host \"%s\" has <component> node" +
@@ -229,20 +235,19 @@ class TestClusterDescription(unittest.TestCase):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
                           (errmsg, fmterr))
 
-    def testNamelessDfltComp(self):
+    def test_nameless_dflt_comp(self):
         name = "nameless-comp"
-        hname = "hostx"
 
-        path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
-        with open(path, "w") as fd:
-            print("<cluster name=\"%s\">" % name, file=fd)
-            print("  <default>", file=fd)
-            print("    <component/>", file=fd)
-            print("  </default>", file=fd)
-            print("</cluster>", file=fd)
+        path = os.path.join(self.cfgdir, name + "-cluster.cfg")
+        with open(path, "w") as out:
+            print("<cluster name=\"%s\">" % name, file=out)
+            print("  <default>", file=out)
+            print("    <component/>", file=out)
+            print("  </default>", file=out)
+            print("</cluster>", file=out)
 
         try:
-            ClusterDescription(self.CFGDIR, name)
+            ClusterDescription(self.cfgdir, name)
             self.fail("Test %s should not succeed" % name)
         except XMLFormatError as fmterr:
             errmsg = ("Cluster \"%s\" default section has <component> node" +
@@ -251,22 +256,23 @@ class TestClusterDescription(unittest.TestCase):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
                           (errmsg, fmterr))
 
-    def testBadCompId(self):
+    def test_bad_comp_id(self):
         name = "bad-comp-id"
         hname = "hostx"
         cname = "foo"
         cid = "abc"
 
-        path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
-        with open(path, "w") as fd:
-            print("<cluster name=\"%s\">" % name, file=fd)
-            print("  <host name=\"%s\">" % hname, file=fd)
-            print("    <component name=\"%s\" id=\"%s\"/>" % (cname, cid), file=fd)
-            print("  </host>", file=fd)
-            print("</cluster>", file=fd)
+        path = os.path.join(self.cfgdir, name + "-cluster.cfg")
+        with open(path, "w") as out:
+            print("<cluster name=\"%s\">" % name, file=out)
+            print("  <host name=\"%s\">" % hname, file=out)
+            print("    <component name=\"%s\" id=\"%s\"/>" % (cname, cid),
+                  file=out)
+            print("  </host>", file=out)
+            print("</cluster>", file=out)
 
         try:
-            ClusterDescription(self.CFGDIR, name)
+            ClusterDescription(self.cfgdir, name)
             self.fail("Test %s should not succeed" % name)
         except XMLFormatError as fmterr:
             errmsg = ("Cluster \"%s\" host \"%s\" component \"%s\" has" +
@@ -275,21 +281,21 @@ class TestClusterDescription(unittest.TestCase):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
                           (errmsg, fmterr))
 
-    def testNoSimPrio(self):
+    def test_no_sim_prio(self):
         name = "no-sim-id"
         hname = "hostx"
         snum = 1
 
-        path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
-        with open(path, "w") as fd:
-            print("<cluster name=\"%s\">" % name, file=fd)
-            print("  <host name=\"%s\">" % hname, file=fd)
-            print("    <simulatedHub number=\"%s\"/>" % snum, file=fd)
-            print("  </host>", file=fd)
-            print("</cluster>", file=fd)
+        path = os.path.join(self.cfgdir, name + "-cluster.cfg")
+        with open(path, "w") as out:
+            print("<cluster name=\"%s\">" % name, file=out)
+            print("  <host name=\"%s\">" % hname, file=out)
+            print("    <simulatedHub number=\"%s\"/>" % snum, file=out)
+            print("  </host>", file=out)
+            print("</cluster>", file=out)
 
         try:
-            ClusterDescription(self.CFGDIR, name)
+            ClusterDescription(self.cfgdir, name)
             self.fail("Test %s should not succeed" % name)
         except XMLFormatError as fmterr:
             errmsg = ("Cluster \"%s\" host \"%s\" has <simulatedHub> node" +
@@ -298,23 +304,23 @@ class TestClusterDescription(unittest.TestCase):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
                           (errmsg, fmterr))
 
-    def testBadSimId(self):
+    def test_bad_sim_id(self):
         name = "bad-sim-id"
         hname = "hostx"
         snum = "abc"
         sprio = 1
 
-        path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
-        with open(path, "w") as fd:
-            print("<cluster name=\"%s\">" % name, file=fd)
-            print("  <host name=\"%s\">" % hname, file=fd)
-            print("    <simulatedHub number=\"%s\" priority=\"%s\"/>" % \
-                (snum, sprio), file=fd)
-            print("  </host>", file=fd)
-            print("</cluster>", file=fd)
+        path = os.path.join(self.cfgdir, name + "-cluster.cfg")
+        with open(path, "w") as out:
+            print("<cluster name=\"%s\">" % name, file=out)
+            print("  <host name=\"%s\">" % hname, file=out)
+            print("    <simulatedHub number=\"%s\" priority=\"%s\"/>" %
+                  (snum, sprio), file=out)
+            print("  </host>", file=out)
+            print("</cluster>", file=out)
 
         try:
-            ClusterDescription(self.CFGDIR, name)
+            ClusterDescription(self.cfgdir, name)
             self.fail("Test %s should not succeed" % name)
         except XMLFormatError as fmterr:
             errmsg = ("Cluster \"%s\" host \"%s\" has <simulatedHub> node" +
@@ -323,23 +329,23 @@ class TestClusterDescription(unittest.TestCase):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
                           (errmsg, fmterr))
 
-    def testBadSimPrio(self):
+    def test_bad_sim_prio(self):
         name = "bad-sim-prio"
         hname = "hostx"
         snum = 1
         sprio = "abc"
 
-        path = os.path.join(self.CFGDIR, name + "-cluster.cfg")
-        with open(path, "w") as fd:
-            print("<cluster name=\"%s\">" % name, file=fd)
-            print("  <host name=\"%s\">" % hname, file=fd)
-            print("    <simulatedHub number=\"%s\" priority=\"%s\"/>" % \
-                (snum, sprio), file=fd)
-            print("  </host>", file=fd)
-            print("</cluster>", file=fd)
+        path = os.path.join(self.cfgdir, name + "-cluster.cfg")
+        with open(path, "w") as out:
+            print("<cluster name=\"%s\">" % name, file=out)
+            print("  <host name=\"%s\">" % hname, file=out)
+            print("    <simulatedHub number=\"%s\" priority=\"%s\"/>" %
+                  (snum, sprio), file=out)
+            print("  </host>", file=out)
+            print("</cluster>", file=out)
 
         try:
-            ClusterDescription(self.CFGDIR, name)
+            ClusterDescription(self.cfgdir, name)
             self.fail("Test %s should not succeed" % name)
         except XMLFormatError as fmterr:
             errmsg = ("Cluster \"%s\" host \"%s\" has <simulatedHub> node" +
@@ -348,15 +354,15 @@ class TestClusterDescription(unittest.TestCase):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
                           (errmsg, fmterr))
 
-    def testEmpty(self):
+    def test_empty(self):
         name = "empty"
 
-        mock = MockClusterConfigFile(self.CFGDIR, name)
+        mock = MockClusterConfigFile(self.cfgdir, name)
 
         mock.create()
 
         try:
-            cd = ClusterDescription(self.CFGDIR, name)
+            _ = ClusterDescription(self.cfgdir, name)
             self.fail("Test %s should not succeed" % name)
         except ClusterDescriptionFormatError as fmterr:
             errmsg = "No hosts defined for cluster \"%s\"" % name
@@ -364,17 +370,17 @@ class TestClusterDescription(unittest.TestCase):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
                           (errmsg, fmterr))
 
-    def testDefaults(self):
+    def test_defaults(self):
         name = "dflts"
 
         data_dir = "/daq/data"
         log_dir = "/daq/log"
         spade_dir = "/daq/spade"
 
-        mock = MockClusterConfigFile(self.CFGDIR, name)
-        mock.setDataDir(data_dir)
-        mock.setLogDir(log_dir)
-        mock.setSpadeDir(spade_dir)
+        mock = MockClusterConfigFile(self.cfgdir, name)
+        mock.set_data_dir(data_dir)
+        mock.set_log_dir(log_dir)
+        mock.set_spade_dir(spade_dir)
 
         hs_dir = "xxxDir"
         hs_interval = 12.0
@@ -398,7 +404,7 @@ class TestClusterDescription(unittest.TestCase):
         mock.set_default_jvm_heap_max(jvm_heap_max)
         mock.set_default_jvm_path(jvm_path)
         mock.set_default_jvm_server(jvm_server)
-        mock.setDefaultLogLevel(log_level)
+        mock.set_default_log_level(log_level)
 
         acomp = MockCluCfgFileComp("foo", 1, hitspool_directory="hsDir",
                                    hitspool_interval=21.0,
@@ -407,417 +413,421 @@ class TestClusterDescription(unittest.TestCase):
                                    jvm_heap_max="3g", jvm_server=True,
                                    jvm_args="def", jvm_extra_args="ghi",
                                    log_level="xyz")
-        mock.addDefaultComponent(acomp)
+        mock.add_default_component(acomp)
 
         bcomp = MockCluCfgFileComp("bar")
-        mock.addDefaultComponent(bcomp)
+        mock.add_default_component(bcomp)
 
-        h = mock.addHost("host1")
-        foo = h.add_component("foo", required=True)
+        host = mock.add_host("host1")
+        _ = host.add_component("foo", required=True)
 
         mock.create()
 
         if self.DEBUG:
-            with open("%s/%s-cluster.cfg" % (self.CFGDIR, name)) as fd:
-                for line in fd:
+            with open("%s/%s-cluster.cfg" % (self.cfgdir, name)) as out:
+                for line in out:
                     print(":: ", line, end=' ')
 
-        cd = ClusterDescription(self.CFGDIR, name)
+        cdesc = ClusterDescription(self.cfgdir, name)
 
         if self.DEBUG:
-            cd.dump()
+            cdesc.dump()
 
-        self.assertEqual(name + "-cluster", cd.config_name,
+        self.assertEqual(name + "-cluster", cdesc.config_name,
                          "Expected cfgname \"%s-cluster\", not \"%s\"" %
-                         (name, cd.config_name))
+                         (name, cdesc.config_name))
 
-        self.assertEqual(mock.data_dir, cd.daq_data_dir,
+        self.assertEqual(mock.data_dir, cdesc.daq_data_dir,
                          "Expected data dir \"%s\", not \"%s\"" %
-                         (mock.data_dir, cd.daq_data_dir))
-        self.assertEqual(mock.log_dir, cd.daq_log_dir,
+                         (mock.data_dir, cdesc.daq_data_dir))
+        self.assertEqual(mock.log_dir, cdesc.daq_log_dir,
                          "Expected log dir \"%s\", not \"%s\"" %
-                         (mock.log_dir, cd.daq_log_dir))
-        self.assertEqual(mock.spade_dir, cd.log_dir_for_spade,
+                         (mock.log_dir, cdesc.daq_log_dir))
+        self.assertEqual(mock.spade_dir, cdesc.log_dir_for_spade,
                          "Expected SPADE dir \"%s\", not \"%s\"" %
-                         (mock.spade_dir, cd.log_dir_for_spade))
+                         (mock.spade_dir, cdesc.log_dir_for_spade))
 
-        self.assertEqual(mock.default_jvm_args(), cd.default_jvm_args(),
+        self.assertEqual(mock.default_jvm_args(), cdesc.default_jvm_args(),
                          "Expected default JVMArgs \"%s\", not \"%s\"" %
-                         (mock.default_jvm_args(), cd.default_jvm_args()))
+                         (mock.default_jvm_args(), cdesc.default_jvm_args()))
         self.assertEqual(mock.default_jvm_extra_args(),
-                         cd.default_jvm_extra_args(),
+                         cdesc.default_jvm_extra_args(),
                          "Expected default JVMExtraArgs \"%s\","
                          " not \"%s\"" %
                          (mock.default_jvm_extra_args(),
-                          cd.default_jvm_extra_args()))
-        self.assertEqual(mock.default_jvm_heap_init(), cd.default_jvm_heap_init(),
+                          cdesc.default_jvm_extra_args()))
+        self.assertEqual(mock.default_jvm_heap_init(),
+                         cdesc.default_jvm_heap_init(),
                          "Expected default JVMHeapInit \"%s\", not \"%s\"" %
                          (mock.default_jvm_heap_init(),
-                          cd.default_jvm_heap_init()))
-        self.assertEqual(mock.default_jvm_heap_max(), cd.default_jvm_heap_max(),
+                          cdesc.default_jvm_heap_init()))
+        self.assertEqual(mock.default_jvm_heap_max(),
+                         cdesc.default_jvm_heap_max(),
                          "Expected default JVMHeapMax \"%s\", not \"%s\"" %
-                         (mock.default_jvm_heap_max(), cd.default_jvm_heap_max()))
-        self.assertEqual(mock.default_jvm_path(), cd.default_jvm_path(),
+                         (mock.default_jvm_heap_max(),
+                          cdesc.default_jvm_heap_max()))
+        self.assertEqual(mock.default_jvm_path(), cdesc.default_jvm_path(),
                          "Expected default JVMPath \"%s\", not \"%s\"" %
-                         (mock.default_jvm_path(), cd.default_jvm_path()))
-        self.assertEqual(mock.default_jvm_server(), cd.default_jvm_server(),
+                         (mock.default_jvm_path(), cdesc.default_jvm_path()))
+        self.assertEqual(mock.default_jvm_server(), cdesc.default_jvm_server(),
                          "Expected default JVMServer \"%s\", not \"%s\"" %
-                         (mock.default_jvm_server(), cd.default_jvm_server()))
-        self.assertEqual(mock.default_log_level, cd.default_log_level(),
+                         (mock.default_jvm_server(),
+                          cdesc.default_jvm_server()))
+        self.assertEqual(mock.default_log_level(), cdesc.default_log_level(),
                          "Expected default LogLevel \"%s\", not \"%s\"" %
-                         (mock.default_log_level, cd.default_log_level()))
+                         (mock.default_log_level(), cdesc.default_log_level()))
 
-        self.assertEqual(acomp.jvm_args, cd.default_jvm_args(acomp.name),
+        self.assertEqual(acomp.jvm_args, cdesc.default_jvm_args(acomp.name),
                          "Expected %s default JVMArgs \"%s\", not \"%s\"" %
                          (acomp.name, acomp.jvm_args,
-                          cd.default_jvm_args(acomp.name)))
+                          cdesc.default_jvm_args(acomp.name)))
         self.assertEqual(acomp.jvm_extra_args,
-                         cd.default_jvm_extra_args(acomp.name),
+                         cdesc.default_jvm_extra_args(acomp.name),
                          "Expected %s default JVMExtraArgs \"%s\","
                          " not \"%s\"" %
                          (acomp.name, acomp.jvm_extra_args,
-                          cd.default_jvm_extra_args(acomp.name)))
+                          cdesc.default_jvm_extra_args(acomp.name)))
         self.assertEqual(acomp.jvm_heap_init,
-                         cd.default_jvm_heap_init(acomp.name),
+                         cdesc.default_jvm_heap_init(acomp.name),
                          "Expected %s default JVMHeapInit \"%s\","
                          " not \"%s\"" %
                          (acomp.name, acomp.jvm_heap_init,
-                          cd.default_jvm_heap_init(acomp.name)))
+                          cdesc.default_jvm_heap_init(acomp.name)))
         self.assertEqual(acomp.jvm_heap_max,
-                         cd.default_jvm_heap_max(acomp.name),
+                         cdesc.default_jvm_heap_max(acomp.name),
                          "Expected %s default JVMHeapMax \"%s\","
                          " not \"%s\"" %
                          (acomp.name, acomp.jvm_heap_max,
-                          cd.default_jvm_heap_max(acomp.name)))
-        self.assertEqual(acomp.jvm_path, cd.default_jvm_path(acomp.name),
+                          cdesc.default_jvm_heap_max(acomp.name)))
+        self.assertEqual(acomp.jvm_path, cdesc.default_jvm_path(acomp.name),
                          "Expected %s default JVMPath \"%s\", not \"%s\"" %
                          (acomp.name, acomp.jvm_path,
-                          cd.default_jvm_path(acomp.name)))
+                          cdesc.default_jvm_path(acomp.name)))
         self.assertEqual(acomp.jvm_server,
-                         cd.default_jvm_server(acomp.name),
+                         cdesc.default_jvm_server(acomp.name),
                          "Expected %s default JVMServer \"%s\", not \"%s\"" %
                          (acomp.name, acomp.jvm_server,
-                          cd.default_jvm_server(acomp.name)))
-        self.assertEqual(acomp.log_level, cd.default_log_level(acomp.name),
+                          cdesc.default_jvm_server(acomp.name)))
+        self.assertEqual(acomp.log_level, cdesc.default_log_level(acomp.name),
                          "Expected %s default LogLevel \"%s\", not \"%s\"" %
                          (acomp.name, acomp.log_level,
-                          cd.default_log_level(acomp.name)))
+                          cdesc.default_log_level(acomp.name)))
 
         self.assertEqual(mock.default_jvm_args(),
-                         cd.default_jvm_args(bcomp.name),
+                         cdesc.default_jvm_args(bcomp.name),
                          "Expected %s default JVMArgs \"%s\", not \"%s\"" %
                          (bcomp.name, mock.default_jvm_args(),
-                          cd.default_jvm_args(bcomp.name)))
+                          cdesc.default_jvm_args(bcomp.name)))
         self.assertEqual(mock.default_jvm_extra_args(),
-                         cd.default_jvm_extra_args(bcomp.name),
+                         cdesc.default_jvm_extra_args(bcomp.name),
                          "Expected %s default JVMExtraArgs \"%s\","
                          " not \"%s\"" %
                          (bcomp.name, mock.default_jvm_extra_args(),
-                          cd.default_jvm_extra_args(bcomp.name)))
+                          cdesc.default_jvm_extra_args(bcomp.name)))
         self.assertEqual(mock.default_jvm_heap_init(),
-                         cd.default_jvm_heap_init(bcomp.name),
+                         cdesc.default_jvm_heap_init(bcomp.name),
                          "Expected %s default JVM HeapInit \"%s\","
                          " not \"%s\"" %
                          (bcomp.name, mock.default_jvm_heap_init(),
-                          cd.default_jvm_heap_init(bcomp.name)))
+                          cdesc.default_jvm_heap_init(bcomp.name)))
         self.assertEqual(mock.default_jvm_heap_max(),
-                         cd.default_jvm_heap_max(bcomp.name),
+                         cdesc.default_jvm_heap_max(bcomp.name),
                          "Expected %s default JVM HeapMax \"%s\","
                          " not \"%s\"" %
                          (bcomp.name, mock.default_jvm_heap_max(),
-                          cd.default_jvm_heap_max(bcomp.name)))
+                          cdesc.default_jvm_heap_max(bcomp.name)))
         self.assertEqual(mock.default_jvm_path(),
-                         cd.default_jvm_path(bcomp.name),
+                         cdesc.default_jvm_path(bcomp.name),
                          "Expected %s default JVMPath \"%s\", not \"%s\"" %
                          (bcomp.name, mock.default_jvm_path(),
-                          cd.default_jvm_path(bcomp.name)))
+                          cdesc.default_jvm_path(bcomp.name)))
         self.assertEqual(mock.default_jvm_server(),
-                         cd.default_jvm_server(bcomp.name),
+                         cdesc.default_jvm_server(bcomp.name),
                          "Expected %s default JVMServer \"%s\", not \"%s\"" %
                          (bcomp.name, mock.default_jvm_server(),
-                          cd.default_jvm_server(bcomp.name)))
-        self.assertEqual(mock.default_log_level,
-                         cd.default_log_level(bcomp.name),
+                          cdesc.default_jvm_server(bcomp.name)))
+        self.assertEqual(mock.default_log_level(),
+                         cdesc.default_log_level(bcomp.name),
                          "Expected %s default LogLevel \"%s\", not \"%s\"" %
-                         (bcomp.name, mock.default_log_level,
-                          cd.default_log_level(bcomp.name)))
+                         (bcomp.name, mock.default_log_level(),
+                          cdesc.default_log_level(bcomp.name)))
 
-    def testDefaultInheritance(self):
+    def test_default_inheritance(self):
         name = "compdflts"
 
         data_dir = "/daq/data"
         log_dir = "/daq/log"
         spade_dir = "/daq/spade"
 
-        dfltHSDir = "xxxHSDir"
-        dfltInterval = 99.0
-        dfltMaxFiles = 99
+        dflt_hs_dir = "xxxHSDir"
+        dflt_interval = 99.0
+        dflt_max_files = 99
 
-        dfltPath = "xxxjvm"
-        dfltHeapInit = "2g"
-        dfltHeapMax = "8g"
-        dfltServer = False
-        dfltArgs = "jvmArgs"
-        dfltExtra = "jvmExtra"
+        dflt_path = "xxxjvm"
+        dflt_heap_init = "2g"
+        dflt_heap_max = "8g"
+        dflt_server = False
+        dflt_args = "jvmArgs"
+        dflt_extra = "jvmExtra"
 
-        dfltLogLvl = "logLvl"
+        dflt_loglvl = "logLvl"
 
-        numFields = 10
+        num_fields = 10
 
-        (FLD_PATH, FLD_HEAP_INIT, FLD_HEAP_MAX, FLD_SERVER, FLD_JVMARGS,
-         FLD_EXTRAARGS, FLD_LOGLVL, FLD_HSDIR, FLD_HSIVAL, FLD_HSMAX) \
-         = list(range(numFields))
+        (fld_path, fld_heap_init, fld_heap_max, fld_server, fld_jvmargs,
+         fld_extraargs, fld_loglevel, fld_hs_dir, fld_hs_ival, fld_hs_max) = \
+         list(range(num_fields))
 
-        for i in range(numFields):
+        for idx in range(num_fields):
             if self.DEBUG:
-                print("########## I %d" % i)
+                print("########## IDX %d" % idx)
 
             # create a cluster config file
-            mock = MockClusterConfigFile(self.CFGDIR, name)
-            mock.setDataDir(data_dir)
-            mock.setLogDir(log_dir)
-            mock.setSpadeDir(spade_dir)
+            mock = MockClusterConfigFile(self.cfgdir, name)
+            mock.set_data_dir(data_dir)
+            mock.set_log_dir(log_dir)
+            mock.set_spade_dir(spade_dir)
 
             # set hitspool defaults
-            mock.set_default_hs_directory(dfltHSDir)
-            mock.set_default_hs_interval(dfltInterval)
-            mock.set_default_hs_max_files(dfltMaxFiles)
+            mock.set_default_hs_directory(dflt_hs_dir)
+            mock.set_default_hs_interval(dflt_interval)
+            mock.set_default_hs_max_files(dflt_max_files)
 
             # set JVM defaults
-            mock.set_default_jvm_args(dfltArgs)
-            mock.set_default_jvm_extra_args(dfltExtra)
-            mock.set_default_jvm_heap_init(dfltHeapInit)
-            mock.set_default_jvm_heap_max(dfltHeapMax)
-            mock.set_default_jvm_path(dfltPath)
-            mock.set_default_jvm_server(dfltServer)
+            mock.set_default_jvm_args(dflt_args)
+            mock.set_default_jvm_extra_args(dflt_extra)
+            mock.set_default_jvm_heap_init(dflt_heap_init)
+            mock.set_default_jvm_heap_max(dflt_heap_max)
+            mock.set_default_jvm_path(dflt_path)
+            mock.set_default_jvm_server(dflt_server)
 
             # set log level defaults
-            mock.setDefaultLogLevel(dfltLogLvl)
+            mock.set_default_log_level(dflt_loglvl)
 
             # add host
             hostname = "someHost"
-            h = mock.addHost(hostname)
+            host = mock.add_host(hostname)
 
             # temporary values will be used to set up
             # component-specific default values
-            (tmpHsDir, tmpIval, tmpMaxF, tmpPath, tmpHInit, tmpHMax,
-             tmpServer, tmpArgs, tmpExtra, tmpLogLvl) = \
-                (None, ) * numFields
+            (tmp_hs_dir, tmp_ival, tmp_max_f, tmp_path, tmp_heap_init,
+             tmp_heap_max, tmp_server, tmp_args, tmp_extra, tmp_loglvl) = \
+                (None, ) * num_fields
 
             # set component-level defaults
-            plainName = "foo"
-            if i == FLD_PATH:
-                plainPath = "plainPath"
-                tmpPath = plainPath
+            plain_name = "foo"
+            if idx == fld_path:
+                plain_path = "plainPath"
+                tmp_path = plain_path
             else:
-                plainPath = dfltPath
-            if i == FLD_HEAP_INIT:
-                plainHeapInit = "1g"
-                tmpHInit = plainHeapInit
+                plain_path = dflt_path
+            if idx == fld_heap_init:
+                plain_heap_init = "1g"
+                tmp_heap_init = plain_heap_init
             else:
-                plainHeapInit = dfltHeapInit
-            if i == FLD_HEAP_MAX:
-                plainHeapMax = "3g"
-                tmpHMax = plainHeapMax
+                plain_heap_init = dflt_heap_init
+            if idx == fld_heap_max:
+                plain_heap_max = "3g"
+                tmp_heap_max = plain_heap_max
             else:
-                plainHeapMax = dfltHeapMax
-            if i == FLD_SERVER:
-                plainServer = not dfltServer
-                tmpServer = plainServer
+                plain_heap_max = dflt_heap_max
+            if idx == fld_server:
+                plain_server = not dflt_server
+                tmp_server = plain_server
             else:
-                plainServer = dfltServer is True
-            if i == FLD_JVMARGS:
-                plainArgs = "plainArgs"
-                tmpArgs = plainArgs
+                plain_server = dflt_server is True
+            if idx == fld_jvmargs:
+                plain_args = "plainArgs"
+                tmp_args = plain_args
             else:
-                plainArgs = dfltArgs
-            if i == FLD_EXTRAARGS:
-                plainExtra = "plainExtra"
-                tmpExtra = plainExtra
+                plain_args = dflt_args
+            if idx == fld_extraargs:
+                plain_extra = "plainExtra"
+                tmp_extra = plain_extra
             else:
-                plainExtra = dfltExtra
-            if i == FLD_LOGLVL:
-                plainLogLvl = "plainLvl"
-                tmpLogLvl = plainLogLvl
+                plain_extra = dflt_extra
+            if idx == fld_loglevel:
+                plain_loglvl = "plainLvl"
+                tmp_loglvl = plain_loglvl
             else:
-                plainLogLvl = dfltLogLvl
-            if i == FLD_HSDIR:
-                plainHSDir = "plainDir"
-                tmpHsDir = plainHSDir
+                plain_loglvl = dflt_loglvl
+            if idx == fld_hs_dir:
+                plain_hs_dir = "plainDir"
+                tmp_hs_dir = plain_hs_dir
             else:
-                plainHSDir = dfltHSDir
-            if i == FLD_HSIVAL:
-                plainIval = dfltInterval + 1.1
-                tmpIval = plainIval
+                plain_hs_dir = dflt_hs_dir
+            if idx == fld_hs_ival:
+                plain_ival = dflt_interval + 1.1
+                tmp_ival = plain_ival
             else:
-                plainIval = dfltInterval
-            if i == FLD_HSMAX:
-                plainMaxF = dfltMaxFiles + 1
-                tmpMaxF = plainMaxF
+                plain_ival = dflt_interval
+            if idx == fld_hs_max:
+                plain_max_f = dflt_max_files + 1
+                tmp_max_f = plain_max_f
             else:
-                plainMaxF = dfltMaxFiles
+                plain_max_f = dflt_max_files
 
             # add component-specific default (only one value will be active)
-            acomp = MockCluCfgFileComp(plainName, 0,
-                                       hitspool_directory=tmpHsDir,
-                                       hitspool_interval=tmpIval,
-                                       hitspool_max_files=tmpMaxF,
-                                       jvm_path=tmpPath,
-                                       jvm_heap_init=tmpHInit,
-                                       jvm_heap_max=tmpHMax,
-                                       jvm_server=tmpServer,
-                                       jvm_args=tmpArgs,
-                                       jvm_extra_args=tmpExtra,
-                                       log_level=tmpLogLvl)
-            mock.addDefaultComponent(acomp)
+            acomp = MockCluCfgFileComp(plain_name, 0,
+                                       hitspool_directory=tmp_hs_dir,
+                                       hitspool_interval=tmp_ival,
+                                       hitspool_max_files=tmp_max_f,
+                                       jvm_path=tmp_path,
+                                       jvm_heap_init=tmp_heap_init,
+                                       jvm_heap_max=tmp_heap_max,
+                                       jvm_server=tmp_server,
+                                       jvm_args=tmp_args,
+                                       jvm_extra_args=tmp_extra,
+                                       log_level=tmp_loglvl)
+            mock.add_default_component(acomp)
 
             # add unaltered component
-            foo = h.add_component(plainName, required=True)
+            _ = host.add_component(plain_name, required=True)
 
             # add a component which will override a single value
-            instName = "bar"
-            bar = h.add_component(instName, required=True)
+            inst_name = "bar"
+            mod_comp = host.add_component(inst_name, required=True)
 
-            j = (i + 1) % numFields
+            jdx = (idx + 1) % num_fields
             if self.DEBUG:
-                print("########## J %d" % j)
+                print("########## JDX %d" % jdx)
 
-            if j == FLD_PATH:
-                instPath = "instPath"
-                bar.set_jvm_path(instPath)
+            if jdx == fld_path:
+                inst_path = "instPath"
+                mod_comp.set_jvm_path(inst_path)
             else:
-                instPath = dfltPath
-            if j == FLD_HEAP_INIT:
-                instHeapInit = "instInit"
-                bar.set_jvm_heap_init(instHeapInit)
+                inst_path = dflt_path
+            if jdx == fld_heap_init:
+                inst_heap_init = "instInit"
+                mod_comp.set_jvm_heap_init(inst_heap_init)
             else:
-                instHeapInit = dfltHeapInit
-            if j == FLD_HEAP_MAX:
-                instHeapMax = "instMax"
-                bar.set_jvm_heap_max(instHeapMax)
+                inst_heap_init = dflt_heap_init
+            if jdx == fld_heap_max:
+                inst_heap_max = "instMax"
+                mod_comp.set_jvm_heap_max(inst_heap_max)
             else:
-                instHeapMax = dfltHeapMax
-            if j == FLD_SERVER:
-                instServer = not dfltServer
-                bar.set_jvm_server(instServer)
+                inst_heap_max = dflt_heap_max
+            if jdx == fld_server:
+                inst_server = not dflt_server
+                mod_comp.set_jvm_server(inst_server)
             else:
-                instServer = dfltServer is True
-            if j == FLD_JVMARGS:
-                instArgs = "instArgs"
-                bar.set_jvm_args(instArgs)
+                inst_server = dflt_server is True
+            if jdx == fld_jvmargs:
+                inst_args = "instArgs"
+                mod_comp.set_jvm_args(inst_args)
             else:
-                instArgs = dfltArgs
-            if j == FLD_EXTRAARGS:
-                instExtra = "instExtra"
-                bar.set_jvm_extra_args(instExtra)
+                inst_args = dflt_args
+            if jdx == fld_extraargs:
+                inst_extra = "instExtra"
+                mod_comp.set_jvm_extra_args(inst_extra)
             else:
-                instExtra = dfltExtra
-            if j == FLD_LOGLVL:
-                instLogLvl = "instLvl"
-                bar.set_log_level(instLogLvl)
+                inst_extra = dflt_extra
+            if jdx == fld_loglevel:
+                inst_loglvl = "instLvl"
+                mod_comp.set_log_level(inst_loglvl)
             else:
-                instLogLvl = dfltLogLvl
-            if j == FLD_HSDIR:
-                instHSDir = "instHSDir"
-                bar.setHitspoolDirectory(instHSDir)
+                inst_loglvl = dflt_loglvl
+            if jdx == fld_hs_dir:
+                inst_hs_dir = "instHSDir"
+                mod_comp.set_hitspool_directory(inst_hs_dir)
             else:
-                instHSDir = dfltHSDir
-            if j == FLD_HSIVAL:
-                instIval = dfltInterval + 2.2
-                bar.setHitspoolInterval(instIval)
+                inst_hs_dir = dflt_hs_dir
+            if jdx == fld_hs_ival:
+                inst_ival = dflt_interval + 2.2
+                mod_comp.set_hitspool_interval(inst_ival)
             else:
-                instIval = dfltInterval
-            if j == FLD_HSMAX:
-                instMaxF = dfltMaxFiles + 2
-                bar.setHitspoolMaxFiles(instMaxF)
+                inst_ival = dflt_interval
+            if jdx == fld_hs_max:
+                inst_max_f = dflt_max_files + 2
+                mod_comp.set_hitspool_max_files(inst_max_f)
             else:
-                instMaxF = dfltMaxFiles
+                inst_max_f = dflt_max_files
 
             # create file
             mock.create()
 
             if self.DEBUG:
-                with open("%s/%s-cluster.cfg" % (self.CFGDIR, name)) as fd:
+                with open("%s/%s-cluster.cfg" % (self.cfgdir, name)) as out:
                     print(":::::::::: %s-cluster.cfg" % name)
-                    for line in fd:
+                    for line in out:
                         print(":: ", line, end=' ')
 
-            cd = ClusterDescription(self.CFGDIR, name)
+            cdesc = ClusterDescription(self.cfgdir, name)
 
             if self.DEBUG:
-                cd.dump()
+                cdesc.dump()
 
-            self.assertEqual(name + "-cluster", cd.config_name,
+            self.assertEqual(name + "-cluster", cdesc.config_name,
                              "Expected cfgname \"%s-cluster\", not \"%s\"" %
-                             (name, cd.config_name))
+                             (name, cdesc.config_name))
 
-            self.assertEqual(data_dir, cd.daq_data_dir,
+            self.assertEqual(data_dir, cdesc.daq_data_dir,
                              "Expected data dir \"%s\", not \"%s\"" %
-                             (data_dir, cd.daq_data_dir))
-            self.assertEqual(log_dir, cd.daq_log_dir,
+                             (data_dir, cdesc.daq_data_dir))
+            self.assertEqual(log_dir, cdesc.daq_log_dir,
                              "Expected log dir \"%s\", not \"%s\"" %
-                             (log_dir, cd.daq_log_dir))
-            self.assertEqual(spade_dir, cd.log_dir_for_spade,
+                             (log_dir, cdesc.daq_log_dir))
+            self.assertEqual(spade_dir, cdesc.log_dir_for_spade,
                              "Expected SPADE dir \"%s\", not \"%s\"" %
-                             (spade_dir, cd.log_dir_for_spade))
+                             (spade_dir, cdesc.log_dir_for_spade))
 
-            self.assertEqual(dfltHSDir, cd.default_hs_directory(),
+            self.assertEqual(dflt_hs_dir, cdesc.default_hs_directory(),
                              "Expected default HS directory \"%s\","
                              " not \"%s\"" %
-                             (dfltHSDir, cd.default_hs_directory()))
-            self.assertEqual(dfltInterval, cd.default_hs_interval(),
+                             (dflt_hs_dir, cdesc.default_hs_directory()))
+            self.assertEqual(dflt_interval, cdesc.default_hs_interval(),
                              "Expected default HS interval \"%s\","
                              " not \"%s\"" %
-                             (dfltInterval, cd.default_hs_interval()))
-            self.assertEqual(dfltMaxFiles, cd.default_hs_max_files(),
+                             (dflt_interval, cdesc.default_hs_interval()))
+            self.assertEqual(dflt_max_files, cdesc.default_hs_max_files(),
                              "Expected default HS maximum files \"%s\","
                              " not \"%s\"" %
-                             (dfltMaxFiles, cd.default_hs_max_files()))
+                             (dflt_max_files, cdesc.default_hs_max_files()))
 
-            self.assertEqual(dfltArgs, cd.default_jvm_args(),
+            self.assertEqual(dflt_args, cdesc.default_jvm_args(),
                              "Expected default JVMArgs \"%s\", not \"%s\"" %
-                             (dfltArgs, cd.default_jvm_args()))
-            self.assertEqual(dfltExtra, cd.default_jvm_extra_args(),
+                             (dflt_args, cdesc.default_jvm_args()))
+            self.assertEqual(dflt_extra, cdesc.default_jvm_extra_args(),
                              "Expected default JVMExtraArgs \"%s\","
                              " not \"%s\"" %
-                             (dfltExtra, cd.default_jvm_extra_args()))
-            self.assertEqual(dfltHeapInit, cd.default_jvm_heap_init(),
+                             (dflt_extra, cdesc.default_jvm_extra_args()))
+            self.assertEqual(dflt_heap_init, cdesc.default_jvm_heap_init(),
                              "Expected default JVMHeapInit \"%s\","
                              " not \"%s\"" %
-                             (dfltHeapInit, cd.default_jvm_heap_init()))
-            self.assertEqual(dfltHeapMax, cd.default_jvm_heap_max(),
+                             (dflt_heap_init, cdesc.default_jvm_heap_init()))
+            self.assertEqual(dflt_heap_max, cdesc.default_jvm_heap_max(),
                              "Expected default JVMHeapMax \"%s\", not \"%s\"" %
-                             (dfltHeapMax, cd.default_jvm_heap_max()))
-            self.assertEqual(dfltPath, cd.default_jvm_path(),
+                             (dflt_heap_max, cdesc.default_jvm_heap_max()))
+            self.assertEqual(dflt_path, cdesc.default_jvm_path(),
                              "Expected default JVMPath \"%s\", not \"%s\"" %
-                             (dfltPath, cd.default_jvm_path()))
-            self.assertEqual(dfltServer, cd.default_jvm_server(),
+                             (dflt_path, cdesc.default_jvm_path()))
+            self.assertEqual(dflt_server, cdesc.default_jvm_server(),
                              "Expected default JVMServer \"%s\", not \"%s\"" %
-                             (dfltServer, cd.default_jvm_server()))
+                             (dflt_server, cdesc.default_jvm_server()))
 
-            self.assertEqual(dfltLogLvl, cd.default_log_level(),
+            self.assertEqual(dflt_loglvl, cdesc.default_log_level(),
                              "Expected default LogLevel \"%s\", not \"%s\"" %
-                             (dfltLogLvl, cd.default_log_level()))
+                             (dflt_loglvl, cdesc.default_log_level()))
 
-            for comp in cd.host(hostname).components:
-                if comp.name == plainName:
-                    (hs_dir, hsIval, hs_max_f, args, extra, heap_init,
+            for comp in cdesc.host(hostname).components:
+                if comp.name == plain_name:
+                    (hs_dir, hs_ival, hs_max_f, args, extra, heap_init,
                      heap_max, path, server, log_level) \
-                     = (plainHSDir, plainIval, plainMaxF, plainArgs,
-                        plainExtra, plainHeapInit, plainHeapMax, plainPath,
-                        plainServer, plainLogLvl)
+                     = (plain_hs_dir, plain_ival, plain_max_f, plain_args,
+                        plain_extra, plain_heap_init, plain_heap_max,
+                        plain_path, plain_server, plain_loglvl)
                 else:
-                     (hs_dir, hsIval, hs_max_f, args, extra, heap_init,
-                      heap_max, path, server, log_level) \
-                     = (instHSDir, instIval, instMaxF, instArgs, instExtra,
-                        instHeapInit, instHeapMax, instPath, instServer,
-                        instLogLvl)
+                    (hs_dir, hs_ival, hs_max_f, args, extra, heap_init,
+                     heap_max, path, server, log_level) \
+                     = (inst_hs_dir, inst_ival, inst_max_f, inst_args,
+                        inst_extra, inst_heap_init, inst_heap_max, inst_path,
+                        inst_server, inst_loglvl)
 
                 has_jvm_options = args is not None and \
-                                extra is not None and \
-                                heap_init is not None and \
-                                heap_max is not None and \
-                                path is not None
+                  extra is not None and \
+                  heap_init is not None and \
+                  heap_max is not None and \
+                  path is not None
 
                 self.assertEqual(has_jvm_options, comp.has_jvm_options,
                                  "Expected %s<%s> hasJVMOptions %s, not %s" %
@@ -864,10 +874,10 @@ class TestClusterDescription(unittest.TestCase):
                                      " not \"%s\"" %
                                      (comp.name, type(comp), hs_dir,
                                       comp.hitspool_directory))
-                    self.assertEqual(hsIval, comp.hitspool_interval,
+                    self.assertEqual(hs_ival, comp.hitspool_interval,
                                      "Expected %s<%s> HS interval \"%s\","
                                      " not \"%s\"" %
-                                     (comp.name, type(comp), hsIval,
+                                     (comp.name, type(comp), hs_ival,
                                       comp.hitspool_interval))
                     self.assertEqual(hs_max_f, comp.hitspool_max_files,
                                      "Expected %s<%s> HS max files \"%s\","
@@ -875,98 +885,97 @@ class TestClusterDescription(unittest.TestCase):
                                      (comp.name, type(comp), hs_max_f,
                                       comp.hitspool_max_files))
 
-    def testComponents(self):
+    def test_components(self):
         name = "comps"
 
         data_dir = "/daq/data"
         log_dir = "/daq/log"
         spade_dir = "/daq/spade"
 
-        mockComps = []
-        mock = MockClusterConfigFile(self.CFGDIR, name)
+        mock_comps = []
+        mock = MockClusterConfigFile(self.cfgdir, name)
 
-        mock.setDataDir(data_dir)
-        mock.setLogDir(log_dir)
-        mock.setSpadeDir(spade_dir)
+        mock.set_data_dir(data_dir)
+        mock.set_log_dir(log_dir)
+        mock.set_spade_dir(spade_dir)
 
-        h1 = mock.addHost("host1")
-        mockComps.append(h1.addControlServer())
+        host1 = mock.add_host("host1")
+        mock_comps.append(host1.add_control_server())
 
-        foo = h1.add_component("foo", required=True)
-        foo.set_jvm_path("newJVM")
-        foo.set_jvm_args("newArgs")
-        foo.set_jvm_extra_args("newExtra")
-        foo.set_jvm_heap_init("newInit")
-        foo.set_jvm_heap_max("newMax")
-        foo.set_jvm_server(False)
-        foo.set_log_level("logLvl")
-        mockComps.append(foo)
+        comp_foo = host1.add_component("foo", required=True)
+        comp_foo.set_jvm_path("newJVM")
+        comp_foo.set_jvm_args("newArgs")
+        comp_foo.set_jvm_extra_args("newExtra")
+        comp_foo.set_jvm_heap_init("newInit")
+        comp_foo.set_jvm_heap_max("newMax")
+        comp_foo.set_jvm_server(False)
+        comp_foo.set_log_level("logLvl")
+        mock_comps.append(comp_foo)
 
-        bar = h1.add_component("bar", 123)
-        mockComps.append(bar)
+        comp_bar = host1.add_component("bar", 123)
+        mock_comps.append(comp_bar)
 
-        numSim = 15
-        prioSim = 2
+        num_sim = 15
+        prio_sim = 2
 
-        sim = h1.addSimHubs(numSim, prioSim, if_unused=True)
-        mockComps.append(sim)
+        sim = host1.add_sim_hubs(num_sim, prio_sim, if_unused=True)
+        mock_comps.append(sim)
 
-        h2 = mock.addHost("host2")
-        sim = h2.addSimHubs(numSim, prioSim)
-        mockComps.append(sim)
+        host2 = mock.add_host("host2")
+        sim = host2.add_sim_hubs(num_sim, prio_sim)
+        mock_comps.append(sim)
 
         mock.create()
 
         if self.DEBUG:
-            with open("%s/%s-cluster.cfg" % (self.CFGDIR, name)) as fd:
-                for line in fd:
+            with open("%s/%s-cluster.cfg" % (self.cfgdir, name)) as out:
+                for line in out:
                     print(":: ", line, end=' ')
 
-        cd = ClusterDescription(self.CFGDIR, name)
+        cdesc = ClusterDescription(self.cfgdir, name)
 
         if self.DEBUG:
-            cd.dump()
+            cdesc.dump()
 
-        self.assertEqual(mock.data_dir, cd.daq_data_dir,
+        self.assertEqual(mock.data_dir, cdesc.daq_data_dir,
                          "Expected data dir \"%s\", not \"%s\"" %
-                         (mock.data_dir, cd.daq_data_dir))
-        self.assertEqual(mock.log_dir, cd.daq_log_dir,
+                         (mock.data_dir, cdesc.daq_data_dir))
+        self.assertEqual(mock.log_dir, cdesc.daq_log_dir,
                          "Expected log dir \"%s\", not \"%s\"" %
-                         (mock.log_dir, cd.daq_log_dir))
-        self.assertEqual(mock.spade_dir, cd.log_dir_for_spade,
+                         (mock.log_dir, cdesc.daq_log_dir))
+        self.assertEqual(mock.spade_dir, cdesc.log_dir_for_spade,
                          "Expected SPADE dir \"%s\", not \"%s\"" %
-                         (mock.spade_dir, cd.log_dir_for_spade))
+                         (mock.spade_dir, cdesc.log_dir_for_spade))
 
-        for h, c in cd.host_component_pairs:
-            self.__checkComp(h, c, mockComps)
-        for h, c in cd.host_sim_hub_pairs:
-            self.__checkComp(h, c, mockComps)
-            self.assertEqual(numSim, c.number,
+        for _, comp in cdesc.host_component_pairs:
+            self.__check_comp(comp, mock_comps)
+        for _, comp in cdesc.host_sim_hub_pairs:
+            self.__check_comp(comp, mock_comps)
+            self.assertEqual(num_sim, comp.number,
                              "Expected simHub number %s, not %s" %
-                             (numSim, c.number))
-            self.assertEqual(prioSim, c.priority,
+                             (num_sim, comp.number))
+            self.assertEqual(prio_sim, comp.priority,
                              "Expected simHub priority %s, not %s" %
-                             (prioSim, c.priority))
+                             (prio_sim, comp.priority))
 
-    def testDupComponents(self):
+    def test_dup_components(self):
         name = "dupcomps"
 
-        mockComps = []
-        mock = MockClusterConfigFile(self.CFGDIR, name)
+        mock = MockClusterConfigFile(self.cfgdir, name)
 
-        host = mock.addHost("host1")
+        host = mock.add_host("host1")
         comp = host.add_component("foo")
         host.add_component("foo")
 
         mock.create()
 
         if self.DEBUG:
-            with open("%s/%s-cluster.cfg" % (self.CFGDIR, name)) as fd:
-                for line in fd:
+            with open("%s/%s-cluster.cfg" % (self.cfgdir, name)) as out:
+                for line in out:
                     print(":: ", line, end=' ')
 
         try:
-            ClusterDescription(self.CFGDIR, name)
+            ClusterDescription(self.cfgdir, name)
             self.fail("Test %s should not succeed" % name)
         except ClusterDescriptionFormatError as fmterr:
             errmsg = ("Multiple entries for component \"%s\""
@@ -975,58 +984,56 @@ class TestClusterDescription(unittest.TestCase):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
                           (errmsg, fmterr))
 
-    def testMultiHostComponents(self):
+    def test_multi_host_components(self):
         name = "multihost-comps"
 
-        mockComps = []
-        mock = MockClusterConfigFile(self.CFGDIR, name)
+        mock = MockClusterConfigFile(self.cfgdir, name)
 
-        h1 = mock.addHost("host1")
-        c1 = h1.add_component("foo")
+        host1 = mock.add_host("host1")
+        comp1 = host1.add_component("foo")
 
-        h2 = mock.addHost("host2")
-        c2 = h2.add_component("foo")
+        host2 = mock.add_host("host2")
+        _ = host2.add_component("foo")
 
         mock.create()
 
         if self.DEBUG:
-            with open("%s/%s-cluster.cfg" % (self.CFGDIR, name)) as fd:
-                for line in fd:
+            with open("%s/%s-cluster.cfg" % (self.cfgdir, name)) as out:
+                for line in out:
                     print(":: ", line, end=' ')
 
         try:
-            ClusterDescription(self.CFGDIR, name)
+            ClusterDescription(self.cfgdir, name)
             self.fail("Test %s should not succeed" % name)
         except ClusterDescriptionFormatError as fmterr:
             errmsg = "Multiple entries for component \"%s\"" % \
-                     c1.name
+                     comp1.name
             if not str(fmterr).endswith(errmsg):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
                           (errmsg, fmterr))
 
-    def testMergedHostEntries(self):
+    def test_merged_host_entries(self):
         name = "merged-hosts"
 
-        mockComps = []
-        mock = MockClusterConfigFile(self.CFGDIR, name)
+        mock = MockClusterConfigFile(self.cfgdir, name)
 
-        h1 = mock.addHost("host1")
-        c1 = h1.add_component("foo")
+        host1 = mock.add_host("host1")
+        _ = host1.add_component("foo")
 
-        h2 = mock.addHost("host2")
-        c2 = h2.add_component("bar")
+        host2 = mock.add_host("host2")
+        _ = host2.add_component("bar")
 
-        h2 = mock.addHost("host1")
-        c2 = h2.add_component("ney")
+        host3 = mock.add_host("host1")
+        _ = host3.add_component("ney")
 
         mock.create(split_hosts=True)
 
         if self.DEBUG:
-            with open("%s/%s-cluster.cfg" % (self.CFGDIR, name)) as fd:
-                for line in fd:
+            with open("%s/%s-cluster.cfg" % (self.cfgdir, name)) as out:
+                for line in out:
                     print(":: ", line, end=' ')
 
-        cdesc = ClusterDescription(self.CFGDIR, name)
+        cdesc = ClusterDescription(self.cfgdir, name)
 
         mockdict = mock.hosts
         for name, comp in cdesc.host_component_pairs:
@@ -1042,50 +1049,48 @@ class TestClusterDescription(unittest.TestCase):
                 self.fail("Cannot find host \"%s\" component \"%s\""
                           " in cluster description" % (name, comp))
 
-    def testDupSimHubs(self):
+    def test_dup_sim_hubs(self):
         """duplicate simHub lines at different priorities are allowed"""
         name = "dupsim"
 
-        mockComps = []
-        mock = MockClusterConfigFile(self.CFGDIR, name)
+        mock = MockClusterConfigFile(self.cfgdir, name)
 
-        host = mock.addHost("host1")
-        sim = host.addSimHubs(15, 2, if_unused=True)
-        host.addSimHubs(10, 1)
+        host = mock.add_host("host1")
+        _ = host.add_sim_hubs(15, 2, if_unused=True)
+        host.add_sim_hubs(10, 1)
 
         mock.create()
 
         if self.DEBUG:
-            with open("%s/%s-cluster.cfg" % (self.CFGDIR, name)) as fd:
-                for line in fd:
+            with open("%s/%s-cluster.cfg" % (self.cfgdir, name)) as out:
+                for line in out:
                     print(":: ", line, end=' ')
 
-        ClusterDescription(self.CFGDIR, name)
+        ClusterDescription(self.cfgdir, name)
 
-    def testAddDupPrio(self):
+    def test_add_dup_prio(self):
         """duplicate simHub lines at the same priority are not valid"""
         name = "dupprio"
 
-        mockComps = []
-        mock = MockClusterConfigFile(self.CFGDIR, name)
+        mock = MockClusterConfigFile(self.cfgdir, name)
 
         hname = "host1"
-        host = mock.addHost(hname)
+        host = mock.add_host(hname)
 
         prio = 2
-        sim = host.addSimHubs(15, prio, if_unused=True)
+        _ = host.add_sim_hubs(15, prio, if_unused=True)
 
         mock.create()
 
         if self.DEBUG:
-            with open("%s/%s-cluster.cfg" % (self.CFGDIR, name)) as fd:
-                for line in fd:
+            with open("%s/%s-cluster.cfg" % (self.cfgdir, name)) as out:
+                for line in out:
                     print(":: ", line, end=' ')
 
-        cd = ClusterDescription(self.CFGDIR, name)
-        h = cd.host(hname)
+        cdesc = ClusterDescription(self.cfgdir, name)
+        host = cdesc.host(hname)
         try:
-            h.add_simulated_hub(7, prio, False)
+            host.add_simulated_hub(7, prio, False)
         except ClusterDescriptionFormatError as fmterr:
             errmsg = "Multiple <simulatedHub> nodes at prio %d for %s" % \
                      (prio, hname)
@@ -1093,11 +1098,11 @@ class TestClusterDescription(unittest.TestCase):
                 self.fail("Expected exception \"%s\", not \"%s\"" %
                           (errmsg, fmterr))
 
-    def testMultiJVM(self):
+    def test_multi_jvm(self):
         name = "multiJVM"
 
         hostname = "foo"
-        compName = "fooComp"
+        comp_name = "fooComp"
         args = None
         extra = None
         heap_init = "2g"
@@ -1105,21 +1110,21 @@ class TestClusterDescription(unittest.TestCase):
         path = None
         server = False
 
-        cluPath = os.path.join(self.CFGDIR, name + "-cluster.cfg")
-        with open(cluPath, "w") as fd:
-            print("<cluster name=\"%s\">" % name, file=fd)
-            print("  <host name=\"%s\">" % hostname, file=fd)
-            print("    <component name=\"%s\">" % compName, file=fd)
-            print("      <jvm heapInit=\"xxx\"/>", file=fd)
-            print("      <jvm heapInit=\"%s\"/>" % heap_init, file=fd)
-            print("      <jvm heapMax=\"%s\"/>" % heap_max, file=fd)
-            print("    </component>", file=fd)
-            print("  </host>", file=fd)
-            print("</cluster>", file=fd)
+        clu_path = os.path.join(self.cfgdir, name + "-cluster.cfg")
+        with open(clu_path, "w") as out:
+            print("<cluster name=\"%s\">" % name, file=out)
+            print("  <host name=\"%s\">" % hostname, file=out)
+            print("    <component name=\"%s\">" % comp_name, file=out)
+            print("      <jvm heapInit=\"xxx\"/>", file=out)
+            print("      <jvm heapInit=\"%s\"/>" % heap_init, file=out)
+            print("      <jvm heapMax=\"%s\"/>" % heap_max, file=out)
+            print("    </component>", file=out)
+            print("  </host>", file=out)
+            print("</cluster>", file=out)
 
-        cd = ClusterDescription(self.CFGDIR, name)
+        cdesc = ClusterDescription(self.cfgdir, name)
 
-        for comp in cd.host(hostname).components:
+        for comp in cdesc.host(hostname).components:
             self.assertEqual(args, comp.jvm_args,
                              "Expected %s JVMArgs \"%s\", not \"%s\"" %
                              (comp.name, args, comp.jvm_args))

@@ -1001,12 +1001,12 @@ class BaseRun(object):
             duration = "???"
         else:
             try:
-                start_time = PayloadTime.fromString(summary["startTime"])
+                start_time = PayloadTime.from_string(summary["startTime"])
             except:
                 raise ValueError("Cannot parse run start time \"%s\": %s" %
                                  (summary["startTime"], exc_string()))
             try:
-                end_time = PayloadTime.fromString(summary["endTime"])
+                end_time = PayloadTime.from_string(summary["endTime"])
             except:
                 raise ValueError("Cannot parse run start time \"%s\": %s" %
                                  (summary["startTime"], exc_string()))

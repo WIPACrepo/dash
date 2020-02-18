@@ -44,7 +44,7 @@ class MJD(Comparable):
                                           " any time-based parameters")
             value = rawvalue
         else:
-            if month == 1 or month == 2:
+            if month in (1, 2):
                 year = year - 1
                 month = month + 12
 
@@ -56,12 +56,12 @@ class MJD(Comparable):
             # assume that we will never be calculating
             # mjd's before oct 15 1582
 
-            a = int(year / 100)
-            b = 2 - a + int(a / 4)
-            c = int(365.25 * year)
-            d = int(30.600 * (month + 1.0))
+            aval = int(year / 100)
+            bval = 2 - aval + int(aval / 4)
+            cval = int(365.25 * year)
+            dval = int(30.600 * (month + 1.0))
 
-            value = b + c + d + day + frac - 679006.0
+            value = bval + cval + dval + day + frac - 679006.0
 
         self.__value = value
 
@@ -117,37 +117,37 @@ class MJD(Comparable):
         time.struct_time(tm_year=2012, tm_mon=7, tm_mday=1, tm_hour=0, tm_min=0, tm_sec=0, tm_wday=6, tm_yday=183, tm_isdst=0)
         """
 
-        jd = self.__value + 2400000.5
+        jdate = self.__value + 2400000.5
 
-        jd = jd + 0.5
-        i = int(jd)
-        f = jd % 1
+        jdate = jdate + 0.5
+        jint = int(jdate)
+        odd_val = jdate % 1
 
-        if i > 2299160:
-            a = int((i - 1867216.25) / 36524.25)
-            b = i + 1 + a - int(a / 4)
+        if jint > 2299160:
+            aval = int((jint - 1867216.25) / 36524.25)
+            bval = jint + 1 + aval - int(aval / 4)
         else:
-            b = i
+            bval = jint
 
-        c = b + 1524.
-        d = int((c - 122.1) / 365.25)
-        e = int(365.25 * d)
-        g = int((c - e) / 30.6001)
+        cval = bval + 1524.
+        dval = int((cval - 122.1) / 365.25)
+        fval = int(365.25 * dval)
+        gval = int((cval - fval) / 30.6001)
 
-        day = c - e + f - int(30.6001 * g)
-        if g < 13.5:
-            m = g - 1
+        day = cval - fval + odd_val - int(30.6001 * gval)
+        if gval < 13.5:
+            month = gval - 1
         else:
-            m = g - 13
+            month = gval - 13
 
-        if m > 2.5:
-            year = d - 4716
+        if month > 2.5:
+            year = dval - 4716
         else:
-            year = d - 4715
+            year = dval - 4715
 
         # note that day will be a fractional day
         # and python handles that
-        time_str = (year, m, day, 0, 0, 0, 0, 0, -1)
+        time_str = (year, month, day, 0, 0, 0, 0, 0, -1)
         # looks silly, but have to deal with fractional day
         gm_epoch = calendar.timegm(time_str)
         time_str = time.gmtime(gm_epoch)
@@ -205,10 +205,6 @@ class leapseconds(object):
             self.__leap_offsets[idx].total_seconds = total_seconds
             mjd1 = mjd2
 
-    def __is_config_dir(self, config_dir):
-        return self.__filename is not None and config_dir is not None and \
-            self.__filename.startswith(config_dir)
-
     def dump_offsets(self):
         for yidx in range(len(self.__leap_offsets)):
             self.__leap_offsets[yidx].dump(self.__base_offset_year + yidx)
@@ -227,7 +223,6 @@ class leapseconds(object):
     def get_latest_path(cls):
         "Return the absolute path to the default file"
         return os.path.realpath(cls.instance().filename)
-
 
     def get_leap_offset(self, day_of_year, year=None):
         if year is None:
@@ -249,11 +244,15 @@ class leapseconds(object):
             config_dir = cls.__CONFIG_DIR
 
         if cls.__INSTANCE is None or \
-           not cls.__INSTANCE.__is_config_dir(config_dir):
+           not cls.__INSTANCE.is_config_dir(config_dir):
             cls.__INSTANCE = leapseconds(os.path.join(config_dir, "nist",
                                                       cls.DEFAULT_FILENAME))
 
         return cls.__INSTANCE
+
+    def is_config_dir(self, config_dir):
+        return self.__filename is not None and config_dir is not None and \
+            self.__filename.startswith(config_dir)
 
     def reload_check(self):
         if not os.path.exists(self.__filename):
@@ -271,9 +270,6 @@ class leapseconds(object):
 
         self.__mtime = new_mtime
         return True
-
-    def set_config_dir(self, config_dir):
-        self.__config_dir = config_dir
 
     def set_data(self, expiry, base_offset_year, leap_offsets):
         self.__expiry = expiry
@@ -353,7 +349,7 @@ class NISTParser(object):
 
             # find current offset
             while index < len(leap_seconds) - 2 and \
-                  jan1 > leap_seconds[index].value:
+              jan1 > leap_seconds[index].value:
                 index += 1
             if index >= len(leap_seconds):
                 index = len(leap_seconds) - 1
@@ -368,7 +364,7 @@ class NISTParser(object):
             year_offsets = []
 
             while index < len(leap_seconds) and \
-                  next_jan1 >= leap_seconds[index].value:
+              next_jan1 >= leap_seconds[index].value:
                 day = int(leap_seconds[index].value - jan1)
                 if day > 0:
                     year_offsets.append(day)
@@ -390,7 +386,7 @@ class NISTParser(object):
         for line in rdr:
             line = line.rstrip()
 
-            if len(line) == 0:
+            if line == "":
                 continue
 
             if line[0] == "#":
@@ -404,10 +400,10 @@ class NISTParser(object):
 
             match = self.NIST_DATA_PAT.match(line)
             if match is not None:
-                pt = MJD.from_ntp(int(match.group(1)))
+                tval = MJD.from_ntp(int(match.group(1)))
                 offset = int(match.group(2))
 
-                tai_map[pt] = offset
+                tai_map[tval] = offset
                 continue
         if expiry is None:
             raise LeapsecondException("No expiration line found")
@@ -426,7 +422,19 @@ class NISTParser(object):
         self.__init_object(default_year, expiry, tai_map)
 
 
-if __name__ == "__main__":
-    ls = leapseconds.instance()
+def main():
+    "Main program"
 
-    ls.dump_offsets()
+    ls_inst = leapseconds.instance()
+
+    ls_inst.dump_offsets()
+
+
+def test():
+    import doctest
+    doctest.testmod()
+
+
+if __name__ == "__main__":
+    #main()
+    test()

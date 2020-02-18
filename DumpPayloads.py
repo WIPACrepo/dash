@@ -2,7 +2,7 @@
 #
 # Dump all payloads in the data file
 
-from RunJava import runJava
+from RunJava import run_java
 
 
 def add_arguments(parser):
@@ -10,8 +10,8 @@ def add_arguments(parser):
                         help="Configuration directory")
     parser.add_argument("-S", "--summarize", dest="summarize",
                         action="store_true", default=False,
-                        help="Print time ranges and payload count" +
-                             " for each file")
+                        help=("Print time ranges and payload count" +
+                              " for each file"))
     parser.add_argument("-f", "--fullDump", dest="fullDump",
                         action="store_true", default=False,
                         help="Dump entire payload")
@@ -28,10 +28,10 @@ def add_arguments(parser):
 
 def dump_payloads(args):
     app = "icecube.daq.io.PayloadDumper"
-    javaArgs = ["-mx2000m"]
-    daqProjects = ["daq-common", "splicer", "payload", "daq-io"]
-    mavenDeps = [("log4j", "log4j", "1.2.7"),
-                 ("commons-logging", "commons-logging", "1.0.3")]
+    java_args = ["-mx2000m"]
+    daq_projects = ["daq-common", "splicer", "payload", "daq-io"]
+    maven_deps = [("log4j", "log4j", "1.2.7"),
+                  ("commons-logging", "commons-logging", "1.0.3")]
 
     arglist = []
     if args.config_dir is not None:
@@ -50,14 +50,20 @@ def dump_payloads(args):
 
     arglist += args.fileList
 
-    runJava(app, javaArgs, arglist, daqProjects, mavenDeps)
+    run_java(app, java_args, arglist, daq_projects, maven_deps)
+
+
+def main():
+    "Main program"
+
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    add_arguments(parser)
+    args = parser.parse_args()
+
+    dump_payloads(args)
 
 
 if __name__ == "__main__":
-    import argparse
-
-    p = argparse.ArgumentParser()
-    add_arguments(p)
-    args = p.parse_args()
-
-    dump_payloads(args)
+    main()

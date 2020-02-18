@@ -106,7 +106,7 @@ class ActiveDOMThread(CnCThread):
     def _run(self):
         # build a list of hubs
         src_set = []
-        for comp in self.__runset.components():
+        for comp in self.__runset.components:
             if comp.is_source:
                 src_set.append(comp)
 
@@ -156,7 +156,7 @@ class ActiveDOMThread(CnCThread):
             self.__dashlog.error(errmsg)
 
         # if the run isn't stopped and we have data from one or more hubs...
-        if not self.isClosed and self.__got_data(totals) > 0:
+        if not self.is_closed and self.__got_data(totals) > 0:
 
             # active doms should be reported over ITS once every ten minutes
             # and over email once a minute.  The two should not overlap
@@ -272,19 +272,19 @@ class ActiveDOMsTask(CnCSingleThreadTask):
     REPORT_PERIOD = 600
 
     def create_detail_timer(self, task_mgr):
-        return task_mgr.createIntervalTimer(self.REPORT_NAME,
-                                            self.REPORT_PERIOD)
+        return task_mgr.create_interval_timer(self.REPORT_NAME,
+                                              self.REPORT_PERIOD)
 
     def initialize_thread(self, runset, dashlog, live_moni):
         return ActiveDOMThread(runset, dashlog, live_moni)
 
     @classproperty
-    def name(cls):
+    def name(cls):  # pylint: disable=no-self-argument
         "Name of this task"
         return cls.__NAME
 
     @classproperty
-    def period(cls):
+    def period(cls):  # pylint: disable=no-self-argument
         "Number of seconds between tasks"
         return cls.__PERIOD
 

@@ -41,8 +41,8 @@ def dump_db(args):
                 start_val = start_tick
                 stop_val = stop_tick
             else:
-                start_val = PayloadTime.toDateTime(start_tick)
-                stop_val = PayloadTime.toDateTime(stop_tick)
+                start_val = PayloadTime.to_date_time(start_tick)
+                stop_val = PayloadTime.to_date_time(stop_tick)
             if os.path.exists(os.path.join(HITSPOOL_DIR, filename)):
                 rmstr = ""
             else:
@@ -53,13 +53,17 @@ def dump_db(args):
         conn.close()
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     import argparse
 
-    p = argparse.ArgumentParser()
-
-    add_arguments(p)
-
-    args = p.parse_args()
+    parser = argparse.ArgumentParser()
+    add_arguments(parser)
+    args = parser.parse_args()
 
     dump_db(args)
+
+
+if __name__ == "__main__":
+    main()

@@ -92,7 +92,7 @@ class InputOutputThread(threading.Thread):
         # try to get data from the queue
         self.__queue_flag.acquire()
         try:
-            if len(self.__queue) == 0:
+            if len(self.__queue) == 0:  # pylint: disable=len-as-condition
                 return None
 
             # return the next block of data
@@ -246,7 +246,7 @@ class OutputChannel(InputOutputThread):
 
             try:
                 self.__sock.send(data)
-            except:
+            except:  # pylint: disable=bare-except
                 import traceback
                 traceback.print_exc()
             # written += len(data)
@@ -257,12 +257,13 @@ class OutputChannel(InputOutputThread):
             while self.__running:
                 try:
                     data = fin.read(256)
-                    if data is None or len(data) == 0:
+                    if data is None or \
+                      len(data) == 0:  # pylint: disable=len-as-condition
                         break
 
                     self.__sock.send(data)
                     # written += len(data)
-                except:
+                except:  # pylint: disable=bare-except
                     import traceback
                     traceback.print_exc()
 
@@ -304,7 +305,7 @@ class OutputEngine(Engine):
             chan = OutputChannel(host, port, self, path=path)
             self.add_channel(chan)
             chan.start()
-        except:
+        except:  # pylint: disable=bare-except
             import traceback
             traceback.print_exc()
 
@@ -333,8 +334,8 @@ class BeanValue(object):
            isinstance(value, numbers.Number):
             return value, value + delta
 
-        if (isinstance(delta, list) or isinstance(delta, tuple)) and \
-           (isinstance(value, list) or isinstance(value, tuple)) and \
+        if isinstance(delta, (list, tuple)) and \
+          isinstance(value, (list, tuple)) and \
            len(delta) == len(value):
             rtnval = value[:]
             newlist = []
@@ -343,8 +344,7 @@ class BeanValue(object):
                 newlist.append(newval)
             if isinstance(value, list):
                 return rtnval, newlist
-            else:
-                return rtnval, tuple(newlist)
+            return rtnval, tuple(newlist)
 
         print("Not updating %s: value %s<%s> != delta" \
             " %s<%s>" % (name, value, type(value).__name__, delta,
@@ -447,15 +447,14 @@ class FakeClientException(Exception):
 
 
 class FakeClient(object):
-    NEXT_PREFIX = 1
+    __next_number = 1
 
     def __init__(self, name, num, conn_list, mbean_dict=None,
                  numeric_prefix=False, quiet=False):
         if not numeric_prefix:
             self.__name = name
         else:
-            self.__name = str(self.NEXT_PREFIX) + name
-            self.NEXT_PREFIX += 1
+            self.__name = str(self.__get_next_number()) + name
 
         self.__num = num
         self.__connections = self.__build_engines(conn_list)
@@ -552,6 +551,12 @@ class FakeClient(object):
         self.__num_evts += 1
         return self.__num_evts
 
+    @classmethod
+    def __get_next_number(cls):
+        num = cls.__next_number
+        cls.__next_number += 1
+        return num
+
     def __get_output_data_path(self):
         if self.__name == "inIceTrigger":
             cname = "iit"
@@ -589,27 +594,29 @@ class FakeClient(object):
     def __get_source_id(self):
         if self.__name == "inIceTrigger":
             return 4000 + self.__num
-        elif self.__name == "iceTopTrigger":
+        if self.__name == "iceTopTrigger":
             return 5000 + self.__num
-        elif self.__name == "globalTrigger":
+        if self.__name == "globalTrigger":
             return 6000 + self.__num
-        elif self.__name == "eventBuilder":
+        if self.__name == "eventBuilder":
             return 7000 + self.__num
-        elif self.__name == "tcalBuilder":
+        if self.__name == "tcalBuilder":
             return 8000 + self.__num
-        elif self.__name == "moniBuilder":
+        if self.__name == "moniBuilder":
             return 9000 + self.__num
-        elif self.__name == "snBuilder":
+        if self.__name == "snBuilder":
             return 11000 + self.__num
-        elif self.__name == "stringHub" or self.__name == "icetopHub":
+        if self.__name == "stringHub" or self.__name == "icetopHub":
             return 12000 + self.__num
-        elif self.__name == "secondaryBuilders":
+        if self.__name == "secondaryBuilders":
             return 14000 + self.__num
+
+        raise Exception("Unknown component name \"%s\"" % str(self.__name))
 
     def __get_state(self):
         return self.__state
 
-    def __get_version_info(self):
+    def __get_version_info(self):  # pylint: disable=no-self-use
         return '$Id: filename revision date time author xxx'
 
     def __list_connections(self):

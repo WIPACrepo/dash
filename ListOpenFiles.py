@@ -22,51 +22,35 @@ class UserInfo(object):
         self.__user = None
 
     def __str__(self):
-        s = ""
+        rtnstr = ""
         if self.__user is not None:
             if self.__uid is not None:
-                s = "%s(#%d)" % (self.__user, self.__uid)
+                rtnstr = "%s(#%d)" % (self.__user, self.__uid)
             else:
-                s = self.__user
+                rtnstr = self.__user
         elif self.__uid is not None:
-            s = "U#%d" % self.__uid
+            rtnstr = "U#%d" % self.__uid
         else:
-            s = "<UnknownUser>"
+            rtnstr = "<UnknownUser>"
 
         if self.__pid is not None:
-            s += " PID %d" % self.__pid
+            rtnstr += " PID %d" % self.__pid
 
         if self.__ppid is not None:
-            s += " PARENT %d" % self.__ppid
+            rtnstr += " PARENT %d" % self.__ppid
 
         if self.__pgid is not None:
-            s += " PGRP %d" % self.__pgid
+            rtnstr += " PGRP %d" % self.__pgid
 
         if self.__command is not None:
-            s += ": " + self.__command
+            rtnstr += ": " + self.__command
 
-        return s
+        return rtnstr
 
-    def add_file(self, f):
+    def add_file(self, fnm):
         if self.__file_list is None:
             self.__file_list = []
-        self.__file_list.append(f)
-
-    @property
-    def files(self):
-        if self.__file_list is None:
-            raise ListOpenFileException("No files available")
-        for f in self.__file_list:
-            yield f
-
-    def setParentProcessID(self, val):
-        self.__ppid = val
-
-    def setProcessGroupID(self, val):
-        self.__pgid = val
-
-    def setSecurityContext(self, val):
-        self.__sec_context = val
+        self.__file_list.append(fnm)
 
     @property
     def command(self):
@@ -79,12 +63,28 @@ class UserInfo(object):
         self.__command = val
 
     @property
+    def files(self):
+        if self.__file_list is None:
+            raise ListOpenFileException("No files available")
+        for entry in self.__file_list:
+            yield entry
+
+    @property
     def pid(self):
         return self.__pid
 
     @pid.setter
     def pid(self, val):
         self.__pid = val
+
+    def set_parent_process_id(self, val):
+        self.__ppid = val
+
+    def set_process_group_id(self, val):
+        self.__pgid = val
+
+    def set_security_context(self, val):
+        self.__sec_context = val
 
     @property
     def uid(self):
@@ -117,18 +117,18 @@ class BaseFile(object):
         self.__dev_char_code = None
 
     def __str__(self):
-        s = "%s#%s" % (type(self).__name__, self.__file_desc)
+        rtnstr = "%s#%s" % (type(self).__name__, self.__file_desc)
 
-        if self.__access_mode is not None and len(self.__access_mode) > 0:
-            s += "(%s)" % self.__access_mode
+        if self.__access_mode is not None and self.__access_mode != "":
+            rtnstr += "(%s)" % self.__access_mode
 
         if self.__name is not None:
-            s += " " + self.__name
+            rtnstr += " " + self.__name
 
-        if self.__lock_status is not None and len(self.__lock_status) > 0:
-            s += " LCK %s" % self.__lock_status
+        if self.__lock_status is not None and self.__lock_status != "":
+            rtnstr += " LCK %s" % self.__lock_status
 
-        return s
+        return rtnstr
 
     @property
     def access_mode(self):
@@ -152,8 +152,13 @@ class BaseFile(object):
     def file_type(self):
         return self.__file_type
 
+    @property
     def flags(self):
         return self.__flags
+
+    @flags.setter
+    def flags(self, val):
+        self.__flags = val
 
     @property
     def inode(self):
@@ -181,6 +186,10 @@ class BaseFile(object):
     def name(self):
         return self.__name
 
+    @name.setter
+    def name(self, val):
+        self.__name = val
+
     @property
     def offset(self):
         return self.__offset
@@ -198,12 +207,6 @@ class BaseFile(object):
         if self.__offset is None:
             return ""
         return self.__offset
-
-    def setFlags(self, val):
-        self.__flags = val
-
-    def setName(self, val):
-        self.__name = val
 
 
 class StandardFile(BaseFile):
@@ -228,24 +231,21 @@ class StandardFile(BaseFile):
     def major_minor_device(self, val):
         self.__major_minor_dev = int(val, 16)
 
-    def setSize(self, val):
-        self.__size = val
-
     @property
     def size_offset(self):
         if self.__size is None:
             return ""
         return str(self.__size)
 
+    @size_offset.setter
+    def size_offset(self, val):
+        self.__size = val
+
 
 class CharacterFile(StandardFile):
-    def __init__(self, file_type, file_desc, access_mode, lock_status):
-        super(CharacterFile, self).__init__(file_type, file_desc, access_mode,
-                                            lock_status)
-
     @property
     def device(self):
-        return self.flags()
+        return self.flags
 
     @property
     def size_offset(self):
@@ -253,15 +253,11 @@ class CharacterFile(StandardFile):
 
 
 class NoFile(BaseFile):
-    def __init__(self, file_type, file_desc, access_mode, lock_status):
-        super(NoFile, self).__init__(file_type, file_desc, access_mode,
-                                     lock_status)
+    pass
 
 
 class Directory(StandardFile):
-    def __init__(self, file_type, file_desc, access_mode, lock_status):
-        super(Directory, self).__init__(file_type, file_desc, access_mode,
-                                        lock_status)
+    pass
 
 
 class FIFO(BaseFile):
@@ -286,7 +282,7 @@ class BaseIP(BaseFile):
         self.__proto = None
         self.__info = None
 
-    def addInfo(self, val):
+    def add_info(self, val):
         if self.__info is None:
             self.__info = []
         self.__info.append(val)
@@ -297,13 +293,13 @@ class BaseIP(BaseFile):
 
     @property
     def name(self):
-        nm = super(BaseIP, self).name
+        name = super(BaseIP, self).name
         if self.__info is None:
-            return nm
-        for i in self.__info:
-            if i.startswith("ST="):
-                nm += " (%s)" % i[3:]
-        return nm
+            return name
+        for info in self.__info:
+            if info.startswith("ST="):
+                name += " (%s)" % info[3:]
+        return name
 
     @property
     def protocol(self):
@@ -315,21 +311,15 @@ class BaseIP(BaseFile):
 
 
 class IPv4(BaseIP):
-    def __init__(self, file_type, file_desc, access_mode, lock_status):
-        super(IPv4, self).__init__(file_type, file_desc, access_mode,
-                                   lock_status)
+    pass
 
 
 class IPv6(BaseIP):
-    def __init__(self, file_type, file_desc, access_mode, lock_status):
-        super(IPv6, self).__init__(file_type, file_desc, access_mode,
-                                   lock_status)
+    pass
 
 
 class KQueue(BaseFile):
-    def __init__(self, file_type, file_desc, access_mode, lock_status):
-        super(KQueue, self).__init__(file_type, file_desc, access_mode,
-                                     lock_status)
+    pass
 
 
 class Pipe(BaseFile):
@@ -338,36 +328,29 @@ class Pipe(BaseFile):
                                    lock_status)
         self.__size = None
 
-    def setSize(self, val):
-        self.__size = val
-
     @property
     def size_offset(self):
         return self.__size
 
+    @size_offset.setter
+    def size_offset(self, val):
+        self.__size = val
+
 
 class RegularFile(StandardFile):
-    def __init__(self, file_type, file_desc, access_mode, lock_status):
-        super(RegularFile, self).__init__(file_type, file_desc, access_mode,
-                                          lock_status)
+    pass
 
 
 class EventPoll(StandardFile):
-    def __init__(self, file_type, file_desc, access_mode, lock_status):
-        super(EventPoll, self).__init__(file_type, file_desc, access_mode,
-                                        lock_status)
+    pass
 
 
 class SystemFile(BaseFile):
-    def __init__(self, file_type, file_desc, access_mode, lock_status):
-        super(SystemFile, self).__init__(file_type, file_desc, access_mode,
-                                         lock_status)
+    pass
 
 
 class UnixSocket(BaseFile):
-    def __init__(self, file_type, file_desc, access_mode, lock_status):
-        super(UnixSocket, self).__init__(file_type, file_desc, access_mode,
-                                         lock_status)
+    pass
 
 
 class UnknownSocket(BaseFile):
@@ -386,11 +369,12 @@ class UnknownSocket(BaseFile):
 
 
 class UnknownEntry(BaseFile):
-    def __init__(self, file_type, file_desc, access_mode, lock_status):
-        super(UnknownEntry, self).__init__(file_type, file_desc, access_mode,
-                                           lock_status)
+    @property
+    def size_offset(self):
+        pass
 
-    def setSize(self, val):
+    @size_offset.setter
+    def size_offset(self, val):
         pass
 
 
@@ -399,51 +383,53 @@ class ListOpenFiles(object):
     def __create(cls, file_desc, access_mode, lock_status, file_type=None):
         if file_type is None:
             return NoFile(file_type, file_desc, access_mode, lock_status)
-        elif file_type == "CHR":
-            return CharacterFile(file_type, file_desc, access_mode, lock_status)
-        elif file_type == "DIR":
+        if file_type == "CHR":
+            return CharacterFile(file_type, file_desc, access_mode,
+                                 lock_status)
+        if file_type == "DIR":
             return Directory(file_type, file_desc, access_mode, lock_status)
-        elif file_type == "FIFO":
+        if file_type == "FIFO":
             return FIFO(file_type, file_desc, access_mode, lock_status)
-        elif file_type == "IPv4":
+        if file_type == "IPv4":
             return IPv4(file_type, file_desc, access_mode, lock_status)
-        elif file_type == "IPv6":
+        if file_type == "IPv6":
             return IPv6(file_type, file_desc, access_mode, lock_status)
-        elif file_type == "KQUEUE":
+        if file_type == "KQUEUE":
             return KQueue(file_type, file_desc, access_mode, lock_status)
-        elif file_type == "PIPE":
+        if file_type == "PIPE":
             return Pipe(file_type, file_desc, access_mode, lock_status)
-        elif file_type == "REG":
+        if file_type == "REG":
             return RegularFile(file_type, file_desc, access_mode, lock_status)
-        elif file_type == "sock":
-            return UnknownSocket(file_type, file_desc, access_mode, lock_status)
-        elif file_type == "systm":
+        if file_type == "sock":
+            return UnknownSocket(file_type, file_desc, access_mode,
+                                 lock_status)
+        if file_type == "systm":
             return SystemFile(file_type, file_desc, access_mode, lock_status)
-        elif file_type == "unix":
+        if file_type == "unix":
             return UnixSocket(file_type, file_desc, access_mode, lock_status)
-        elif file_type == "unknown":
+        if file_type == "unknown":
             return NoFile(file_type, file_desc, access_mode, lock_status)
-        elif file_type == "0000":
+        if file_type == "0000":
             return EventPoll(file_type, file_desc, access_mode, lock_status)
 
         return UnknownEntry(file_type, file_desc, access_mode, lock_status)
 
     @classmethod
-    def __parseOutput(cls, fd):
-        tmp_info = None
+    def __parse_output(cls, fin):
+        tmp_info = []
         cur_file = None
 
         cur_user = None
         user_list = []
 
-        for line in fd:
+        for line in fin:
             line = line.rstrip()
-            if len(line) == 0:
+            if line == "":
                 continue
 
             if line.startswith("f"):
                 # file descriptor
-                if tmp_info is not None:
+                if len(tmp_info) > 0:
                     errmsg = "Parse error for file descriptor (%s)" % tmp_info
                     raise ListOpenFileException(errmsg)
 
@@ -457,13 +443,13 @@ class ListOpenFiles(object):
                 tmp_info = [val, ]
             elif line.startswith("a"):
                 # file access mode
-                if tmp_info is None or len(tmp_info) != 1:
+                if len(tmp_info) != 1:
                     errmsg = "Parse error for access mode (%s)" % tmp_info
                     raise ListOpenFileException(errmsg)
                 tmp_info.append(line[1:])
             elif line.startswith("l"):
                 # file lock status
-                if tmp_info is None or len(tmp_info) != 2:
+                if len(tmp_info) != 2:
                     errmsg = "Parse error for lock status (%s)" % tmp_info
                     raise ListOpenFileException(errmsg)
                 tmp_info.append(line[1:])
@@ -473,12 +459,13 @@ class ListOpenFiles(object):
                                  cur_file
                         raise ListOpenFileException(errmsg)
 
-                    cur_file = cls.__create(tmp_info[0], tmp_info[1], tmp_info[2])
+                    cur_file = cls.__create(tmp_info[0], tmp_info[1],
+                                            tmp_info[2])
                     cur_user.add_file(cur_file)
-                    tmp_info = None
+                    tmp_info = []
             elif line.startswith("t"):
                 # file type
-                if tmp_info is None or len(tmp_info) != 3:
+                if len(tmp_info) != 3:
                     errmsg = "Parse error for file type (%s)" % tmp_info
                     raise ListOpenFileException(errmsg)
 
@@ -487,9 +474,9 @@ class ListOpenFiles(object):
                     raise ListOpenFileException(errmsg)
 
                 cur_file = cls.__create(tmp_info[0], tmp_info[1], tmp_info[2],
-                                       line[1:])
+                                        line[1:])
                 cur_user.add_file(cur_file)
-                tmp_info = None
+                tmp_info = []
             elif line.startswith("D"):
                 if cur_file is None:
                     errmsg = "Parse error for major/minor (no cur_file)"
@@ -501,7 +488,7 @@ class ListOpenFiles(object):
                     errmsg = "Parse error for file flags (no cur_file)"
                     raise ListOpenFileException(errmsg)
 
-                cur_file.setFlags(line[1:])
+                cur_file.flags = line[1:]
             elif line.startswith("L"):
                 if cur_user is None:
                     errmsg = "Parse error for user name (no cur_user)"
@@ -519,13 +506,13 @@ class ListOpenFiles(object):
                     errmsg = "Parse error for parent process ID (no cur_user)"
                     raise ListOpenFileException(errmsg)
 
-                cur_user.setParentProcessID(int(line[1:]))
+                cur_user.set_parent_process_id(int(line[1:]))
             elif line.startswith("T"):
                 if cur_file is None:
                     errmsg = "Parse error for TCP info (no cur_file)"
                     raise ListOpenFileException(errmsg)
 
-                cur_file.addInfo(line[1:])
+                cur_file.add_info(line[1:])
             elif line.startswith("Z"):
                 if cur_user is None:
                     errmsg = "Parse error for parent process ID (no cur_user)"
@@ -550,7 +537,7 @@ class ListOpenFiles(object):
                     errmsg = "Parse error for process group ID (no cur_user)"
                     raise ListOpenFileException(errmsg)
 
-                cur_user.setProcessGroupID(int(line[1:]))
+                cur_user.set_process_group_id(int(line[1:]))
             elif line.startswith("i"):
                 if cur_file is None:
                     errmsg = "Parse error for inode (no cur_file)"
@@ -568,7 +555,7 @@ class ListOpenFiles(object):
                     errmsg = "Parse error for file name (no cur_file)"
                     raise ListOpenFileException(errmsg)
 
-                cur_file.setName(line[1:])
+                cur_file.name = line[1:]
             elif line.startswith("o"):
                 if cur_file is None:
                     errmsg = "Parse error for file offset (no cur_file)"
@@ -585,7 +572,7 @@ class ListOpenFiles(object):
                     errmsg = "Parse error for file size (no cur_file)"
                     raise ListOpenFileException(errmsg)
 
-                cur_file.setSize(int(line[1:]))
+                cur_file.size_offset = int(line[1:])
             elif line.startswith("u"):
                 if cur_user is None:
                     errmsg = "Parse error for user ID (no cur_user)"
@@ -593,7 +580,7 @@ class ListOpenFiles(object):
 
                 cur_user.uid = int(line[1:])
             else:
-                print("Unknown field \"%s\", value \"%s\"" % \
+                print("Unknown field \"%s\", value \"%s\"" %
                       (line[0], line[1:]))
                 break
 
@@ -601,33 +588,33 @@ class ListOpenFiles(object):
 
     @classmethod
     def dump(cls):
-        cls.dumpList(cls.run())
+        cls.print_list(cls.run())
 
     @classmethod
-    def dumpList(cls, user_list):
-        print("%-9.9s %4s %4s %4.4s%1.1s%1.1s %6.6s %10.10s %9.9s %8.8s %s" % \
+    def print_list(cls, user_list):
+        print("%-9.9s %4s %4s %4.4s%1.1s%1.1s %6.6s %10.10s %9.9s %8.8s %s" %
               ("COMMAND", "PID", "USER", "FD", "", "", "TYPE", "DEVICE",
                "SIZE/OFF", "NODE", "NAME"))
-        for u in user_list:
-            cmd = u.command
-            pid = u.pid
-            user = u.user
+        for usr in user_list:
+            cmd = usr.command
+            pid = usr.pid
+            user = usr.user
             if user is None:
-                uid = u.uid
+                uid = usr.uid
                 if uid is not None:
                     user = "#%d" % uid
 
-            for f in u.files:
-                print("%-9.9s %4d %4s %4.4s%1.1s%1.1s %6.6s %10.10s %9.9s" \
-                    " %8.8s %s" % \
-                    (cmd, pid, user, f.file_desc, f.access_mode,
-                     f.lock_status, f.file_type, f.device, f.size_offset,
-                     f.inode, f.name))
+            for fdata in usr.files:
+                print("%-9.9s %4d %4s %4.4s%1.1s%1.1s %6.6s %10.10s %9.9s"
+                      " %8.8s %s" %
+                      (cmd, pid, user, fdata.file_desc, fdata.access_mode,
+                       fdata.lock_status, fdata.file_type, fdata.device,
+                       fdata.size_offset, fdata.inode, fdata.name))
 
     @classmethod
-    def readOutput(cls, filename):
-        with open(filename, "r") as fd:
-            return cls.__parseOutput(fd)
+    def read_file(cls, filename):
+        with open(filename, "r") as fin:
+            return cls.__parse_output(fin)
 
     @classmethod
     def run(cls, pid=None):
@@ -641,7 +628,7 @@ class ListOpenFiles(object):
         proc.stdin.close()
 
         try:
-            user_list = cls.__parseOutput(proc.stdout)
+            user_list = cls.__parse_output(proc.stdout)
         finally:
             proc.stdout.close()
         proc.wait()
@@ -649,10 +636,16 @@ class ListOpenFiles(object):
         return user_list
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     if len(sys.argv) == 1:
         user_list = ListOpenFiles.run()
     else:
-        user_list = ListOpenFiles.readOutput(sys.argv[1])
+        user_list = ListOpenFiles.read_file(sys.argv[1])
 
-    ListOpenFiles.dumpList(user_list)
+    ListOpenFiles.print_list(user_list)
+
+
+if __name__ == "__main__":
+    main()

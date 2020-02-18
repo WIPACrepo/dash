@@ -15,23 +15,23 @@ class RateTaskTest(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def testGood(self):
+    def test_good(self):
         timer = MockIntervalTimer(RateTask.name)
 
-        taskMgr = MockTaskManager()
-        taskMgr.addIntervalTimer(timer)
+        task_mgr = MockTaskManager()
+        task_mgr.add_interval_timer(timer)
 
-        foo = MockComponent("fooHub", 1)
+        comp = MockComponent("fooHub", 1)
 
-        runset = MockRunSet([foo, ])
+        runset = MockRunSet([comp, ])
 
         logger = MockLogger("logger")
 
-        tsk = RateTask(taskMgr, runset, logger)
+        tsk = RateTask(task_mgr, runset, logger)
 
-        logger.addExpectedRegexp((r"\t\d+ physics events \(\d+\.\d+ Hz\), "
-                                  r"\d+ moni events, \d+ SN events, "
-                                  r"\d+ tcals"))
+        logger.add_expected_regexp(r"\t\d+ physics events \(\d+\.\d+ Hz\), "
+                                   r"\d+ moni events, \d+ SN events, "
+                                   r"\d+ tcals")
 
         timer.trigger()
         left = tsk.check()
@@ -41,7 +41,7 @@ class RateTaskTest(unittest.TestCase):
 
         tsk.wait_until_finished()
 
-        logger.checkStatus(4)
+        logger.check_status(4)
 
         tsk.close()
 

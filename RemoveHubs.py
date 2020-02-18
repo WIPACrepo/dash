@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-#
-# Create a new run configuration without one or more hubs
+"""
+Create a new run configuration without one or more hubs/racks
+"""
 
 from __future__ import print_function
 
@@ -23,8 +24,8 @@ def add_arguments(parser):
 
     parser.add_argument("-c", "--config-dir", dest="config_dir",
                         default=config_dir,
-                        help="Directory where run configuration files"
-                        " are stored")
+                        help=("Directory where run configuration files"
+                              " are stored"))
     parser.add_argument("-f", "--force", dest="force",
                         action="store_true", default=False,
                         help="Overwrite existing run configuration file")
@@ -40,8 +41,8 @@ def add_arguments(parser):
     parser.add_argument("run_config", nargs=1,
                         help="Original run configuration file")
     parser.add_argument("hubOrRack", nargs="+",
-                        help="Hub IDs can be \"6\", \"06\", \"6i\", \"6t\","
-                        " \"R06\"")
+                        help=("Hub IDs can be \"6\", \"06\", \"6i\", \"6t\","
+                              " \"R06\""))
 
 
 def __create_file_name(config_dir, file_name, hub_id_list, rack_list,
@@ -85,8 +86,9 @@ def create_config(run_config, hub_list, rack_list, new_name=None,
         raise SystemExit("No run configuration!")
 
     if new_name is None:
-        new_path = __create_file_name(run_config.configdir, run_config.basename,
-                                      hub_list, rack_list, keep_hubs)
+        new_path = __create_file_name(run_config.configdir,
+                                      run_config.basename, hub_list, rack_list,
+                                      keep_hubs)
     else:
         if new_name.startswith(run_config.configdir):
             new_path = new_name
@@ -109,6 +111,7 @@ def create_config(run_config, hub_list, rack_list, new_name=None,
         final_list = hub_list[:]
 
     # add rack hubs
+    # pylint: disable=len-as-condition
     if rack_list is not None and len(rack_list) > 0:
         final_list += get_rack_hubs(rack_list)
 
@@ -120,8 +123,8 @@ def create_config(run_config, hub_list, rack_list, new_name=None,
         return None
 
     # write new configuration
-    with open(new_path, 'w') as fd:
-        fd.write(new_config)
+    with open(new_path, 'w') as fout:
+        fout.write(new_config)
     if verbose:
         print("Created %s" % (new_path, ))
     return new_path
@@ -129,13 +132,13 @@ def create_config(run_config, hub_list, rack_list, new_name=None,
 
 def get_hub_name(num):
     """Get the standard representation for a hub number"""
-    if num > 0 and num < 100:
+    if 0 < num < 100:
         return "%02d" % num
-    if num > 200 and num < 220:
+    if 200 < num < 220:
         return "%02dt" % (num - 200)
     mid = Machineid()
     if mid.is_spts_cluster:
-        if num >= 1000 and num <= 2099:
+        if 1000 <= num <= 2099:
             return "%d" % num
     return "?%d?" % num
 
@@ -146,17 +149,17 @@ def get_rack_hubs(rack_list):
     """
 
     # read in default-dom-geometry.xml
-    defDomGeom = DefaultDomGeometryReader.parse()
+    def_dom_geom = DefaultDomGeometryReader.parse()
 
     # build list of hubs
     hubs = []
     for rack in rack_list:
-        hubs += defDomGeom.getStringsOnRack(rack)
+        hubs += def_dom_geom.strings_on_rack(rack)
     return hubs
 
 
 def main():
-    "Main function"
+    "Main program"
     hostid = Machineid()
     if not hostid.is_build_host:
         print("-" * 60, file=sys.stderr)
@@ -164,9 +167,9 @@ def main():
               file=sys.stderr)
         print("-" * 60, file=sys.stderr)
 
-    p = argparse.ArgumentParser()
-    add_arguments(p)
-    args = p.parse_args()
+    parser = argparse.ArgumentParser()
+    add_arguments(parser)
+    args = parser.parse_args()
 
     remove_hubs(args)
 
@@ -202,6 +205,7 @@ def parse_hub_rack_strings(extra):
                 raise SystemExit("Bad hub specifier \"%s\"" % substr)
             continue
 
+    # pylint: disable=len-as-condition
     if len(hub_list) == 0 and len(rack_list) == 0:
         raise SystemExit("No hubs or racks specified")
 
@@ -209,6 +213,8 @@ def parse_hub_rack_strings(extra):
 
 
 def remove_hubs(args):
+    "Remove hubs/racks from a run configuration file"
+
     hub_list, rack_list = parse_hub_rack_strings(args.hubOrRack)
 
     # verify that original run configuration file exists
@@ -228,10 +234,9 @@ def remove_hubs(args):
         print("WARNING: Error parsing %s" % rc_path, file=sys.stderr)
         raise SystemExit(config_except)
 
-    new_path = create_config(run_config, hub_list, rack_list,
-                             new_name=args.out_cfg_name,
-                             keep_hubs=args.keep_hubs, force=args.force,
-                             verbose=args.verbose)
+    _ = create_config(run_config, hub_list, rack_list,
+                      new_name=args.out_cfg_name, keep_hubs=args.keep_hubs,
+                      force=args.force, verbose=args.verbose)
 
 
 if __name__ == "__main__":

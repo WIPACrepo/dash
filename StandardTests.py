@@ -281,6 +281,8 @@ def run_tests(args):
 
 
 def main():
+    "Main program"
+
     parser = argparse.ArgumentParser()
     add_arguments(parser)
     run_tests(parser.parse_args())

@@ -49,7 +49,7 @@ class PayloadGenerator(object):
     def generate(self):
         raise NotImplementedError()
 
-    next = __next__ # XXX backward compatibility for Python 2
+    next = __next__  # XXX backward compatibility for Python 2
 
 
 class MoniGenerator(PayloadGenerator):
@@ -74,8 +74,8 @@ class MoniGenerator(PayloadGenerator):
         ascii_data = "F %d %d %d %d" % (self.__spe_count, self.__mpe_count,
                                         self.__launches, self.__dropped)
 
-        return MonitorASCII(self.daq_tick, int(dom.mbid(), 16), clock_bytes,
-                            ascii_data)
+        return MonitorASCII(self.daq_tick, int(dom.mbid, 16), clock_bytes,
+                            ascii_data.encode())
 
 
 class SimpleHitGenerator(PayloadGenerator):
@@ -91,10 +91,9 @@ class SimpleHitGenerator(PayloadGenerator):
         trig_type = 2
         config_id = 3
         dom = random.choice(self.__doms)
-        trig_mode = 5
 
         return SimpleHit(self.daq_tick, trig_type, config_id, self.__src_id,
-                         int(dom.mbid(), 16), trig_type)
+                         int(dom.mbid, 16), trig_type)
 
 
 class SupernovaGenerator(PayloadGenerator):
@@ -110,7 +109,7 @@ class SupernovaGenerator(PayloadGenerator):
 
         dom_clock = self.daq_tick & 0xffffffffffff
 
-        return Supernova(self.daq_tick, int(dom.mbid(), 16), dom_clock,
+        return Supernova(self.daq_tick, int(dom.mbid, 16), dom_clock,
                          scaler_bytes)
 
 
@@ -124,7 +123,7 @@ class TimeCalibrationGenerator(SimpleHitGenerator):
 class StringHub(FakeClient):
     def __init__(self, comp_name, comp_num, def_dom_geom, conn_list,
                  quiet=False):
-        self.__doms = def_dom_geom.getDomsOnString(comp_num)
+        self.__doms = def_dom_geom.doms_on_string(comp_num)
 
         self.__hit_file_name = None
         self.__moni_file_name = None
@@ -138,7 +137,8 @@ class StringHub(FakeClient):
                                         numeric_prefix=False,
                                         quiet=quiet)
 
-    def __get_time_difference(self, now, then):
+    @classmethod
+    def __time_difference(cls, now, then):
         if then is None:
             return 0.0
 
@@ -160,7 +160,7 @@ class StringHub(FakeClient):
             # wait until it's time to send this payload
             now = datetime.datetime.utcnow()
             if prev_tick is not None:
-                time_diff = self.__get_time_difference(now, prev_time)
+                time_diff = self.__time_difference(now, prev_time)
                 tick_diff = float(payload.utime - prev_tick) / 1E10
 
                 sleep_secs = time_diff - tick_diff
@@ -233,7 +233,7 @@ class StringHub(FakeClient):
                     src = TimeCalibrationGenerator(self.num, self.__doms)
                 else:
                     src = PayloadReader(self.__tcal_file_name)
-            elif name == "stringHit" or name == "icetopHit":
+            elif name in ("stringHit", "icetopHit"):
                 if self.__hit_file_name is None:
                     src = SimpleHitGenerator(self.num, self.__doms)
                 else:
@@ -276,27 +276,27 @@ class TriggerHandler(FakeClient):
 
     def make_trigger_request(self, trig_type, cfg_id, start_time, end_time):
         # XXX this should be moved to payload.py
-        PAYLEN = 104
+        paylen = 104
 
-        RECTYPE_TRIGREQ = 4
+        rectype_trigreq = 4
 
-        RR_TYPE = 0xf
-        RR_GLOBAL = 0
-        RR_SRC = -1
-        RR_DOM = int(-1)
+        rr_type = 0xf
+        rr_global = 0
+        rr_src = -1
+        rr_dom = -1
 
         uid = self.__trig_count
         self.__trig_count += 1
 
-        rec = struct.pack(">iiqhiiiiqqhiiiiiqqqihh", PAYLEN,
-                          self.TRIGGER_REQUEST_ID, start_time, RECTYPE_TRIGREQ,
+        rec = struct.pack(">iiqhiiiiqqhiiiiiqqqihh", paylen,
+                          self.TRIGGER_REQUEST_ID, start_time, rectype_trigreq,
                           uid, trig_type, cfg_id, self.source_id, start_time,
-                          end_time, RR_TYPE, uid, self.source_id, 1, RR_GLOBAL,
-                          RR_SRC, start_time, end_time, RR_DOM, 8, 0, 0)
+                          end_time, rr_type, uid, self.source_id, 1, rr_global,
+                          rr_src, start_time, end_time, rr_dom, 8, 0, 0)
 
-        if len(rec) != PAYLEN:
+        if len(rec) != paylen:
             raise FakeClientException(('Expected %d-byte payload,'
-                                       'not %d bytes') % (PAYLEN, len(rec)))
+                                       'not %d bytes') % (paylen, len(rec)))
 
         return rec
 
@@ -319,23 +319,24 @@ class LocalTrigger(TriggerHandler):
         super(LocalTrigger, self).__init__(comp_name, comp_num, input_name,
                                            self.__output_name, prescale)
 
-    def XXXprocessPayload(self, pay_type, utc, payload):
+    def xxx_process_payload(self, pay_type, utc, payload):
         if pay_type != SimpleHit.TYPE_ID:
-            print("Unexpected %s payload type %d" % \
+            print("Unexpected %s payload type %d" %
                   (self.fullname, pay_type), file=sys.stderr)
             return
 
         self.__hit_count += 1
         if (self.__hit_count % self.__prescale) == 0:
-            trig_type, cfg_id, src_id, dom_id, trig_mode = \
-                      struct.unpack(">iiiqh", payload)
+            # trig_type, cfg_id, src_id, dom_id, trig_mode = \
+            #           struct.unpack(">iiiqh", payload)
 
             start_time = utc - 2500
             end_time = utc + 2500
 
-            tr = self.make_trigger_request(self.TRIG_TYPE, self.TRIG_CFGID,
-                                           start_time, end_time)
-            self.send(tr)
+            trig_req = self.make_trigger_request(self.TRIG_TYPE,
+                                                 self.TRIG_CFGID,
+                                                 start_time, end_time)
+            self.send(trig_req)
 
 
 class InIceTrigger(TriggerHandler):
@@ -372,35 +373,37 @@ class GlobalTrigger(TriggerHandler):
         super(GlobalTrigger, self).__init__("globalTrigger", 0, "trigger",
                                             self.__output_name, prescale)
 
-    def XXXprocessPayload(self, pay_type, utc, payload):
+    def xxx_process_payload(self, pay_type, utc, payload):
         if pay_type != self.TRIGGER_REQUEST_ID:
-            print("Unexpected %s payload type %d" % \
-                (self.fullname, pay_type), file=sys.stderr)
+            print("Unexpected %s payload type %d" %
+                  (self.fullname, pay_type), file=sys.stderr)
             return
 
-        rec_type, uid, trig_type, cfg_id, src_id, start_time, end_time, \
-            rreq_type, rreq_uid, rreq_src_id, numReq \
+        _, _, _, _, _, start_time, end_time, _, _, _, num_req \
             = struct.unpack(">hiiiiqqhiii", payload[0:63])
 
         pos = 64
 
         elems = []
-        for i in range(numReq):
+        for _ in range(num_req):
             elems.append(struct.unpack(">iiqqq", payload[pos: pos + 32]))
             pos += 32
 
-        comp_len, comp_type, num_comp \
+        _, _, num_comp \
             = struct.unpack(">ihh", payload[pos: pos + 8])
 
         if num_comp > 0:
-            print("%s ignoring %d composites" % self.fullname, file=sys.stderr)
+            print("%s ignoring %d composites" % (self.fullname, num_comp),
+                  file=sys.stderr)
 
-        tr = self.make_trigger_request(self.TRIG_TYPE, self.TRIG_CFGID,
-                                       start_time, end_time)
-        self.__out_conn.send(tr)
+        trig_req = self.make_trigger_request(self.TRIG_TYPE, self.TRIG_CFGID,
+                                             start_time, end_time)
+        self.__out_conn.send(trig_req)
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     import argparse
 
     parser = argparse.ArgumentParser()
@@ -439,3 +442,7 @@ if __name__ == "__main__":
         except:
             import traceback
             traceback.print_exc()
+
+
+if __name__ == "__main__":
+    main()

@@ -6,7 +6,9 @@ from .validate_configs import validate_default_dom_geom
 import os
 import sys
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     sys.path.append('..')
     from locate_pdaq import find_pdaq_config
     config_path = find_pdaq_config()
@@ -21,3 +23,7 @@ if __name__ == "__main__":
         print(reason)
     else:
         print("Valid")
+
+
+if __name__ == "__main__":
+    main()

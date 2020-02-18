@@ -33,14 +33,14 @@ class RunNumber(object):
             filename = cls.DEFAULT_FILE
 
         if os.path.exists(filename):
-            with open(filename) as fd:
-                line = fd.readline()
-                m = re.search(r'(\d+)\s+(\d+)', line)
-                if m:
+            with open(filename, "r") as fin:
+                line = fin.readline()
+                mtch = re.search(r'(\d+)\s+(\d+)', line)
+                if mtch is not None:
                     try:
-                        num = int(m.group(1))
-                        subnum = int(m.group(2))
-                    except:
+                        num = int(mtch.group(1))
+                        subnum = int(mtch.group(2))
+                    except ValueError:
                         raise RunNumberException("Bad line \"%s\" from"
                                                  " \"%s\"" %
                                                  (line.rstrip(), filename))
@@ -51,25 +51,25 @@ class RunNumber(object):
     def set_last(cls, number, subrun=0, filename=None):
         "Set the last run and subrun numbers"
         try:
-            goodRun = int(number)
-        except:
+            good_run = int(number)
+        except ValueError:
             raise RunNumberException("Bad run number \"%s\"" % number)
 
         try:
-            goodSub = int(subrun)
-        except:
+            good_sub = int(subrun)
+        except ValueError:
             raise RunNumberException("Bad subrun number \"%s\"" % subrun)
 
         if filename is None:
             filename = cls.DEFAULT_FILE
 
         try:
-            with open(filename, 'w') as fd:
-                print("%d %d" % (goodRun, goodSub), file=fd)
+            with open(filename, 'w') as fout:
+                print("%d %d" % (good_run, good_sub), file=fout)
         except Exception as exc:
             raise RunNumberException("Cannot update \"%s\" with \"%s %s\":"
                                      " %s" %
-                                     (filename, goodRun, goodSub, str(exc)))
+                                     (filename, good_run, good_sub, str(exc)))
 
 
 def add_arguments(parser):
@@ -118,7 +118,7 @@ def verify_change(lastrun, lastsub, newrun, newsub):
     if newrun < lastrun:
         prompt = "Are you SURE you want to revert the run number from" \
                  " %s back to %s?" % (laststr, newstr)
-    elif newsub != 0 and newsub != lastsub:
+    elif newsub not in (0, lastsub):
         prompt = "Are you SURE you want to change the run number from" \
                  " %s to %s?" % (laststr, newstr)
     else:
@@ -128,19 +128,25 @@ def verify_change(lastrun, lastsub, newrun, newsub):
     while True:
         reply = read_input(prompt + " (y/n) ")
         lreply = reply.strip().lower()
-        if lreply == "y" or lreply == "yes":
+        if lreply in ("y", "yes"):
             return True
-        if lreply == "n" or lreply == "no":
+        if lreply in ("n", "no"):
             return False
 
         print("Please answer 'yes' or 'no'", file=sys.stderr)
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     import argparse
 
-    p = argparse.ArgumentParser()
-    add_arguments(p)
-    args = p.parse_args()
+    parser = argparse.ArgumentParser()
+    add_arguments(parser)
+    args = parser.parse_args()
 
     get_or_set_run_number(args)
+
+
+if __name__ == "__main__":
+    main()

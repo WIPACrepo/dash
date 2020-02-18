@@ -30,7 +30,7 @@ def add_arguments(parser):
 
 
 def stoprun(args):
-    stopIds = []
+    stop_ids = []
 
     cncrpc = RPCClient("localhost", DAQPort.CNCSERVER)
 
@@ -42,36 +42,38 @@ def stoprun(args):
     if len(rsids) == 0:
         raise SystemExit("There are currently no active runsets")
 
-    listRS = False
+    list_rs = False
     if len(args.runset) > 0:
-        for a in args.runset:
+        for rs_arg in args.runset:
             try:
-                n = int(a)
-            except:
-                print("Argument \"%s\" is not a runset ID" % a, file=sys.stderr)
-                listRS = True
+                rsid = int(rs_arg)
+            except ValueError:
+                print("Argument \"%s\" is not a runset ID" % rs_arg,
+                      file=sys.stderr)
+                list_rs = True
                 break
 
-            if n not in rsids:
-                print("\"%s\" is not a valid runset ID" % a, file=sys.stderr)
-                listRS = True
+            if rsid not in rsids:
+                print("\"%s\" is not a valid runset ID" % rs_arg,
+                      file=sys.stderr)
+                list_rs = True
                 break
 
-            stopIds.append(n)
+            stop_ids.append(rsid)
     elif len(rsids) == 1:
-        stopIds.append(rsids[0])
+        stop_ids.append(rsids[0])
 
-    if len(stopIds) == 0:
+    if len(stop_ids) == 0:
         print("Please specify a runset ID", file=sys.stderr)
-        listRS = False
+        list_rs = False
 
-    if listRS:
+    if list_rs:
         errmsg = "Valid runset IDs:"
         for rsid in rsids:
             errmsg += " %d" % rsid
         raise SystemExit(errmsg)
 
-    for rsid in stopIds:
+    for rsid in stop_ids:
         try:
             state = cncrpc.rpc_runset_state(rsid)
         except:
@@ -86,22 +88,22 @@ def stoprun(args):
                     cncrpc.rpc_runset_stop_run(rsid)
                     print("Stopped runset #%d" % rsid)
                 except:
-                    print("Could not stop runset #%d: %s" % \
+                    print("Could not stop runset #%d: %s" %
                           (rsid, exc_string()), file=sys.stderr)
                 break
-            elif lreply == "n" or lreply == "no":
+            elif lreply in ("n", "no"):
                 break
             print("Please answer 'yes' or 'no'", file=sys.stderr)
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     import argparse
 
-    p = argparse.ArgumentParser()
-
-    add_arguments(p)
-
-    args = p.parse_args()
+    parser = argparse.ArgumentParser()
+    add_arguments(parser)
+    args = parser.parse_args()
 
     if not args.nohostcheck:
         # exit if not running on expcont
@@ -112,3 +114,7 @@ if __name__ == "__main__":
                              " on the correct host?")
 
     stoprun(args)
+
+
+if __name__ == "__main__":
+    main()

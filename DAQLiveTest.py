@@ -11,9 +11,7 @@ from CnCExceptions import MissingComponentException
 from DAQLive import DAQLive, INCOMPLETE_STATE_CHANGE, LIVE_IMPORT, \
     LiveException, StartThread, StopThread
 from DAQMocks import MockLogger
-
-
-WARNED = False
+from decorators import classproperty
 
 
 class MockRunSet(object):
@@ -28,8 +26,8 @@ class MockRunSet(object):
     def __init__(self, run_cfg):
         self.__state = self.STATE_UNKNOWN
         self.__run_cfg = run_cfg
-        self.__expStopErr = False
-        self.__stopReturn = False
+        self.__exp_stop_err = False
+        self.__stop_return = False
 
     def __str__(self):
         return "MockRunSet"
@@ -59,12 +57,12 @@ class MockRunSet(object):
 
         return self.__run_cfg
 
-    def sendEventCounts(self):
+    def send_event_counts(self):
         if self.is_destroyed:
             raise Exception("Runset destroyed")
 
     def set_expected_stop_error(self):
-        self.__expStopErr = True
+        self.__exp_stop_err = True
 
     def set_running(self):
         self.__state = MockRunSet.STATE_RUNNING
@@ -73,7 +71,7 @@ class MockRunSet(object):
         if self.is_destroyed:
             raise Exception("Runset destroyed")
 
-        self.__stopReturn = True
+        self.__stop_return = True
 
     @property
     def state(self):
@@ -83,20 +81,20 @@ class MockRunSet(object):
         if self.is_destroyed:
             raise Exception("Runset destroyed")
 
-        if had_error != self.__expStopErr:
+        if had_error != self.__exp_stop_err:
             raise Exception("Expected 'had_error' to be %s" %
-                            (self.__expStopErr, ))
+                            (self.__exp_stop_err, ))
 
         self.__state = self.STATE_READY
-        return self.__stopReturn
+        return self.__stop_return
 
     def stopping(self):
         return False
 
-    def subrun(self, id, domList):
+    def subrun(self, subrun_id, dom_list):
         pass
 
-    def switch_run(self, stateArgs):
+    def switch_run(self, state_args):
         pass
 
 
@@ -107,8 +105,8 @@ class MockCnC(object):
     def __init__(self):
         self.__exp_run_cfg = None
         self.__exp_run_num = None
-        self.__missingComps = None
-        self.__runSet = None
+        self.__missing_comps = None
+        self.__runset = None
 
     def break_runset(self, runset):
         runset.destroy()
@@ -120,20 +118,20 @@ class MockCnC(object):
         if self.__exp_run_cfg is None:
             raise Exception("Expected run configuration has not been set")
         if self.__exp_run_cfg != run_cfg:
-            raise Exception("Expected run config \"%s\", not \"%s\"",
-                            self.__exp_run_cfg, run_cfg)
+            raise Exception("Expected run config \"%s\", not \"%s\"" %
+                            (self.__exp_run_cfg, run_cfg))
         if self.__exp_run_num != run_num:
-            raise Exception("Expected run number %s, not %s",
-                            self.__exp_run_num, run_num)
-        if self.__missingComps is not None:
-            tmpList = self.__missingComps
-            self.__missingComps = None
-            raise MissingComponentException(tmpList)
+            raise Exception("Expected run number %s, not %s" %
+                            (self.__exp_run_num, run_num))
+        if self.__missing_comps is not None:
+            tmp_list = self.__missing_comps
+            self.__missing_comps = None
+            raise MissingComponentException(tmp_list)
 
-        if self.__runSet is not None:
-            self.__runSet.set_running()
+        if self.__runset is not None:
+            self.__runset.set_running()
 
-        return self.__runSet
+        return self.__runset
 
     def set_expected_run_config(self, run_cfg):
         self.__exp_run_cfg = run_cfg
@@ -141,24 +139,25 @@ class MockCnC(object):
     def set_expected_run_number(self, run_num):
         self.__exp_run_num = run_num
 
-    def set_runset(self, runSet):
-        self.__runSet = runSet
+    def set_runset(self, runset):
+        self.__runset = runset
 
-    def setMissingComponents(self, compList):
-        self.__missingComps = compList
+    def set_missing_components(self, comp_list):
+        self.__missing_comps = comp_list
 
-    def start_run(self, runset, run_num, runOpts):
+    def start_run(self, runset, run_num,
+                  run_opts):  # pylint: disable=unused-argument
         if self.__exp_run_cfg is None:
             raise Exception("Expected run configuration has not been set")
         if self.__exp_run_cfg != runset.run_config():
-            raise Exception("Expected run config \"%s\", not \"%s\"",
-                            self.__exp_run_cfg, runset.run_config())
+            raise Exception("Expected run config \"%s\", not \"%s\"" %
+                            (self.__exp_run_cfg, runset.run_config()))
 
         if self.__exp_run_num is None:
             raise Exception("Expected run number has not been set")
         if self.__exp_run_num != run_num:
-            raise Exception("Expected run Number %s, not %s",
-                            self.__exp_run_num, run_num)
+            raise Exception("Expected run Number %s, not %s" %
+                            (self.__exp_run_num, run_num))
 
     def stop_collecting(self):
         pass
@@ -168,38 +167,47 @@ class MockCnC(object):
 
 
 class DAQLiveTest(unittest.TestCase):
+    __warned = False
+
     def __create_live(self, cnc, log):
         self.__live = DAQLive(cnc, log, timeout=1)
         return self.__live
 
     @property
     def __imported_live(self):
-        global WARNED
-
         if LIVE_IMPORT:
             return True
 
-        if not WARNED:
-            WARNED = True
+        if not self.was_warned:
+            self.set_warned()
             print("No I3Live Python code found, cannot run tests",
                   file=sys.stderr)
 
         return False
 
-    def __waitForComplete(self, func, *args, **kwargs):
-        if "expectedException" not in kwargs:
-            expectedException = None
+    @classmethod
+    def set_warned(cls):
+        cls.__warned = True
+
+    @classproperty
+    def was_warned(cls):  # pylint: disable=no-self-argument
+        return cls.__warned
+
+    @classmethod
+    def __wait_for_complete(cls, func, *args, **kwargs):
+        if "expected_exception" not in kwargs:
+            expected_exception = None
         else:
-            expectedException = kwargs["expectedException"]
+            expected_exception = kwargs["expected_exception"]
 
         for _ in range(10):
             try:
                 val = func(*args)
             except LiveException as lex:
-                if expectedException is None or \
-                   str(expectedException) != str(lex):
+                if expected_exception is None or \
+                   str(expected_exception) != str(lex):
                     raise
-                expectedException = None
+                expected_exception = None
                 break
 
             if val != INCOMPLETE_STATE_CHANGE:
@@ -207,12 +215,14 @@ class DAQLiveTest(unittest.TestCase):
 
             time.sleep(0.1)
 
-        if expectedException is not None:
+        if expected_exception is not None:
             raise Exception("Did not received expected %s: %s" %
-                            (type(expectedException).__name__,
-                             expectedException))
+                            (type(expected_exception).__name__,
+                             expected_exception))
 
-    def assertRaisesMsg(self, exc, func, *args, **kwargs):
+        return None
+
+    def assert_raises_msg(self, exc, func, *args, **kwargs):
         try:
             func(*args, **kwargs)
         except type(exc) as ex2:
@@ -226,11 +236,12 @@ class DAQLiveTest(unittest.TestCase):
             # handle exceptions in python 2.3
             if exc is None:
                 return
-            (excType, excVal, excTB) = sys.exc_info()
-            if isinstance(excVal, type(exc)) and str(excVal) == str(exc):
+            (exc_type, exc_val, exc_tb) = sys.exc_info()
+            if isinstance(exc_val, type(exc)) and str(exc_val) == str(exc):
                 return
             raise self.failureException("Expected %s(%s), not %s(%s)" %
-                                        (type(exc), exc, type(excVal), excVal))
+                                        (type(exc), exc, type(exc_val),
+                                         exc_val))
         raise self.failureException("%s(%s) not raised" % (type(exc), exc))
 
     def setUp(self):
@@ -241,12 +252,12 @@ class DAQLiveTest(unittest.TestCase):
         if self.__live is not None:
             try:
                 self.__live.close()
-            except:
+            except:  # pylint: disable=bare-except
                 traceback.print_exc()
 
-        self.__log.checkStatus(0)
+        self.__log.check_status(0)
 
-    def testVersion(self):
+    def test_version(self):
         if not self.__imported_live:
             return
 
@@ -256,17 +267,17 @@ class DAQLiveTest(unittest.TestCase):
         self.assertEqual(live.version(),
                          MockCnC.RELEASE + "_" + MockCnC.REPO_REV)
 
-    def testStartingNoStateArgs(self):
+    def test_starting_no_state_args(self):
         if not self.__imported_live:
             return
 
         cnc = MockCnC()
         live = self.__create_live(cnc, self.__log)
 
-        self.assertRaisesMsg(LiveException("No stateArgs specified"),
-                             live.starting, None)
+        self.assert_raises_msg(LiveException("No state_args specified"),
+                               live.starting, None)
 
-    def testStartingNoKeys(self):
+    def test_starting_no_keys(self):
         if not self.__imported_live:
             return
 
@@ -281,10 +292,10 @@ class DAQLiveTest(unittest.TestCase):
 
         state = {}
 
-        self.assertRaisesMsg(LiveException("No stateArgs specified"),
-                             live.starting, state)
+        self.assert_raises_msg(LiveException("No state_args specified"),
+                               live.starting, state)
 
-    def testStartingNoRun_cfgKey(self):
+    def test_starting_no_run_cfg_key(self):
         if not self.__imported_live:
             return
 
@@ -299,10 +310,10 @@ class DAQLiveTest(unittest.TestCase):
 
         state = {"runNumber": run_num}
 
-        exc = LiveException("stateArgs does not contain key \"runConfig\"")
-        self.assertRaisesMsg(exc, live.starting, state)
+        exc = LiveException("state_args does not contain key \"runConfig\"")
+        self.assert_raises_msg(exc, live.starting, state)
 
-    def testStartingNoRunNumKey(self):
+    def test_starting_no_run_num_key(self):
         if not self.__imported_live:
             return
 
@@ -317,10 +328,10 @@ class DAQLiveTest(unittest.TestCase):
 
         state = {"runConfig": run_cfg}
 
-        exc = LiveException("stateArgs does not contain key \"runNumber\"")
-        self.assertRaisesMsg(exc, live.starting, state)
+        exc = LiveException("state_args does not contain key \"runNumber\"")
+        self.assert_raises_msg(exc, live.starting, state)
 
-    def testStartingNoRunSet(self):
+    def test_starting_no_run_set(self):
         if not self.__imported_live:
             return
 
@@ -337,14 +348,15 @@ class DAQLiveTest(unittest.TestCase):
 
         errmsg = "Cannot create run #%d runset for \"%s\"" % (run_num, run_cfg)
 
-        self.__log.addExpectedExact(StartThread.NAME + ": " + errmsg)
+        self.__log.add_expected_exact(StartThread.NAME + ": " + errmsg)
 
-        rtnval = self.__waitForComplete(live.starting, state,
-                                        expectedException=LiveException(errmsg))
-        self.assertFalse(rtnval, "starting failed with <%s>%s" %
+        exp_exc = LiveException(errmsg)
+        rtnval = self.__wait_for_complete(live.starting, state,
+                                          expected_exception=exp_exc)
+        self.assertTrue(rtnval, "starting failed with <%s>%s" %
                         (type(rtnval), rtnval))
 
-    def testStarting(self):
+    def test_starting(self):
         if not self.__imported_live:
             return
 
@@ -360,11 +372,11 @@ class DAQLiveTest(unittest.TestCase):
 
         state = {"runConfig": run_cfg, "runNumber": run_num}
 
-        rtnval = self.__waitForComplete(live.starting, state)
+        rtnval = self.__wait_for_complete(live.starting, state)
         self.assertTrue(rtnval, "starting failed with <%s>%s" %
                         (type(rtnval), rtnval))
 
-    def testStartingTwice(self):
+    def test_starting_twice(self):
         if not self.__imported_live:
             return
 
@@ -373,24 +385,24 @@ class DAQLiveTest(unittest.TestCase):
 
         run_cfg = "foo"
         run_num = 13579
-        runSet = MockRunSet(run_cfg)
+        runset = MockRunSet(run_cfg)
 
         cnc.set_expected_run_config(run_cfg)
         cnc.set_expected_run_number(run_num)
-        cnc.set_runset(runSet)
+        cnc.set_runset(runset)
 
         state = {"runConfig": run_cfg, "runNumber": run_num}
 
-        rtnval = self.__waitForComplete(live.starting, state)
+        rtnval = self.__wait_for_complete(live.starting, state)
         self.assertTrue(rtnval, "starting failed with <%s>%s" %
                         (type(rtnval), rtnval))
 
         state2 = {"runConfig": run_cfg, "runNumber": run_num + 1}
-        rtnval = self.__waitForComplete(live.starting, state)
+        rtnval = self.__wait_for_complete(live.starting, state2)
         self.assertTrue(rtnval, "starting failed with <%s>%s" %
                         (type(rtnval), rtnval))
 
-    def testStartingMissingComp(self):
+    def test_starting_missing_comp(self):
         if not self.__imported_live:
             return
 
@@ -400,28 +412,29 @@ class DAQLiveTest(unittest.TestCase):
         run_cfg = "foo"
         run_num = 13579
 
-        runSet = MockRunSet(run_cfg)
-        runSet.set_running()
+        runset = MockRunSet(run_cfg)
+        runset.set_running()
 
         cnc.set_expected_run_config(run_cfg)
         cnc.set_expected_run_number(run_num)
-        cnc.set_runset(runSet)
+        cnc.set_runset(runset)
 
         missing = ["hub", "bldr"]
-        cnc.setMissingComponents(missing)
+        cnc.set_missing_components(missing)
 
         state = {"runConfig": run_cfg, "runNumber": run_num}
 
         errmsg = "%s: Cannot create run #%d runset for \"%s\": Still waiting" \
                  " for %s" % (StartThread.NAME, run_num, run_cfg, missing)
-        self.__log.addExpectedExact(errmsg)
+        self.__log.add_expected_exact(errmsg)
 
-        rtnval = self.__waitForComplete(live.starting, state,
-                                        expectedException=LiveException(errmsg))
-        self.assertFalse(rtnval, "starting failed with <%s>%s" %
+        exp_exc = LiveException(errmsg)
+        rtnval = self.__wait_for_complete(live.starting, state,
+                                          expected_exception=exp_exc)
+        self.assertTrue(rtnval, "starting failed with <%s>%s" %
                         (type(rtnval), rtnval))
 
-    def testStoppingNoRunset(self):
+    def test_stopping_no_runset(self):
         if not self.__imported_live:
             return
 
@@ -429,7 +442,7 @@ class DAQLiveTest(unittest.TestCase):
         live = self.__create_live(cnc, self.__log)
 
         finished = False
-        for idx in range(10):
+        for _ in range(10):
             val = live.stopping()
             if val == INCOMPLETE_STATE_CHANGE:
                 time.sleep(0.1)
@@ -440,7 +453,7 @@ class DAQLiveTest(unittest.TestCase):
         self.assertTrue(finished, "Unexpected value %s for 'finished'" %
                         str(finished))
 
-    def testStoppingError(self):
+    def test_stopping_error(self):
         if not self.__imported_live:
             return
 
@@ -450,31 +463,31 @@ class DAQLiveTest(unittest.TestCase):
         run_cfg = "foo"
         run_num = 13579
 
-        runSet = MockRunSet(run_cfg)
-        runSet.set_running()
+        runset = MockRunSet(run_cfg)
+        runset.set_running()
 
         cnc.set_expected_run_config(run_cfg)
         cnc.set_expected_run_number(run_num)
-        cnc.set_runset(runSet)
+        cnc.set_runset(runset)
 
-        self.__log.addExpectedExact("%s: Encountered ERROR while stopping run" %
-                                    (StopThread.NAME, ))
+        self.__log.add_expected_exact("%s: Encountered ERROR while stopping"
+                                      " run" % (StopThread.NAME, ))
 
         state = {"runConfig": run_cfg, "runNumber": run_num}
 
-        rtnval = self.__waitForComplete(live.starting, state)
+        rtnval = self.__wait_for_complete(live.starting, state)
         self.assertTrue(rtnval, "starting failed with <%s>%s" %
                         (type(rtnval), rtnval))
 
-        runSet.set_stop_return_error()
+        runset.set_stop_return_error()
 
-        finished = self.__waitForComplete(live.stopping, "Encountered ERROR" +
-                                          " while stopping run")
+        finished = self.__wait_for_complete(live.stopping, "Encountered ERROR"
+                                            " while stopping run")
 
-        self.assertFalse(finished, "Unexpected value %s for 'finished'" %
+        self.assertTrue(finished, "Unexpected value %s for 'finished'" %
                         str(finished))
 
-    def testStopping(self):
+    def test_stopping(self):
         if not self.__imported_live:
             return
 
@@ -484,16 +497,16 @@ class DAQLiveTest(unittest.TestCase):
         run_cfg = "foo"
         run_num = 13579
 
-        runSet = MockRunSet(run_cfg)
-        runSet.set_running()
+        runset = MockRunSet(run_cfg)
+        runset.set_running()
 
         cnc.set_expected_run_config(run_cfg)
         cnc.set_expected_run_number(run_num)
-        cnc.set_runset(runSet)
+        cnc.set_runset(runset)
 
         state = {"runConfig": run_cfg, "runNumber": run_num}
 
-        rtnval = self.__waitForComplete(live.starting, state)
+        rtnval = self.__wait_for_complete(live.starting, state)
         self.assertTrue(rtnval, "starting failed with <%s>%s" %
                         (type(rtnval), rtnval))
 
@@ -510,7 +523,7 @@ class DAQLiveTest(unittest.TestCase):
         self.assertTrue(finished, "Unexpected value %s for 'finished'" %
                         str(finished))
 
-    def testRecoveringNothing(self):
+    def test_recovering_nothing(self):
         if not self.__imported_live:
             return
 
@@ -519,7 +532,7 @@ class DAQLiveTest(unittest.TestCase):
 
         self.assertTrue(live.recovering(), "recovering failed")
 
-    def testRecoveringDestroyed(self):
+    def test_recovering_destroyed(self):
         if not self.__imported_live:
             return
 
@@ -528,24 +541,24 @@ class DAQLiveTest(unittest.TestCase):
 
         run_cfg = "foo"
         run_num = 13579
-        runSet = MockRunSet(run_cfg)
+        runset = MockRunSet(run_cfg)
 
         cnc.set_expected_run_config(run_cfg)
         cnc.set_expected_run_number(run_num)
-        cnc.set_runset(runSet)
+        cnc.set_runset(runset)
 
         state = {"runConfig": run_cfg, "runNumber": run_num}
 
-        rtnval = self.__waitForComplete(live.starting, state)
+        rtnval = self.__wait_for_complete(live.starting, state)
         self.assertTrue(rtnval, "starting failed with <%s>%s" %
                         (type(rtnval), rtnval))
 
-        runSet.set_expected_stop_error()
-        runSet.destroy()
+        runset.set_expected_stop_error()
+        runset.destroy()
 
         self.assertTrue(live.recovering(), "recovering failed")
 
-    def testRecoveringStopFail(self):
+    def test_recovering_stop_fail(self):
         if not self.__imported_live:
             return
 
@@ -554,24 +567,24 @@ class DAQLiveTest(unittest.TestCase):
 
         run_cfg = "foo"
         run_num = 13579
-        runSet = MockRunSet(run_cfg)
+        runset = MockRunSet(run_cfg)
 
         cnc.set_expected_run_config(run_cfg)
         cnc.set_expected_run_number(run_num)
-        cnc.set_runset(runSet)
+        cnc.set_runset(runset)
 
         state = {"runConfig": run_cfg, "runNumber": run_num}
 
-        rtnval = self.__waitForComplete(live.starting, state)
+        rtnval = self.__wait_for_complete(live.starting, state)
         self.assertTrue(rtnval, "starting failed with <%s>%s" %
                         (type(rtnval), rtnval))
 
-        runSet.set_expected_stop_error()
-        runSet.set_stop_return_error()
+        runset.set_expected_stop_error()
+        runset.set_stop_return_error()
 
         self.assertTrue(live.recovering(), "recovering failed")
 
-    def testRecovering(self):
+    def test_recovering(self):
         if not self.__imported_live:
             return
 
@@ -580,35 +593,37 @@ class DAQLiveTest(unittest.TestCase):
 
         run_cfg = "foo"
         run_num = 13579
-        runSet = MockRunSet(run_cfg)
+        runset = MockRunSet(run_cfg)
 
         cnc.set_expected_run_config(run_cfg)
         cnc.set_expected_run_number(run_num)
-        cnc.set_runset(runSet)
+        cnc.set_runset(runset)
 
         state = {"runConfig": run_cfg, "runNumber": run_num}
 
-        rtnval = self.__waitForComplete(live.starting, state)
+        rtnval = self.__wait_for_complete(live.starting, state)
         self.assertTrue(rtnval, "starting failed with <%s>%s" %
                         (type(rtnval), rtnval))
 
-        runSet.set_expected_stop_error()
+        runset.set_expected_stop_error()
 
-        self.__log.addExpectedExact("DAQLive stop_run %s returned %s" %
-                                    (runSet, True))
+        self.__log.add_expected_exact("DAQLive stop_run %s returned %s" %
+                                      (runset, True))
         self.assertTrue(live.recovering(), "recovering failed")
 
-    def testRunningNothing(self):
+    def test_running_nothing(self):
         if not self.__imported_live:
             return
 
         cnc = MockCnC()
         live = self.__create_live(cnc, self.__log)
 
+        self.__log.add_expected_exact("DAQLive.running() dying due to"
+                                      " missing runset")
         exc = LiveException("Cannot check run state; no active runset")
-        self.assertRaisesMsg(exc, live.running)
+        self.assert_raises_msg(exc, live.running)
 
-    def testRunningBadState(self):
+    def test_running_bad_state(self):
         if not self.__imported_live:
             return
 
@@ -617,22 +632,22 @@ class DAQLiveTest(unittest.TestCase):
 
         run_cfg = "foo"
         run_num = 13579
-        runSet = MockRunSet(run_cfg)
+        runset = MockRunSet(run_cfg)
 
         cnc.set_expected_run_config(run_cfg)
         cnc.set_expected_run_number(run_num)
-        cnc.set_runset(runSet)
+        cnc.set_runset(runset)
 
         state = {"runConfig": run_cfg, "runNumber": run_num}
 
-        rtnval = self.__waitForComplete(live.starting, state)
+        rtnval = self.__wait_for_complete(live.starting, state)
         self.assertTrue(rtnval, "starting failed with <%s>%s" %
                         (type(rtnval), rtnval))
 
         self.assertTrue(live.running(), "RunSet \"%s\" is %s, not running" %
-                        (runSet, "???" if runSet is None else runSet.state))
+                        (runset, "???" if runset is None else runset.state))
 
-    def testRunning(self):
+    def test_running(self):
         if not self.__imported_live:
             return
 
@@ -641,23 +656,23 @@ class DAQLiveTest(unittest.TestCase):
 
         run_cfg = "foo"
         run_num = 13579
-        runSet = MockRunSet(run_cfg)
+        runset = MockRunSet(run_cfg)
 
         cnc.set_expected_run_config(run_cfg)
         cnc.set_expected_run_number(run_num)
-        cnc.set_runset(runSet)
+        cnc.set_runset(runset)
 
         state = {"runConfig": run_cfg, "runNumber": run_num}
 
-        rtnval = self.__waitForComplete(live.starting, state)
+        rtnval = self.__wait_for_complete(live.starting, state)
         self.assertTrue(rtnval, "starting failed with <%s>%s" %
                         (type(rtnval), rtnval))
 
-        runSet.set_running()
+        runset.set_running()
 
         self.assertTrue(live.running(), "running failed")
 
-    def testSubrun(self):
+    def test_subrun(self):
         if not self.__imported_live:
             return
 
@@ -666,21 +681,21 @@ class DAQLiveTest(unittest.TestCase):
 
         run_cfg = "foo"
         run_num = 13579
-        runSet = MockRunSet(run_cfg)
+        runset = MockRunSet(run_cfg)
 
         cnc.set_expected_run_config(run_cfg)
         cnc.set_expected_run_number(run_num)
-        cnc.set_runset(runSet)
+        cnc.set_runset(runset)
 
         state = {"runConfig": run_cfg, "runNumber": run_num}
 
-        rtnval = self.__waitForComplete(live.starting, state)
+        rtnval = self.__wait_for_complete(live.starting, state)
         self.assertTrue(rtnval, "starting failed with <%s>%s" %
                         (type(rtnval), rtnval))
 
         self.assertEqual("OK", live.subrun(1, ["domA", "dom2", ]))
 
-    def testSwitchRun(self):
+    def test_switch_run(self):
         if not self.__imported_live:
             return
 
@@ -689,21 +704,23 @@ class DAQLiveTest(unittest.TestCase):
 
         run_cfg = "foo"
         run_num = 13579
-        runSet = MockRunSet(run_cfg)
+        runset = MockRunSet(run_cfg)
 
         cnc.set_expected_run_config(run_cfg)
         cnc.set_expected_run_number(run_num)
-        cnc.set_runset(runSet)
+        cnc.set_runset(runset)
 
         state = {"runConfig": run_cfg, "runNumber": run_num}
 
-        rtnval = self.__waitForComplete(live.starting, state)
+        rtnval = self.__wait_for_complete(live.starting, state)
         self.assertTrue(rtnval, "starting failed with <%s>%s" %
                         (type(rtnval), rtnval))
 
         state = {"runNumber": run_num + 1}
 
-        rtnval = self.__waitForComplete(live.switchrun, state)
+        self.__log.add_expected_exact("SwitchRun is returning True after"
+                                      " ending LiveSwitch thread")
+        rtnval = self.__wait_for_complete(live.switchrun, state)
         self.assertTrue(rtnval, "switchrun failed with <%s>%s" %
                         (type(rtnval), rtnval))
 

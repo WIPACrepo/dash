@@ -10,10 +10,6 @@ import re
 import sys
 import time
 
-PRINT_VERBOSE = False
-DATA_ONLY = False
-TIME_INTERVAL = None
-
 MONISEC_PAT = \
     re.compile(r'^(.*):\s+(\d+-\d+-\d+ \d+:\d+:\d+)\.(\d+):\s*$')
 MONILINE_PAT = re.compile(r'^\s+([^:]+):\s+(.*)$')
@@ -96,40 +92,40 @@ COMP_FIELDS = {
 class Component(object):
     """Component name/number"""
 
-    def __init__(self, fileName=None):
-        if fileName is None:
-            compName = 'unknown'
-            compNum = 0
+    def __init__(self, file_name=None):
+        if file_name is None:
+            comp_name = 'unknown'
+            comp_num = 0
         else:
-            if len(fileName) < 5 or fileName[-5:] != '.moni':
-                raise Exception('Non-moni filename "%s"' % fileName)
+            if len(file_name) < 5 or file_name[-5:] != '.moni':
+                raise Exception('Non-moni filename "%s"' % file_name)
 
-            baseName = os.path.basename(fileName)
-            idx = baseName.rfind('-')
+            base_name = os.path.basename(file_name)
+            idx = base_name.rfind('-')
             if idx <= 0:
                 raise Exception("Didn't find '-' separator in \"%s\"" %
-                                fileName)
+                                file_name)
 
-            compName = baseName[:idx]
-            if compName not in COMP_FIELDS:
+            comp_name = base_name[:idx]
+            if comp_name not in COMP_FIELDS:
                 raise Exception('Unknown component "%s" in "%s"' %
-                                (compName, fileName))
+                                (comp_name, file_name))
 
             try:
-                compNum = int(baseName[idx + 1: -5])
-            except:
-                compNum = 0
+                comp_num = int(base_name[idx + 1: -5])
+            except ValueError:
+                comp_num = 0
 
-            if compName == 'stringHub':
-                if compNum % 100 == 0:
-                    compName = 'amandaHub'
-                elif compNum % 1000 >= 200:
-                    compName = 'icetopHub'
+            if comp_name == 'stringHub':
+                if comp_num % 100 == 0:
+                    comp_name = 'amandaHub'
+                elif comp_num % 1000 >= 200:
+                    comp_name = 'icetopHub'
 
-        self.name = compName
-        self.num = compNum
+        self.name = comp_name
+        self.num = comp_num
 
-        self.fullStr = None
+        self.full_str = None
         self.hash = None
 
     def __cmp__(self, other):
@@ -145,68 +141,68 @@ class Component(object):
         return self.hash
 
     def __str__(self):
-        if self.fullStr is None:
+        if self.full_str is None:
             if self.num == 0:
-                self.fullStr = self.name
+                self.full_str = self.name
             else:
-                self.fullStr = "%s-%d" % (self.name, self.num)
+                self.full_str = "%s-%d" % (self.name, self.num)
 
-        return self.fullStr
+        return self.full_str
 
 
-def computeRates(dataDict):
+def compute_rates(data_dict):
     """Compute rates from the data saved in the data dictionary"""
-    keys = list(dataDict.keys())
+    keys = list(data_dict.keys())
 
-    prevTime = None
-    firstTime = None
+    prev_time = None
+    first_time = None
 
     rates = []
 
     for k in sorted(keys):
-        if prevTime is None:
-            firstTime = k
+        if prev_time is None:
+            first_time = k
         else:
-            secs = k - prevTime
-            vals = dataDict[k] - dataDict[prevTime]
+            secs = k - prev_time
+            vals = data_dict[k] - data_dict[prev_time]
             rates.append(float(vals) / float(secs))
 
-        prevTime = k
+        prev_time = k
 
-    if len(rates) == 0:
+    if len(rates) == 0:  # pylint: disable=len-as-condition
         rates = None
-        totRate = None
+        tot_rate = None
     elif len(rates) == 1:
         if float(rates[0]) == 0.0:
-            totRate = None
+            tot_rate = None
         else:
-            totRate = rates[0]
+            tot_rate = rates[0]
         rates = None
     else:
-        totSecs = prevTime - firstTime
-        totVals = dataDict[prevTime] - dataDict[firstTime]
-        totRate = float(totVals) / float(totSecs)
+        tot_secs = prev_time - first_time
+        tot_vals = data_dict[prev_time] - data_dict[first_time]
+        tot_rate = float(tot_vals) / float(tot_secs)
 
-    return (totRate, rates)
+    return (tot_rate, rates)
 
 
-def formatRates(rates):
+def format_rates(rates):
     """format a list of rates"""
-    rStr = '['
-    needComma = False
-    for r in rates:
-        if not needComma:
-            needComma = True
+    r_str = '['
+    need_comma = False
+    for rate in rates:
+        if not need_comma:
+            need_comma = True
         else:
-            rStr += ', '
-        rStr += '%.1f' % r
-    return rStr + ']'
+            r_str += ', '
+        r_str += '%.1f' % rate
+    return r_str + ']'
 
 
-def processDir(dirName):
+def process_dir(dir_name, time_interval):
     """Process all .moni files in the specified directory"""
-    allData = {}
-    for entry in os.listdir(dirName):
+    all_data = {}
+    for entry in os.listdir(dir_name):
         if entry.endswith('.log') or entry.endswith('.html') or \
                entry.endswith('.xml') or entry == "logs-queued":
             continue
@@ -217,53 +213,56 @@ def processDir(dirName):
             print(str(msg), file=sys.stderr)
             continue
 
-        allData[comp] = processFile(os.path.join(dirName, entry), comp)
+        all_data[comp] = process_file(os.path.join(dir_name, entry), comp,
+                                      time_interval)
 
-    return allData
+    return all_data
 
 
 class Summary(object):
-    def __init__(self):
+    def __init__(self, time_interval):
+        self.__time_interval = time_interval
+
         self.__data = {}
-        self.__lastSaved = {}
+        self.__last_saved = {}
 
-    def __save(self, name, time, vals):
+    def __save(self, name, stime, vals):
         if vals.startswith('['):
-            self.__saveListSum(name, time, vals)
+            self.__save_list_sum(name, stime, vals)
         else:
-            self.__saveValue(name, time, int(vals))
+            self.__save_value(name, stime, int(vals))
 
-    def __saveListSum(self, name, time, valStr):
+    def __save_list_sum(self, name, stime, val_str):
         tot = 0
         idx = 0
-        while idx < len(valStr) and valStr[idx] != ']':
-            nxt = valStr.find(',', idx)
+        while idx < len(val_str) and val_str[idx] != ']':
+            nxt = val_str.find(',', idx)
             if nxt < idx:
-                nxt = valStr.find(']', idx)
-            subStr = valStr[idx + 1: nxt]
+                nxt = val_str.find(']', idx)
+            sub_str = val_str[idx + 1: nxt]
             try:
-                tot += int(subStr)
+                tot += int(sub_str)
             except ValueError:
                 print("Couldn't get integer value for '%s'"
-                      " ('%s' idx %d nxt %d)" % (subStr, valStr, idx, nxt),
+                      " ('%s' idx %d nxt %d)" % (sub_str, val_str, idx, nxt),
                       file=sys.stderr)
             idx = nxt + 1
-        self.__saveValue(name, time, tot)
+        self.__save_value(name, stime, tot)
 
-    def __saveValue(self, name, time, val):
+    def __save_value(self, name, stime, val):
         if val > 0:
             if name != "DOM":
-                self.__data[name][time] = val
-            elif time not in self.__data[name]:
-                self.__data[name][time] = val
+                self.__data[name][stime] = val
+            elif stime not in self.__data[name]:
+                self.__data[name][stime] = val
             else:
-                self.__data[name][time] += val
-            self.__lastSaved[name] = time
+                self.__data[name][stime] += val
+            self.__last_saved[name] = stime
 
-    def add(self, name, time, vals):
-        if TIME_INTERVAL is None or \
-           (time > self.__lastSaved[name] + TIME_INTERVAL):
-            self.__save(name, time, vals)
+    def add(self, name, stime, vals):
+        if self.__time_interval is None or \
+           (stime > self.__last_saved[name] + self.__time_interval):
+            self.__save(name, stime, vals)
 
     def data(self):
         return self.__data
@@ -271,66 +270,66 @@ class Summary(object):
     def register(self, name):
         if name not in self.__data:
             self.__data[name] = {}
-            self.__lastSaved[name] = 0.0
+            self.__last_saved[name] = 0.0
 
 
-def processFile(fileName, comp):
+def process_file(file_name, comp, time_interval):
     """Process the specified file"""
     if comp.name not in COMP_FIELDS:
         flds = None
     else:
         flds = COMP_FIELDS[comp.name]
 
-    summary = Summary()
+    summary = Summary(time_interval)
 
-    secName = None
-    secTime = None
+    sec_name = None
+    sec_time = None
 
-    with open(fileName, 'r') as fd:
-        for line in fd:
+    with open(file_name, 'r') as fin:
+        for line in fin:
             line = line.rstrip()
-            if len(line) == 0:
-                secName = None
-                secTime = None
+            if line == "":
+                sec_name = None
+                sec_time = None
                 continue
 
-            if secName is not None:
-                if secName == "IGNORE":
+            if sec_name is not None:
+                if sec_name == "IGNORE":
                     continue
 
-                m = MONILINE_PAT.match(line)
-                if m:
-                    name = m.group(1)
-                    vals = m.group(2)
+                mtch = MONILINE_PAT.match(line)
+                if mtch is not None:
+                    name = mtch.group(1)
+                    vals = mtch.group(2)
 
-                    if secName.find("Trigger") > 0 and \
+                    if sec_name.find("Trigger") > 0 and \
                        name == "SentTriggerCount":
-                        summary.add(secName, secTime, vals)
+                        summary.add(sec_name, sec_time, vals)
                         continue
 
                     if flds is None or \
-                       (secName in flds and flds[secName] == name):
-                        summary.add(secName, secTime, vals)
+                       (sec_name in flds and flds[sec_name] == name):
+                        summary.add(sec_name, sec_time, vals)
                     continue
 
-            m = MONISEC_PAT.match(line)
-            if m:
-                nm = m.group(1)
-                if nm not in flds:
-                    if nm.startswith("DataCollectorMonitor"):
-                        nm = "DOM"
-                    elif nm.find("Trigger") >= 0:
-                        secName = nm
+            mtch = MONISEC_PAT.match(line)
+            if mtch is not None:
+                name = mtch.group(1)
+                if name not in flds:
+                    if name.startswith("DataCollectorMonitor"):
+                        name = "DOM"
+                    elif name.find("Trigger") >= 0:
+                        sec_name = name
                     else:
-                        secName = "IGNORE"
+                        sec_name = "IGNORE"
                         continue
 
-                secName = nm
-                mSec = float(m.group(3)) / 1000000.0
-                secTime = time.mktime(time.strptime(m.group(2),
-                                                    TIMEFMT)) + mSec
+                sec_name = name
+                msec = float(mtch.group(3)) / 1000000.0
+                sec_time = time.mktime(time.strptime(mtch.group(2),
+                                                     TIMEFMT)) + msec
 
-                summary.register(secName)
+                summary.register(sec_name)
 
                 continue
 
@@ -339,11 +338,12 @@ def processFile(fileName, comp):
     return summary.data()
 
 
-def reportDataRates(allData):
+def report_data_rates(all_data, time_interval, print_secondary=False,
+                      verbose=False):
     """Report the DAQ data rates"""
-    if not DATA_ONLY:
+    if print_secondary:
         print('Data Rates:')
-    hubTrigList = [
+    hub_trig_list = [
         ('stringHub', 'DOM'),
         ('stringHub', 'sender'),
         ('stringHub', 'stringHit'),
@@ -354,17 +354,17 @@ def reportDataRates(allData):
         ('iceTopTrigger', 'icetopHit'),
     ]
 
-    trigList = []
+    trig_list = []
     for trig in ('inIceTrigger', 'iceTopTrigger', 'globalTrigger'):
-        for comp in list(allData.keys()):
+        for comp in list(all_data.keys()):
             if comp.name == trig:
-                trigList.append((trig, 'trigger'))
-                for key in list(allData[comp].keys()):
+                trig_list.append((trig, 'trigger'))
+                for key in list(all_data[comp].keys()):
                     mtch = TRIG_PAT.match(key)
                     if mtch is not None:
-                        trigList.append((trig, key))
+                        trig_list.append((trig, key))
 
-    trigEBList = [
+    trig_eb_list = [
         ('globalTrigger', 'glblTrig'),
         ('eventBuilder', 'glblTrig'), ('eventBuilder', 'rdoutReq'),
         ('amandaHub', 'rdoutReq'), ('stringHub', 'rdoutReq'),
@@ -374,173 +374,191 @@ def reportDataRates(allData):
         ('eventBuilder', 'rdoutData'),
         ('eventBuilder', 'backEnd')
     ]
-    reportRatesInternal(allData, hubTrigList + trigList + trigEBList)
+    report_rates_internal(all_data, hub_trig_list + trig_list + trig_eb_list,
+                          time_interval, verbose=verbose)
 
 
-def reportMonitorRates(allData):
+def report_monitor_rates(all_data, time_interval, verbose=False):
     """Report the DAQ monitoring rates"""
     print('Monitoring Rates:')
-    reportList = [('amandaHub', 'moniData'), ('stringHub', 'moniData'),
-                  ('icetopHub', 'moniData'), ('secondaryBuilders', 'moniData'),
-                  ('secondaryBuilders', 'moniBuilder')]
-    reportRatesInternal(allData, reportList)
+    report_list = [('amandaHub', 'moniData'), ('stringHub', 'moniData'),
+                   ('icetopHub', 'moniData'),
+                   ('secondaryBuilders', 'moniData'),
+                   ('secondaryBuilders', 'moniBuilder')]
+    report_rates_internal(all_data, report_list, time_interval,
+                          verbose=verbose)
 
 
-def reportRatesInternal(allData, reportList):
+def report_rates_internal(all_data, report_list, time_interval, verbose=False):
     """Report the rates for the specified set of values"""
-    compKeys = sorted(allData.keys())
+    comp_keys = sorted(all_data.keys())
 
-    combinedComp = None
-    combinedField = None
-    combinedRate = None
-    combinedSplit = None
+    combined_comp = None
+    combined_field = None
+    combined_rate = None
+    combined_split = None
 
-    for rptTuple in reportList:
-        isCombined = rptTuple[0].endswith('Hub') or \
-            (rptTuple[0].endswith('Trigger') and
-             rptTuple[0] != 'globalTrigger' and rptTuple[1] == 'trigger')
+    for rpt_tuple in report_list:
+        is_combined = rpt_tuple[0].endswith('Hub') or \
+            (rpt_tuple[0].endswith('Trigger') and
+             rpt_tuple[0] != 'globalTrigger' and rpt_tuple[1] == 'trigger')
 
-        if combinedField is not None:
-            if not isCombined or combinedField != rptTuple[1]:
-                if combinedRate is None:
-                    print('    %s.%s: Not enough data' % \
-                        (combinedComp, combinedField))
-                elif TIME_INTERVAL is None or len(combinedSplit) == 0:
-                    print('    %s.%s: %.1f' % \
-                        (combinedComp, combinedField, combinedRate))
+        if combined_field is not None:
+            if not is_combined or combined_field != rpt_tuple[1]:
+                if combined_rate is None:
+                    print('    %s.%s: Not enough data' %
+                          (combined_comp, combined_field))
+                elif time_interval is None or len(combined_split) == 0:
+                    print('    %s.%s: %.1f' %
+                          (combined_comp, combined_field, combined_rate))
                 else:
-                    print('    %s.%s: %s  Total: %.1f' % \
-                        (combinedComp, combinedField,
-                         formatRates(combinedSplit), combinedRate))
+                    print('    %s.%s: %s  Total: %.1f' %
+                          (combined_comp, combined_field,
+                           format_rates(combined_split), combined_rate))
 
-                combinedComp = None
-                combinedField = None
-                combinedRate = None
-                combinedSplit = None
+                combined_comp = None
+                combined_field = None
+                combined_rate = None
+                combined_split = None
 
-        if isCombined:
-            if combinedField is None:
-                combinedComp = 'All %ss' % rptTuple[0]
-                combinedField = rptTuple[1]
-                combinedRate = None
-                combinedSplit = []
-            elif combinedComp is not None:
-                if rptTuple[0].endswith('Hub'):
-                    combinedComp = 'All Hubs'
+        if is_combined:
+            if combined_field is None:
+                combined_comp = 'All %ss' % rpt_tuple[0]
+                combined_field = rpt_tuple[1]
+                combined_rate = None
+                combined_split = []
+            elif combined_comp is not None:
+                if rpt_tuple[0].endswith('Hub'):
+                    combined_comp = 'All Hubs'
                 else:
-                    combinedComp = 'All Triggers'
+                    combined_comp = 'All Triggers'
 
-        needNL = False
-        for comp in compKeys:
-            if not comp.name == rptTuple[0]:
+        need_nl = False
+        for comp in comp_keys:
+            if not comp.name == rpt_tuple[0]:
                 continue
 
-            for sect in allData[comp]:
-                if sect != rptTuple[1]:
+            for sect in all_data[comp]:
+                if sect != rpt_tuple[1]:
                     continue
 
-                rateTuple = computeRates(allData[comp][sect])
-                if not isCombined or PRINT_VERBOSE:
-                    if not isCombined:
+                rate_tuple = compute_rates(all_data[comp][sect])
+                if not is_combined or verbose:
+                    if not is_combined:
                         indent = ''
                     else:
                         indent = '    '
-                    if rateTuple[0] is None:
-                        print('    %s%s.%s: Not enough data' % \
-                            (indent, comp, sect))
-                    elif rateTuple[1] is None:
-                        print('    %s%s.%s: %.1f' % \
-                            (indent, comp, sect, rateTuple[0]))
+                    if rate_tuple[0] is None:
+                        print('    %s%s.%s: Not enough data' %
+                              (indent, comp, sect))
+                    elif rate_tuple[1] is None:
+                        print('    %s%s.%s: %.1f' %
+                              (indent, comp, sect, rate_tuple[0]))
                     else:
-                        if TIME_INTERVAL is None:
-                            print('    %s%s.%s: %.1f' % \
-                                (indent, comp, sect, rateTuple[0]))
+                        if time_interval is None:
+                            print('    %s%s.%s: %.1f' %
+                                  (indent, comp, sect, rate_tuple[0]))
                         else:
-                            print('    %s%s.%s: %s  Total: %.1f' % \
-                                (indent, comp, sect, formatRates(rateTuple[1]),
-                                 rateTuple[0]))
-                    needNL = False
+                            print('    %s%s.%s: %s  Total: %.1f' %
+                                  (indent, comp, sect,
+                                   format_rates(rate_tuple[1]),
+                                   rate_tuple[0]))
+                    need_nl = False
 
-                if combinedComp is not None:
-                    if rateTuple[0] is not None:
-                        if combinedRate is None:
-                            combinedRate = 0.0
-                        combinedRate += rateTuple[0]
-                    if rateTuple[1] is not None:
-                        tupleLen = len(rateTuple[1])
-                        if len(combinedSplit) < tupleLen:
-                            for i in range(len(combinedSplit), tupleLen):
-                                combinedSplit.append(0.0)
-                        for i in range(0, tupleLen):
-                            combinedSplit[i] += rateTuple[1][i]
+                if combined_comp is not None:
+                    if rate_tuple[0] is not None:
+                        if combined_rate is None:
+                            combined_rate = 0.0
+                        combined_rate += rate_tuple[0]
+                    if rate_tuple[1] is not None:
+                        tuple_len = len(rate_tuple[1])
+                        if len(combined_split) < tuple_len:
+                            for i in range(len(combined_split), tuple_len):
+                                combined_split.append(0.0)
+                        for i in range(0, tuple_len):
+                            combined_split[i] += rate_tuple[1][i]
 
-        if needNL:
+        if need_nl:
             print('')
-            needNL = False
+            need_nl = False
 
 
-def reportSupernovaRates(allData):
+def report_supernova_rates(all_data, time_interval, verbose=False):
     """Report the DAQ supernova rates"""
-    print('Supernova Rates:')
-    reportList = [('amandaHub', 'snData'), ('stringHub', 'snData'),
-                  ('icetopHub', 'snData'), ('secondaryBuilders', 'snData'),
-                  ('secondaryBuilders', 'snBuilder')]
-    reportRatesInternal(allData, reportList)
+    print('Supernova _rates:')
+    report_list = [('amandaHub', 'snData'), ('stringHub', 'snData'),
+                   ('icetopHub', 'snData'), ('secondaryBuilders', 'snData'),
+                   ('secondaryBuilders', 'snBuilder')]
+    report_rates_internal(all_data, report_list, time_interval,
+                          verbose=verbose)
 
 
-def reportTimeCalRates(allData):
+def report_time_cal_rates(all_data, time_interval, verbose=False):
     """Report the DAQ time calibration rates"""
     print('TimeCal Rates:')
-    reportList = [('amandaHub', 'tcalData'), ('stringHub', 'tcalData'),
-                  ('icetopHub', 'tcalData'), ('secondaryBuilders', 'tcalData'),
-                  ('secondaryBuilders', 'tcalBuilder')]
-    reportRatesInternal(allData, reportList)
+    report_list = [('amandaHub', 'tcalData'), ('stringHub', 'tcalData'),
+                   ('icetopHub', 'tcalData'),
+                   ('secondaryBuilders', 'tcalData'),
+                   ('secondaryBuilders', 'tcalBuilder')]
+    report_rates_internal(all_data, report_list, time_interval,
+                          verbose=verbose)
 
 
-def reportRates(allData):
+def report_rates(all_data, time_interval, print_secondary=False,
+                 verbose=False):
     """Report the DAQ rates"""
-    if not DATA_ONLY:
-        reportMonitorRates(allData)
-        reportSupernovaRates(allData)
-        reportTimeCalRates(allData)
-    reportDataRates(allData)
+    if print_secondary:
+        report_monitor_rates(all_data, time_interval, verbose=verbose)
+        report_supernova_rates(all_data, time_interval, verbose=verbose)
+        report_time_cal_rates(all_data, time_interval, verbose=verbose)
+    report_data_rates(all_data, time_interval, print_secondary=print_secondary,
+                      verbose=verbose)
 
 
-if __name__ == "__main__":
-    badArg = False
-    grabTimeInterval = False
-    dirList = []
-    fileList = []
+def main():
+    "Main program"
+
+    bad_arg = False
+    grab_time_interval = False
+
+    time_interval = None
+    print_secondary = True
+    verbose = False
+
+    dir_list = []
+    file_list = []
     for arg in sys.argv[1:]:
-        if grabTimeInterval:
-            TIME_INTERVAL = int(arg)
-            grabTimeInterval = False
+        if grab_time_interval:
+            time_interval = int(arg)
+            grab_time_interval = False
         elif arg == '-v':
-            if not PRINT_VERBOSE:
-                PRINT_VERBOSE = True
+            if not verbose:
+                verbose = True
         elif arg == '-d':
-            DATA_ONLY = True
+            print_secondary = False
         elif arg.startswith('-i'):
             if arg == '-i':
-                grabTimeInterval = True
+                grab_time_interval = True
             else:
-                TIME_INTERVAL = int(arg[2:])
+                time_interval = int(arg[2:])
         elif os.path.isdir(arg):
-            dirList.append(arg)
+            dir_list.append(arg)
         elif os.path.exists(arg):
-            fileList.append(arg)
+            file_list.append(arg)
         else:
             print('Unknown argument "%s"' % arg, file=sys.stderr)
-            badArg = True
+            bad_arg = True
 
-    if len(dirList) > 0 and len(fileList) > 0:
+    dir_len = len(dir_list)
+    file_len = len(file_list)
+    if dir_len > 0 and file_len > 0:
         print('Cannot specify both directories and files', file=sys.stderr)
-        badArg = True
-    elif len(dirList) == 0 and len(fileList) == 0:
+        bad_arg = True
+    elif dir_len == 0 and file_len == 0:
         print('Please specify a moni file or directory', file=sys.stderr)
-        badArg = True
+        bad_arg = True
 
-    if badArg:
+    if bad_arg:
         print(('Usage: %s' +
                ' [-d(ataOnly)]' +
                ' [-i timeInterval ]' +
@@ -548,19 +566,25 @@ if __name__ == "__main__":
                ' (moniDir | moniFile [...])') % sys.argv[0], file=sys.stderr)
         sys.exit(1)
 
-    if len(fileList) > 0:
-        allData = {}
-        for f in fileList:
+    if file_len > 0:
+        all_data = {}
+        for fname in file_list:
             try:
-                comp = Component(f)
+                comp = Component(fname)
             except ValueError as msg:
                 print(str(msg), file=sys.stderr)
                 comp = Component()
 
-            allData[comp] = processFile(f, comp)
-            reportRates(allData)
+            all_data[comp] = process_file(fname, comp, time_interval)
+            report_rates(all_data, time_interval,
+                         print_secondary=print_secondary, verbose=verbose)
     else:
-        for d in dirList:
-            print('Directory ' + d)
-            allData = processDir(d)
-            reportRates(allData)
+        for dname in dir_list:
+            print('Directory ' + dname)
+            all_data = process_dir(dname, time_interval)
+            report_rates(all_data, time_interval,
+                         print_secondary=print_secondary, verbose=verbose)
+
+
+if __name__ == "__main__":
+    main()

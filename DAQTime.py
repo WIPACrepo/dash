@@ -42,10 +42,10 @@ class DAQDateTime(Comparable):
                  tzinfo=None, high_precision=HIGH_PRECISION):
 
         if high_precision:
-            self.__daqticks = daqticks
+            self.__daq_ticks = daqticks
             self.__high_precision = True
         else:
-            self.__daqticks = (daqticks / 10000) * 10000
+            self.__daq_ticks = (daqticks / 10000) * 10000
             self.__high_precision = False
 
         self.leap = leapseconds.instance()
@@ -65,10 +65,10 @@ class DAQDateTime(Comparable):
         fmt = "%d-%02d-%02d %02d:%02d:%02d"
         if self.__high_precision:
             fmt += ".%010d"
-            ticks = self.__daqticks
+            ticks = self.__daq_ticks
         else:
             fmt += ".%06d"
-            ticks = self.__daqticks / 10000
+            ticks = self.__daq_ticks / 10000
 
         return fmt % (self.year, self.month, self.day, self.hour, self.minute,
                       self.second, ticks)
@@ -86,7 +86,7 @@ class DAQDateTime(Comparable):
 
         return "DAQDateTime(%d, %d, %d, %d, %d, %d, %d%s%s)" % \
             (self.year, self.month, self.day, self.hour,
-             self.minute, self.second, self.__daqticks, tzstr, hpstr)
+             self.minute, self.second, self.__daq_ticks, tzstr, hpstr)
 
     def __cmp__(self, other):
         # compare two date time objects
@@ -95,7 +95,7 @@ class DAQDateTime(Comparable):
 
         val = cmp(self.tuple[0:6], other.tuple[0:6])
         if val == 0:
-            val = cmp(self.__daqticks, other.__daqticks)
+            val = cmp(self.daq_ticks, other.daq_ticks)
         return val
 
     def __sub__(self, other):
@@ -114,7 +114,7 @@ class DAQDateTime(Comparable):
         other_yday = other.mjd_day.timestruct.tm_yday
         diff_seconds += self.leap.get_leap_offset(other_yday)
 
-        diff_ticks = self.__daqticks - other.__daqticks
+        diff_ticks = self.daq_ticks - other.daq_ticks
 
         days = int(diff_seconds / 86400)
         # round to the nearest number of seconds
@@ -141,7 +141,11 @@ class DAQDateTime(Comparable):
 
     @property
     def compare_tuple(self):
-        return (self.tuple[0:6], self.__daqticks)
+        return (self.tuple[0:6], self.__daq_ticks)
+
+    @property
+    def daq_ticks(self):
+        return self.__daq_ticks
 
 
 class YearData(object):
@@ -225,7 +229,7 @@ class PayloadTime(object):
     YEAR_TICKS = None
 
     @classmethod
-    def fromString(cls, timestr, high_precision=DAQDateTime.HIGH_PRECISION):
+    def from_string(cls, timestr, high_precision=DAQDateTime.HIGH_PRECISION):
         if not timestr:
             return None
 
@@ -233,32 +237,29 @@ class PayloadTime(object):
             cls.TIME_PAT = re.compile(r"(\S+-\S+-\S+\s+\d+:\d+:\d+)" +
                                       r"(\.(\d+))?")
 
-        m = cls.TIME_PAT.match(timestr)
-        if not m:
+        mtch = cls.TIME_PAT.match(timestr)
+        if mtch is None:
             raise ValueError("Cannot parse date/time '%s'" % timestr)
 
         basefmt = "%Y-%m-%d %H:%M:%S"
 
-        pt = time.strptime(m.group(1), basefmt)
+        ptm = time.strptime(mtch.group(1), basefmt)
 
-        if m.group(3) and len(m.group(3)) <= 6:
+        if mtch.group(3) and len(mtch.group(3)) <= 6:
             # legal subsecond value for strptime
-            temp_str = ".%s" % m.group(3)
-            dt = datetime.datetime.strptime(temp_str,
-                                            ".%f")
-            ticks = dt.microsecond * 10000
+            temp_str = ".%s" % mtch.group(3)
+            dttm = datetime.datetime.strptime(temp_str, ".%f")
+            ticks = dttm.microsecond * 10000
         else:
-            if not m.group(3):
+            if not mtch.group(3):
                 ticks = 0
             else:
-                ticks = int(m.group(3))
-                for _ in range(10 - len(m.group(3))):
+                ticks = int(mtch.group(3))
+                for _ in range(10 - len(mtch.group(3))):
                     ticks *= 10
 
-        return DAQDateTime(pt.tm_year, pt.tm_mon,
-                           pt.tm_mday, pt.tm_hour,
-                           pt.tm_min, pt.tm_sec,
-                           ticks,
+        return DAQDateTime(ptm.tm_year, ptm.tm_mon, ptm.tm_mday, ptm.tm_hour,
+                           ptm.tm_min, ptm.tm_sec, ticks,
                            high_precision=high_precision)
 
     @classmethod
@@ -266,21 +267,21 @@ class PayloadTime(object):
         return time.gmtime().tm_year
 
     @classmethod
-    def toDateTime(cls, payTime, year=None,
-                   high_precision=DAQDateTime.HIGH_PRECISION):
-        if payTime is None or isinstance(payTime, str):
+    def to_date_time(cls, pay_time, year=None,
+                     high_precision=DAQDateTime.HIGH_PRECISION):
+        if pay_time is None or isinstance(pay_time, str):
             return None
 
         if year is None:
             recompute = cls.YEAR is None or \
-              cls.YEAR_TICKS + cls.ELEVEN_MONTHS < payTime or \
-              cls.YEAR_TICKS > payTime + cls.ELEVEN_MONTHS
+              cls.YEAR_TICKS + cls.ELEVEN_MONTHS < pay_time or \
+              cls.YEAR_TICKS > pay_time + cls.ELEVEN_MONTHS
 
             # if the year hasn't been set, or if time has gone backward,,,
             if recompute:
                 # fetch the current year from the system time
                 cls.YEAR = cls.get_current_year()
-                cls.YEAR_TICKS = payTime
+                cls.YEAR_TICKS = pay_time
 
             # use the current year
             year = cls.YEAR
@@ -290,63 +291,65 @@ class PayloadTime(object):
             cls.YEAR_DATA[year] = YearData(year)
 
         # convert DAQ ticks to seconds, preserving subsecond count
-        curSecOffset = (payTime / int(cls.TICKS_PER_SECOND))
-        subsec = payTime % cls.TICKS_PER_SECOND
+        cur_sec_offset = (pay_time / int(cls.TICKS_PER_SECOND))
+        subsec = pay_time % cls.TICKS_PER_SECOND
 
         # if there's no possibility of a leapsecond...
         if not cls.YEAR_DATA[year].has_leapsecond or \
-                curSecOffset < cls.YEAR_DATA[year].june30_offset:
+                cur_sec_offset < cls.YEAR_DATA[year].june30_offset:
             # convert DAQ tick into number of seconds since the Unix epoch
-            curTime = curSecOffset + cls.YEAR_DATA[year].jan1_offset
-            ts = time.gmtime(curTime)
+            cur_time = cur_sec_offset + cls.YEAR_DATA[year].jan1_offset
+            gmtm = time.gmtime(cur_time)
 
             # create a DAQDateTime object which includes the subsecond count
-            return DAQDateTime(ts.tm_year, ts.tm_mon, ts.tm_mday, ts.tm_hour,
-                               ts.tm_min, ts.tm_sec, subsec,
+            return DAQDateTime(gmtm.tm_year, gmtm.tm_mon, gmtm.tm_mday,
+                               gmtm.tm_hour, gmtm.tm_min, gmtm.tm_sec, subsec,
                                high_precision=high_precision)
 
         # if we got a payload time exactly ON the leapsecond...
-        if curSecOffset == cls.YEAR_DATA[year].june30_offset:
+        if cur_sec_offset == cls.YEAR_DATA[year].june30_offset:
             # return a leapsecond object
             return DAQDateTime(year, 6, 30, 23, 59, 60, subsec,
                                high_precision=high_precision)
 
         # convert DAQ tick into number of seconds since the Unix epoch
-        curTime = curSecOffset + cls.YEAR_DATA[year].jan1_offset
+        cur_time = cur_sec_offset + cls.YEAR_DATA[year].jan1_offset
 
         # get time quantities after subtracting ONE leapsecond
-        ts = time.gmtime(curTime - 1)
+        gmtm = time.gmtime(cur_time - 1)
 
         # create a DAQDateTime object which includes the subsecond count
-        return DAQDateTime(ts.tm_year, ts.tm_mon, ts.tm_mday, ts.tm_hour,
-                           ts.tm_min, ts.tm_sec, subsec,
+        return DAQDateTime(gmtm.tm_year, gmtm.tm_mon, gmtm.tm_mday,
+                           gmtm.tm_hour, gmtm.tm_min, gmtm.tm_sec, subsec,
                            high_precision=high_precision)
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     import argparse
 
-    p = argparse.ArgumentParser()
-    p.add_argument("-y", "--year", type=int, dest="year",
-                   help="Base year when converting DAQ times to strings ")
-    p.add_argument("time", nargs="*")
-    args = p.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-y", "--year", type=int, dest="year",
+                        help="Base year when converting DAQ times to strings ")
+    parser.add_argument("time", nargs="*")
+    args = parser.parse_args()
 
     if len(args.time) == 0:
         # pattern %Y-%m-%d %H:%M:%S
         base = "2012-01-10 10:19:23"
-        dt0 = PayloadTime.fromString(base + ".0001000000")
-        dt1 = PayloadTime.fromString(base + ".0001")
+        dttm0 = PayloadTime.from_string(base + ".0001000000")
+        dttm1 = PayloadTime.from_string(base + ".0001")
 
-        print(dt0)
-        print(dt1)
+        print(dttm0)
+        print(dttm1)
         raise SystemExit()
 
     for arg in args.time:
         try:
             try:
                 val = int(arg)
-                dt = None
+                dttm = None
             except IOError:
                 print("Cannot convert %s" % str(val))
                 import traceback
@@ -355,14 +358,18 @@ if __name__ == "__main__":
             except ValueError:
                 val = None
             if val is not None:
-                dt = PayloadTime.toDateTime(val, year=args.year,
-                                            high_precision=True)
-                print("%s -> %s" % (arg, dt))
+                dttm = PayloadTime.to_date_time(val, year=args.year,
+                                                high_precision=True)
+                print("%s -> %s" % (arg, dttm))
             else:
-                dt = PayloadTime.fromString(arg, True)
-                print("\"%s\" -> %s" % (arg, dt))
+                dttm = PayloadTime.from_string(arg, True)
+                print("\"%s\" -> %s" % (arg, dttm))
 
         except:
             print("Bad date: " + arg)
             import traceback
             traceback.print_exc()
+
+
+if __name__ == "__main__":
+    main()

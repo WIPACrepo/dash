@@ -2,22 +2,25 @@
 
 from __future__ import print_function
 
-from .validate_configs import validate_runconfig
+import argparse
 import glob
 import os
 import sys
-import optparse
 
-if __name__ == "__main__":
-    parse = optparse.OptionParser()
-    parse.add_option("-d", "--config_dir", type="string",
-                     dest="config_dir", action="store",
-                     default=None,
-                     help="Run Config Directory")
-    opt, args = parse.parse_args()
+from validate_configs import validate_runconfig
 
-    if opt.config_dir is not None:
-        config_path = opt.config_dir
+
+def main():
+    "Main program"
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--config_dir", dest="config_dir",
+                        action="store", default=None,
+                        help="Run Config Directory")
+    args = parser.parse_args()
+
+    if args.config_dir is not None:
+        config_path = args.config_dir
     else:
         sys.path.append('..')
         from locate_pdaq import find_pdaq_config
@@ -50,3 +53,7 @@ if __name__ == "__main__":
 
     if not invalid_found:
         print("No invalid run configuration files found (of %d)" % num)
+
+
+if __name__ == "__main__":
+    main()

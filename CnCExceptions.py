@@ -17,6 +17,7 @@ class MissingComponentException(CnCServerException):
         "String description of this exception"
         return "Still waiting for " + str(self.__comp_list)
 
+    @property
     def components(self):
         "List of missing components"
         return self.__comp_list

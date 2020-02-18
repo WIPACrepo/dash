@@ -27,34 +27,34 @@ HUB_PAT = re.compile(r"^.*i([ct])hub(\d+).*$")
 
 def extract_for_real(tarname, tardir, subdir):
     hubnames = {}
-    tf = tarfile.open(tarname, "r:*")
+    tar = tarfile.open(tarname, "r:*")
     try:
-        for info in tf.getmembers():
+        for info in tar.getmembers():
             if not info.isfile():
                 continue
 
-            m = HUB_PAT.match(info.name)
-            if m is None:
-                print("No hubname found in %s; skipping" % \
-                    info.name, file=sys.stderr)
+            mtch = HUB_PAT.match(info.name)
+            if mtch is None:
+                print("No hubname found in %s; skipping" % info.name,
+                      file=sys.stderr)
                 continue
 
-            hubtype = m.group(1)
-            numstr = m.group(2)
+            hubtype = mtch.group(1)
+            numstr = mtch.group(2)
 
             if hubtype == "c":
                 inice = True
             elif hubtype == "t":
                 inice = False
             else:
-                print("Unknown hub type in \"%s\"; skipping" % \
-                    info.name, file=sys.stderr)
+                print("Unknown hub type in \"%s\"; skipping" % info.name,
+                      file=sys.stderr)
 
             try:
                 hubnum = int(numstr)
-            except:
-                print("Bad hub number in \"%s\"; skipping" % \
-                    info.name, file=sys.stderr)
+            except ValueError:
+                print("Bad hub number in \"%s\"; skipping" % info.name,
+                      file=sys.stderr)
 
             if not inice and hubnum < 100:
                 hubnum += 200
@@ -66,7 +66,7 @@ def extract_for_real(tarname, tardir, subdir):
                 os.mkdir(hubpath)
 
             members = [info, ]
-            tf.extractall(path=hubpath, members=members)
+            tar.extractall(path=hubpath, members=members)
 
             namedir = os.path.dirname(info.name)
             if namedir != "":
@@ -80,7 +80,7 @@ def extract_for_real(tarname, tardir, subdir):
             else:
                 hubnames[hubname] += 1
     finally:
-        tf.close()
+        tar.close()
         os.remove(tarname)
 
     keys = sorted(hubnames.keys())
@@ -91,37 +91,37 @@ def extract_for_real(tarname, tardir, subdir):
         else:
             plural = "s"
 
-        print("Extracted %d %s file%s to %s" % \
-            (hubnames[hub], hub, plural, subdir))
+        print("Extracted %d %s file%s to %s" %
+              (hubnames[hub], hub, plural, subdir))
 
 
 def process(path):
-    for root, dirs, files in os.walk(path):
+    for root, _, files in os.walk(path):
         for filename in fnmatch.filter(files, "HS_SNALERT_*.tar.gz"):
             tarpath = os.path.join(root, filename)
-            tf = tarfile.open(tarpath, "r:*")
+            tar = tarfile.open(tarpath, "r:*")
             try:
                 members = []
-                for info in tf.getmembers():
+                for info in tar.getmembers():
                     if not info.isfile():
                         continue
 
                     if info.name.find(".tar") > 0:
                         members.append(info)
 
-                if len(members) == 0:
+                if len(members) == 0:  # pylint: disable=len-as-condition
                     print("No tarfile found in %s" % tarpath, file=sys.stderr)
                 elif len(members) > 1:
-                    print("Found %d tarfiles in %s" % \
-                        (len(members), tarpath), file=sys.stderr)
+                    print("Found %d tarfiles in %s" %
+                          (len(members), tarpath), file=sys.stderr)
                 else:
-                    tf.extractall(members=members)
+                    tar.extractall(members=members)
 
                 tardir = os.path.dirname(tarpath)
 
                 if not root.startswith(path):
-                    print("Cannot find subdirectory \"%s\" in \"%s\"" % \
-                        (root, path), file=sys.stderr)
+                    print("Cannot find subdirectory \"%s\" in \"%s\"" %
+                          (root, path), file=sys.stderr)
                     subdir = root
                 else:
                     subdir = root[len(path):]
@@ -132,18 +132,24 @@ def process(path):
 
                 extract_for_real(members[0].name, tardir, subdir)
             finally:
-                tf.close()
+                tar.close()
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     import argparse
 
-    op = argparse.ArgumentParser()
-    op.add_argument("paths", nargs="*")
-    args = op.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("paths", nargs="*")
+    args = parser.parse_args()
 
-    if len(args.paths) == 0:
+    if len(args.paths) == 0:  # pylint: disable=len-as-condition
         args.append("/net/data2/pdaq/testdata/hitspool/from_sndaq_alerts")
 
     for path in args.paths:
         process(path)
+
+
+if __name__ == "__main__":
+    main()

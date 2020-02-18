@@ -5,7 +5,7 @@ LIVE_IMPORT = True
 
 # attempt to import MoniClient
 try:
-    from livecore.messaging.moniclient import MoniClient
+    from livecore.messaging.moniclient import DefaultMoniClient as MoniClient
 except ImportError:
     try:
         from live.transport.moniclient import DefaultMoniClient as MoniClient
@@ -48,8 +48,8 @@ except ImportError:
         LIVE_IMPORT = False
         class LiveComponent(object):
             def __init__(self, compName, rpcPort=None, moniHost=None,
-                        moniPort=None, synchronous=None, lightSensitive=None,
-                        makesLight=None, logger=None):
+                         moniPort=None, synchronous=None, lightSensitive=None,
+                         makesLight=None, logger=None):
                 pass
 
             def close(self):

@@ -41,7 +41,7 @@ class TaskManager(threading.Thread):
         This method exists solely to make it easy to detect
         errors in the task constructors.
         """
-        taskList = []
+        task_list = []
 
         task_num = 0
         while True:
@@ -50,13 +50,13 @@ class TaskManager(threading.Thread):
                                           run_cfg, run_options)
                 if task is None:
                     break
-                taskList.append(task)
+                task_list.append(task)
             except:
                 self.__dashlog.error("Cannot create task#%d: %s" %
                                      (task_num, exc_string()))
             task_num += 1
 
-        return taskList
+        return task_list
 
     def __create_task(self, task_num, live_moni, rundir, run_cfg, run_options):
         """
@@ -67,16 +67,16 @@ class TaskManager(threading.Thread):
         if task_num == 0:
             return MonitorTask(self, self.__runset, self.__dashlog, live_moni,
                                rundir, run_options,
-                               period=run_cfg.monitorPeriod)
-        elif task_num == 1:
+                               period=run_cfg.monitor_period)
+        if task_num == 1:
             return RateTask(self, self.__runset, self.__dashlog)
-        elif task_num == 2:
+        if task_num == 2:
             return ActiveDOMsTask(self, self.__runset, self.__dashlog,
                                   live_moni)
-        elif task_num == 3:
+        if task_num == 3:
             return WatchdogTask(self, self.__runset, self.__dashlog,
                                 initial_health=12,
-                                period=run_cfg.watchdogPeriod)
+                                period=run_cfg.watchdog_period)
 
         return None
 
@@ -84,20 +84,20 @@ class TaskManager(threading.Thread):
         self.__running = True
         while not self.__stopping:
             wait_secs = CnCTask.MAX_TASK_SECS
-            for t in self.__tasks:
+            for tsk in self.__tasks:
                 # don't do remaining tasks if stop() has been called
                 if self.__stopping:
                     break
 
                 try:
-                    taskSecs = t.check()
+                    task_secs = tsk.check()
                 except:
                     if self.__dashlog is not None:
                         self.__dashlog.error("%s exception: %s" %
-                                             (str(t), exc_string()))
-                    taskSecs = CnCTask.MAX_TASK_SECS
-                if wait_secs > taskSecs:
-                    wait_secs = taskSecs
+                                             (str(tsk), exc_string()))
+                    task_secs = CnCTask.MAX_TASK_SECS
+                if wait_secs > task_secs:
+                    wait_secs = task_secs
 
             if not self.__stopping:
                 self.__flag.acquire()
@@ -109,9 +109,9 @@ class TaskManager(threading.Thread):
         self.__running = False
 
         saved_exc = None
-        for t in self.__tasks:
+        for tsk in self.__tasks:
             try:
-                t.close()
+                tsk.close()
             except:
                 if not saved_exc:
                     saved_exc = sys.exc_info()
@@ -122,7 +122,7 @@ class TaskManager(threading.Thread):
             reraise_excinfo(saved_exc)
 
     @classmethod
-    def createIntervalTimer(cls, name, period):
+    def create_interval_timer(cls, name, period):
         return IntervalTimer(name, period, start_triggered=True)
 
     @property
@@ -134,8 +134,8 @@ class TaskManager(threading.Thread):
         return not self.__running and not self.__stopping
 
     def reset(self):
-        for t in self.__tasks:
-            t.reset()
+        for tsk in self.__tasks:
+            tsk.reset()
 
     def run(self):
         try:
@@ -156,6 +156,6 @@ class TaskManager(threading.Thread):
             finally:
                 self.__flag.release()
 
-    def waitForTasks(self):
-        for t in self.__tasks:
-            t.wait_until_finished()
+    def wait_for_tasks(self):
+        for tsk in self.__tasks:
+            tsk.wait_until_finished()

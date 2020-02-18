@@ -117,7 +117,7 @@ def write_run_config(out, basedir, trigcfg, hubs):
 
 
 def main():
-    "Mainn program"
+    "Main program"
 
     import argparse
 

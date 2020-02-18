@@ -475,8 +475,8 @@ def add_arguments(parser):
                         action="store_true", default=False,
                         help="Print details")
     parser.add_argument(dest="positional", nargs="*",
-                        help="Positional arguments"
-                        " (start/stop times, list of hubs)")
+                        help=("Positional arguments"
+                              " (start/stop times, list of hubs)"))
 
 
 def process_args(args):
@@ -564,10 +564,11 @@ def process_args(args):
 
 
 def main():
-    "Main method"
-    argp = argparse.ArgumentParser()
-    add_arguments(argp)
-    args = argp.parse_args()
+    "Main program"
+
+    parser = argparse.ArgumentParser()
+    add_arguments(parser)
+    args = parser.parse_args()
 
     mgr = CopyManager(args)
     mgr.run()

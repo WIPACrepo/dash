@@ -311,7 +311,9 @@ class ColorFileParser(object):
         return cls.COLOR_MAP[tmp_name]
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     import sys
 
     from TailLive import LiveLog
@@ -328,3 +330,7 @@ if __name__ == "__main__":
         raise SystemExit(str(cex))
 
     ColorFileParser.print_formatted(LiveLog.COLORS)
+
+
+if __name__ == "__main__":
+    main()

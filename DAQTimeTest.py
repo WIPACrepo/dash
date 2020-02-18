@@ -28,42 +28,44 @@ class TestDAQTime(unittest.TestCase):
                          "Expected %s %s, not %s" % (name, valid, to_check))
 
     @staticmethod
-    def __compare_dates(dt0, dt1):
-        if dt0 == dt1:
+    def __compare_dates(dttm0, dttm1):
+        if dttm0 == dttm1:
             return 0
-        if dt0 < dt1:
-           return -1
-        if dt0 > dt1:
+        if dttm0 < dttm1:
+            return -1
+        if dttm0 > dttm1:
             return 1
 
         raise Exception("Comparison always fails (<%s>%s <=> <%s>%s)" %
-                        (type(dt0), dt0, type(dt1), dt1))
+                        (type(dttm0), dttm0, type(dttm1), dttm1))
 
-    def __checkCompare(self, dt0, dt1, expResult):
-        result = self.__compare_dates(dt0, dt1)
-        self.assertEqual(expResult, result,
+    def __check_compare(self, dttm0, dttm1, exp_result):
+        result = self.__compare_dates(dttm0, dttm1)
+        self.assertEqual(exp_result, result,
                          "Expected cmp(%s, %s) to return %s, not %s" %
-                         (dt0, dt1, expResult, result))
+                         (dttm0, dttm1, exp_result, result))
 
-        result = self.__compare_dates(dt1, dt0)
-        self.assertEqual(-expResult, result,
+        result = self.__compare_dates(dttm1, dttm0)
+        self.assertEqual(-exp_result, result,
                          "Expected inverted cmp(%s, %s) to return %s, not %s" %
-                         (dt1, dt0, -expResult, result))
+                         (dttm1, dttm0, -exp_result, result))
 
-    def __dateFormat(self, yr, mon, day, hr, minutes, sec, usec,
-                     high_precision=False):
+    @classmethod
+    def __date_format(cls, year, mon, day, hour, minutes, sec, usec,
+                      high_precision=False):
         if high_precision:
             subsecstr = "%010d" % usec
         else:
             subsecstr = "%06d" % (usec / 10000)
         return "%04d-%02d-%02d %02d:%02d:%02d.%s" % \
-            (yr, mon, day, hr, minutes, sec, subsecstr)
+            (year, mon, day, hour, minutes, sec, subsecstr)
 
-    def __deltaFormat(self, days, hrs, minutes, sec, usec):
+    @classmethod
+    def __delta_format(cls, days, hours, minutes, sec, usec):
         rtnstr = "%d day" % days
         if days != 1:
             rtnstr += "s"
-        rtnstr += ", %d:%02d:%02d" % (hrs, minutes, sec)
+        rtnstr += ", %d:%02d:%02d" % (hours, minutes, sec)
         if usec > 0:
             rtnstr += ".%06d" % usec
         return rtnstr
@@ -77,244 +79,250 @@ class TestDAQTime(unittest.TestCase):
     def tearDown(self):
         set_pdaq_config_dir(None, override=True)
 
-    def testPayloadTimeNone(self):
-        self.assertEqual(PayloadTime.toDateTime(None), None)
+    def test_payload_time_none(self):
+        self.assertEqual(PayloadTime.to_date_time(None), None)
 
-    def testPayloadTimeZero(self):
-        dt = PayloadTime.toDateTime(0, high_precision=False)
-        expStr = self.__dateFormat(self.CUR_YEAR, 1, 1, 0, 0, 0, 0)
-        self.assertEqual(expStr, str(dt),
-                         "Expected date %s, not %s" % (expStr, dt))
+    def test_payload_time_zero(self):
+        dttm = PayloadTime.to_date_time(0, high_precision=False)
+        expstr = self.__date_format(self.CUR_YEAR, 1, 1, 0, 0, 0, 0)
+        self.assertEqual(expstr, str(dttm),
+                         "Expected date %s, not %s" % (expstr, dttm))
 
-    def testPayloadTimeZeroHP(self):
-        dt = PayloadTime.toDateTime(0, high_precision=True)
-        expStr = self.__dateFormat(self.CUR_YEAR, 1, 1, 0, 0, 0, 0,
-                                   high_precision=True)
-        self.assertEqual(expStr, str(dt),
-                         "Expected date %s, not %s" % (expStr, dt))
+    def test_payload_time_zero_h_p(self):
+        dttm = PayloadTime.to_date_time(0, high_precision=True)
+        expstr = self.__date_format(self.CUR_YEAR, 1, 1, 0, 0, 0, 0,
+                                    high_precision=True)
+        self.assertEqual(expstr, str(dttm),
+                         "Expected date %s, not %s" % (expstr, dttm))
 
-    def testPayloadTimeOneSec(self):
-        dt = PayloadTime.toDateTime(self.TICKS_PER_SEC, high_precision=False)
-        expStr = self.__dateFormat(self.CUR_YEAR, 1, 1, 0, 0, 1, 0)
-        self.assertEqual(expStr, str(dt),
-                         "Expected date %s, not %s" % (expStr, dt))
+    def test_payload_time_one_sec(self):
+        dttm = PayloadTime.to_date_time(self.TICKS_PER_SEC,
+                                        high_precision=False)
+        expstr = self.__date_format(self.CUR_YEAR, 1, 1, 0, 0, 1, 0)
+        self.assertEqual(expstr, str(dttm),
+                         "Expected date %s, not %s" % (expstr, dttm))
 
-    def testPayloadTimeOneSecHP(self):
-        dt = PayloadTime.toDateTime(self.TICKS_PER_SEC, high_precision=True)
-        expStr = self.__dateFormat(self.CUR_YEAR, 1, 1, 0, 0, 1, 0,
-                                   high_precision=True)
-        self.assertEqual(expStr, str(dt),
-                         "Expected date %s, not %s" % (expStr, dt))
+    def test_payload_time_one_sec_h_p(self):
+        dttm = PayloadTime.to_date_time(self.TICKS_PER_SEC,
+                                        high_precision=True)
+        expstr = self.__date_format(self.CUR_YEAR, 1, 1, 0, 0, 1, 0,
+                                    high_precision=True)
+        self.assertEqual(expstr, str(dttm),
+                         "Expected date %s, not %s" % (expstr, dttm))
 
-    def testDeltaOneDay(self):
+    def test_delta_one_day(self):
         jan1 = time.struct_time((self.CUR_YEAR, 1, 1, 0, 0, 0, 0, 0, -1))
         jan2 = time.struct_time((self.CUR_YEAR, 1, 2, 0, 0, 0, 0, 0, -1))
         dayticks = int(calendar.timegm(jan2) - calendar.timegm(jan1)) * \
             self.TICKS_PER_SEC
 
-        dt0 = PayloadTime.toDateTime(0)
-        dt1 = PayloadTime.toDateTime(dayticks)
+        dttm0 = PayloadTime.to_date_time(0)
+        dttm1 = PayloadTime.to_date_time(dayticks)
 
-        expStr = self.__deltaFormat(1, 0, 0, 0, 0)
-        self.assertEqual(expStr, str(dt1 - dt0),
-                         "Expected delta %s, not %s" % (expStr, dt1 - dt0))
+        expstr = self.__delta_format(1, 0, 0, 0, 0)
+        self.assertEqual(expstr, str(dttm1 - dttm0),
+                         "Expected delta %s, not %s" % (expstr, dttm1 - dttm0))
 
-        expStr = self.__deltaFormat(-1, 0, 0, 0, 0)
-        self.assertEqual(expStr, str(dt0 - dt1),
-                         "Expected delta2 %s, not %s" % (expStr, dt0 - dt1))
+        expstr = self.__delta_format(-1, 0, 0, 0, 0)
+        self.assertEqual(expstr, str(dttm0 - dttm1),
+                         "Expected delta2 %s, not %s" % (expstr, dttm0 - dttm1))
 
-    def testDeltaTwoWeeks(self):
+    def test_delta_two_weeks(self):
         jan1 = time.struct_time((self.CUR_YEAR, 1, 1, 0, 0, 0, 0, 0, -1))
         jan15 = time.struct_time((self.CUR_YEAR, 1, 15, 3, 2, 1, 0, 0, -1))
         usec = 101100
         dayticks = int(calendar.timegm(jan15) - calendar.timegm(jan1)) * \
             self.TICKS_PER_SEC + (usec * 10000)
 
-        dt0 = PayloadTime.toDateTime(0)
-        dt1 = PayloadTime.toDateTime(dayticks)
+        dttm0 = PayloadTime.to_date_time(0)
+        dttm1 = PayloadTime.to_date_time(dayticks)
 
-        expStr = self.__deltaFormat(14, 3, 2, 1, usec)
-        self.assertEqual(expStr, str(dt1 - dt0),
-                         "Expected delta %s, not %s" % (expStr, dt1 - dt0))
+        expstr = self.__delta_format(14, 3, 2, 1, usec)
+        self.assertEqual(expstr, str(dttm1 - dttm0),
+                         "Expected delta %s, not %s" % (expstr, dttm1 - dttm0))
 
-        expStr = self.__deltaFormat(-15, 20, 57, 58, 898900)
-        self.assertEqual(expStr, str(dt0 - dt1),
-                         "Expected delta2 %s, not %s" % (expStr, dt0 - dt1))
+        expstr = self.__delta_format(-15, 20, 57, 58, 898900)
+        self.assertEqual(expstr, str(dttm0 - dttm1),
+                         "Expected delta2 %s, not %s" % (expstr, dttm0 - dttm1))
 
-    def testDeltaTwoWeeksHP(self):
+    def test_delta_two_weeks_h_p(self):
         jan1 = time.struct_time((self.CUR_YEAR, 1, 1, 0, 0, 0, 0, 0, -1))
         jan15 = time.struct_time((self.CUR_YEAR, 1, 15, 3, 2, 1, 0, 0, -1))
         usec = 101100
         dayticks = int(calendar.timegm(jan15) - calendar.timegm(jan1)) * \
             self.TICKS_PER_SEC + (usec * 10000)
 
-        dt0 = PayloadTime.toDateTime(0, high_precision=True)
-        dt1 = PayloadTime.toDateTime(dayticks, high_precision=True)
+        dttm0 = PayloadTime.to_date_time(0, high_precision=True)
+        dttm1 = PayloadTime.to_date_time(dayticks, high_precision=True)
 
-        expStr = self.__deltaFormat(14, 3, 2, 1, usec)
-        self.assertEqual(expStr, str(dt1 - dt0),
-                         "Expected delta %s, not %s" % (expStr, dt1 - dt0))
+        expstr = self.__delta_format(14, 3, 2, 1, usec)
+        self.assertEqual(expstr, str(dttm1 - dttm0),
+                         "Expected delta %s, not %s" % (expstr, dttm1 - dttm0))
 
-        expStr = self.__deltaFormat(-15, 20, 57, 58, 898900)
-        self.assertEqual(expStr, str(dt0 - dt1),
-                         "Expected delta2 %s, not %s" % (expStr, dt0 - dt1))
+        expstr = self.__delta_format(-15, 20, 57, 58, 898900)
+        self.assertEqual(expstr, str(dttm0 - dttm1),
+                         "Expected delta2 %s, not %s" % (expstr, dttm0 - dttm1))
 
-    def testDeltaSubsec(self):
-        self.__validateDelta((self.CUR_YEAR, 1, 10, 10, 19, 23, 9876543210),
-                             (self.CUR_YEAR, 1, 10, 10, 19, 23, 8765432109),
-                             (0, 0, 111111))
+    def test_delta_subsec(self):
+        self.__validate_delta((self.CUR_YEAR, 1, 10, 10, 19, 23, 9876543210),
+                              (self.CUR_YEAR, 1, 10, 10, 19, 23, 8765432109),
+                              (0, 0, 111111))
 
-    def __validateDelta(self, t1, t2, expDiff):
-        dt1 = datetime.datetime(t1[0], t1[1], t1[2], t1[3], t1[4], t1[5],
-                                int((t1[6] + 500) / 10000))
-        dt2 = datetime.datetime(t2[0], t2[1], t2[2], t2[3], t2[4], t2[5],
-                                int((t2[6] + 500) / 10000))
-        diff = dt1 - dt2
-        self.assertEqual(expDiff,
+    def __validate_delta(self, tm1, tm2, exp_diff):
+        dttm1 = datetime.datetime(tm1[0], tm1[1], tm1[2], tm1[3], tm1[4],
+                                  tm1[5], int((tm1[6] + 500) / 10000))
+        dttm2 = datetime.datetime(tm2[0], tm2[1], tm2[2], tm2[3], tm2[4],
+                                  tm2[5], int((tm2[6] + 500) / 10000))
+        diff = dttm1 - dttm2
+        self.assertEqual(exp_diff,
                          (diff.days, diff.seconds, diff.microseconds),
                          "Expected datetime diff %d/%d/%d not %d/%d/%d" %
-                         (expDiff[0], expDiff[1], expDiff[2],
+                         (exp_diff[0], exp_diff[1], exp_diff[2],
                           diff.days, diff.seconds, diff.microseconds))
 
-        dt1 = DAQDateTime(t1[0], t1[1], t1[2], t1[3], t1[4], t1[5], t1[6])
-        dt2 = DAQDateTime(t2[0], t2[1], t2[2], t2[3], t2[4], t2[5], t2[6])
-        diff = dt1 - dt2
+        dttm1 = DAQDateTime(tm1[0], tm1[1], tm1[2], tm1[3], tm1[4], tm1[5],
+                            tm1[6])
+        dttm2 = DAQDateTime(tm2[0], tm2[1], tm2[2], tm2[3], tm2[4], tm2[5],
+                            tm2[6])
+        diff = dttm1 - dttm2
 
-        self.assertEqual(expDiff[0], diff.days,
+        self.assertEqual(exp_diff[0], diff.days,
                          ("DAQDateTime days %d should be %d" +
                           " (%d/%d/%d vs. %d/%d/%d)") %
-                         (diff.days, expDiff[0], expDiff[0],
-                          expDiff[1], expDiff[2], diff.days, diff.seconds,
+                         (diff.days, exp_diff[0], exp_diff[0],
+                          exp_diff[1], exp_diff[2], diff.days, diff.seconds,
                           diff.microseconds))
-        self.assertEqual(expDiff[1], diff.seconds,
+        self.assertEqual(exp_diff[1], diff.seconds,
                          ("DAQDateTime seconds %d should be %d" +
                           " (%d/%d/%d vs. %d/%d/%d)") %
-                         (diff.seconds, expDiff[1], expDiff[0],
-                          expDiff[1], expDiff[2], diff.days, diff.seconds,
+                         (diff.seconds, exp_diff[1], exp_diff[0],
+                          exp_diff[1], exp_diff[2], diff.days, diff.seconds,
                           diff.microseconds))
-        self.assertEqual(expDiff[2], diff.microseconds,
+        self.assertEqual(exp_diff[2], diff.microseconds,
                          ("DAQDateTime microseconds %d should be %d" +
                           " (%d/%d/%d vs. %d/%d/%d)") %
-                         (diff.microseconds, expDiff[2], expDiff[0],
-                          expDiff[1], expDiff[2], diff.days, diff.seconds,
+                         (diff.microseconds, exp_diff[2], exp_diff[0],
+                          exp_diff[1], exp_diff[2], diff.days, diff.seconds,
                           diff.microseconds))
 
-    def testDeltaSecSubsec(self):
-        self.__validateDelta((self.CUR_YEAR, 4, 3, 15, 28, 0, 450989000),
-                             (self.CUR_YEAR, 4, 3, 15, 25, 59, 587731000),
-                             (0, 120, 986325))
+    def test_delta_sec_subsec(self):
+        self.__validate_delta((self.CUR_YEAR, 4, 3, 15, 28, 0, 450989000),
+                              (self.CUR_YEAR, 4, 3, 15, 25, 59, 587731000),
+                              (0, 120, 986325))
 
-    def testDeltaHrSecSubsec(self):
-        self.__validateDelta((self.CUR_YEAR, 4, 3, 15, 28, 0, 450989000),
-                             (self.CUR_YEAR, 4, 3, 14, 25, 59, 587731000),
-                             (0, 3720, 986325))
+    def test_delta_hr_sec_subsec(self):
+        self.__validate_delta((self.CUR_YEAR, 4, 3, 15, 28, 0, 450989000),
+                              (self.CUR_YEAR, 4, 3, 14, 25, 59, 587731000),
+                              (0, 3720, 986325))
 
-    def testDeltaDayHrSecSubsec(self):
-        self.__validateDelta((self.CUR_YEAR, 4, 3, 15, 28, 0, 450989000),
-                             (self.CUR_YEAR, 4, 2, 14, 25, 59, 587731000),
-                             (1, 3720, 986325))
+    def test_delta_day_hr_sec_subsec(self):
+        self.__validate_delta((self.CUR_YEAR, 4, 3, 15, 28, 0, 450989000),
+                              (self.CUR_YEAR, 4, 2, 14, 25, 59, 587731000),
+                              (1, 3720, 986325))
 
-    def testRepr(self):
+    def test_repr(self):
         fmtstr = "DAQDateTime(%d, 1, 10, 10, 19, 23, 987654%04.4d%s)"
 
         low_digits = 3210
         if not DAQDateTime.HIGH_PRECISION:
             short_digits = 0
-            hpStr = ""
+            hpstr = ""
         else:
             short_digits = low_digits
-            hpStr = ", high_precision=True"
+            hpstr = ", high_precision=True"
 
-        expStr = fmtstr % (self.CUR_YEAR, low_digits, hpStr)
-        shortStr = fmtstr % (self.CUR_YEAR, short_digits, hpStr)
-        dt = eval(expStr)
-        self.assertEqual(shortStr, repr(dt),
-                         "Expected repr %s, not %s" % (shortStr, repr(dt)))
+        expstr = fmtstr % (self.CUR_YEAR, low_digits, hpstr)
+        shortstr = fmtstr % (self.CUR_YEAR, short_digits, hpstr)
+        dttm = eval(expstr)
+        self.assertEqual(shortstr, repr(dttm),
+                         "Expected repr %s, not %s" % (shortstr, repr(dttm)))
 
-    def testReprHP(self):
-        expStr = ("DAQDateTime(%d, 1, 10, 10, 19, 23, 9876543210," +
+    def test_repr_h_p(self):
+        expstr = ("DAQDateTime(%d, 1, 10, 10, 19, 23, 9876543210," +
                   " high_precision=True)") % self.CUR_YEAR
-        dt = eval(expStr)
-        self.assertEqual(expStr, repr(dt),
-                         "Expected repr %s, not %s" % (expStr, repr(dt)))
+        dttm = eval(expstr)
+        self.assertEqual(expstr, repr(dttm),
+                         "Expected repr %s, not %s" % (expstr, repr(dttm)))
 
-    def testCompareNone(self):
-        dt0 = DAQDateTime(self.CUR_YEAR, 1, 10, 10, 19, 23, 9876543210)
-        dt1 = None
-        self.__checkCompare(dt0, dt1, -1)
+    def test_compare_none(self):
+        dttm0 = DAQDateTime(self.CUR_YEAR, 1, 10, 10, 19, 23, 9876543210)
+        dttm1 = None
+        self.__check_compare(dttm0, dttm1, -1)
 
-    def testCompareEqual(self):
-        dt0 = DAQDateTime(self.CUR_YEAR, 1, 10, 10, 19, 23, 9876543210)
-        dt1 = DAQDateTime(self.CUR_YEAR, 1, 10, 10, 19, 23, 9876543210)
-        self.__checkCompare(dt0, dt1, 0)
+    def test_compare_equal(self):
+        dttm0 = DAQDateTime(self.CUR_YEAR, 1, 10, 10, 19, 23, 9876543210)
+        dttm1 = DAQDateTime(self.CUR_YEAR, 1, 10, 10, 19, 23, 9876543210)
+        self.__check_compare(dttm0, dttm1, 0)
 
-    def testCompareDiffer(self):
-        dt0 = DAQDateTime(self.CUR_YEAR, 1, 10, 10, 19, 23, 9876543210)
-        dt1 = DAQDateTime(2011, 1, 1, 1, 1, 1, 0)
-        self.__checkCompare(dt0, dt1, 1)
+    def test_compare_differ(self):
+        dttm0 = DAQDateTime(self.CUR_YEAR, 1, 10, 10, 19, 23, 9876543210)
+        dttm1 = DAQDateTime(2011, 1, 1, 1, 1, 1, 0)
+        self.__check_compare(dttm0, dttm1, 1)
 
-    def testFromStringNone(self):
-        self.assertEqual(PayloadTime.fromString(None), None)
+    def test_from_string_none(self):
+        self.assertEqual(PayloadTime.from_string(None), None)
 
-    def testFromString(self):
-        dt0 = DAQDateTime(self.CUR_YEAR, 1, 10, 10, 19, 23, 987654321)
-        dt1 = PayloadTime.fromString(str(dt0))
-        self.__checkCompare(dt0, dt1, 0)
+    def test_from_string(self):
+        dttm0 = DAQDateTime(self.CUR_YEAR, 1, 10, 10, 19, 23, 987654321)
+        dttm1 = PayloadTime.from_string(str(dttm0))
+        self.__check_compare(dttm0, dttm1, 0)
 
-    def testCompareStringEqual(self):
+    def test_compare_string_equal(self):
         base = "%04d-01-10 10:19:23" % self.CUR_YEAR
 
-        dt0 = PayloadTime.fromString(base + ".0001000000")
-        dt1 = PayloadTime.fromString(base + ".0001")
-        self.__checkCompare(dt0, dt1, 0)
+        dttm0 = PayloadTime.from_string(base + ".0001000000")
+        dttm1 = PayloadTime.from_string(base + ".0001")
+        self.__check_compare(dttm0, dttm1, 0)
 
-        dt0 = PayloadTime.fromString(base + ".0001000000")
-        dt1 = PayloadTime.fromString(base + ".00010000")
-        self.__checkCompare(dt0, dt1, 0)
+        dttm0 = PayloadTime.from_string(base + ".0001000000")
+        dttm1 = PayloadTime.from_string(base + ".00010000")
+        self.__check_compare(dttm0, dttm1, 0)
 
-        dt0 = PayloadTime.fromString(base + ".0000000000")
-        dt1 = PayloadTime.fromString(base)
-        self.__checkCompare(dt0, dt1, 0)
+        dttm0 = PayloadTime.from_string(base + ".0000000000")
+        dttm1 = PayloadTime.from_string(base)
+        self.__check_compare(dttm0, dttm1, 0)
 
-    def testCompareStringDiffer(self):
+    def test_compare_string_differ(self):
         base = "%04d-01-10 10:19:23" % self.CUR_YEAR
-        dt0 = PayloadTime.fromString(base + ".000001")
-        dt1 = PayloadTime.fromString(base + ".0")
-        self.__checkCompare(dt0, dt1, 1)
+        dttm0 = PayloadTime.from_string(base + ".000001")
+        dttm1 = PayloadTime.from_string(base + ".0")
+        self.__check_compare(dttm0, dttm1, 1)
 
-    def testCompareStringDifferHP(self):
+    def test_compare_string_differ_h_p(self):
         base = "%04d-01-10 10:19:23" % self.CUR_YEAR
-        dt0 = PayloadTime.fromString(base + ".0000000001", high_precision=True)
-        dt1 = PayloadTime.fromString(base + ".0", high_precision=True)
-        self.__checkCompare(dt0, dt1, 1)
+        dttm0 = PayloadTime.from_string(base + ".0000000001",
+                                        high_precision=True)
+        dttm1 = PayloadTime.from_string(base + ".0", high_precision=True)
+        self.__check_compare(dttm0, dttm1, 1)
 
-    def testCompareStringDifferMixed(self):
+    def test_compare_string_differ_mixed(self):
         base = "%04d-01-10 10:19:23" % self.CUR_YEAR
-        dt0 = PayloadTime.fromString(base + ".0000000001", high_precision=True)
-        dt1 = PayloadTime.fromString(base + ".0")
-        self.__checkCompare(dt0, dt1, 1)
+        dttm0 = PayloadTime.from_string(base + ".0000000001",
+                                        high_precision=True)
+        dttm1 = PayloadTime.from_string(base + ".0")
+        self.__check_compare(dttm0, dttm1, 1)
 
-    def testCompareLeapYear(self):
-        dt = PayloadTime.toDateTime(199999990000000000, year=2012,
-                                    high_precision=False)
-        expStr = self.__dateFormat(2012, 8, 19, 11, 33, 18, 0)
-        self.assertEqual(expStr, str(dt),
-                         "Expected date %s, not %s" % (expStr, dt))
+    def test_compare_leap_year(self):
+        dttm = PayloadTime.to_date_time(199999990000000000, year=2012,
+                                        high_precision=False)
+        expstr = self.__date_format(2012, 8, 19, 11, 33, 18, 0)
+        self.assertEqual(expstr, str(dttm),
+                         "Expected date %s, not %s" % (expstr, dttm))
 
-    def testCompareNonLeapYear(self):
-        dt = PayloadTime.toDateTime(199999990000000000, year=2013,
-                                    high_precision=False)
-        expStr = self.__dateFormat(2013, 8, 20, 11, 33, 19, 0)
-        self.assertEqual(expStr, str(dt),
-                         "Expected date %s, not %s" % (expStr, dt))
+    def test_compare_non_leap_year(self):
+        dttm = PayloadTime.to_date_time(199999990000000000, year=2013,
+                                        high_precision=False)
+        expstr = self.__date_format(2013, 8, 20, 11, 33, 19, 0)
+        self.assertEqual(expstr, str(dttm),
+                         "Expected date %s, not %s" % (expstr, dttm))
 
-    def testNewYear(self):
+    def test_new_year(self):
         MockPayloadTime.MOCK_YEAR = self.CUR_YEAR
 
         one_day = 60 * 60 * 24
         dec31_ticks = ((one_day * 365) - 1) * MockPayloadTime.TICKS_PER_SECOND
 
-        ny_eve = MockPayloadTime.toDateTime(dec31_ticks)
+        ny_eve = MockPayloadTime.to_date_time(dec31_ticks)
         self.__compare("NY Eve year", self.CUR_YEAR, ny_eve.year)
         self.__compare("NY Eve month", 12, ny_eve.month)
         # ignore ny_eve.day, it could be the 30th if this is a leap year
@@ -325,7 +333,7 @@ class TestDAQTime(unittest.TestCase):
         # Happy New Year!
         MockPayloadTime.MOCK_YEAR = self.CUR_YEAR + 1
 
-        ny_day = MockPayloadTime.toDateTime(MockPayloadTime.TICKS_PER_SECOND)
+        ny_day = MockPayloadTime.to_date_time(MockPayloadTime.TICKS_PER_SECOND)
         self.__compare("NY Day year", self.CUR_YEAR + 1, ny_day.year)
         self.__compare("NY Day month", 1, ny_day.month)
         self.__compare("NY Day day", 1, ny_day.day)

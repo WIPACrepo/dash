@@ -197,12 +197,12 @@ class MockRunConfig(object):
         pass
 
     @property
-    def monitorPeriod(self):
+    def monitor_period(self):
         "Return None for monitor period"
         return None
 
     @property
-    def watchdogPeriod(self):
+    def watchdog_period(self):
         "Return None for watchdog period"
         return None
 
@@ -215,7 +215,7 @@ class MyTaskManager(TaskManager):
         super(MyTaskManager, self).__init__(runset, dashlog, live, run_dir,
                                             run_cfg, moniType)
 
-    def createIntervalTimer(self, name, period):
+    def create_interval_timer(self, name, period):
         "Create a mock interval timer and add it to our timer cache"
         timer = MockIntervalTimer(name)
         self.__timer_dict[name] = timer
@@ -235,54 +235,54 @@ class TaskManagerTest(unittest.TestCase):
         "Add expected monitoring values to 'live'"
 
         # add monitoring data
-        live.addExpected("stringHub-1*sender+NumHitsReceived",
-                         0, Prio.ITS)
-        live.addExpected("stringHub-1*sender+NumReadoutRequestsReceived",
-                         0, Prio.ITS)
-        live.addExpected("stringHub-1*sender+NumReadoutsSent", 0, Prio.ITS)
-        live.addExpected("stringHub-1*stringhub+NumberOfActiveChannels",
-                         2, Prio.ITS)
-        live.addExpected("stringHub-1*stringhub+TotalLBMOverflows",
-                         20, Prio.ITS)
-        live.addExpected(
+        live.add_expected("stringHub-1*sender+NumHitsReceived",
+                          0, Prio.ITS)
+        live.add_expected("stringHub-1*sender+NumReadoutRequestsReceived",
+                          0, Prio.ITS)
+        live.add_expected("stringHub-1*sender+NumReadoutsSent", 0, Prio.ITS)
+        live.add_expected("stringHub-1*stringhub+NumberOfActiveChannels",
+                          2, Prio.ITS)
+        live.add_expected("stringHub-1*stringhub+TotalLBMOverflows",
+                          20, Prio.ITS)
+        live.add_expected(
             "stringHub-1*stringhub+NumberOfActiveAndTotalChannels",
             [1, 2], Prio.ITS)
 
-        live.addExpected("iceTopTrigger-0*icetopHit+RecordsReceived",
-                         0, Prio.ITS)
-        live.addExpected("iceTopTrigger-0*trigger+RecordsSent", 0, Prio.ITS)
-        live.addExpected("inIceTrigger-0*stringHit+RecordsReceived",
-                         0, Prio.ITS)
-        live.addExpected("inIceTrigger-0*trigger+RecordsSent", 0, Prio.ITS)
-        live.addExpected("globalTrigger-0*trigger+RecordsReceived",
-                         0, Prio.ITS)
+        live.add_expected("iceTopTrigger-0*icetopHit+RecordsReceived",
+                          0, Prio.ITS)
+        live.add_expected("iceTopTrigger-0*trigger+RecordsSent", 0, Prio.ITS)
+        live.add_expected("inIceTrigger-0*stringHit+RecordsReceived",
+                          0, Prio.ITS)
+        live.add_expected("inIceTrigger-0*trigger+RecordsSent", 0, Prio.ITS)
+        live.add_expected("globalTrigger-0*trigger+RecordsReceived",
+                          0, Prio.ITS)
 
-        live.addExpected("globalTrigger-0*glblTrig+RecordsSent",
-                         0, Prio.ITS)
-        live.addExpected("eventBuilder-0*backEnd+NumTriggerRequestsReceived",
-                         0, Prio.ITS)
-        live.addExpected("eventBuilder-0*backEnd+NumReadoutsReceived",
-                         0, Prio.ITS)
-        live.addExpected("eventBuilder-0*backEnd+NumEventsSent",
-                         0, Prio.ITS)
-        live.addExpected("eventBuilder-0*backEnd+NumEventsDispatched",
-                         0, Prio.ITS)
-        live.addExpected("eventBuilder-0*backEnd+NumBadEvents",
-                         0, Prio.ITS)
-        live.addExpected("eventBuilder-0*backEnd+DiskAvailable",
-                         2560, Prio.ITS)
-        live.addExpected("eventBuilder-0*backEnd+NumBytesWritten",
-                         0, Prio.ITS)
+        live.add_expected("globalTrigger-0*glblTrig+RecordsSent",
+                          0, Prio.ITS)
+        live.add_expected("eventBuilder-0*backEnd+NumTriggerRequestsReceived",
+                          0, Prio.ITS)
+        live.add_expected("eventBuilder-0*backEnd+NumReadoutsReceived",
+                          0, Prio.ITS)
+        live.add_expected("eventBuilder-0*backEnd+NumEventsSent",
+                          0, Prio.ITS)
+        live.add_expected("eventBuilder-0*backEnd+NumEventsDispatched",
+                          0, Prio.ITS)
+        live.add_expected("eventBuilder-0*backEnd+NumBadEvents",
+                          0, Prio.ITS)
+        live.add_expected("eventBuilder-0*backEnd+DiskAvailable",
+                          2560, Prio.ITS)
+        live.add_expected("eventBuilder-0*backEnd+NumBytesWritten",
+                          0, Prio.ITS)
 
-        live.addExpected("secondaryBuilders-0*moniBuilder+NumDispatchedData",
-                         0, Prio.ITS)
-        live.addExpected("secondaryBuilders-0*snBuilder+NumDispatchedData",
-                         0, Prio.ITS)
-        live.addExpected("secondaryBuilders-0*snBuilder+DiskAvailable",
-                         0, Prio.ITS)
+        live.add_expected("secondaryBuilders-0*moniBuilder+NumDispatchedData",
+                          0, Prio.ITS)
+        live.add_expected("secondaryBuilders-0*snBuilder+NumDispatchedData",
+                          0, Prio.ITS)
+        live.add_expected("secondaryBuilders-0*snBuilder+DiskAvailable",
+                          0, Prio.ITS)
 
         # add activeDOM data
-        live.addExpected("missingDOMs", 1, Prio.ITS)
+        live.add_expected("missingDOMs", 1, Prio.ITS)
         lbmo_dict = {
             "count": 20,
             "runNumber": 123456,
@@ -292,18 +292,17 @@ class TaskManagerTest(unittest.TestCase):
             match = True
         else:
             lbmo_dict["early_lbm"] = False
-            lbmo_dict["recordingStartTime"] = "???",
-            lbmo_dict["recordingStopTime"] = "???",
+            lbmo_dict["recordingStartTime"] = "???"
+            lbmo_dict["recordingStopTime"] = "???"
             match = False
-        live.addExpected("LBMOcount", lbmo_dict, Prio.ITS, match)
+        live.add_expected("LBMOcount", lbmo_dict, Prio.ITS, match)
 
         dom_dict = {
             "expectedDOMs": 2,
             "activeDOMs": 1,
             "missingDOMs": 1,
         }
-        live.addExpected("dom_update", dom_dict,
-                         Prio.ITS)
+        live.add_expected("dom_update", dom_dict, Prio.ITS)
 
 
     def setUp(self):
@@ -344,7 +343,7 @@ class TaskManagerTest(unittest.TestCase):
             for comp in comp_list:
                 if not comp.was_updated():
                     wait_for_thread = True
-                if not live.hasAllMoni():
+                if not live.sent_all_moni:
                     wait_for_thread = True
 
             if not wait_for_thread:
@@ -352,12 +351,12 @@ class TaskManagerTest(unittest.TestCase):
 
             time.sleep(0.1)
 
-        runset.stopRunning()
+        runset.stop_mock()
         rst.stop()
 
         for comp in comp_list:
             self.assertFalse(comp.was_updated(), "Rate thread was updated")
-        self.assertTrue(live.hasAllMoni(), "Monitoring data was not sent")
+        self.assertTrue(live.sent_all_moni, "Monitoring data was not sent")
 
     def test_run_once(self):
         "Test what happens when the tasks are run once"
@@ -373,7 +372,7 @@ class TaskManagerTest(unittest.TestCase):
             comp.order = order_num
 
         runset = MockRunSet(comp_list)
-        runset.startRunning()
+        runset.start_mock()
 
         dashlog = MockLogger("dashlog")
 
@@ -386,9 +385,9 @@ class TaskManagerTest(unittest.TestCase):
         rst = MyTaskManager(runset, dashlog, live, None, run_cfg,
                             RunOption.MONI_TO_LIVE)
 
-        dashlog.addExpectedExact(("\t%d physics events (%.2f Hz)," +
-                                  " %d moni events, %d SN events, %d tcals") %
-                                 runset.getRates())
+        dashlog.add_expected_exact("\t%d physics events (%.2f Hz),"
+                                   " %d moni events, %d SN events, %d tcals" %
+                                   runset.rates)
 
         rst.triggerTimers()
         rst.start()
@@ -398,7 +397,7 @@ class TaskManagerTest(unittest.TestCase):
             for comp in comp_list:
                 if not comp.was_updated():
                     wait_for_thread = True
-                if not live.hasAllMoni():
+                if not live.sent_all_moni:
                     wait_for_thread = True
 
             if not wait_for_thread:
@@ -408,9 +407,9 @@ class TaskManagerTest(unittest.TestCase):
 
         for comp in comp_list:
             self.assertTrue(comp.was_updated(), "Rate thread was not updated")
-        self.assertTrue(live.hasAllMoni(), "Monitoring data was not sent")
+        self.assertTrue(live.sent_all_moni, "Monitoring data was not sent")
 
-        runset.stopRunning()
+        runset.stop_mock()
         rst.stop()
 
     def test_run_twice(self):
@@ -427,7 +426,7 @@ class TaskManagerTest(unittest.TestCase):
             comp.order = order_num
 
         runset = MockRunSet(comp_list)
-        runset.startRunning()
+        runset.start_mock()
 
         dashlog = MockLogger("dashlog")
 
@@ -440,9 +439,9 @@ class TaskManagerTest(unittest.TestCase):
 
         self.__load_expected(live)
 
-        dashlog.addExpectedExact(("\t%d physics events (%.2f Hz)," +
-                                  " %d moni events, %d SN events, %d tcals") %
-                                 runset.getRates())
+        dashlog.add_expected_exact("\t%d physics events (%.2f Hz),"
+                                   " %d moni events, %d SN events, %d tcals" %
+                                   runset.rates)
 
         rst.triggerTimers()
 
@@ -453,7 +452,7 @@ class TaskManagerTest(unittest.TestCase):
             for comp in comp_list:
                 if not comp.was_updated():
                     wait_for_thread = True
-                if not live.hasAllMoni():
+                if not live.sent_all_moni:
                     wait_for_thread = True
 
             if not wait_for_thread:
@@ -461,18 +460,18 @@ class TaskManagerTest(unittest.TestCase):
 
             time.sleep(0.1)
 
-        self.assertTrue(live.hasAllMoni(), "Monitoring data was not sent")
+        self.assertTrue(live.sent_all_moni, "Monitoring data was not sent")
 
         self.__load_expected(live, first=False)
-        dashlog.addExpectedExact("Watchdog reports threshold components:\n" +
-                                 "    secondaryBuilders" +
-                                 " snBuilder.DiskAvailable below 1024" +
-                                 " (value=0)")
-        dashlog.addExpectedExact("Run is unhealthy (%d checks left)" %
-                                 (WatchdogTask.HEALTH_METER_FULL - 1))
-        dashlog.addExpectedExact(("\t%d physics events (%.2f Hz)," +
-                                  " %d moni events, %d SN events, %d tcals") %
-                                 runset.getRates())
+        dashlog.add_expected_exact("Watchdog reports threshold components:\n"
+                                   "    secondaryBuilders"
+                                   " snBuilder.DiskAvailable below 1024"
+                                   " (value=0)")
+        dashlog.add_expected_exact("Run is unhealthy (%d checks left)" %
+                                   (WatchdogTask.HEALTH_METER_FULL - 1))
+        dashlog.add_expected_exact("\t%d physics events (%.2f Hz),"
+                                   " %d moni events, %d SN events, %d tcals" %
+                                   runset.rates)
 
         rst.triggerTimers()
 
@@ -481,7 +480,7 @@ class TaskManagerTest(unittest.TestCase):
             for comp in comp_list:
                 if not comp.was_updated():
                     wait_for_thread = True
-                if not live.hasAllMoni():
+                if not live.sent_all_moni:
                     wait_for_thread = True
 
             if not wait_for_thread:
@@ -491,9 +490,9 @@ class TaskManagerTest(unittest.TestCase):
 
         for comp in comp_list:
             self.assertTrue(comp.was_updated(), "Rate thread was not updated")
-        self.assertTrue(live.hasAllMoni(), "Monitoring data was not sent")
+        self.assertTrue(live.sent_all_moni, "Monitoring data was not sent")
 
-        runset.stopRunning()
+        runset.stop_mock()
         rst.stop()
 
 

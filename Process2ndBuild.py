@@ -273,10 +273,10 @@ def process_files(spade_dir, create_icetop_hdf5=False, dry_run=False,
 
     if create_icetop_hdf5 and len(moni_files) > 0:
         # read in default-dom-geometry.xml
-        ddg = DefaultDomGeometryReader.parse(translateDoms=True)
+        ddg = DefaultDomGeometryReader.parse(translate_doms=True)
 
         # cache the DOM ID -> DOM dictionary
-        dom_dict = ddg.getDomIdToDomDict()
+        dom_dict = ddg.get_dom_id_to_dom_dict()
 
         icetop_hdf5.process_list(moni_files, dom_dict, verbose=verbose,
                                  dry_run=dry_run)
@@ -379,31 +379,31 @@ if __name__ == "__main__":
 
     from ClusterDescription import ClusterDescription
 
-    op = argparse.ArgumentParser()
-    op.add_argument("-5", "--icetop-hdf5", dest="create_icetop_hdf5",
-                    action="store_false", default=True,
-                    help="Do NOT create HDF5 files for IceTop")
-    op.add_argument("-d", "--spadedir", dest="spadedir",
-                    action="store", default=None,
-                    help="SPADE directory")
-    op.add_argument("-l", "--log-level", dest="log_level",
-                    action="store", default=None,
-                    help="Logging level (DEBUG, INFO, WARNING, ERROR,"
-                    " CRITICAL)")
-    op.add_argument("-m", "--enable-moni-link", dest="enable_moni_link",
-                    action="store_true", default=False,
-                    help="Include moni files and create a moni link")
-    op.add_argument("-n", "--dry-run", dest="dry_run",
-                    action="store_true", default=False,
-                    help="Do not actually do anything")
-    op.add_argument("-q", "--quiet", dest="verbose",
-                    action="store_false", default=False,
-                    help="Do not print log of actions to console")
-    op.add_argument("-v", "--verbose", dest="verbose",
-                    action="store_true", default=False,
-                    help="Print log of actions to console (default)")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-5", "--icetop-hdf5", dest="create_icetop_hdf5",
+                        action="store_false", default=True,
+                        help="Do NOT create HDF5 files for IceTop")
+    parser.add_argument("-d", "--spadedir", dest="spadedir",
+                        action="store", default=None,
+                        help="SPADE directory")
+    parser.add_argument("-l", "--log-level", dest="log_level",
+                        action="store", default=None,
+                        help=("Logging level (DEBUG, INFO, WARNING, ERROR,"
+                              " CRITICAL)"))
+    parser.add_argument("-m", "--enable-moni-link", dest="enable_moni_link",
+                        action="store_true", default=False,
+                        help="Include moni files and create a moni link")
+    parser.add_argument("-n", "--dry-run", dest="dry_run",
+                        action="store_true", default=False,
+                        help="Do not actually do anything")
+    parser.add_argument("-q", "--quiet", dest="verbose",
+                        action="store_false", default=False,
+                        help="Do not print log of actions to console")
+    parser.add_argument("-v", "--verbose", dest="verbose",
+                        action="store_true", default=False,
+                        help="Print log of actions to console (default)")
 
-    args = op.parse_args()
+    args = parser.parse_args()
 
     if args.spadedir is not None:
         spade_dir = args.spadedir

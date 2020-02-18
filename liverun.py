@@ -47,27 +47,27 @@ class AbstractState(object):
     "Generic class for keeping track of the current state"
 
     @classmethod
-    def get(cls, state_name):
+    def get_state(cls, states, state_name):
         """
         Return the numeric value of the named state
 
         state_name - named state
         """
         try:
-            return cls.STATES.index(state_name)
+            return states.index(state_name)
         except ValueError:
             raise StateException("Unknown state '%s'" % state_name)
 
     @classmethod
-    def str(cls, state):
+    def state_string(cls, states, state):
         """
         Return the string associated with a numeric state
 
         state - numeric state value
         """
-        if state < 0 or state > len(cls.STATES):
+        if state < 0 or state > len(states):
             raise StateException("Unknown state #%s" % state)
-        return cls.STATES[state]
+        return states[state]
 
 
 class LiveRunState(AbstractState):
@@ -99,6 +99,24 @@ class LiveRunState(AbstractState):
         UNKNOWN,
         ]
 
+    @classmethod
+    def get(cls, state_name):
+        """
+        Return the numeric value of the named state
+
+        state_name - named state
+        """
+        return cls.get_state(cls.STATES, state_name)
+
+    @classmethod
+    def str(cls, state):
+        """
+        Return the numeric value of the named state
+
+        state_name - named state
+        """
+        return cls.state_string(cls.STATES, state)
+
 
 class LightMode(AbstractState):
     "I3Live light-in-detector modes"
@@ -116,6 +134,24 @@ class LightMode(AbstractState):
         LID,
         UNKNOWN,
         ]
+
+    @classmethod
+    def get(cls, state_name):
+        """
+        Return the numeric value of the named state
+
+        state_name - named state
+        """
+        return cls.get_state(cls.STATES, state_name)
+
+    @classmethod
+    def str(cls, state):
+        """
+        Return the numeric value of the named state
+
+        state_name - named state
+        """
+        return cls.state_string(cls.STATES, state)
 
 
 class LiveService(object):
@@ -223,7 +259,7 @@ class LiveState(object):
 
         Returns the new parser state
         """
-        if len(line) == 0:
+        if line == "":
             # blank lines shouldn't change parse state
             return parse_state
 
@@ -270,11 +306,11 @@ class LiveState(object):
             front = front.strip()
             back = back.strip()
 
-            if front == "DAQ thread" or front == "I3Live DAQ thread":
+            if front in ("DAQ thread", "I3Live DAQ thread"):
                 self.__thread_state = back
                 return self.PARSE_NORMAL
 
-            if front == "Run state" or front == "I3Live run state":
+            if front in ("Run state", "I3Live run state"):
                 self.__run_state = LiveRunState.get(back)
                 return self.PARSE_NORMAL
 
@@ -306,22 +342,15 @@ class LiveState(object):
                 # ignore start/stop times
                 return self.PARSE_NORMAL
 
-            if front == "physicsEvents" or \
-                    front == "physicsEventsTime" or \
-                    front == "walltimeEvents" or \
-                    front == "walltimeEventsTime" or \
-                    front == "tcalEvents" or \
-                    front == "moniEvents" or \
-                    front == "snEvents" or \
-                    front == "runlength":
+            if front in ("physicsEvents", "physicsEventsTime",
+                         "walltimeEvents", "walltimeEventsTime",
+                         "tcalEvents", "moniEvents", "snEvents", "runlength"):
                 # ignore rates
                 return self.PARSE_NORMAL
 
-            if front == "Target run stop time" or \
-                 front == "Currently" or \
-                 front == "Time since start" or \
-                 front == "Time until stop" or \
-                 front == "Next run transition":
+            if front in ("Target run stop time", "Currently",
+                         "Time since start", "Time until stop",
+                         "Next run transition"):
                 # ignore run time info
                 return self.PARSE_NORMAL
 
@@ -343,7 +372,7 @@ class LiveState(object):
                                     line.rstrip())
                 return self.PARSE_NORMAL
 
-            if front == "Run mode" or front == "Filter mode":
+            if front in ("Run mode", "Filter mode"):
                 # ignore run/filter mode info
                 return self.PARSE_NORMAL
 
@@ -910,6 +939,8 @@ class LiveRun(BaseRun):
 
 
 def main():
+    "Main program"
+
     run = LiveRun(show_commands=True, show_command_output=True, dry_run=False)
     run.run("spts64-real-21-29", "spts64-dirtydozen-hlc-006", 60,
             (("flash-21.xml", 10), (None, 10), ("flash-21.xml", 5)),

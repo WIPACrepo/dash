@@ -100,17 +100,17 @@ class MBeanThread(MonitorThread):
             self.__refused = 0
         except BeanTimeoutException:
             bean_dict = None
-            if not self.isClosed:
+            if not self.is_closed:
                 self.__refused += 1
         except BeanLoadException:
             bean_dict = None
-            if not self.isClosed:
+            if not self.is_closed:
                 self.__refused += 1
                 self.error("Could not load monitoring data from %s" %
                            (self.__mbean_client, ))
         except:
             bean_dict = None
-            if not self.isClosed:
+            if not self.is_closed:
                 self.error("Ignoring %s: %s" %
                            (self.__mbean_client, exc_string()))
 
@@ -124,12 +124,12 @@ class MBeanThread(MonitorThread):
                 with self.__reporter_lock:
                     reporter = self.__reporter
                 for key, data in list(bean_dict.items()):
-                    if not self.isClosed:
+                    if not self.is_closed:
                         reporter.send(datetime.datetime.now(), key, data)
 
     def _run(self):
         "Run the task"
-        if self.isClosed:
+        if self.is_closed:
             return -1
 
         if self.__reporter is None:
@@ -143,7 +143,7 @@ class MBeanThread(MonitorThread):
 
     def close(self):
         "Close this thread"
-        if not self.isClosed:
+        if not self.is_closed:
             with self.__reporter_lock:
                 if self.__reporter is not None:
                     try:
@@ -191,7 +191,7 @@ class CnCMoniThread(MonitorThread):
 
     def _run(self):
         "Run the task"
-        if self.isClosed:
+        if self.is_closed:
             return
 
         if self.__reporter is None:
@@ -199,7 +199,7 @@ class CnCMoniThread(MonitorThread):
             if self.__reporter is None:
                 return
 
-        cstats = self.__runset.client_statistics()
+        cstats = self.__runset.client_statistics
         if cstats is not None and len(cstats) > 0:
             self.__reporter.send(datetime.datetime.now(), "client", cstats)
 
@@ -307,7 +307,7 @@ class MonitorTask(CnCTask):
         thread_list = {}
 
         if not RunOption.is_moni_to_none(run_options):
-            for comp in runset.components():
+            for comp in runset.components:
                 # refresh MBean info to pick up any new MBeans
                 comp.mbean.reload()
 
@@ -362,7 +362,7 @@ class MonitorTask(CnCTask):
             reraise_excinfo(saved_exc)
 
     @classproperty
-    def name(cls):
+    def name(cls):  # pylint: disable=no-self-argument
         "Name of this task"
         return cls.__NAME
 
@@ -371,12 +371,12 @@ class MonitorTask(CnCTask):
         "Return number of open threads"
         num = 0
         for key in list(self.__thread_list.keys()):
-            if not self.__thread_list[key].isClosed:
+            if not self.__thread_list[key].is_closed:
                 num += 1
         return num
 
     @classproperty
-    def period(cls):
+    def period(cls):  # pylint: disable=no-self-argument
         "Number of seconds between tasks"
         return cls.__PERIOD
 

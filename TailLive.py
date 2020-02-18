@@ -264,7 +264,8 @@ class LiveLine(object):
                     ddict = cls.__wrap_payload(ddict)
                 return DictData(LiveData.TYPE_ALERT, ddict)
             except:
-                import traceback; traceback.print_exc()
+                import traceback
+                traceback.print_exc()
                 pass
 
         if line.startswith("WARN_MONI_SEND: "):
@@ -779,7 +780,9 @@ class LiveLog(object):
         return dstr + cstr + msg + off
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     import argparse
     from DumpThreads import DumpThreadsOnSignal
 
@@ -790,3 +793,7 @@ if __name__ == "__main__":
     DumpThreadsOnSignal(file_handle=sys.stderr)
 
     tail_logs(args)
+
+
+if __name__ == "__main__":
+    main()

@@ -66,6 +66,9 @@ class ActionThread(threading.Thread):
 class RecoverThread(ActionThread):
     NAME = "LiveRecover"
 
+    "Number of times to attempt recovery before giving up"
+    MAX_RECOVERY_ATTEMPTS = 60
+
     def __init__(self, daq_live, logger, *args, **kwargs):
         super(RecoverThread, self).__init__(name=RecoverThread.NAME, args=args,
                                             kwargs=kwargs)
@@ -101,24 +104,23 @@ class RecoverThread(ActionThread):
         # if runset isn't stopping, try to stop it
         if not runset.stopping():
             try:
-                stopVal = not runset.stop_run("LiveRecover", had_error=True)
-                if stopVal:
+                stop_val = not runset.stop_run("LiveRecover", had_error=True)
+                if stop_val:
                     self.__log.error("DAQLive stop_run %s returned %s" %
-                                     (runset, stopVal))
+                                     (runset, stop_val))
             except:
                 self.__log.error("DAQLive stop_run %s failed: %s" %
                                  (runset, exc_string()))
 
         # give runset a bit of time to finish stopping
         wait_secs = 5
-        numTries = 12
-        for _ in range(numTries):
+        num_tries = 12
+        for _ in range(num_tries):
             if not runset.stopping():
                 break
             time.sleep(wait_secs)
 
         # report final state
-        rtnVal = False
         if runset is None or runset.is_destroyed:
             self.__log.error("DAQLive destroyed %s" % (runset, ))
             runset = None
@@ -132,7 +134,7 @@ class RecoverThread(ActionThread):
             self.__log.error("DAQLive cannot recover %s (state=%s)" %
                              (runset, runset.state))
 
-        attempts = self.__daq_live.recoverAttempts
+        attempts = self.__daq_live.recover_attempts
         if attempts < self.MAX_RECOVERY_ATTEMPTS:
             time.sleep(1)
             return INCOMPLETE_STATE_CHANGE
@@ -176,9 +178,9 @@ class StartThread(ActionThread):
         try:
             runset = cnc.make_runset_from_run_config(run_cfg, run_num)
         except MissingComponentException as mce:
-            compStrs = [str(x) for x in mce.components()]
+            comp_strs = [str(x) for x in mce.components]
             self.__daq_live.moniClient.sendMoni("missingComponent",
-                                                {"components": compStrs,
+                                                {"components": comp_strs,
                                                  "runConfig": str(run_cfg),
                                                  "runNumber": run_num})
             errmsg = "Cannot create run #%d runset for \"%s\": %s" % \
@@ -194,11 +196,13 @@ class StartThread(ActionThread):
                      (run_num, run_cfg)
             raise LiveException(errmsg)
 
-        runOptions = RunOption.LOG_TO_BOTH | RunOption.MONI_TO_FILE
-        cnc.start_run(runset, run_num, runOptions)
+        run_options = RunOption.LOG_TO_BOTH | RunOption.MONI_TO_FILE
+        cnc.start_run(runset, run_num, run_options)
 
         # we're now using the new runset
         self.__daq_live.runset = runset
+
+        return True
 
 
 class StopThread(ActionThread):
@@ -271,9 +275,6 @@ class DAQLive(LiveComponent):
     "Frequency of monitoring uploads"
     MONI_PERIOD = 60
 
-    "Number of times to attempt recovery before giving up"
-    MAX_RECOVERY_ATTEMPTS = 60
-
     def __init__(self, cnc, logger, rpc_port=DAQPort.DAQLIVE, timeout=None):
         if not LIVE_IMPORT:
             raise LiveException("Cannot import I3Live code")
@@ -285,9 +286,9 @@ class DAQLive(LiveComponent):
 
         self.__thread = None
 
-        self.__recoverAttempts = 0
+        self.__recover_attempts = 0
 
-        self.__moniTimer = IntervalTimer("LiveMoni", DAQLive.MONI_PERIOD)
+        self.__moni_timer = IntervalTimer("LiveMoni", DAQLive.MONI_PERIOD)
 
         if timeout is None:
             super(DAQLive, self).__init__(SERVICE_NAME, rpc_port,
@@ -330,12 +331,12 @@ class DAQLive(LiveComponent):
         return None
 
     @property
-    def recoverAttempts(self):
-        return self.__recoverAttempts
+    def recover_attempts(self):
+        return self.__recover_attempts
 
     def recovering(self, retry=True):
         # count another recovery attempt
-        self.__recoverAttempts += 1
+        self.__recover_attempts += 1
 
         chkval = self.__check_active_thread(RecoverThread.NAME)
         if chkval is not None:
@@ -351,9 +352,6 @@ class DAQLive(LiveComponent):
     @property
     def command_and_control(self):
         return self.__cnc
-
-    def runChange(self, stateArgs=None):
-        raise NotImplementedError()
 
     def running(self, retry=True):
         # if the runset was destroyed, forget about it
@@ -383,9 +381,9 @@ class DAQLive(LiveComponent):
             raise LiveException("%s is not running (state = %s)" %
                                 (self.__runset, self.__runset.state))
 
-        if self.__moniTimer.is_time():
+        if self.__moni_timer.is_time():
             try:
-                self.__moniTimer.reset()
+                self.__moni_timer.reset()
                 self.__runset.send_event_counts()
             except:
                 self.__log.error("DAQLive.running() dying due to moni"
@@ -402,51 +400,52 @@ class DAQLive(LiveComponent):
     def runset(self, new_runset):
         self.__runset = new_runset
 
-    def starting(self, stateArgs=None):
+    def starting(self, state_args=None):
         """
         Start a new pDAQ run
-        stateArgs - should be a dictionary of run data:
+        state_args - should be a dictionary of run data:
             "runConfig" - the name of the run configuration
             "runNumber" - run number
             "subRunNumber" - subrun number
         """
         # validate state arguments
-        if stateArgs is None or len(stateArgs) == 0:
-            raise LiveException("No stateArgs specified")
+        if state_args is None or len(state_args) == 0:
+            raise LiveException("No state_args specified")
 
         chkval = self.__check_active_thread(StartThread.NAME)
         if chkval is not None:
             return chkval
 
         # reset recovery attempt counter
-        self.__recoverAttempts = 0
+        self.__recover_attempts = 0
 
         try:
             key = "runConfig"
-            runCfg = stateArgs[key]
+            run_cfg = state_args[key]
 
             key = "runNumber"
-            run_num = stateArgs[key]
+            run_num = state_args[key]
         except KeyError:
-            raise LiveException("stateArgs does not contain key \"%s\"" %
+            raise LiveException("state_args does not contain key \"%s\"" %
                                 (key, ))
 
         # start thread now, subsequent calls will check the thread result
-        self.__thread = StartThread(self, self.__log, runCfg, run_num)
+        self.__thread = StartThread(self, self.__log, run_cfg, run_num)
         self.__thread.start()
 
         return INCOMPLETE_STATE_CHANGE
 
-    def stopping(self, stateArgs=None):
+    def stopping(self, state_args=None):
         debug = False
-        if debug: self.__log.error("LiveStop: TOP")
+        if debug:
+            self.__log.error("LiveStop: TOP")
 
         chkval = self.__check_active_thread(StopThread.NAME)
         if chkval is not None:
             return chkval
 
         # reset recovery attempt counter
-        self.__recoverAttempts = 0
+        self.__recover_attempts = 0
 
         if self.__runset is None:
             return True
@@ -456,39 +455,44 @@ class DAQLive(LiveComponent):
         self.__thread.start()
         return INCOMPLETE_STATE_CHANGE
 
-    def subrun(self, subrunId, domList):
+    def subrun(self, subrun_id, dom_list):
         if self.__runset is None:
             raise LiveException("Cannot stop run; no active runset")
 
-        self.__runset.subrun(subrunId, domList)
+        self.__runset.subrun(subrun_id, dom_list)
 
         return "OK"
 
-    def switchrun(self, stateArgs=None):
+    def switchrun(self, state_args=None):
         if self.__runset is None or self.__runset.is_destroyed:
             raise LiveException("Cannot switch run; no active runset")
 
-        if stateArgs is None or len(stateArgs) == 0:
-            raise LiveException("No stateArgs specified for switchrun")
+        if state_args is None or len(state_args) == 0:
+            raise LiveException("No state_args specified for switchrun")
+
+        if self.__thread is None:
+            thrd_name = "UNKNOWN"
+        else:
+            thrd_name = self.__thread.name
 
         chkval = self.__check_active_thread(SwitchThread.NAME)
         if chkval is not None:
             if self.__thread is None:
                 self.__log.warn("SwitchRun is returning %s after ending"
-                                " thread" % str(chkval))
+                                " %s thread" % (chkval, thrd_name))
             else:
                 self.__log.warn("SwitchRun is waiting for thread %s" %
-                                str(self.__thread.name))
+                                (thrd_name, ))
             return chkval
 
         # reset recovery attempt counter
-        self.__recoverAttempts = 0
+        self.__recover_attempts = 0
 
         try:
             key = "runNumber"
-            run_num = stateArgs[key]
+            run_num = state_args[key]
         except KeyError:
-            raise LiveException("stateArgs does not contain key \"%s\"" % key)
+            raise LiveException("state_args does not contain key \"%s\"" % key)
 
         # start thread now, subsequent calls will check the thread result
         self.__thread = SwitchThread(self, self.__log, run_num)

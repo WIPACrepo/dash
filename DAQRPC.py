@@ -13,7 +13,6 @@ try:
 except ModuleNotFoundError:
     from xmlrpc.server import DocXMLRPCServer
     from xmlrpc.client import ServerProxy, Transport
-import datetime
 import errno
 import math
 import select
@@ -31,17 +30,16 @@ class LockedTransport(Transport):
         Transport.__init__(self)
         self.__req_lock = threading.Lock()
 
-    if sys.version_info < (2, 7):
-        super_single_request = None
-    else:
-        # Preserve Transport.single_request so we can call it
-        super_single_request = Transport.single_request
-
     def single_request(self, host, handler, request_body, verbose=0):
         "Don't allow more than one request at a time"
         with self.__req_lock:
-            return self.super_single_request(host, handler, request_body,
-                                             verbose=verbose)
+            if sys.version_info < (3, 0):
+                return Transport.single_request(self, host, handler,
+                                                request_body, verbose=verbose)
+
+            return super(LockedTransport, self).single_request(host, handler,
+                                                               request_body,
+                                                               verbose=verbose)
 
 
 class RPCClient(ServerProxy):
@@ -57,21 +55,21 @@ class RPCClient(ServerProxy):
         self.servername = servername
         self.portnum = portnum
 
-        hostPort = "%s:%s" % (self.servername, self.portnum)
+        host_port = "%s:%s" % (self.servername, self.portnum)
 
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # !!!!!! Warning - this is ugly !!!!!!!
         # !!!! but no other way in XMLRPC? !!!!
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         socket.setdefaulttimeout(timeout)
- 
+
         # hack to only allow one active request at a time
         if sys.version_info < (2, 7):
             transport = None
         else:
             transport = LockedTransport()
 
-        ServerProxy.__init__(self, "http://" + hostPort, transport=transport,
+        ServerProxy.__init__(self, "http://" + host_port, transport=transport,
                              verbose=verbose)
 
     @classmethod
@@ -123,7 +121,8 @@ class RPCServer(DocXMLRPCServer):
                     self.__times[method] = RPCStats(method)
                 self.__times[method].add(time.time() - start, success)
 
-    def client_statistics(self):
+    @classmethod
+    def client_statistics(cls):
         return {}
 
     def get_request(self):
@@ -172,17 +171,16 @@ class RPCServer(DocXMLRPCServer):
         self.__running = True
         self.__is_shut_down.clear()
         while self.__running:
-            # initialize r to an empty list - identical behaviour to a timeout
-            r = []
             try:
-                r, w, e = select.select([self.socket], [], [], self.__timeout)
+                rdat, _, _ = select.select([self.socket], [], [],
+                                           self.__timeout)
             except select.error as err:
                 if err[0] == errno.EINTR:  # Interrupted system call
                     continue
                 if err[0] != errno.EBADF:  # Bad file descriptor
                     traceback.print_exc()
                 break
-            if r:
+            if rdat:
                 self.handle_request()
         self.__is_shut_down.set()
 
@@ -218,13 +216,19 @@ class RPCStats(object):
         xavg2 = avg * avg
         try:
             rms = math.sqrt(x2avg - xavg2)
-        except:
+        except ValueError:
             rms = 0
 
         return (self.__num, self.__succeed, self.__failed, self.__min,
                 self.__max, avg, rms)
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     from DAQConst import DAQPort
-    cl = RPCClient("localhost", DAQPort.CNCSERVER)
+    RPCClient("localhost", DAQPort.CNCSERVER)
+
+
+if __name__ == "__main__":
+    main()

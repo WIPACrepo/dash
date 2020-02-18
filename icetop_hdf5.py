@@ -191,7 +191,7 @@ def process_moni(dom_dict, moniname):
                 continue
 
             (spe_count, mpe_count, launches, deadtime) = flds
-            data.append((dom.originalString(), dom.pos(), spe_count, mpe_count,
+            data.append((dom.original_string, dom.pos, spe_count, mpe_count,
                          launches, deadtime, pay.utime))
 
     return data
@@ -358,10 +358,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # read in default-dom-geometry.xml
-    ddg = DefaultDomGeometryReader.parse(translateDoms=True)
+    ddg = DefaultDomGeometryReader.parse(translate_doms=True)
 
     # cache the DOM ID -> DOM dictionary
-    ddict = ddg.getDomIdToDomDict()
+    ddict = ddg.get_dom_id_to_dom_dict()
 
     count = 0
     total = len(args.files)

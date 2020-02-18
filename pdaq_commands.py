@@ -6,6 +6,7 @@ from __future__ import print_function
 
 import os
 
+from decorators import classproperty
 from locate_pdaq import find_pdaq_config, find_pdaq_trunk
 from utils.Machineid import Machineid
 
@@ -33,9 +34,9 @@ class FakeArgParser(object):
 
     def add_argument(self, *args, **kwargs):
         "Simulates argparse.ArgumentParser.add_argument()"
-        for a in args:
-            if len(a) > 0 and a[0] == "-":
-                self.__args.append(a)
+        for arg in args:
+            if arg != "" and arg[0] == "-":
+                self.__args.append(arg)
 
     @property
     def arguments(self):
@@ -82,13 +83,13 @@ class BaseCmd(object):
     def cmdtype(cls):
         return cls.CMDTYPE_UNKNOWN
 
-    @classmethod
-    def description(cls):
+    @classproperty
+    def description(cls):  # pylint: disable=no-self-argument
         "One-line description of this subcommand"
         raise NotImplementedError()
 
-    @classmethod
-    def epilog(cls):
+    @classproperty
+    def epilog(cls):  # pylint: disable=no-self-argument
         "Optional extra information/instructions for a subcommand"
         return None
 
@@ -97,15 +98,15 @@ class BaseCmd(object):
         "Is this command allowed to run on this machine?"
         raise NotImplementedError()
 
-    @classmethod
-    def name(cls):
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
         "Name of this subcommand"
         raise NotImplementedError()
 
     @classmethod
     def run(cls, args):
         "Body of this subcommand"
-        print("Not running '%s'" % cls.name())
+        print("Not running '%s' args <%s>%s" % (cls.name, type(args), args))
 
 
 class CmdCopyFromHubs(BaseCmd):
@@ -118,8 +119,8 @@ class CmdCopyFromHubs(BaseCmd):
     def cmdtype(cls):
         return cls.CMDTYPE_NONE
 
-    @classmethod
-    def description(cls):
+    @classproperty
+    def description(cls):  # pylint: disable=no-self-argument
         "One-line description of this subcommand"
         return "Copy HitSpool files from one or more hub to a local directory"
 
@@ -129,8 +130,8 @@ class CmdCopyFromHubs(BaseCmd):
         host = Machineid().hname
         return not host.startswith("ichub") and not host.startswith("ithub")
 
-    @classmethod
-    def name(cls):
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
         return "copy_from_hubs"
 
     @classmethod
@@ -151,8 +152,8 @@ class CmdCopyHSFiles(BaseCmd):
     def cmdtype(cls):
         return cls.CMDTYPE_NONE
 
-    @classmethod
-    def description(cls):
+    @classproperty
+    def description(cls):  # pylint: disable=no-self-argument
         "One-line description of this subcommand"
         return "Copy HitSpool files from a hub to a remote destination"
 
@@ -162,8 +163,8 @@ class CmdCopyHSFiles(BaseCmd):
         host = Machineid().hname
         return host.startswith("ichub") or host.startswith("ithub")
 
-    @classmethod
-    def name(cls):
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
         return "copy_hs_files"
 
     @classmethod
@@ -183,8 +184,8 @@ class CmdDeploy(BaseCmd):
     def cmdtype(cls):
         return cls.CMDTYPE_CARG
 
-    @classmethod
-    def description(cls):
+    @classproperty
+    def description(cls):  # pylint: disable=no-self-argument
         "One-line description of this subcommand"
         return "Deploy pDAQ software and associated files to the cluster"
 
@@ -193,8 +194,8 @@ class CmdDeploy(BaseCmd):
         "Deployment is done from the build host"
         return Machineid().is_build_host
 
-    @classmethod
-    def name(cls):
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
         return "deploy"
 
     @classmethod
@@ -214,8 +215,8 @@ class CmdDumpData(BaseCmd):
     def cmdtype(cls):
         return cls.CMDTYPE_FONLY
 
-    @classmethod
-    def description(cls):
+    @classproperty
+    def description(cls):  # pylint: disable=no-self-argument
         "One-line description of this subcommand"
         return "Dump a pDAQ data file (hitspool, physics, moni, sn, etc.)"
 
@@ -224,8 +225,8 @@ class CmdDumpData(BaseCmd):
         "Any host can dump data"
         return True
 
-    @classmethod
-    def name(cls):
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
         return "dumpdata"
 
     @classmethod
@@ -245,8 +246,8 @@ class CmdDumpHSDB(BaseCmd):
     def cmdtype(cls):
         return cls.CMDTYPE_FONLY
 
-    @classmethod
-    def description(cls):
+    @classproperty
+    def description(cls):  # pylint: disable=no-self-argument
         "One-line description of this subcommand"
         return "Dump the hitspool database list of hit files and contents"
 
@@ -255,8 +256,8 @@ class CmdDumpHSDB(BaseCmd):
         "Any host can dump a hitspool DB"
         return True
 
-    @classmethod
-    def name(cls):
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
         return "dumphsdb"
 
     @classmethod
@@ -276,8 +277,8 @@ class CmdFlash(BaseCmd):
     def cmdtype(cls):
         return cls.CMDTYPE_CC
 
-    @classmethod
-    def description(cls):
+    @classproperty
+    def description(cls):  # pylint: disable=no-self-argument
         "One-line description of this subcommand"
         return "Control a flasher run"
 
@@ -286,8 +287,8 @@ class CmdFlash(BaseCmd):
         "Flashers are run on the control host"
         return Machineid().is_control_host
 
-    @classmethod
-    def name(cls):
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
         return "flash"
 
     @classmethod
@@ -307,8 +308,8 @@ class CmdGenerateConfigSet(BaseCmd):
     def cmdtype(cls):
         return cls.CMDTYPE_UNKNOWN
 
-    @classmethod
-    def description(cls):
+    @classproperty
+    def description(cls):  # pylint: disable=no-self-argument
         "One-line description of this subcommand"
         return "Generate alternate and -no## configs from a full-detector" \
           " run configuration file"
@@ -318,8 +319,8 @@ class CmdGenerateConfigSet(BaseCmd):
         "Config files live on the build host"
         return Machineid().is_build_host
 
-    @classmethod
-    def name(cls):
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
         return "generate-config-set"
 
     @classmethod
@@ -338,8 +339,8 @@ class CmdHelp(BaseCmd):
     def cmdtype(cls):
         return cls.CMDTYPE_CMD
 
-    @classmethod
-    def description(cls):
+    @classproperty
+    def description(cls):  # pylint: disable=no-self-argument
         "One-line description of this subcommand"
         return "Print the help message for a command"
 
@@ -348,31 +349,32 @@ class CmdHelp(BaseCmd):
         "Any host can get help"
         return True
 
-    @classmethod
-    def name(cls):
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
         return "help"
 
     @classmethod
     def run(cls, args):
         for cmd in COMMANDS:
-            if cmd.name() == args.helpcmd:
+            if cmd.name == args.helpcmd:
                 import argparse
                 import sys
 
                 # load an argparse object with this command's arguments
                 base = os.path.basename(sys.argv[0])
-                p = argparse.ArgumentParser(prog="%s %s" % (base, cmd.name()))
+                parser = argparse.ArgumentParser(prog="%s %s" %
+                                                 (base, cmd.name))
                 try:
-                    cmd.add_arguments(p)
-                except:
+                    cmd.add_arguments(parser)
+                except:  # pylint: disable=bare-except
                     pass
 
                 # print command name and description
-                print("%s - %s" % (cmd.name(), cmd.description()))
+                print("%s - %s" % (cmd.name, cmd.description))
                 print()
 
                 # let argparse deal with the rest of the help message
-                p.print_help()
+                parser.print_help()
 
                 return
 
@@ -391,8 +393,8 @@ class CmdKill(BaseCmd):
     def cmdtype(cls):
         return cls.CMDTYPE_NONE
 
-    @classmethod
-    def description(cls):
+    @classproperty
+    def description(cls):  # pylint: disable=no-self-argument
         "One-line description of this subcommand"
         return "Kill the pDAQ components running on the cluster"
 
@@ -401,8 +403,8 @@ class CmdKill(BaseCmd):
         "Only a control host can kill components"
         return Machineid().is_control_host
 
-    @classmethod
-    def name(cls):
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
         return "kill"
 
     @classmethod
@@ -432,8 +434,8 @@ class CmdLaunch(BaseCmd):
     def cmdtype(cls):
         return cls.CMDTYPE_CARG
 
-    @classmethod
-    def description(cls):
+    @classproperty
+    def description(cls):  # pylint: disable=no-self-argument
         "One-line description of this subcommand"
         return "Start pDAQ components on the cluster"
 
@@ -442,8 +444,8 @@ class CmdLaunch(BaseCmd):
         "Only a control host can launch components"
         return Machineid().is_control_host
 
-    @classmethod
-    def name(cls):
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
         return "launch"
 
     @classmethod
@@ -475,8 +477,8 @@ class CmdSwitchEnv(BaseCmd):
     def cmdtype(cls):
         return cls.CMDTYPE_CHOICE
 
-    @classmethod
-    def description(cls):
+    @classproperty
+    def description(cls):  # pylint: disable=no-self-argument
         "One-line description of this subcommand"
         return "Select the Python virtual environment for the cluster"
 
@@ -486,8 +488,8 @@ class CmdSwitchEnv(BaseCmd):
         mid = Machineid()
         return mid.is_build_host or mid.is_unknown_host
 
-    @classmethod
-    def name(cls):
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
         return "switchenv"
 
     @classmethod
@@ -507,8 +509,8 @@ class CmdQueueLogs(BaseCmd):
     def cmdtype(cls):
         return cls.CMDTYPE_LD
 
-    @classmethod
-    def description(cls):
+    @classproperty
+    def description(cls):  # pylint: disable=no-self-argument
         "One-line description of this subcommand"
         return "Submit pDAQ log files to SPADE for transmission to the North"
 
@@ -517,8 +519,8 @@ class CmdQueueLogs(BaseCmd):
         "Any host can have log files"
         return True
 
-    @classmethod
-    def name(cls):
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
         return "queuelogs"
 
     @classmethod
@@ -538,8 +540,8 @@ class CmdRemoveHubs(BaseCmd):
     def cmdtype(cls):
         return cls.CMDTYPE_CARG
 
-    @classmethod
-    def description(cls):
+    @classproperty
+    def description(cls):  # pylint: disable=no-self-argument
         "One-line description of this subcommand"
         return "Remove hubs or racks from a run configuration"
 
@@ -548,8 +550,8 @@ class CmdRemoveHubs(BaseCmd):
         "Config files live on the build host"
         return Machineid().is_build_host
 
-    @classmethod
-    def name(cls):
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
         return "removehubs"
 
     @classmethod
@@ -569,8 +571,8 @@ class CmdRun(BaseCmd):
     def cmdtype(cls):
         return cls.CMDTYPE_CARG
 
-    @classmethod
-    def description(cls):
+    @classproperty
+    def description(cls):  # pylint: disable=no-self-argument
         "One-line description of this subcommand"
         return "Start a pDAQ run (does not communicate with Live)"
 
@@ -579,8 +581,8 @@ class CmdRun(BaseCmd):
         "Only a control host can start runs"
         return Machineid().is_control_host
 
-    @classmethod
-    def name(cls):
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
         return "run"
 
     @classmethod
@@ -600,8 +602,8 @@ class CmdRunNumber(BaseCmd):
     def cmdtype(cls):
         return cls.CMDTYPE_NONE
 
-    @classmethod
-    def description(cls):
+    @classproperty
+    def description(cls):  # pylint: disable=no-self-argument
         "One-line description of this subcommand"
         return "Get/set last run number"
 
@@ -610,8 +612,8 @@ class CmdRunNumber(BaseCmd):
         "Only a control host can get/set run numbers"
         return Machineid().is_control_host
 
-    @classmethod
-    def name(cls):
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
         return "runnumber"
 
     @classmethod
@@ -631,8 +633,8 @@ class CmdSortLogs(BaseCmd):
     def cmdtype(cls):
         return cls.CMDTYPE_LD
 
-    @classmethod
-    def description(cls):
+    @classproperty
+    def description(cls):  # pylint: disable=no-self-argument
         "One-line description of this subcommand"
         return "Combine all log entries from a run"
 
@@ -641,8 +643,8 @@ class CmdSortLogs(BaseCmd):
         "Any host can have log files"
         return True
 
-    @classmethod
-    def name(cls):
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
         return "sortlogs"
 
     @classmethod
@@ -662,8 +664,8 @@ class CmdStatus(BaseCmd):
     def cmdtype(cls):
         return cls.CMDTYPE_NONE
 
-    @classmethod
-    def description(cls):
+    @classproperty
+    def description(cls):  # pylint: disable=no-self-argument
         "One-line description of this subcommand"
         return "Print the status of all active pDAQ components"
 
@@ -672,8 +674,8 @@ class CmdStatus(BaseCmd):
         "Only a control host can check component status"
         return Machineid().is_control_host
 
-    @classmethod
-    def name(cls):
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
         return "status"
 
     @classmethod
@@ -693,8 +695,8 @@ class CmdStopRun(BaseCmd):
     def cmdtype(cls):
         return cls.CMDTYPE_NONE
 
-    @classmethod
-    def description(cls):
+    @classproperty
+    def description(cls):  # pylint: disable=no-self-argument
         "One-line description of this subcommand"
         return "Stop the current pDAQ run (does not communicate with Live)"
 
@@ -703,8 +705,8 @@ class CmdStopRun(BaseCmd):
         "Only a control host can emergency-stop runs"
         return Machineid().is_control_host
 
-    @classmethod
-    def name(cls):
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
         return "stoprun"
 
     @classmethod
@@ -724,8 +726,8 @@ class CmdStdTest(BaseCmd):
     def cmdtype(cls):
         return cls.CMDTYPE_CONLY
 
-    @classmethod
-    def description(cls):
+    @classproperty
+    def description(cls):  # pylint: disable=no-self-argument
         "One-line description of this subcommand"
         return "Run the standard pDAQ test configurations to" \
             " validate the system"
@@ -738,8 +740,8 @@ class CmdStdTest(BaseCmd):
         mid = Machineid()
         return mid.is_build_host or mid.is_control_host
 
-    @classmethod
-    def name(cls):
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
         return "stdtest"
 
     @classmethod
@@ -759,8 +761,8 @@ class CmdSummarize(BaseCmd):
     def cmdtype(cls):
         return cls.CMDTYPE_FONLY
 
-    @classmethod
-    def description(cls):
+    @classproperty
+    def description(cls):  # pylint: disable=no-self-argument
         "One-line description of this subcommand"
         return "Summarize DAQ runs"
 
@@ -769,8 +771,8 @@ class CmdSummarize(BaseCmd):
         "This can be run wherever there are 'daqrunXXXXXX' directories"
         return True
 
-    @classmethod
-    def name(cls):
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
         return "summarize"
 
     @classmethod
@@ -790,13 +792,13 @@ class CmdTail(BaseCmd):
     def cmdtype(cls):
         return cls.CMDTYPE_NONE
 
-    @classmethod
-    def description(cls):
+    @classproperty
+    def description(cls):  # pylint: disable=no-self-argument
         "One-line description of this subcommand"
         return "Add colors to Live's log output"
 
-    @classmethod
-    def epilog(cls):
+    @classproperty
+    def epilog(cls):  # pylint: disable=no-self-argument
         return "Color choices can be customized in either $HOME/.pdaq_colors" \
             " or in a file pointed to by the PDAQ_COLORS environment" \
             " variable.  Use --print_colors to dump the current choices."
@@ -806,8 +808,8 @@ class CmdTail(BaseCmd):
         "Only makes sense on expcont"
         return Machineid().is_control_host
 
-    @classmethod
-    def name(cls):
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
         return "taillive"
 
     @classmethod
@@ -818,8 +820,8 @@ class CmdTail(BaseCmd):
 
 @command
 class CmdTest(CmdStdTest):
-    @classmethod
-    def name(cls):
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
         return "test"
 
 
@@ -834,8 +836,8 @@ class CmdWorkspace(BaseCmd):
     def cmdtype(cls):
         return cls.CMDTYPE_WS
 
-    @classmethod
-    def description(cls):
+    @classproperty
+    def description(cls):  # pylint: disable=no-self-argument
         "One-line description of this subcommand"
         return "Print or change the symlink to the current pDAQ workspace"
 
@@ -844,8 +846,8 @@ class CmdWorkspace(BaseCmd):
         "Workspaces only exist on build host"
         return Machineid().is_build_host
 
-    @classmethod
-    def name(cls):
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
         return "workspace"
 
     @classmethod
@@ -854,39 +856,48 @@ class CmdWorkspace(BaseCmd):
         workspace(args)
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     import argparse
 
     cmdmap = {}
     names = []
-    for v in COMMANDS:
-        cmdmap[v.name()] = v.cmdtype()
-        names.append(v.name())
+    for cmd in COMMANDS:
+        cmdmap[cmd.name] = cmd.cmdtype()
+        names.append(cmd.name)
 
-    p = argparse.ArgumentParser()
-    p.add_argument("-a", dest="arglist", choices=names,
-                   help="Print list of arguments for a command")
-    p.add_argument("-n", dest="shownames",
-                   action="store_true", default=False,
-                   help="Print list of all valid command names")
-    p.add_argument("-t", dest="cmdtype", choices=names,
-                   help="Print command type")
-    args = p.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-a", dest="arglist", choices=names,
+                        help="Print list of arguments for a command")
+    parser.add_argument("-n", dest="shownames",
+                        action="store_true", default=False,
+                        help="Print list of all valid command names")
+    parser.add_argument("-t", dest="cmdtype", choices=names,
+                        help="Print command type")
+    args = parser.parse_args()
 
     if args.cmdtype is not None:
+        # print a command's command-completion type
         print(cmdmap[args.cmdtype])
     elif args.arglist is not None:
+        # print the command-line arguments for a command
         fakeargs = FakeArgParser()
-        for v in COMMANDS:
-            if v.name() != args.arglist:
+        for cmd in COMMANDS:
+            if cmd.name != args.arglist:
                 continue
 
             try:
-                v.add_arguments(fakeargs)
-            except:
+                cmd.add_arguments(fakeargs)
+            except:  # pylint: disable=bare-except
                 pass
-        for a in fakeargs.arguments:
-            print(a)
+        for arg in fakeargs.arguments:
+            print(arg)
     else:
-        for n in names:
-            print(n)
+        # print the list of commands
+        for name in names:
+            print(name)
+
+
+if __name__ == "__main__":
+    main()

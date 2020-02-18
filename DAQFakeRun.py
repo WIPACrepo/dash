@@ -16,7 +16,7 @@ import time
 import traceback
 
 from CnCServer import Connector
-from DAQConfig import DAQConfigParser
+from DAQConfig import ConfigNotSpecifiedException, DAQConfigParser
 from DAQConst import DAQPort
 from DAQMocks import MockLeapsecondFile
 from DAQRPC import RPCClient
@@ -377,7 +377,7 @@ class BuilderDescription(ComponentData):
 class DAQFakeRun(object):
     "Fake DAQRun"
 
-    LOCAL_ADDR = ip.getLocalIpAddr()
+    LOCAL_ADDR = ip.get_local_address()
     CNCSERVER_HOST = LOCAL_ADDR
 
     def __init__(self, cnc_host=CNCSERVER_HOST, cnc_port=DAQPort.CNCSERVER,
@@ -869,8 +869,8 @@ def main():
                         help="Use existing in-ice trigger")
     parser.add_argument("-K", "--keep-old-files", dest="keep_old_files",
                         action="store_true", default=False,
-                        help="Keep old runs from /tmp/pdaq/log and"
-                        " /tmp/pdaq/pdaqlocal")
+                        help=("Keep old runs from /tmp/pdaq/log and"
+                              " /tmp/pdaq/pdaqlocal"))
     parser.add_argument("-n", "--num-of-runs", type=int, dest="num_runs",
                         default=1,
                         help="Number of runs")
@@ -879,8 +879,8 @@ def main():
                         help="Number of seconds between monitoring requests")
     parser.add_argument("-o", "--log-dir", dest="log_dir",
                         default="/tmp/pdaq/log",
-                        help="Directory holding pDAQ log/monitoring"
-                             " subdirectories")
+                        help=("Directory holding pDAQ log/monitoring"
+                              " subdirectories"))
     parser.add_argument("-p", "--first-port-number", type=int,
                         dest="first_port", default=None,
                         help="First port number used for fake components")
@@ -889,8 +889,8 @@ def main():
                         help="Directory holding physics/tcal/moni/sn files")
     parser.add_argument("-q", "--quiet", dest="quiet",
                         action="store_true", default=False,
-                        help="Fake components don't announce what they're"
-                        " doing")
+                        help=("Fake components don't announce what they're"
+                              " doing"))
     parser.add_argument("-r", "--run-number", type=int, dest="run_num",
                         default=1234,
                         help="Run number")
@@ -1027,7 +1027,7 @@ def main():
         DAQConfigParser.get_cluster_configuration(None, use_active_config=True,
                                                   config_dir=run_cfg_dir,
                                                   validate=False)
-    except:
+    except ConfigNotSpecifiedException:
         DAQFakeRun.hack_active_config("sim-localhost")
 
     # create run object and initial run number

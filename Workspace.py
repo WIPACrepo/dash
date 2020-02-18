@@ -63,18 +63,18 @@ def workspace(args):
     if not stat.S_ISDIR(tstat.st_mode):
         raise SystemExit("%s is not a directory" % args.directory)
 
-    for d in SUBDIRS:
-        if d == "target":
+    for subdir in SUBDIRS:
+        if subdir == "target":
             # workspace may not yet contain compiled code
             continue
-        if d == "config":
+        if subdir == "config":
             # workspace SHOULD not contain configuration directory
             continue
 
-        path = os.path.join(target, d)
+        path = os.path.join(target, subdir)
         if not os.path.exists(path):
             raise SystemExit("%s is not a pDAQ directory (missing '%s')" %
-                             (target, d))
+                             (target, subdir))
 
     if cstat is None:
         os.symlink(target, current)
@@ -92,14 +92,14 @@ def workspace(args):
     print("%s moved from %s to %s" % (CURRENT, oldlink, args.directory))
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     import argparse
 
-    p = argparse.ArgumentParser()
-
-    add_arguments(p)
-
-    args = p.parse_args()
+    parser = argparse.ArgumentParser()
+    add_arguments(parser)
+    args = parser.parse_args()
 
     if not args.nohostcheck:
         hostid = Machineid()
@@ -110,3 +110,7 @@ if __name__ == "__main__":
                              " on the correct host?")
 
     workspace(args)
+
+
+if __name__ == "__main__":
+    main()

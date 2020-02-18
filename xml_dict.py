@@ -6,6 +6,8 @@ values of the root element of the python dictionary passed to them."""
 
 from __future__ import print_function
 
+import sys
+
 from lxml import etree
 from lxml.etree import Comment
 
@@ -25,7 +27,8 @@ def set_attrib(xdict, attrib_name, value):
 
 
 def get_value(xdict):
-    if isinstance(xdict, list) and len(xdict) > 0:
+    if isinstance(xdict, list) and \
+      len(xdict) > 0:  # pylint: disable=len-as-condition
         return xdict[0]
     if isinstance(xdict, str):
         return xdict
@@ -68,8 +71,8 @@ class xml_dict(object):
         # if the parent element has no children,
         # no attributes and only content, just set it to
         # be the contents
-        if len(attribs) == 0 and\
-                len(parent_element) == 0:
+        if len(attribs) == 0 and \
+          len(parent_element) == 0:  # pylint: disable=len-as-condition
             return parent_element.text
 
         ret[parent_element.tag] = {}
@@ -77,15 +80,15 @@ class xml_dict(object):
         # if the root element add root comments
         if parent_element.getroottree().getroot() == parent_element:
             tmp = []
-            c = parent_element.getprevious()
-            while c is not None:
-                if c.tag == Comment:
-                    tmp.insert(0, c.text)
-                c = c.getprevious()
-            if len(tmp) > 0:
+            prev = parent_element.getprevious()
+            while prev is not None:
+                if prev.tag == Comment:
+                    tmp.insert(0, prev.text)
+                prev = prev.getprevious()
+            if len(tmp) > 0:  # pylint: disable=len-as-condition
                 ret['__root_comments__'] = tmp
 
-        if len(attribs) > 0:
+        if len(attribs) > 0:  # pylint: disable=len-as-condition
             ret[parent_element.tag]['__attribs__'] = attribs
 
         if parent_element.text is not None and \
@@ -103,7 +106,7 @@ class xml_dict(object):
                 else:
                     tmp[child.tag].append(child_dict)
 
-        if len(tmp) > 0:
+        if len(tmp) > 0:  # pylint: disable=len-as-condition
             ret[parent_element.tag]['__children__'] = tmp
 
         return ret
@@ -112,20 +115,18 @@ class xml_dict(object):
     def dict_xml_tree(elem_dict, root=None):
         """xml_fmt takes an XML file and outputs a specially formatted python
         dictionary.  If you pass that dictionary to this method it will return
-        an lxml element tree.  That can be handed off to 'toString()' to
+        an lxml element tree.  That can be handed off to 'to_string()' to
         reproduce a human readable xml file
 
         >>> xml_d = {'runCfg': {'__children__': {'domConfigList': [{'__attribs__': {'hub': '5'}, '__contents__': 'spts-something'}]}}}
-        >>> xml_dict.toString(xml_d, pretty_print=False)
+        >>> xml_dict.to_string(xml_d, pretty_print=False)
         '<?xml version=\\'1.0\\' encoding=\\'ASCII\\'?>\\n<runCfg><domConfigList hub="5">spts-something</domConfigList></runCfg>'
         """
 
-        try:
-            tag, contents = next(iter(list(elem_dict.items())))
-        except Exception:
-            raise
-
-        if root is None:
+        tag, contents = next(iter(list(elem_dict.items())))
+        if root is not None:
+            elem = etree.SubElement(root, tag)
+        else:
             root_tag = list(elem_dict.keys())
             if '__root_comments__' in root_tag:
                 root_tag.remove('__root_comments__')
@@ -135,10 +136,8 @@ class xml_dict(object):
 
             if '__root_comments__' in elem_dict:
                 for comment_text in elem_dict['__root_comments__']:
-                    c = Comment(comment_text)
-                    elem.addprevious(c)
-        else:
-            elem = etree.SubElement(root, tag)
+                    cobj = Comment(comment_text)
+                    elem.addprevious(cobj)
 
         if not isinstance(contents, dict) or \
            ('__attribs__' not in contents and
@@ -154,8 +153,7 @@ class xml_dict(object):
 
         # record the contents
         if '__contents__' in contents and \
-           (isinstance(contents['__contents__'], str) or
-            isinstance(contents['__contents__'], unicode)):
+          isinstance(contents['__contents__'], (str, unicode)):
             elem.text = contents['__contents__']
 
         # iterate through children if there are any
@@ -167,8 +165,8 @@ class xml_dict(object):
             # build up all the comments
             if child_name == Comment:
                 for comment_text in child_desc:
-                    c = Comment(comment_text)
-                    elem.append(c)
+                    cobj = Comment(comment_text)
+                    elem.append(cobj)
             # a special case..  if the child_desc is a list with a string
             # element then build the child appropriately
             elif isinstance(child_desc, list):
@@ -180,13 +178,13 @@ class xml_dict(object):
                     for entry in child_desc:
                         xml_dict.dict_xml_tree({child_name: entry}, root=elem)
             else:
-                print("Not handling <%s>%s" % \
-                    (type(child_desc).__name__, child_desc), file=sys.stderr)
+                print("Not handling <%s>%s" %
+                      (type(child_desc).__name__, child_desc), file=sys.stderr)
 
         return elem
 
     @staticmethod
-    def toString(info_dict, pretty_print=True):
+    def to_string(info_dict, pretty_print=True):
         root = xml_dict.dict_xml_tree(info_dict)
         tree = etree.ElementTree(root)
         outstr = etree.tostring(tree, method="xml", xml_declaration=True,
@@ -196,7 +194,7 @@ class xml_dict(object):
         return outstr
 
     def __str__(self):
-        return self.toString(self.xml_dict)
+        return self.to_string(self.xml_dict)
 
 
 if __name__ == "__main__":

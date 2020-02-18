@@ -11,17 +11,23 @@ class Machineid(object):
     CONTROL_HOSTS = ["expcont", "pdaq2"]
     SPADE_HOSTS = ["2ndbuild", "evbuilder"]
 
+    # machine type constants
+    BUILD_TYPE = 0x1
+    CONTROL_TYPE = 0x2
+    SPADE_TYPE = 0x4
+    UNKNOWN_TYPE = 0x8000
+
+    HOST_PAIRS = (
+        (BUILD_HOSTS, BUILD_TYPE),
+        (CONTROL_HOSTS, CONTROL_TYPE),
+        (SPADE_HOSTS, SPADE_TYPE),
+        )
+
     # cluster type constants
     UNKNOWN_CLUSTER = -1
     SPS_CLUSTER = 1
     SPTS_CLUSTER = 2
     MDFL_CLUSTER = 3
-
-    # machine type constants
-    BUILD_HOST = 0x1
-    CONTROL_HOST = 0x2
-    SPADE_HOST = 0x4
-    UNKNOWN_HOST = 0x8000
 
     def __init__(self, hostname=None):
         if hostname is None:
@@ -46,7 +52,6 @@ class Machineid(object):
                 # we are part of the south pole TEST system
                 return self.SPTS_CLUSTER
 
-
         return self.UNKNOWN_CLUSTER
 
     def __get_host_type(self):
@@ -55,24 +60,15 @@ class Machineid(object):
 
         # now figure out what type of host this is
         host_type = 0x0
-        for h in self.BUILD_HOSTS:
-            if host_name.endswith(h):
-                # we are a build host
-                host_type |= self.BUILD_HOST
-                break
-        for h in self.CONTROL_HOSTS:
-            if host_name.endswith(h):
-                # we are a build host
-                host_type |= self.CONTROL_HOST
-                break
-        for h in self.SPADE_HOSTS:
-            if host_name.endswith(h):
-                # we are a build host
-                host_type |= self.CONTROL_HOST
-                break
+        for hlist, hval in self.HOST_PAIRS:
+            for host in hlist:
+                if host_name.endswith(host):
+                    # we are a build host
+                    host_type |= hval
+                    break
 
         if host_type == 0x0:
-            host_type = self.UNKNOWN_HOST
+            host_type = self.UNKNOWN_TYPE
 
         return host_type
 
@@ -86,7 +82,7 @@ class Machineid(object):
             host_types.append("Control")
         if self.is_spade_host:
             host_types.append("SPADE")
-        if len(host_types) == 0:
+        if len(host_types) == 0:  # pylint: disable=len-as-condition
             host_types.append("Unknown")
         host_type_str = "/".join(host_types)
 
@@ -104,21 +100,21 @@ class Machineid(object):
         """
         Returns true if this is a known pdaq build machine
         """
-        return (self.__host_type & self.BUILD_HOST) == self.BUILD_HOST
+        return (self.__host_type & self.BUILD_TYPE) == self.BUILD_TYPE
 
     @property
     def is_control_host(self):
         """
         Returns true if this is a known pdaq control machine
         """
-        return (self.__host_type & self.CONTROL_HOST) == self.CONTROL_HOST
+        return (self.__host_type & self.CONTROL_TYPE) == self.CONTROL_TYPE
 
     @property
     def is_spade_host(self):
         """
         Returns true if this is a known pdaq machine which writes data to SPADE
         """
-        return (self.__host_type & self.SPADE_HOST) == self.SPADE_HOST
+        return (self.__host_type & self.SPADE_TYPE) == self.SPADE_TYPE
 
     @property
     def is_unknown_host(self):
@@ -127,7 +123,7 @@ class Machineid(object):
         If an unknown host and an unknown cluster, it is assumed that you can
         run anything you want.
         """
-        return (self.__host_type & self.UNKNOWN_HOST) == self.UNKNOWN_HOST
+        return (self.__host_type & self.UNKNOWN_TYPE) == self.UNKNOWN_TYPE
 
     @property
     def is_mdfl_cluster(self):

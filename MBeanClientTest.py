@@ -12,44 +12,47 @@ class MBeanAgentException(Exception):
 
 
 class MockMBeanAgent(object):
-    def __init__(self):
-        self.__mbeanDict = {}
+    # 'invalid-name' checks are disabled because those methods are
+    # emulating Java methods
 
-    def __validateBean(self, bean):
-        self.__validateDict()
-        if bean not in self.__mbeanDict:
+    def __init__(self):
+        self.__mbean_dict = {}
+
+    def __validate_bean(self, bean):
+        self.__validate_dict()
+        if bean not in self.__mbean_dict:
             raise MBeanAgentException("Unknown MBean \"%s\"" % bean)
-        if isinstance(self.__mbeanDict[bean], Exception):
-            tmp_except = self.__mbeanDict[bean]
+        if isinstance(self.__mbean_dict[bean], Exception):
+            tmp_except = self.__mbean_dict[bean]
             raise tmp_except
 
-    def __validateBeanField(self, bean, fld):
-        self.__validateDict()
-        self.__validateBean(bean)
-        if fld not in self.__mbeanDict[bean]:
+    def __validate_bean_field(self, bean, fld):
+        self.__validate_dict()
+        self.__validate_bean(bean)
+        if fld not in self.__mbean_dict[bean]:
             raise MBeanAgentException("Unknown MBean \"%s\" attribute \"%s\"" %
                                       (bean, fld))
-        if isinstance(self.__mbeanDict[bean][fld], Exception):
-            raise self.__mbeanDict[bean][fld]
+        if isinstance(self.__mbean_dict[bean][fld], Exception):
+            raise self.__mbean_dict[bean][fld]
 
-    def __validateDict(self):
-        if isinstance(self.__mbeanDict, Exception):
-            raise self.__mbeanDict
+    def __validate_dict(self):
+        if isinstance(self.__mbean_dict, Exception):
+            raise self.__mbean_dict
 
     def get(self, bean, fld):
-        self.__validateBeanField(bean, fld)
-        return self.__mbeanDict[bean][fld]
+        self.__validate_bean_field(bean, fld)
+        return self.__mbean_dict[bean][fld]
 
-    def listMBeans(self):
-        self.__validateDict()
-        return list(self.__mbeanDict.keys())
+    def listMBeans(self):  # pylint: disable=invalid-name
+        self.__validate_dict()
+        return list(self.__mbean_dict.keys())
 
-    def listGetters(self, bean):
-        self.__validateBean(bean)
-        return list(self.__mbeanDict[bean].keys())
+    def listGetters(self, bean):  # pylint: disable=invalid-name
+        self.__validate_bean(bean)
+        return list(self.__mbean_dict[bean].keys())
 
-    def setMBeans(self, mbeanDict):
-        self.__mbeanDict = mbeanDict
+    def setMBeans(self, mbean_dict):  # pylint: disable=invalid-name
+        self.__mbean_dict = mbean_dict
 
 
 class MockRPCClient(object):
@@ -58,32 +61,32 @@ class MockRPCClient(object):
 
 
 class MostlyMBeanClient(MBeanClient):
-    def __init__(self, compName, host, port, agent):
+    def __init__(self, comp_name, host, port, agent):
         self.__agent = agent
-        super(MostlyMBeanClient, self).__init__(compName, host, port)
+        super(MostlyMBeanClient, self).__init__(comp_name, host, port)
 
     def create_client(self, host, port):
         return MockRPCClient(host, port, self.__agent)
 
 
 class TestMBeanClient(unittest.TestCase):
-    def testFailAndRecover(self):
+    def test_fail_and_recover(self):
         agent = MockMBeanAgent()
 
-        clientName = "foo"
+        client_name = "foo"
 
         bean = "beanA"
         fld = "fldA"
         val = "valA"
 
-        client = MostlyMBeanClient(clientName, "localhost", 123, agent)
+        client = MostlyMBeanClient(client_name, "localhost", 123, agent)
 
         agent.setMBeans(MBeanAgentException("Test fail"))
         try:
             client.get(bean, fld)
         except BeanLoadException as ble:
             if not str(ble).startswith("Cannot load %s MBean \"%s:%s\": " %
-                                       (clientName, bean, fld)):
+                                       (client_name, bean, fld)):
                 self.fail("Unexpected exception: " + exc_string())
 
         agent.setMBeans({bean: MBeanAgentException("Test fail"), })
@@ -91,42 +94,42 @@ class TestMBeanClient(unittest.TestCase):
             client.get(bean, fld)
         except BeanLoadException as ble:
             if not str(ble).startswith("Cannot load %s MBean \"%s:%s\": " %
-                                       (clientName, bean, fld)):
+                                       (client_name, bean, fld)):
                 self.fail("Unexpected exception: " + exc_string())
 
         agent.setMBeans({bean: {fld: val, }, })
-        realVal = client.get(bean, fld)
-        self.assertEqual(val, realVal, "Expected value \"%s\", not \"%s\"" %
-                         (val, realVal))
+        real_val = client.get(bean, fld)
+        self.assertEqual(val, real_val, "Expected value \"%s\", not \"%s\"" %
+                         (val, real_val))
 
-        beanList = client.get_bean_names()
-        self.assertTrue(beanList is not None,
+        bean_list = client.get_bean_names()
+        self.assertTrue(bean_list is not None,
                         "Bean name list should not be None")
-        self.assertEqual(len(beanList), 1, "Expected one bean name, not %s" %
-                         beanList)
-        self.assertEqual(beanList[0], bean,
+        self.assertEqual(len(bean_list), 1, "Expected one bean name, not %s" %
+                         bean_list)
+        self.assertEqual(bean_list[0], bean,
                          "Expected bean name \"%s\", not \"%s\"" %
-                         (bean, beanList[0]))
+                         (bean, bean_list[0]))
 
-        fldList = client.get_bean_fields(bean)
-        self.assertTrue(fldList is not None,
+        fld_list = client.get_bean_fields(bean)
+        self.assertTrue(fld_list is not None,
                         "Field name list should not be None")
-        self.assertEqual(len(fldList), 1, "Expected one bean name, not %s" %
-                         fldList)
-        self.assertEqual(fldList[0], fld,
+        self.assertEqual(len(fld_list), 1, "Expected one bean name, not %s" %
+                         fld_list)
+        self.assertEqual(fld_list[0], fld,
                          "Expected bean field \"%s\", not \"%s\"" %
-                         (fld, fldList[0]))
+                         (fld, fld_list[0]))
 
         client.reload()
 
         try:
-            beanList = client.get_bean_names()
+            bean_list = client.get_bean_names()
             self.fail("get_bean_names should throw an exception")
         except:
             pass
 
         try:
-            beanList = client.get_bean_fields(bean)
+            bean_list = client.get_bean_fields(bean)
             self.fail("get_bean_fields should throw an exception")
         except:
             pass

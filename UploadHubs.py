@@ -28,11 +28,11 @@ from DAQConfig import DAQConfigParser
 from DAQConfigExceptions import DAQConfigException
 
 
-def hasNonZero(l):
-    if not l:
+def has_non_zero(lst):
+    if not lst:
         raise RuntimeError("List is empty!")
-    for x in l:
-        if x != 0:
+    for val in lst:
+        if val != 0:
             return True
     return False
 
@@ -45,10 +45,10 @@ class ThreadableProcess(object):
     def __init__(self, hub, cmd, verbose=False):
         self.cmd = cmd
         self.hub = hub
-        self.fd = None
+        self.fdesc = None
         self.started = False
         self.done = False
-        self.doStop = False
+        self.do_stop = False
         self.thread = None
         self.output = ""
         self.lock = None
@@ -65,10 +65,10 @@ class ThreadableProcess(object):
         self.lock = threading.Lock()
         self.started = True
         self.pop = popen2.Popen4(cmd, 0)
-        self.fd = self.pop.fromchild
-        fileno = self.fd.fileno()
+        self.fdesc = self.pop.fromchild
+        fileno = self.fdesc.fileno()
 
-        while not self.doStop:
+        while not self.do_stop:
             ready = select.select([fileno], [], [], 1)
             if len(ready[0]) < 1:
                 continue  # Pick up stop signal
@@ -79,7 +79,7 @@ class ThreadableProcess(object):
             if buf == "":
                 break
 
-        if self.doStop:
+        if self.do_stop:
             if self.verbose:
                 print("Killing %s" % self.pop.pid)
             os.kill(self.pop.pid, signal.SIGKILL)
@@ -114,11 +114,11 @@ class ThreadableProcess(object):
         if self.lock:
             self.lock.acquire()
 
-        r = self.output
+        rslt = self.output
         if self.lock:
             self.lock.release()
 
-        return r
+        return rslt
 
     def stop(self):
         """
@@ -126,7 +126,7 @@ class ThreadableProcess(object):
         """
         if self.verbose:
             print("OK, stopping thread for %s (%s)" % (self.hub, self.cmd))
-        self.doStop = True
+        self.do_stop = True
 
 
 class DOMState(object):
@@ -137,41 +137,42 @@ class DOMState(object):
         self.cwd = cwd
         self.lines = []
         if lines:
-            for l in lines:
-                self.addData(l)
+            for line in lines:
+                self.add_data(line)
         self._failed_ = False
-        self._hasWarning = False
+        self._has_warning = False
         self.done = False
         self.version = None
 
-    def addData(self, line):
+    def add_data(self, line):
         self.lines.append(line)
         if re.search('FAIL', line):
             self._failed = True
         if re.search('WARNING', line):
-            self._hasWarning = True
-        m = re.search(r'DONE \((\d+)\)', line)
-        if m:
+            self._has_warning = True
+        mtch = re.search(r'DONE \((\d+)\)', line)
+        if mtch is not None:
             self.done = True
-            self.version = m.group(1)
+            self.version = mtch.group(1)
 
-    def lastState(self):
+    def last_state(self):
         try:
             return self.lines[-1]
         except KeyError:
             return None
 
-    def hasWarning(self):
-        return self._hasWarning
+    @property
+    def has_warning(self):
+        return self._has_warning
 
     def failed(self):
         return self._failed
 
     def __str__(self):
-        s = "DOM %s:\n" % self.cwd
-        for l in self.lines:
-            s += "\t%s\n" % l
-        return s
+        sstr = "DOM %s:\n" % self.cwd
+        for line in self.lines:
+            sstr += "\t%s\n" % line
+        return sstr
 
 
 class DOMCounter(object):
@@ -180,96 +181,96 @@ class DOMCounter(object):
     """
     def __init__(self, s):
         self.data = s
-        self.domDict = {}
+        self.dom_dict = {}
 
-        domList = re.findall(r'(\d\d\w): (.+)', self.data)
-        for line in domList:
+        dom_list = re.findall(r'(\d\d\w): (.+)', self.data)
+        for line in dom_list:
             cwd = line[0]
             dat = line[1]
-            if cwd not in self.domDict:
-                self.domDict[cwd] = DOMState(cwd)
-            self.domDict[cwd].addData(dat)
+            if cwd not in self.dom_dict:
+                self.dom_dict[cwd] = DOMState(cwd)
+            self.dom_dict[cwd].add_data(dat)
 
     def doms(self):
-        return list(self.domDict.keys())
+        return list(self.dom_dict.keys())
 
-    def lastState(self, dom):
-        return self.domDict[dom].lastState()
+    def last_state(self, dom):
+        return self.dom_dict[dom].last_state()
 
-    def getVersion(self, dom):
-        return self.domDict[dom].version
+    def get_version(self, dom):
+        return self.dom_dict[dom].version
 
-    def doneDomCount(self):
-        n = 0
-        for d in self.domDict:
-            if self.domDict[d].done:
-                n += 1
-        return n
+    def done_dom_count(self):
+        num = 0
+        for key in self.dom_dict:
+            if self.dom_dict[key].done:
+                num += 1
+        return num
 
-    def notDoneDoms(self):
+    def not_done_doms(self):
         not_done = []
-        for d in self.domDict:
-            if not self.domDict[d].done:
-                not_done.append(self.domDict[d])
+        for key in self.dom_dict:
+            if not self.dom_dict[key].done:
+                not_done.append(self.dom_dict[key])
         return not_done
 
-    def failedDoms(self):
+    def failed_doms(self):
         failed = []
-        for d in self.domDict:
-            if self.domDict[d].failed:
-                failed.append(self.domDict[d])
+        for key in self.dom_dict:
+            if self.dom_dict[key].failed:
+                failed.append(self.dom_dict[key])
         return failed
 
-    def warningDoms(self):
+    def warning_doms(self):
         warns = []
-        for d in self.domDict:
-            if self.domDict[d].hasWarning:
-                warns.append(self.domDict[d])
+        for key in self.dom_dict:
+            if self.dom_dict[key].has_warning:
+                warns.append(self.dom_dict[key])
         return warns
 
-    def versionCounts(self):
+    def version_counts(self):
         versions = {}
-        for d in list(self.domDict.keys()):
-            thisVersion = self.getVersion(d)
-            if thisVersion is None:
+        for key in list(self.dom_dict.keys()):
+            this_version = self.get_version(key)
+            if this_version is None:
                 continue
 
-            if thisVersion not in versions:
-                versions[thisVersion] = 1
+            if this_version not in versions:
+                versions[this_version] = 1
             else:
-                versions[thisVersion] += 1
+                versions[this_version] += 1
         return versions
 
     def __str__(self):
-        s = ""
+        outstr = ""
         # Show DOMs with warnings:
-        warns = self.warningDoms()
+        warns = self.warning_doms()
         if len(warns) > 0:
-            s += "\n%2d DOMs with WARNINGS:\n" % len(warns)
-            for d in warns:
-                s += str(d)
+            outstr += "\n%2d DOMs with WARNINGS:\n" % len(warns)
+            for dom in warns:
+                outstr += str(dom)
         # Show failed/unfinished DOMs:
-        notdone = self.notDoneDoms()
+        notdone = self.not_done_doms()
         if len(notdone) > 0:
-            s += "\n%2d DOMs failed or did not finish:\n" % len(notdone)
-            for d in notdone:
-                s += str(d)
+            outstr += "\n%2d DOMs failed or did not finish:\n" % len(notdone)
+            for dom in notdone:
+                outstr += str(dom)
         # Show versions
-        vc = self.versionCounts()
-        if len(vc) == 0:
-            s += "NO DOMs UPLOADED SUCCESSFULLY!\n"
-        elif len(vc) == 1:
-            s += "Uploaded DOM-MB %s to %d DOMs\n" % \
-                (list(vc.keys())[0], self.doneDomCount())
+        vcnt = self.version_counts()
+        if len(vcnt) == 0:
+            outstr += "NO DOMs UPLOADED SUCCESSFULLY!\n"
+        elif len(vcnt) == 1:
+            outstr += "Uploaded DOM-MB %s to %d DOMs\n" % \
+                (list(vcnt.keys())[0], self.done_dom_count())
         else:
-            s += "WARNING: version mismatch\n"
-            for version in vc:
-                s += "%2d DOMs with %s: " % (vc[version], version)
-                for d in list(self.domDict.keys()):
-                    if self.getVersion(d) == version:
-                        s += "%s " % d
-                s += "\n"
-        return s
+            outstr += "WARNING: version mismatch\n"
+            for version in vcnt:
+                outstr += "%2d DOMs with %s: " % (vcnt[version], version)
+                for dom in list(self.dom_dict.keys()):
+                    if self.get_version(dom) == version:
+                        outstr += "%s " % dom
+                outstr += "\n"
+        return outstr
 
 
 class ThreadSet(object):
@@ -306,61 +307,59 @@ class HubThreadSet(ThreadSet):
     """
     Class to watch progress of uploads and summarize details
     """
-    def __init__(self, verbose=False, watchPeriod=15, stragglerTime=240):
+    def __init__(self, verbose=False, watch_period=15, straggler_time=240):
         ThreadSet.__init__(self, verbose)
-        self.watchPeriod = watchPeriod
-        self.stragglerTime = stragglerTime
+        self.watch_period = watch_period
+        self.straggler_time = straggler_time
 
     def summary(self):
-        r = ""
-        failedDOMs = 0
-        warningDOMs = 0
-        doneDOMs = 0
+        sumstr = ""
+        failed_doms = 0
+        warning_doms = 0
+        done_doms = 0
         for hub in self.hubs:
-            dc = DOMCounter(self.procs[hub].results())
-            domCount = len(dc.doms())
-            done = dc.doneDomCount()
-            doneDOMs += done
-            warningDOMs += len(dc.warningDoms())
+            cntr = DOMCounter(self.procs[hub].results())
+            dom_count = len(cntr.doms())
+            done = cntr.done_dom_count()
+            done_doms += done
+            warning_doms += len(cntr.warning_doms())
             # Include DOMs which didn't complete
-            failedDOMs += (domCount - done)
-            r += "%s: %s\n" % (hub, str(dc).strip())
-        r += "%d DOMs uploaded successfully" % doneDOMs
-        r += " (%d with warnings)\n" % warningDOMs
-        r += "%d DOMs did not upload successfully\n" % failedDOMs
-        return r
+            failed_doms += (dom_count - done)
+            sumstr += "%s: %s\n" % (hub, str(cntr).strip())
+        sumstr += "%d DOMs uploaded successfully" % done_doms
+        sumstr += " (%d with warnings)\n" % warning_doms
+        sumstr += "%d DOMs did not upload successfully\n" % failed_doms
+        return sumstr
 
     def watch(self):
         tstart = datetime.datetime.now()
         while True:
-            t = datetime.datetime.now()
-            dt = t - tstart
-            if dt.seconds > 0 and dt.seconds % self.watchPeriod == 0:
-                nDone = 0
-                doneDomCount = 0
+            now = datetime.datetime.now()
+            delta = now - tstart
+            if delta.seconds > 0 and delta.seconds % self.watch_period == 0:
+                num_done = 0
+                done_dom_count = 0
                 for hub in self.hubs:
-                    dc = DOMCounter(self.procs[hub].results())
-                    doneDomCount += dc.doneDomCount()
+                    cntr = DOMCounter(self.procs[hub].results())
+                    done_dom_count += cntr.done_dom_count()
                     if self.procs[hub].done:
-                        nDone += 1
-                    nd = dc.notDoneDoms()
-                    if nd and dt.seconds > self.stragglerTime:
+                        num_done += 1
+                    not_doms = cntr.not_done_doms()
+                    if not_doms and delta.seconds > self.straggler_time:
                         print("Waiting for %s:" % hub)
-                        for notDone in dc.notDoneDoms():
+                        for not_done in cntr.not_done_doms():
                             print("\t%s: %s" % \
-                                (notDone.cwd, notDone.lastState()))
-                if nDone == len(self.hubs):
+                                (not_done.cwd, not_done.last_state()))
+                if num_done == len(self.hubs):
                     break
                 print("%s Done with %d of %d hubs (%d DOMs)." % \
-                    (str(datetime.datetime.now()),
-                     nDone,
-                     len(self.hubs),
-                     doneDomCount))
+                    (str(datetime.datetime.now()), num_done, len(self.hubs),
+                     done_dom_count))
             time.sleep(1)
 
 
-def testProcs():
-    ts = HubThreadSet(verbose=True)
+def test_procs():
+    thrds = HubThreadSet(verbose=True)
     hublist = ["sps-ichub21",
                "sps-ichub29",
                "sps-ichub30",
@@ -371,84 +370,88 @@ def testProcs():
                "sps-ichub50",
                "sps-ichub59"]
     for hub in hublist:
-        ts.add("./simUpload.py", hub)
-    ts.start()
+        thrds.add("./simUpload.py", hub)
+    thrds.start()
     try:
-        ts.watch()
+        thrds.watch()
     except KeyboardInterrupt:
-        ts.stop()
+        thrds.stop()
 
 
 def main():
+    "Main program"
+
     import argparse
 
-    p = argparse.ArgumentParser()
-    p.add_argument("-c", "--config-name",
-                   dest="clusterConfigName",
-                   help="Cluster configuration name, subset of deployed" +
-                   " configuration.")
-    p.add_argument("-v", "--verbose", dest="verbose",
-                   action="store_true", default=False,
-                   help="Be chatty")
-    p.add_argument("-f", "--skip-flash", dest="skipFlash",
-                   action="store_true", default=False,
-                   help="Don't actually write flash on DOMs -" +
-                   " just 'practice' all other steps")
-    p.add_argument("-s", "--straggler-time", type=int, dest="stragglerTime",
-                   default=240,
-                   help="Time (seconds) to wait before reporting details" +
-                   " of straggler DOMs (default: 240)")
-    p.add_argument("-w", "--watch-period", type=int, dest="watchPeriod",
-                   default=15,
-                   help="Interval (seconds) between status reports during" +
-                   " upload (default: 15)")
-    p.add_argument("-z", "--no-schema-validation", dest="validation",
-                   action="store_false", default=True,
-                   help="Disable schema validation of xml configuration files")
-    p.add_argument("releaseFile")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--config-name", dest="clu_cfg_name",
+                        help=("Cluster configuration name, subset of deployed"
+                              " configuration."))
+    parser.add_argument("-v", "--verbose", dest="verbose",
+                        action="store_true", default=False,
+                        help="Be chatty")
+    parser.add_argument("-f", "--skip-flash", dest="skip_flash",
+                        action="store_true", default=False,
+                        help=("Don't actually write flash on DOMs -"
+                              " just 'practice' all other steps"))
+    parser.add_argument("-s", "--straggler-time", type=int,
+                        dest="straggler_time",
+                        default=240,
+                        help=("Time (seconds) to wait before reporting details"
+                              " of straggler DOMs (default: 240)"))
+    parser.add_argument("-w", "--watch-period", type=int, dest="watch_period",
+                        default=15,
+                        help=("Interval (seconds) between status reports"
+                              " during upload (default: 15)"))
+    parser.add_argument("-z", "--no-schema-validation", dest="validation",
+                        action="store_false", default=True,
+                        help=("Disable schema validation of xml configuration"
+                              " files"))
+    parser.add_argument("release_file")
 
-    args = p.parse_args()
+    args = parser.parse_args()
 
-    releaseFile = args.releaseFile
+    release_file = args.release_file
 
     # Make sure file exists
-    if not os.path.exists(releaseFile):
-        print("Release file %s doesn't exist!\n\n" % releaseFile)
+    if not os.path.exists(release_file):
+        print("Release file %s doesn't exist!\n\n" % release_file)
         raise SystemExit
 
     try:
-        clusterConfig = \
-            DAQConfigParser.get_cluster_configuration(args.clusterConfigName,
+        cluster_config = \
+            DAQConfigParser.get_cluster_configuration(args.clu_cfg_name,
                                                       validate=args.validation)
-    except DAQConfigException as e:
-        print('Cluster configuration file problem:\n%s' % e, file=sys.stderr)
+    except DAQConfigException as exc:
+        print('Cluster configuration file problem:\n%s' % exc, file=sys.stderr)
         raise SystemExit
 
-    hublist = clusterConfig.get_hub_nodes()
+    hublist = cluster_config.get_hub_nodes()
 
     # Copy phase - copy mainboard release.hex file to remote nodes
-    copySet = ThreadSet(args.verbose)
+    copy_set = ThreadSet(args.verbose)
 
-    remoteFile = "/tmp/release%d.hex" % os.getpid()
+    remote_file = "/tmp/release%d.hex" % os.getpid()
     for domhub in hublist:
-        copySet.add("scp -q %s %s:%s" % (releaseFile, domhub, remoteFile))
+        copy_set.add("scp -q %s %s:%s" % (release_file, domhub, remote_file))
 
-    print("Copying %s to all hubs as %s..." % (releaseFile, remoteFile))
-    copySet.start()
+    print("Copying %s to all hubs as %s..." % (release_file, remote_file))
+    copy_set.start()
     try:
-        copySet.wait()
+        copy_set.wait()
     except KeyboardInterrupt:
         print("\nInterrupted.")
-        copySet.stop()
+        copy_set.stop()
         raise SystemExit
 
     # Upload phase - upload release
-    print("Uploading %s on all hubs..." % remoteFile)
+    print("Uploading %s on all hubs..." % remote_file)
 
-    uploader = HubThreadSet(args.verbose, args.watchPeriod, args.stragglerTime)
+    uploader = HubThreadSet(args.verbose, args.watch_period,
+                            args.straggler_time)
     for domhub in hublist:
-        f = args.skipFlash and "-f" or ""
-        cmd = "ssh %s UploadDOMs.py %s -v %s" % (domhub, remoteFile, f)
+        flg = "-f" if args.skip_flash else ""
+        cmd = "ssh %s UploadDOMs.py %s -v %s" % (domhub, remote_file, flg)
         uploader.add(cmd, domhub)
 
     uploader.start()
@@ -469,17 +472,17 @@ def main():
             pass
 
     # Cleanup phase - remove remote files from /tmp on hubs
-    cleanUpSet = ThreadSet(args.verbose)
+    cleanup_set = ThreadSet(args.verbose)
     for domhub in hublist:
-        cleanUpSet.add("ssh %s /bin/rm -f %s" % (domhub, remoteFile))
+        cleanup_set.add("ssh %s /bin/rm -f %s" % (domhub, remote_file))
 
-    print("Cleaning up %s on all hubs..." % remoteFile)
-    cleanUpSet.start()
+    print("Cleaning up %s on all hubs..." % remote_file)
+    cleanup_set.start()
     try:
-        cleanUpSet.wait()
+        cleanup_set.wait()
     except KeyboardInterrupt:
         print("\nInterrupted.")
-        cleanUpSet.stop()
+        cleanup_set.stop()
         raise SystemExit
 
     print("\n\nDONE.")

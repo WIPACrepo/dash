@@ -213,7 +213,7 @@ class ComponentManager(object):
         """
         Construct the command to start this component
         """
-        my_ip_addr = ip.getLocalIpAddr(comp.host)
+        my_ip_addr = ip.get_local_address(comp.host)
         jar_path = os.path.join(bin_dir, cls.get_component_jar(comp.name))
         if check_exists and not os.path.exists(jar_path) and not dry_run:
             if logger is not None:
@@ -288,7 +288,7 @@ class ComponentManager(object):
     def __build_component_list(cls, cluster_config):
         comp_list = []
         for node in cluster_config.nodes():
-            for comp in node.components():
+            for comp in node.components:
                 if not comp.is_control_server:
                     if comp.has_hitspool_options:
                         if comp.has_replay_options:
@@ -362,42 +362,47 @@ class ComponentManager(object):
         for k in sorted(list(comp_dict.keys()),
                         key=lambda nm: len(comp_dict[nm]), reverse=True):
             if len(comp_dict[k]) == 1 and comp_dict[k][0].num == 0:
+                pair_name = comp_dict[k][0].name
+
                 if not has_order:
-                    order = comp_dict[k][0].name
+                    pair_order = comp_dict[k][0].name
                 else:
                     try:
-                        order = comp_dict[k][0].order
+                        pair_order = comp_dict[k][0].order
                     except AttributeError:
                         has_order = False
-                        order = comp_dict[k][0].name
-                pair_list.append((comp_dict[k][0].name, order))
+                        pair_order = comp_dict[k][0].name
             else:
                 prev_num = None
-                range_str = k + "#"
+                pair_name = k + "#"
                 for comp in sorted(comp_dict[k], key=lambda c: c.num):
                     if prev_num is None:
-                        range_str += "%d" % comp.num
+                        pair_name += "%d" % comp.num
                     elif comp.num == prev_num + 1:
-                        if not range_str.endswith("-"):
-                            range_str += "-"
+                        if not pair_name.endswith("-"):
+                            pair_name += "-"
                     else:
-                        if range_str.endswith("-"):
-                            range_str += "%d" % prev_num
-                        range_str += ",%d" % comp.num
+                        if pair_name.endswith("-"):
+                            pair_name += "%d" % prev_num
+                        pair_name += ",%d" % comp.num
                     prev_num = comp.num
 
-                if range_str.endswith("-"):
-                    range_str += "%d" % prev_num
+                if pair_name.endswith("-"):
+                    pair_name += "%d" % prev_num
 
                 if not has_order:
-                    order = comp_dict[k][0].name
+                    pair_order = comp_dict[k][0].name
                 else:
                     try:
-                        order = comp_dict[k][0].order
+                        pair_order = comp_dict[k][0].order
                     except AttributeError:
                         has_order = False
-                        order = comp_dict[k][0].name
-                pair_list.append((range_str, order))
+                        pair_order = comp_dict[k][0].name
+
+            if pair_order is None:
+                pair_order = 0
+
+            pair_list.append((pair_name, pair_order))
 
         str_list = []
         for pair in sorted(pair_list, key=lambda pair: pair[1]):
@@ -530,9 +535,8 @@ class ComponentManager(object):
             parallel.wait()
 
             # check for ssh failures here
-            cmd_results_dict = parallel.getCmdResults()
-            for cmd in cmd_results_dict:
-                rtn_code, results = cmd_results_dict[cmd]
+            for cmd, rtuple in parallel.command_results.items():
+                rtn_code, results = rtuple
                 if cmd in cmd2host:
                     node_name = cmd2host[cmd]
                 else:
@@ -613,10 +617,9 @@ class ComponentManager(object):
                 if logger is not None:
                     logger.info(cmd)
             if not dry_run:
-                if parallel is None:
-                    os.system(cmd)
-                else:
-                    parallel.system(cmd)
+                # start CnCServer daemon
+                # use parallel.system() so unit tests can override it
+                parallel.system(cmd)
                 launched.append(prog_base)
         elif not dry_run:
             ignored.append(prog_base)
@@ -699,7 +702,7 @@ class ComponentManager(object):
                 parallel.add(cmd)
 
         if verbose and not dry_run:
-            parallel.showAll()
+            parallel.show_all()
         if not dry_run:
             parallel.shuffle()
             parallel.start()
@@ -708,9 +711,8 @@ class ComponentManager(object):
                 parallel.wait()
 
                 # check for ssh failures here
-                cmd_results_dict = parallel.getCmdResults()
-                for cmd in cmd_results_dict:
-                    rtn_code, results = cmd_results_dict[cmd]
+                for cmd, rtuple in parallel.command_results.items():
+                    rtn_code, results = rtuple
                     if cmd in cmd2host:
                         node_name = cmd2host[cmd]
                     else:

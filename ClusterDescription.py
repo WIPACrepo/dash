@@ -26,7 +26,7 @@ class ClusterDescriptionException(Exception):
 class ConfigXMLBase(XMLParser):
     def __init__(self, config_dir, config_name, suffix='.xml'):
         self.name = None
-        file_name = self.buildPath(config_dir, config_name, suffix=suffix)
+        file_name = self.build_path(config_dir, config_name, suffix=suffix)
         if not os.path.exists(config_dir):
             raise XMLBadFileError("Config directory \"%s\" does not exist" %
                                   config_dir)
@@ -88,7 +88,7 @@ class ClusterComponent(Component):
         istr = self.internal_str
         if istr is None:
             istr = ""
-        elif len(istr) > 0:
+        elif istr != "":
             istr = "(%s)" % istr
 
         return "%s@%s%s%s" % \
@@ -205,10 +205,10 @@ class JavaComponent(ClusterComponent):
             return superstr
 
         jvm_str = str(self.__jvm)
-        if superstr is None or len(superstr) == 0:
+        if superstr is None or superstr != "":
             return jvm_str
 
-        if jvm_str is None or len(jvm_str) == 0:
+        if jvm_str is None or jvm_str != "":
             return superstr
 
         return superstr + " | " + jvm_str
@@ -513,7 +513,7 @@ class ClusterHost(Comparable):
         if name.endswith("Hub"):
             comp = HubComponent(name, num, log_level, required)
         elif name == ControlComponent.NAME:
-            comp = ControlComponent(name, num, log_level, required)
+            comp = ControlComponent()
         else:
             comp = JavaComponent(name, num, log_level, required)
 
@@ -720,15 +720,15 @@ class ClusterDescription(ConfigXMLBase):
         return self.name
 
     @classmethod
-    def ___parse_component_node(cls, cluster_name, defaults, host, node):
+    def __parse_component_node(cls, cluster_name, defaults, host, node):
         "Parse a <component> node from a cluster configuration file"
-        name = cls.getValue(node, 'name')
+        name = cls.get_value(node, 'name')
         if name is None:
             errmsg = ('Cluster "%s" host "%s" has <component> node' +
                       ' without "name" attribute') % (cluster_name, host.name)
             raise ClusterDescriptionFormatError(errmsg)
 
-        id_str = cls.getValue(node, 'id', '0')
+        id_str = cls.get_value(node, 'id', '0')
         try:
             num = int(id_str)
         except ValueError:
@@ -738,15 +738,15 @@ class ClusterDescription(ConfigXMLBase):
             raise ClusterDescriptionFormatError(errmsg)
 
         # look for optional logLevel
-        loglvl = cls.getValue(node, 'logLevel')
+        loglvl = cls.get_value(node, 'logLevel')
         if loglvl is None:
             loglvl = defaults.find(name, 'logLevel')
             if loglvl is None:
                 loglvl = defaults.loglevel
 
         # look for "required" attribute
-        req_str = cls.getValue(node, 'required')
-        required = cls.parseBooleanString(req_str) is True
+        req_str = cls.get_value(node, 'required')
+        required = cls.parse_boolean_string(req_str) is True
 
         comp = host.add_component(name, num, loglvl, required=required)
 
@@ -756,8 +756,8 @@ class ClusterDescription(ConfigXMLBase):
                              jvm_heap_max, jvm_args, jvm_extra_args)
 
         if comp.is_real_hub:
-            alert_email = cls.getValue(node, 'alertEMail')
-            ntp_host = cls.getValue(node, 'ntpHost')
+            alert_email = cls.get_value(node, 'alertEMail')
+            ntp_host = cls.get_value(node, 'ntpHost')
 
             comp.set_hub_options(defaults, alert_email, ntp_host)
 
@@ -782,9 +782,9 @@ class ClusterDescription(ConfigXMLBase):
                 continue
 
             if kid.nodeName == 'logLevel':
-                defaults.loglevel = self.getChildText(kid)
+                defaults.loglevel = self.get_child_text(kid)
             elif kid.nodeName == 'component':
-                name = self.getValue(kid, 'name')
+                name = self.get_value(kid, 'name')
                 if name is None:
                     errmsg = ('Cluster "%s" default section has <component>' +
                               ' node without "name" attribute') % clu_name
@@ -821,19 +821,19 @@ class ClusterDescription(ConfigXMLBase):
                     if kidkid.nodeType == Node.ELEMENT_NODE and \
                        kidkid.nodeName == 'logLevel':
                         defaults.components[name]['logLevel'] = \
-                            self.getChildText(kidkid)
+                            self.get_child_text(kidkid)
                         continue
 
                     if kidkid.nodeType == Node.ELEMENT_NODE and \
                        kidkid.nodeName == 'alertEMail':
                         defaults.components[name]['alertEMail'] = \
-                            self.getChildText(kidkid)
+                            self.get_child_text(kidkid)
                         continue
 
                     if kidkid.nodeType == Node.ELEMENT_NODE and \
                        kidkid.nodeName == 'ntpHost':
                         defaults.components[name]['ntpHost'] = \
-                            self.getChildText(kidkid)
+                            self.get_child_text(kidkid)
                         continue
 
     @classmethod
@@ -842,7 +842,7 @@ class ClusterDescription(ConfigXMLBase):
         comp_to_host = {}
 
         for node in host_nodes:
-            hostname = cls.getValue(node, 'name')
+            hostname = cls.get_value(node, 'name')
             if hostname is None:
                 errmsg = ('Cluster "%s" has <host> node without "name"' +
                           ' attribute') % name
@@ -855,7 +855,7 @@ class ClusterDescription(ConfigXMLBase):
                     continue
 
                 if kid.nodeName == 'component':
-                    cls.___parse_component_node(name, defaults, host, kid)
+                    cls.__parse_component_node(name, defaults, host, kid)
                 elif kid.nodeName == 'controlServer':
                     host.set_control_server()
                 elif kid.nodeName == 'simulatedHub':
@@ -884,14 +884,16 @@ class ClusterDescription(ConfigXMLBase):
         max_files = None
 
         # look for jvm node
-        for hs_node in cls.getChildNodes(node, 'hitspool'):
-            tmp_dir = cls.getAttr(hs_node, 'directory')
+        for hs_node in cls.get_child_nodes(node, 'hitspool'):
+            tmp_dir = cls.get_attribute(hs_node, 'directory')
             if tmp_dir is not None:
                 hs_dir = os.path.expanduser(tmp_dir)
-            tmp_str = cls.getAttr(hs_node, 'interval', defaultVal=interval)
+            tmp_str = cls.get_attribute(hs_node, 'interval',
+                                        default_val=interval)
             if tmp_str is not None:
                 interval = float(tmp_str)
-            tmp_str = cls.getAttr(hs_node, 'maxfiles', defaultVal=max_files)
+            tmp_str = cls.get_attribute(hs_node, 'maxfiles',
+                                        default_val=max_files)
             if tmp_str is not None:
                 max_files = int(tmp_str)
 
@@ -908,25 +910,27 @@ class ClusterDescription(ConfigXMLBase):
         extra_args = None
 
         # look for jvm node
-        for jvm_node in cls.getChildNodes(node, 'jvm'):
-            tmp_path = cls.getAttr(jvm_node, 'path')
+        for jvm_node in cls.get_child_nodes(node, 'jvm'):
+            tmp_path = cls.get_attribute(jvm_node, 'path')
             if tmp_path is not None:
                 path = os.path.expanduser(tmp_path)
-            tmp_srvr = cls.getAttr(jvm_node, 'server')
+            tmp_srvr = cls.get_attribute(jvm_node, 'server')
             if tmp_srvr is not None:
-                is_server = cls.parseBooleanString(tmp_srvr)
-            heap_init = cls.getAttr(jvm_node, 'heapInit', defaultVal=heap_init)
-            heap_max = cls.getAttr(jvm_node, 'heapMax', defaultVal=heap_max)
-            args = cls.getAttr(jvm_node, 'args')
-            extra_args = cls.getAttr(jvm_node, 'extraArgs',
-                                     defaultVal=extra_args)
+                is_server = cls.parse_boolean_string(tmp_srvr)
+            heap_init = cls.get_attribute(jvm_node, 'heapInit',
+                                          default_val=heap_init)
+            heap_max = cls.get_attribute(jvm_node, 'heapMax',
+                                         default_val=heap_max)
+            args = cls.get_attribute(jvm_node, 'args')
+            extra_args = cls.get_attribute(jvm_node, 'extraArgs',
+                                           default_val=extra_args)
 
         return (path, is_server, heap_init, heap_max, args, extra_args)
 
     @classmethod
     def __parse_simhub_node(cls, cluster_name, defaults, host, node):
         "Parse a <simulatedHub> node from a cluster configuration file"
-        num_str = cls.getValue(node, 'number', '0')
+        num_str = cls.get_value(node, 'number', '0')
         try:
             num = int(num_str)
         except ValueError:
@@ -934,7 +938,7 @@ class ClusterDescription(ConfigXMLBase):
                       ' bad number "%s"') % (cluster_name, host.name, num_str)
             raise ClusterDescriptionFormatError(errmsg)
 
-        prio_str = cls.getValue(node, 'priority')
+        prio_str = cls.get_value(node, 'priority')
         if prio_str is None:
             errmsg = ('Cluster "%s" host "%s" has <simulatedHub> node' +
                       ' without "priority" attribute') % \
@@ -948,8 +952,8 @@ class ClusterDescription(ConfigXMLBase):
                       (cluster_name, host.name, prio_str)
             raise ClusterDescriptionFormatError(errmsg)
 
-        if_str = cls.getValue(node, 'ifUnused')
-        if_unused = cls.parseBooleanString(if_str) is True
+        if_str = cls.get_value(node, 'ifUnused')
+        if_unused = cls.parse_boolean_string(if_str) is True
 
         comp = host.add_simulated_hub(num, prio, if_unused)
 
@@ -1070,12 +1074,13 @@ class ClusterDescription(ConfigXMLBase):
             print("%s  Default log level: %s" %
                   (prefix, self.__default_log_level), file=file_handle)
 
-        if self.__defaults.components is None or \
-           len(self.__defaults.components) == 0:
+        tmp_comps = self.__defaults.components
+        if tmp_comps is None or \
+          len(tmp_comps) == 0:  # pylint: disable=len-as-condition
             print("  **No default components**", file=file_handle)
         else:
             print("  Default components:", file=file_handle)
-            for comp in self.__defaults.components.keys():
+            for comp in self.__defaults.components:
                 print("%s    %s:" % (prefix, comp), file=file_handle)
 
                 comp_dflts = self.__defaults.components[comp]
@@ -1126,14 +1131,14 @@ class ClusterDescription(ConfigXMLBase):
         "Extract all necessary information from a cluster configuration file"
         clu_name = 'cluster'
         kids = dom.getElementsByTagName(clu_name)
-        if len(kids) < 1:
+        if len(kids) < 1:  # pylint: disable=len-as-condition
             raise XMLFormatError('No <%s> node found' % clu_name)
         elif len(kids) > 1:
             raise XMLFormatError('Multiple <%s> nodes found' % clu_name)
 
         cluster = kids[0]
 
-        name = self.getValue(cluster, 'name')
+        name = self.get_value(cluster, 'name')
 
         defaults = ClusterDefaults()
 
@@ -1142,7 +1147,7 @@ class ClusterDescription(ConfigXMLBase):
             self.__parse_default_nodes(name, defaults, node)
 
         host_nodes = cluster.getElementsByTagName('host')
-        if len(host_nodes) < 1:
+        if len(host_nodes) < 1:  # pylint: disable=len-as-condition
             errmsg = 'No hosts defined for cluster "%s"' % name
             raise ClusterDescriptionFormatError(errmsg)
 
@@ -1151,28 +1156,28 @@ class ClusterDescription(ConfigXMLBase):
         self.__defaults = defaults
         self.__host_map = host_map
 
-        self.__spade_log_dir = self.getValue(cluster, 'logDirForSpade')
+        self.__spade_log_dir = self.get_value(cluster, 'logDirForSpade')
         # expand tilde
         if self.__spade_log_dir is not None:
             self.__spade_log_dir = os.path.expanduser(self.__spade_log_dir)
 
-        self.__log_dir_copies = self.getValue(cluster, 'logDirCopies')
+        self.__log_dir_copies = self.get_value(cluster, 'logDirCopies')
         if self.__log_dir_copies is not None:
             self.__log_dir_copies = os.path.expanduser(self.__log_dir_copies)
 
-        self.__daq_data_dir = self.getValue(cluster, 'daqDataDir')
+        self.__daq_data_dir = self.get_value(cluster, 'daqDataDir')
         if self.__daq_data_dir is not None:
             self.__daq_data_dir = os.path.expanduser(self.__daq_data_dir)
 
-        self.__daq_log_dir = self.getValue(cluster, 'daqLogDir')
+        self.__daq_log_dir = self.get_value(cluster, 'daqLogDir')
         if self.__daq_log_dir is not None:
             self.__daq_log_dir = os.path.expanduser(self.__daq_log_dir)
 
-        self.__pkg_stage_dir = self.getValue(cluster, 'packageStageDir')
+        self.__pkg_stage_dir = self.get_value(cluster, 'packageStageDir')
         if self.__pkg_stage_dir is not None:
             self.__pkg_stage_dir = os.path.expanduser(self.__pkg_stage_dir)
 
-        self.__pkg_install_dir = self.getValue(cluster, 'packageInstallDir')
+        self.__pkg_install_dir = self.get_value(cluster, 'packageInstallDir')
         if self.__pkg_install_dir is not None:
             self.__pkg_install_dir = os.path.expanduser(self.__pkg_install_dir)
 
@@ -1274,12 +1279,15 @@ class ClusterDescription(ConfigXMLBase):
 
 
 def main():
+    "Main program"
+
     def try_cluster(config_dir, path=None):
         if path is None:
             cluster = ClusterDescription(config_dir)
         else:
             dir_name = os.path.dirname(path)
-            if dir_name is None or len(dir_name) == 0:
+            if dir_name is None or \
+              len(dir_name) == 0:  # pylint: disable=len-as-condition
                 dir_name = config_dir
                 base_name = path
             else:
@@ -1293,7 +1301,7 @@ def main():
                 print('For %s:' % path, file=sys.stderr)
                 traceback.print_exc()
                 return
-            except:
+            except:  # pylint: disable=bare-except
                 print('For %s:' % path, file=sys.stderr)
                 traceback.print_exc()
                 return

@@ -17,7 +17,7 @@ class RemoveHubsTest(unittest.TestCase):
             self.fail('Cannot find test resources')
         return tst_rsrc
 
-    def testRemoveHub(self):
+    def test_remove_hub(self):
         cfg_dir = self.__get_config_dir()
 
         sps_cfg = "sps-IC40-IT6-Revert-IceTop-2017"
@@ -35,7 +35,7 @@ class RemoveHubsTest(unittest.TestCase):
                          "Expected new path \"%s\", not \"%s\"" %
                          (tmppath, new_path))
 
-    def testRemoveReplay(self):
+    def test_remove_replay(self):
         cfg_dir = self.__get_config_dir()
 
         sps_cfg = "replay-127138-local"

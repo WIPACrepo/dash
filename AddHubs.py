@@ -101,8 +101,8 @@ def main():
 
     (force_create, run_cfg_name, hub_id_list) = parse_args()
 
-    new_path = DAQConfig.createOmitFileName(CONFIG_DIR, run_cfg_name,
-                                            hub_id_list, keepList=True)
+    new_path = DAQConfig.create_omit_file_name(CONFIG_DIR, run_cfg_name,
+                                               hub_id_list, keep_list=True)
     if os.path.exists(new_path):
         if force_create:
             print("WARNING: Overwriting %s" % new_path, file=sys.stderr)
@@ -118,7 +118,7 @@ def main():
         raise SystemExit(config_exp)
 
     if run_cfg is not None:
-        new_cfg = run_cfg.omit(hub_id_list, keepList=True)
+        new_cfg = run_cfg.omit(hub_id_list, keep_list=True)
         if new_cfg is not None:
             with open(new_path, 'w') as fout:
                 fout.write(new_cfg)

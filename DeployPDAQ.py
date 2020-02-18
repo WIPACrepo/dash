@@ -52,7 +52,7 @@ def add_arguments(parser, config_as_arg=True):
     parser.add_argument("--no-delete", dest="delete",
                         action="store_false", default=True,
                         help="Run rsync's without --delete")
-    parser.add_argument("-l", "--list-configs", dest="doList",
+    parser.add_argument("-l", "--list-configs", dest="print_list",
                         action="store_true", default=False,
                         help="List available configs")
     parser.add_argument("-n", "--dry-run", dest="dry_run",
@@ -68,19 +68,19 @@ def add_arguments(parser, config_as_arg=True):
                         help="Run quietly")
     parser.add_argument("-t", "--timeout", type=int, dest="timeout",
                         default=WAIT_SECONDS_DEFAULT,
-                        help="Number of seconds to wait between"
-                        " status messages")
+                        help=("Number of seconds to wait between"
+                              " status messages"))
     parser.add_argument("-v", "--verbose", dest="verbose",
                         action="store_true", default=None,
                         help="Be chatty")
     parser.add_argument("--nice", type=int, dest="nice_level",
                         default=NICE_LEVEL_DEFAULT,
-                        help="Set nice adjustment for remote rsyncs" +
-                        " [default=%s]" % NICE_LEVEL_DEFAULT)
+                        help=("Set nice adjustment for remote rsyncs"
+                              " [default=%s]" % NICE_LEVEL_DEFAULT))
     parser.add_argument("-E", "--express", dest="express",
                         action="store_true", default=EXPRESS_DEFAULT,
-                        help="Express rsyncs, unsets and overrides any/all" +
-                        " nice adjustments")
+                        help=("Express rsyncs, unsets and overrides any/all"
+                              " nice adjustments"))
     parser.add_argument("-m", "--no-host-check", dest="nohostcheck",
                         action="store_true", default=False,
                         help=("Disable checking the host type"
@@ -408,8 +408,8 @@ def run_deploy(args):
     if trace_level >= 0 and args.timeout > 0:
         wait_seconds = max(args.timeout * 0.01, 2)
 
-    if args.doList:
-        DAQConfig.showList(None, None)
+    if args.print_list:
+        DAQConfig.print_config_file_list()
         raise SystemExit
 
     if not args.config_name:
@@ -446,7 +446,7 @@ def run_deploy(args):
             else:
                 print("  %s(%s)" % (node.hostname, node.location), end=' ')
 
-            for comp in sorted(node.components()):
+            for comp in sorted(node.components):
                 print(comp.fullname, end=' ')
                 if comp.is_hub:
                     print("[%s]" % hub_type(comp.id), end=' ')

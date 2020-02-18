@@ -49,8 +49,7 @@ def add_arguments_both(parser):
     "Add arguments which apply to both 'pdaq kill' and 'pdaq launch'"
     parser.add_argument("-9", "--kill-kill", dest="kill_with_9",
                         action="store_true", default=False,
-                        help="just kill everything with extreme (-9)"
-                        " prejudice")
+                        help="Kill everything with extreme (-9) prejudice")
     parser.add_argument("-C", "--cluster-desc", dest="cluster_desc",
                         help="Cluster description name.")
     parser.add_argument("-S", "--server-kill", dest="serverKill",
@@ -71,8 +70,8 @@ def add_arguments_both(parser):
                         help="Log output for all components to terminal")
     parser.add_argument("-z", "--no-schema-validation", dest="validate",
                         action="store_false", default=True,
-                        help=("Disable schema validation of"
-                              " xml configuration files"))
+                        help=("Disable schema validation of xml"
+                              " configuration files"))
 
 
 def add_arguments_kill(_):
@@ -91,8 +90,8 @@ def add_arguments_launch(parser, config_as_arg=True):
 
     parser.add_argument("-F", "--no-force-restart", dest="force_restart",
                         action="store_false", default=True,
-                        help="Do not force healthy components to restart at"
-                        " run end")
+                        help=("Do not force healthy components to restart at"
+                              " run end"))
     parser.add_argument("-e", "--event-check", dest="event_check",
                         action="store_true", default=False,
                         help="Event builder will validate events")
@@ -179,8 +178,8 @@ def kill(config_dir, logger, args=None):
                               logger=logger)
 
     if force:
-        print("Remember to run SpadeQueue.py to recover" + \
-            " any orphaned data", file=sys.stderr)
+        print("Remember to run 'pdaq queuelogs' to recover" + \
+              " any orphaned data", file=sys.stderr)
 
 
 def launch(config_dir, dash_dir, logger, parallel=None, check_exists=True,
@@ -229,7 +228,7 @@ def launch(config_dir, dash_dir, logger, parallel=None, check_exists=True,
         for node in sorted(cluster_config.nodes()):
             print("  %s(%s)" % (node.hostname, node.location), end=' ')
 
-            for comp in sorted(node.components()):
+            for comp in sorted(node.components):
                 print("%s#%d " % (comp.name, comp.id), end=' ')
             print()
 
@@ -277,7 +276,8 @@ def livecmd_default_config():
 
 
 def main():
-    "Main method"
+    "Main program"
+
     import argparse
 
     parser = argparse.ArgumentParser()
