@@ -104,11 +104,18 @@ class exclusive_process(object):
     "context manager guaranteeing only one process at a time can run"
     def __init__(self, filename):
         self.__filename = filename
+        self.__created = False
 
     def __enter__(self):
         if process_exists(self.__filename):
             raise ProcessException("Process is running")
         write_pid_file(self.__filename)
+        self.__created = True
 
     def __exit__(self, exc_type, exc_value, traceback):
-        os.unlink(self.__filename)
+        if self.__created:
+            if os.path.exists(self.__filename):
+                os.unlink(self.__filename)
+            else:
+                raise ProcessException("Process ID file \"%s\" is gone!" %
+                                       str(self.__filename))

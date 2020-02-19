@@ -24,7 +24,7 @@ import time
 import icetop_hdf5
 
 from DefaultDomGeometry import DefaultDomGeometryReader
-from Process import exclusive_process
+from Process import exclusive_process, ProcessException
 
 MAX_FILES_PER_TARBALL = 50
 
