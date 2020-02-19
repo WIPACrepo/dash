@@ -2165,6 +2165,8 @@ class RunSet(object):
                    state_str != self.STATE_HANGING:
                     new_list.remove(comp)
                 if state_str.upper() == "ERROR":
+                    logger.error("!!! %s is in ERROR state" %
+                                 comp.fullname)
                     found_error = True
                     break
 
@@ -2172,11 +2174,11 @@ class RunSet(object):
             if found_error:
                 break
 
-            # if one or more components changed state...
-            #
             if len(waitlist) == len(new_list):
+                # if no components changed state, wait a bit and check again
                 time.sleep(1)
             else:
+                # something changed, print a new 'Waiting' message
                 waitlist = new_list
                 if len(waitlist) > 0:  # pylint: disable=len-as-condition
                     wait_str = ComponentManager.format_component_list(waitlist)
@@ -2184,7 +2186,6 @@ class RunSet(object):
                                 (str(self), self.__state, wait_str))
 
                 # reset timeout
-                #
                 end_secs = time.time() + timeout_secs
 
         total_secs = time.time() - start_secs
