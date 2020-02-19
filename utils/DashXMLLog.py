@@ -75,26 +75,40 @@ class DashXMLLog(object):
                                  "SN"]
 
     def __parse_date_time(self, fld):
-        if fld is None:
-            return None
-        if isinstance(fld, DAQDateTime) or isinstance(fld, datetime):
+        if fld is None or isinstance(fld, (DAQDateTime, datetime)):
             return fld
+
         mtch = self.DATE_PAT.match(str(fld))
         if mtch is None:
             raise ValueError("Unparseable date string \"%s\"" % fld)
+
         dtflds = []
         for i in range(6):
-            dtflds.append(int(mtch.group(i+1)))
+            try:
+                dtflds.append(int(mtch.group(i+1)))
+            except ValueError:
+                raise ValueError("Cannot parse \"%s\" (field #%d) from date"
+                                 " string \"%s\"" %
+                                 (mtch.group(i+1), i + 1, fld))
+
         if mtch.group(8) is None:
             return DAQDateTime(dtflds[0], dtflds[1], dtflds[2], dtflds[3],
-                               dtflds[4], dtflds[5], dtflds[6])
+                               dtflds[4], dtflds[5])
 
+        # extract subsecond string
         sstr = mtch.group(8)
         if len(sstr) > 10:
             raise ValueError("Bad subseconds for date string \"%s\"" % fld)
-        sstr += "0" * (10 - len(sstr))
+
+        # pad with zeros and convert to DAQ tick
+        try:
+            subsec = int((sstr + "0000000000")[:10])
+        except ValueError:
+                raise ValueError("Cannot parse subseconds \"%s\" from date"
+                                 " string \"%s\"" % (mtch.group(8), fld))
+
         return DAQDateTime(dtflds[0], dtflds[1], dtflds[2], dtflds[3],
-                           dtflds[4], dtflds[5], dtflds[6], int(sstr))
+                           dtflds[4], dtflds[5], subsec)
 
     @property
     def path(self):
