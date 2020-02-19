@@ -591,6 +591,10 @@ class ComponentManager(object):
             # get a list of the running processes
             do_cnc |= not cls.__is_running(prog_base)
 
+        if parallel is None:
+            parallel = ParallelShell(dry_run=dry_run, verbose=verbose,
+                                     trace=verbose, timeout=30)
+
         if do_cnc:
             path = os.path.join(dash_dir, prog_base + ".py")
             options = " -c %s -o %s -q %s" % \
