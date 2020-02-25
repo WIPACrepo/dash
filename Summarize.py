@@ -19,7 +19,8 @@ from utils.DashXMLLog import DashXMLLog, DashXMLLogException
 
 
 def add_arguments(parser):
-    "Add all arguments"
+    "Add command-line arguments"
+
     parser.add_argument("-c", "--use-cnc", dest="use_cnc",
                         action="store_true", default=False,
                         help="Query CnCServer for run details")
@@ -46,7 +47,8 @@ class DashLog2RunXML(BaseLog):
     DASH_PAT = re.compile(r"^\S+\s+\[" + DATE_STR + r"\]\s+(.*)$")
 
     LOGVERS_PAT = re.compile(r"Version info: (\S+) (\S+) \S+ \S+Z?")
-    OLDVERS_PAT = re.compile(r"Version info: \S+ \S+ \S+ \S+Z? \S+ (\S+) (\S+)")
+    OLDVERS_PAT = re.compile(r"Version info: \S+ \S+ \S+ \S+Z? \S+ (\S+)"
+                             r" (\S+)")
 
     RATES_PAT = re.compile(r"(\d+) physics events(\s+\(\d+\.\d+ Hz\))?," +
                            r" (\d+) moni events, (\d+) SN events, (\d+) tcals")
@@ -55,7 +57,7 @@ class DashLog2RunXML(BaseLog):
         super(DashLog2RunXML, self).__init__(None)
 
     @classmethod
-    def parse(cls, dashpath, verbose=False):
+    def parse(cls, path, verbose=False):
         has_version = False
         has_config = False
         has_cluster = False
@@ -67,7 +69,7 @@ class DashLog2RunXML(BaseLog):
         tcal_evts = None
         end_time = None
 
-        dirname = os.path.dirname(dashpath)
+        dirname = os.path.dirname(path)
         if not os.path.exists(os.path.join(dirname, "run.xml")):
             xmlname = "run.xml"
         else:
@@ -78,7 +80,7 @@ class DashLog2RunXML(BaseLog):
         runxml.set_last_good_time(0)
         runxml.run_status = None
 
-        with open(dashpath, "r") as rdr:
+        with open(path, "r") as rdr:
             for line in rdr:
                 dmatch = cls.DASH_PAT.match(line)
                 if dmatch is None:
@@ -109,7 +111,7 @@ class DashLog2RunXML(BaseLog):
                         has_config = True
                         if not has_version:
                             logging.error("Missing \"Version Info\" line"
-                                          " from %s", dashpath)
+                                          " from %s", path)
                         continue
 
                 if not has_cluster:
@@ -121,7 +123,7 @@ class DashLog2RunXML(BaseLog):
                         has_cluster = True
                         if not has_config:
                             logging.error("Missing \"Run Configuration\" line"
-                                          " from %s", dashpath)
+                                          " from %s", path)
                         continue
 
                 if not has_run_num:
@@ -143,7 +145,7 @@ class DashLog2RunXML(BaseLog):
                         has_run_num = True
                         if not has_cluster:
                             logging.error("Missing \"Cluster\" line"
-                                          " from %s", dashpath)
+                                          " from %s", path)
                         continue
 
                 if dash_text.endswith(" tcals"):
@@ -251,7 +253,7 @@ class Sum(object):
 
         try:
             return self.__read_daq_run_dir(run_num)
-        except:
+        except:  # pylint: disable=bare-except
             # couldn't find any details about this run!
             return None
 
@@ -264,9 +266,9 @@ class Sum(object):
         if os.path.exists(xmlpath):
             runxml = DashXMLLog.parse(rundir)
         else:
-            dashpath = os.path.join(rundir, "dash.log")
-            if os.path.exists(dashpath):
-                runxml = DashLog2RunXML.parse(dashpath)
+            path = os.path.join(rundir, "dash.log")
+            if os.path.exists(path):
+                runxml = DashLog2RunXML.parse(path)
             else:
                 logging.error("Cannot construct fake run.xml file for run %d",
                               run_num)
@@ -390,14 +392,14 @@ def summarize(args):
         clu_name = ClusterDescription.get_cluster_name()
         std_clucfg = strip_clucfg(clu_name)
 
-    if len(args.files) > 0:
+    if len(args.files) > 0:  # pylint: disable=len-as-condition
         files = args.files[:]
     else:
         files = []
         for entry in os.listdir(args.log_directory):
             if entry.startswith("daqrun"):
                 files.append(entry)
-        if len(files) == 0:
+        if len(files) == 0:  # pylint: disable=len-as-condition
             raise SystemExit("No 'daqrun' directories found in \"%s\"" %
                              (args.log_directory, ))
     files.sort()
@@ -413,14 +415,14 @@ def summarize(args):
 
         try:
             num = int(arg)
-        except:
+        except ValueError:
             logging.error("Bad run number \"%s\"", arg)
             continue
 
         try:
             summary.report(num, std_clucfg=std_clucfg, no_color=args.no_color,
                            verbose=args.verbose, use_cnc=args.use_cnc)
-        except:
+        except:  # pylint: disable=bare-except
             import traceback
             traceback.print_exc()
             logging.error("Bad run %d: %s: %s", num, sys.exc_info()[0],

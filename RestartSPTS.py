@@ -165,10 +165,10 @@ def is_paused():
 def is_spts_active(timeout_minutes, db_name="I3OmDb_test", verbose=False):
     """Return True if there is an active run on SPTS"""
 
-    DBHOST = "dbs"
-    DBUSER = "i3omdbro"
+    dbhost = "dbs"
+    dbuser = "i3omdbro"
 
-    dbconn = MySQLdb.connect(DBHOST, DBUSER, "", db_name)
+    dbconn = MySQLdb.connect(dbhost, dbuser, "", db_name)
     cursor = dbconn.cursor(MySQLdb.cursors.DictCursor)
     try:
         cmd = "select start, stop from run_summary order by start desc limit 1"
@@ -187,14 +187,13 @@ def is_spts_active(timeout_minutes, db_name="I3OmDb_test", verbose=False):
 
         start_time = dbrow["start"]
         if start_time is not None:
-            MAX_DURATION_MINUTES = 8 * 60
+            max_duration = 8 * 60  # eight hours
 
             minutes = minute_diff(now, start_time)
             if verbose:
                 print("start %s min %d dur %d timeout %d" %
-                      (start_time, minutes, MAX_DURATION_MINUTES,
-                       timeout_minutes))
-            return minutes < MAX_DURATION_MINUTES + timeout_minutes
+                      (start_time, minutes, max_duration, timeout_minutes))
+            return minutes < max_duration + timeout_minutes
 
         raise SystemExit("Most recent run summary has null start and stop")
     finally:
@@ -235,7 +234,7 @@ def minute_diff(now, then):
 
 def read_config(filename, config):
     # regular expression used to split apart keys and values
-    DATA_PAT = re.compile(r"^\s*(\S+)\s*[:=]\s*(\S.*)\s*$")
+    data_pat = re.compile(r"^\s*(\S+)\s*[:=]\s*(\S.*)\s*$")
 
     success = True
     if os.path.exists(filename):
@@ -245,7 +244,7 @@ def read_config(filename, config):
                 if line == "" or line.startswith("#"):
                     continue
 
-                mtch = DATA_PAT.match(line)
+                mtch = data_pat.match(line)
                 if mtch is None:
                     print("Bad %s line: %s" % (filename, line.rstrip()))
                     success = False

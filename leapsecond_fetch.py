@@ -8,13 +8,13 @@ import os
 import shutil
 
 from ftplib import FTP
-from leapseconds import leapseconds
+from leapseconds import LeapSeconds
 
 
 def compare_latestleap(latest, filename, verbose=False):
     # load in the new file
     try:
-        newleap = leapseconds(filename)
+        newleap = LeapSeconds(filename)
     except:  # pylint: disable=bare-except
         print("Downloaded NIST file %s is not valid" % filename)
         import traceback
@@ -27,7 +27,7 @@ def compare_latestleap(latest, filename, verbose=False):
 
     # load in the latest file
     try:
-        oldleap = leapseconds(latest)
+        oldleap = LeapSeconds(latest)
     except:  # pylint: disable=bare-except
         print("Replacing invalid %s" % latest)
         return True
@@ -35,19 +35,19 @@ def compare_latestleap(latest, filename, verbose=False):
     # compare expiry date/times for new file and installed latest file
     if oldleap.expiry < newleap.expiry:
         if verbose:
-            print("Current file expiry (%s) is older than %s expiry (%s)" % \
-                    (oldleap.expiry, filename, newleap.expiry))
+            print("Current file expiry (%s) is older than %s expiry (%s)" %
+                  (oldleap.expiry, filename, newleap.expiry))
         return True
 
     # let user know that the new file is not newer than the installed file
     if verbose:
         if oldleap.expiry == newleap.expiry:
-            print("A leapsecond file with this expiry date" \
-                " has already been installed")
+            print("A leapsecond file with this expiry date"
+                  " has already been installed")
         else:
-            print("%s has an older expiry date (%s) than the currently" \
-                " installed version (%s)" % \
-                (filename, newleap.expiry, oldleap.expiry))
+            print("%s has an older expiry date (%s) than the currently"
+                  " installed version (%s)" %
+                  (filename, newleap.expiry, oldleap.expiry))
 
     return False
 
@@ -161,8 +161,8 @@ def install_latestleap(latest, filename, verbose=False):
         os.symlink(basename, latest)
 
         if verbose:
-            print("Moved %s to %s and updated %s symlink" % \
-                    (basename, ldir, os.path.basename(latest)))
+            print("Moved %s to %s and updated %s symlink" %
+                  (basename, ldir, os.path.basename(latest)))
 
 
 def main():
@@ -172,7 +172,7 @@ def main():
 
     verbose = len(sys.argv) > 1 and sys.argv[1] == "-v"
 
-    latest = leapseconds.get_latest_path()
+    latest = LeapSeconds.get_latest_path()
 
     newfile = fetch_latestleap(host='ftp.nist.gov',
                                path='/pub/time/', verbose=verbose)

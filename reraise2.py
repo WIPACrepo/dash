@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 "Wrap a function around the Python2 method of reraising exceptions"
 
+
 # XXX not needed in Python3
 def reraise_excinfo(exc_info):
     "Reraise Python2 exception"

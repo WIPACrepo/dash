@@ -10,7 +10,6 @@ from locate_pdaq import find_pdaq_config
 
 class NoNameException(Exception):
     "No configuration name has been set"
-    pass
 
 
 class CachedFile(object):
@@ -38,7 +37,7 @@ class CachedFile(object):
                 if ret is None or ret == "":
                     return None
                 return ret
-        except:
+        except:  # pylint: disable=bare-except
             return None
 
     @classmethod

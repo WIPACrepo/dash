@@ -75,7 +75,7 @@ def parse_args():
         print("No run configuration specified", file=sys.stderr)
         usage = True
 
-    if not usage and len(hub_id_list) == 0:
+    if not usage and len(hub_id_list) == 0:  # pylint: disable=len-as-condition
         print("No hub IDs specified", file=sys.stderr)
         usage = True
 

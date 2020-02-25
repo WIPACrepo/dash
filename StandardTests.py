@@ -14,6 +14,7 @@ import DeployPDAQ
 from BaseRun import FlasherScript, LaunchException
 from DAQConfig import DAQConfigException, DAQConfigParser
 from cncrun import CnCRun
+from decorators import classproperty
 from liverun import LiveRun, LiveTimeoutException
 from locate_pdaq import find_pdaq_trunk
 from utils.Machineid import Machineid
@@ -35,7 +36,7 @@ PDAQ_HOME = find_pdaq_trunk()
 
 
 class PDAQRunException(Exception):
-    pass
+    "Problem with a pDAQ run"
 
 
 class PDAQRun(object):
@@ -62,18 +63,22 @@ class PDAQRun(object):
                 if pair[0] is None:
                     path = None
                 else:
-                    if self.TSTRSRC is None:
-                        self.TSTRSRC = os.path.join(PDAQ_HOME, "src", "test",
-                                                    "resources")
-
+                    tstdir = self.test_resource_path
                     path = FlasherScript.find_data_file(pair[0],
-                                                        basedir=self.TSTRSRC)
+                                                        basedir=tstdir)
 
                 self.__flasher_data.append((path, pair[1]))
 
     @property
     def cluster_config(self):
         return self.__run_cfg_name
+
+    @classproperty
+    def test_resource_path(cls):  # pylint: disable=no-self-argument
+        if cls.TSTRSRC is None:
+            # pylint: disable=invalid-name
+            cls.TSTRSRC = os.path.join(PDAQ_HOME, "src", "test", "resources")
+        return cls.TSTRSRC
 
     def run(self, runmgr, quick, cluster_desc=None, ignore_db=False,
             verbose=False):
@@ -108,7 +113,7 @@ class PDAQRun(object):
             timeouts += 1
             if timeouts > self.MAX_TIMEOUTS:
                 raise SystemExit("I3Live seems to have gone away")
-        except:
+        except:  # pylint: disable=bare-except
             traceback.print_exc()
 
 
@@ -160,14 +165,17 @@ class Deploy(object):
 
         return sorted(cc_dict.keys())
 
-    def show_home(self):
+    @classmethod
+    def show_home(cls):
         "Print the actual pDAQ home directory name"
-        print("===============================================================")
+        print("==============================================================")
         print("== PDAQ_HOME points to %s" % str(PDAQ_HOME))
-        print("===============================================================")
+        print("==============================================================")
 
 
 def add_arguments(parser):
+    "Add command-line arguments"
+
     parser.add_argument("-C", "--cluster-desc", dest="cluster_desc",
                         help="Cluster description name")
     parser.add_argument("-c", "--cncrun", dest="cncrun",
@@ -201,7 +209,8 @@ def add_arguments(parser):
     parser.add_argument("-X", "--show_check_output", dest="show_check_output",
                         action="store_true", default=False,
                         help="Show the output of the 'livecmd check' commands")
-    parser.add_argument("-x", "--show_command_output", dest="show_command_output",
+    parser.add_argument("-x", "--show_command_output",
+                        dest="show_command_output",
                         action="store_true", default=False,
                         help=("Show the output of the deploy and/or"
                               " run commands"))

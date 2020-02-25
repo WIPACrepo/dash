@@ -24,7 +24,6 @@ from i3helper import reraise_excinfo
 
 class LogException(Exception):
     "Exception used by log-related classes"
-    pass
 
 
 class LogSocketServer(object):
@@ -91,14 +90,14 @@ class LogSocketServer(object):
 
             try:
                 sock.close()
-            except:
-                pass # ignore errors on close
+            except:   # pylint: disable=bare-except
+                pass  # ignore errors on close
 
             if self.__outfile is not None:
                 try:
                     self.__outfile.close()
-                except:
-                    pass # ignore errors on close
+                except:   # pylint: disable=bare-except
+                    pass  # ignore errors on close
                 self.__outfile = None
 
     @classmethod
@@ -113,10 +112,10 @@ class LogSocketServer(object):
         per = [sock]
         while self.__thread is not None:
             srd, _, sre = select.select(prd, pwr, per, 0.5)
-            if len(sre) != 0:
+            if len(sre) != 0:  # pylint: disable=len-as-condition
                 if self.__outfile is not None:
                     print("Error on select was detected.", file=self.__outfile)
-            if len(srd) == 0:
+            if len(srd) == 0:  # pylint: disable=len-as-condition
                 continue
             while True:  # Slurp up waiting packets, return to select if EAGAIN
                 try:
@@ -154,11 +153,10 @@ class LogSocketServer(object):
     def next_log_port(cls):  # pylint: disable=no-self-argument
         with cls.NEXT_LOCK:
             port = cls.NEXT_PORT
-            cls.NEXT_PORT += 1
+            cls.NEXT_PORT += 1  # pylint: disable=invalid-name
             if cls.NEXT_PORT > DAQPort.EPHEMERAL_MAX:
                 cls.NEXT_PORT = DAQPort.EPHEMERAL_BASE
             return port
-
 
     @property
     def port(self):
@@ -184,7 +182,7 @@ class LogSocketServer(object):
         try:
             if old_fd is not None:
                 old_fd.close()
-        except:
+        except:  # pylint: disable=bare-except
             pass
 
         # rename the thread
@@ -209,9 +207,9 @@ class BaseAppender(object):
         "Return the appender name"
         return self.__name
 
-    def close(self):
+    def close(self):  # pylint: disable=no-self-use
         "Close the appender"
-        pass
+        raise NotImplementedError()
 
     @property
     def name(self):
@@ -242,7 +240,7 @@ class BaseFileAppender(BaseAppender):
             self.close_fd(self.__fdesc)
             self.__fdesc = None
 
-    def close_fd(self, fdesc):
+    def close_fd(self, fdesc):  # pylint: disable=no-self-use
         "Close the file descriptor (ConsoleAppender overrides this)"
         fdesc.close()
 
@@ -263,9 +261,9 @@ class ConsoleAppender(BaseFileAppender):
         "Create a console logger"
         super(ConsoleAppender, self).__init__(name, sys.stdout)
 
-    def close_fd(self, fdesc):
+    def close_fd(self, fdesc):  # pylint: disable=no-self-use
         "Don't close system file handle"
-        pass
+        return
 
 
 class DAQLog(object):
@@ -304,9 +302,11 @@ class DAQLog(object):
             return self.__LEVEL_NAME[self.__level]
         return "?level=%d?" % self.__level
 
-    def _logmsg(self, level, msg):
+    def _logmsg(self, level, msg,
+                retry=False):  # pylint: disable=unused-argument
         "This is semi-private so CnCLogger can extend it"
         if level >= self.__level:
+            # pylint: disable=len-as-condition
             if len(self.__appender_list) == 0:
                 raise LogException("No appenders have been added to %s: %s" %
                                    (self.__name, msg))
@@ -325,7 +325,7 @@ class DAQLog(object):
         for apnd in self.__appender_list:
             try:
                 apnd.close()
-            except:
+            except:  # pylint: disable=bare-except
                 saved_exc = sys.exc_info()
         del self.__appender_list[:]
         if saved_exc:
@@ -436,25 +436,19 @@ class LiveSocketAppender(BaseAppender):
     def close(self):
         "Close the monitoring client"
         if self.__client:
-            self.__client_lock.acquire()
-            try:
+            with self.__client_lock:
                 self.__client.close()
                 self.__client = None
-            finally:
-                self.__client_lock.release()
 
     def write(self, msg, mtime=None, level=DAQLog.DEBUG):
         "Send the log message to I3Live"
         msg = str(msg)
 
-        self.__client_lock.acquire()
-        try:
+        with self.__client_lock:
             if not msg.startswith('Start of log at '):
                 if self.__client:
                     self.__client.sendMoni("log", msg, prio=self.__prio,
                                            time=mtime)
-        finally:
-            self.__client_lock.release()
 
 
 if __name__ == "__main__":
@@ -464,7 +458,8 @@ if __name__ == "__main__":
     from CnCLogger import CnCLogger
 
     def add_arguments(parser):
-        "Add all command-line arguments"
+        "Add command-line arguments"
+
         parser.add_argument("-L", "--liveLog", dest="livelog",
                             help="Hostname:port for IceCube Live")
         parser.add_argument("-M", "--mesg", dest="logmsg", default="",
@@ -474,6 +469,7 @@ if __name__ == "__main__":
 
     def main():
         "Main program"
+
         parser = argparse.ArgumentParser()
         add_arguments(parser)
         args = parser.parse_args()
@@ -526,7 +522,7 @@ if __name__ == "__main__":
                 try:
                     while True:
                         pytime.sleep(1)
-                except:
+                except:  # pylint: disable=bare-except
                     pass
             finally:
                 # This tells thread to stop if KeyboardInterrupt

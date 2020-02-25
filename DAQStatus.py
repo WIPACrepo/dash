@@ -14,6 +14,8 @@ LINE_LENGTH = 78
 
 
 def add_arguments(parser):
+    "Add command-line arguments"
+
     parser.add_argument("-m", "--no-host-check", dest="nohostcheck",
                         action="store_true", default=False,
                         help="Don't check the host type for run permission")
@@ -26,20 +28,10 @@ def add_arguments(parser):
                         help="Print detailed list")
 
 
-def cmp_comp(comp1, comp2):
-    val = cmp(comp1["state"], comp2["state"])
-    if val == 0:
-        val = cmp(comp1["compName"], comp2["compName"])
-        if val == 0:
-            val = cmp(comp1["compNum"], comp2["compNum"])
-
-    return val
-
-
 def dump_comp(comp, num_list, indent, indent2):
     """Dump list of component instances, breaking long lists across lines"""
 
-    if comp is None or len(num_list) == 0:
+    if comp is None or len(num_list) == 0:  # pylint: disable=len-as-condition
         return
 
     if len(num_list) == 1 and num_list[0] == 0:
@@ -110,15 +102,14 @@ def get_plural(num):
 
 
 def list_terse(comp_list, indent, indent2):
-    comp_list.sort(cmp_comp)
-
     prev_state = None
     prev_comp = None
 
     num_list = []
-    for comp in comp_list:
-        comp_changed = cmp(prev_comp, comp["compName"]) != 0
-        state_changed = cmp(prev_state, comp["state"]) != 0
+    for comp in sorted(comp_list, key=lambda x: (x["state"], x["compName"],
+                                                 x["compNum"])):
+        state_changed = prev_state != comp["state"]
+        comp_changed = prev_comp != comp["compName"]
         if comp_changed or state_changed:
             dump_comp(prev_comp, num_list, indent, indent2)
             prev_comp = comp["compName"]
@@ -131,9 +122,8 @@ def list_terse(comp_list, indent, indent2):
 
 
 def list_verbose(comp_list, indent, indent2, use_numeric=True):
-    comp_list.sort(cmp_comp)
-
-    for comp in comp_list:
+    for comp in sorted(comp_list, key=lambda x: (x["state"], x["compName"],
+                                                 x["compNum"])):
         if use_numeric:
             hostname = comp["host"]
         else:
@@ -142,9 +132,9 @@ def list_verbose(comp_list, indent, indent2, use_numeric=True):
             if idx > 0:
                 hostname = hostname[:idx]
 
-        print("%s%s#%d %s#%d at %s:%d M#%d %s" % \
-            (indent, indent2, comp["id"], comp["compName"], comp["compNum"],
-             hostname, comp["rpcPort"], comp["mbeanPort"], comp["state"]))
+        print("%s%s#%d %s#%d at %s:%d M#%d %s" %
+              (indent, indent2, comp["id"], comp["compName"], comp["compNum"],
+               hostname, comp["rpcPort"], comp["mbeanPort"], comp["state"]))
 
 
 def print_status(args):
@@ -152,28 +142,28 @@ def print_status(args):
 
     try:
         ncomps = cncrpc.rpc_component_count()
-    except:
+    except:  # pylint: disable=bare-except
         ncomps = 0
 
     try:
         complist = cncrpc.rpc_component_list_dicts([], False)
-    except:
+    except:  # pylint: disable=bare-except
         complist = []
 
     try:
         nsets = cncrpc.rpc_runset_count()
-    except:
+    except:  # pylint: disable=bare-except
         nsets = 0
 
     try:
         ids = cncrpc.rpc_runset_list_ids()
-    except:
+    except:  # pylint: disable=bare-except
         ids = []
 
     try:
         vers_info = cncrpc.rpc_version()
         vers = " (%s:%s)" % (vers_info["release"], vers_info["repo_rev"])
-    except:
+    except:  # pylint: disable=bare-except
         vers = " ??"
 
     print("CNC %s:%d%s" % ("localhost", DAQPort.CNCSERVER, vers))
@@ -207,7 +197,7 @@ def print_status(args):
 
     try:
         lst = liverpc.rpc_status(SERVICE_NAME)
-    except:
+    except:  # pylint: disable=bare-except
         lst = "???"
 
     print("=======================")

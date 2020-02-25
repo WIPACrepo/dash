@@ -90,22 +90,16 @@ class InputOutputThread(threading.Thread):
 
     def pull(self):
         # try to get data from the queue
-        self.__queue_flag.acquire()
-        try:
+        with self.__queue_flag:
             if len(self.__queue) == 0:  # pylint: disable=len-as-condition
                 return None
 
             # return the next block of data
             return self.__queue.pop(0)
-        finally:
-            self.__queue_flag.release()
 
     def push(self, data):
-        self.__queue_flag.acquire()
-        try:
+        with self.__queue_flag:
             self.__queue.append(data)
-        finally:
-            self.__queue_flag.release()
 
 
 class InputChannel(InputOutputThread):
@@ -315,8 +309,8 @@ class OutputEngine(Engine):
             return "O"
         return "o"
 
-    def start(self):
-        pass
+    def start(self):  # pylint: disable=no-self-use
+        return
 
 
 class BeanValue(object):
@@ -346,9 +340,9 @@ class BeanValue(object):
                 return rtnval, newlist
             return rtnval, tuple(newlist)
 
-        print("Not updating %s: value %s<%s> != delta" \
-            " %s<%s>" % (name, value, type(value).__name__, delta,
-                         type(delta).__name__), file=sys.stderr)
+        print("Not updating %s: value %s<%s> != delta %s<%s>" %
+              (name, value, type(value).__name__, delta, type(delta).__name__),
+              file=sys.stderr)
         return value, delta
 
     def get(self):
@@ -443,7 +437,7 @@ class FakeMBeanData(object):
 
 
 class FakeClientException(Exception):
-    pass
+    "General FakeClient exception"
 
 
 class FakeClient(object):
@@ -500,7 +494,7 @@ class FakeClient(object):
                                                       latest_time))
         return "CommitSubrun"
 
-    def __configure(self, cfg_name=None):
+    def __configure(self, _=None):
         self.__state = "ready"
         return self.__state
 
@@ -578,7 +572,8 @@ class FakeClient(object):
         path = os.path.join(os.environ["HOME"], "prj", "simplehits", fullname)
 
         if not os.path.exists(path):
-            print("%s cannot read data from %s" % (self, path), file=sys.stderr)
+            print("%s cannot read data from %s" % (self, path),
+                  file=sys.stderr)
             return None
 
         return path
@@ -592,26 +587,29 @@ class FakeClient(object):
         return self.__run_num
 
     def __get_source_id(self):
+        src_id = None
         if self.__name == "inIceTrigger":
-            return 4000 + self.__num
-        if self.__name == "iceTopTrigger":
-            return 5000 + self.__num
-        if self.__name == "globalTrigger":
-            return 6000 + self.__num
-        if self.__name == "eventBuilder":
-            return 7000 + self.__num
-        if self.__name == "tcalBuilder":
-            return 8000 + self.__num
-        if self.__name == "moniBuilder":
-            return 9000 + self.__num
-        if self.__name == "snBuilder":
-            return 11000 + self.__num
-        if self.__name == "stringHub" or self.__name == "icetopHub":
-            return 12000 + self.__num
-        if self.__name == "secondaryBuilders":
-            return 14000 + self.__num
+            src_id = 4000 + self.__num
+        elif self.__name == "iceTopTrigger":
+            src_id = 5000 + self.__num
+        elif self.__name == "globalTrigger":
+            src_id = 6000 + self.__num
+        elif self.__name == "eventBuilder":
+            src_id = 7000 + self.__num
+        elif self.__name == "tcalBuilder":
+            src_id = 8000 + self.__num
+        elif self.__name == "moniBuilder":
+            src_id = 9000 + self.__num
+        elif self.__name == "snBuilder":
+            src_id = 11000 + self.__num
+        elif self.__name == "stringHub" or self.__name == "icetopHub":
+            src_id = 12000 + self.__num
+        elif self.__name == "secondaryBuilders":
+            src_id = 14000 + self.__num
+        else:
+            raise Exception("Unknown component name \"%s\"" % (self.__name, ))
 
-        raise Exception("Unknown component name \"%s\"" % str(self.__name))
+        return src_id
 
     def __get_state(self):
         return self.__state
@@ -647,8 +645,8 @@ class FakeClient(object):
 
     def __log_to(self, log_host, log_port, live_host, live_port):
         if not self.__quiet:
-            print("LogTo %s LOG %s:%d LIVE %s:%d" % \
-                (self, log_host, log_port, live_host, live_port))
+            print("LogTo %s LOG %s:%d LIVE %s:%d" %
+                  (self, log_host, log_port, live_host, live_port))
         return False
 
     def __prepare_subrun(self, subrun_num):

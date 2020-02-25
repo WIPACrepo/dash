@@ -32,7 +32,7 @@ class ConsoleLogger(object):
     "Console logger"
     def __init__(self):
         "Create a console logger"
-        pass
+        return
 
     @classmethod
     def error(cls, msg):
@@ -47,6 +47,7 @@ class ConsoleLogger(object):
 
 def add_arguments_both(parser):
     "Add arguments which apply to both 'pdaq kill' and 'pdaq launch'"
+
     parser.add_argument("-9", "--kill-kill", dest="kill_with_9",
                         action="store_true", default=False,
                         help="Kill everything with extreme (-9) prejudice")
@@ -76,11 +77,12 @@ def add_arguments_both(parser):
 
 def add_arguments_kill(_):
     "Add arguments which only apply to 'pdaq kill'"
-    pass
+    return
 
 
 def add_arguments_launch(parser, config_as_arg=True):
     "Add arguments which only apply to 'pdaq launch'"
+
     if config_as_arg:
         parser.add_argument("-c", "--config-name", dest="config_name",
                             help="Configuration name")
@@ -127,8 +129,9 @@ def check_arguments(args):
             ignored.append("--force")
         if args.serverKill:
             ignored.append("--server-kill")
-    if len(ignored) > 0:
+    if len(ignored) > 0:  # pylint: disable=len-as-condition
         print("Ignoring " + ", ".join(ignored), file=sys.stderr)
+
 
 def check_detector_state():
     "If there are active runsets, print them to the console and exit"
@@ -138,8 +141,8 @@ def check_detector_state():
             plural = ''
         else:
             plural = 's'
-        print('Found %d active runset%s:' % \
-            (len(runsets), plural), file=sys.stderr)
+        print('Found %d active runset%s:' % (len(runsets), plural),
+              file=sys.stderr)
         for rid in list(runsets.keys()):
             print("  %d: %s" % (rid, runsets[rid]), file=sys.stderr)
         raise SystemExit('To force a restart, rerun with the --force option')
@@ -178,15 +181,15 @@ def kill(config_dir, logger, args=None):
                               logger=logger)
 
     if force:
-        print("Remember to run 'pdaq queuelogs' to recover" + \
-              " any orphaned data", file=sys.stderr)
+        print("Remember to run 'pdaq queuelogs' to recover any orphaned data",
+              file=sys.stderr)
 
 
 def launch(config_dir, dash_dir, logger, parallel=None, check_exists=True,
            args=None):
     "Launch the components required by the run configuration"
     if args is None:
-        cluster_desc = None
+        cluster_cfg = None
         config_name = None
         validate = None
         verbose = None
@@ -194,7 +197,7 @@ def launch(config_dir, dash_dir, logger, parallel=None, check_exists=True,
         event_check = None
         force_restart = None
     else:
-        cluster_desc = args.cluster_desc
+        cluster_cfg = args.cluster_desc
         config_name = args.config_name
         validate = args.validate
         verbose = args.verbose
@@ -209,7 +212,7 @@ def launch(config_dir, dash_dir, logger, parallel=None, check_exists=True,
         cluster_config = \
             DAQConfigParser.get_cluster_configuration(config_name,
                                                       use_active_config=False,
-                                                      cluster_desc=cluster_desc,
+                                                      cluster_desc=cluster_cfg,
                                                       config_dir=config_dir,
                                                       validate=validate)
     except DAQConfigException:
@@ -244,11 +247,12 @@ def launch(config_dir, dash_dir, logger, parallel=None, check_exists=True,
     live_port = DAQPort.I3LIVE_ZMQ
 
     ComponentManager.launch(do_cnc, dry_run, verbose, cluster_config, dash_dir,
-                            config_dir, daq_data_dir, log_dir, log_dir_fallback,
-                            spade_dir, copy_dir, log_port, live_port,
-                            event_check=event_check, check_exists=check_exists,
-                            start_missing=True, force_restart=force_restart,
-                            logger=logger, parallel=parallel)
+                            config_dir, daq_data_dir, log_dir,
+                            log_dir_fallback, spade_dir, copy_dir, log_port,
+                            live_port, event_check=event_check,
+                            check_exists=check_exists, start_missing=True,
+                            force_restart=force_restart, logger=logger,
+                            parallel=parallel)
 
 
 def livecmd_default_config():

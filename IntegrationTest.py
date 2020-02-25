@@ -203,7 +203,7 @@ class FakeMoniClient(object):
 
     # fake version of Live's DefaultMoniClient.sendMoni
     def sendMoni(self, name, data, prio=None,  # pylint: disable=invalid-name
-                 time=None):
+                 time=None):  # pylint: disable=redefined-outer-name
         pass
 
 
@@ -293,7 +293,7 @@ class MostlyRunSet(RunSet):
 
         self.__run_data = None
 
-        if len(self.LOGDICT) > 0:
+        if len(self.LOGDICT) > 0:  # pylint: disable=len-as-condition
             raise Exception("Found %d open runset logs" % len(self.LOGDICT))
 
         super(MostlyRunSet, self).__init__(parent, run_config, runset, logger)
@@ -552,19 +552,6 @@ class RealComponent(Comparable):
 
         self.__cnc = None
 
-    def __cmp__(self, other):
-        if self.launch_order < other.launch_order:
-            return -1
-        if self.launch_order > other.launch_order:
-            return 1
-
-        if self.num < other.num:
-            return -1
-        if self.num > other.num:
-            return 1
-
-        return 0
-
     def __repr__(self):
         return str(self)
 
@@ -575,7 +562,7 @@ class RealComponent(Comparable):
         self.__log('Commit subrun %d: %s' % (rid, str(latest_time)))
         return 'COMMIT'
 
-    def __configure(self, cfg_name=None):
+    def __configure(self, cfg_name=None):  # pylint: disable=unused-argument
         if self.__logger is None and self.__liver is None:
             raise Exception('No logging for %s' % (str(self)))
 
@@ -634,7 +621,7 @@ class RealComponent(Comparable):
 
         return self.__fix_value(val)
 
-    def __get_run_data(self, run_num):
+    def __get_run_data(self, run_num):  # pylint: disable=unused-argument
         if self.__run_data is None:
             raise Exception("RunData has not been set")
         return self.__fix_value(self.__run_data)
@@ -783,8 +770,9 @@ class RealComponent(Comparable):
         self.__mbean.server_close()
 
     @property
-    def compare_tuple(self):
-        return (self.launch_order, self.__num)
+    def compare_key(self):
+        "Return the keys to be used by the Comparable methods"
+        return (self.launch_order, self.num)
 
     def connect_to_cnc(self):
         self.__cnc = rpcclient.ServerProxy('http://localhost:%d' %
@@ -928,6 +916,30 @@ class IntegrationTest(unittest.TestCase):
 
     NUM_COMPONENTS = 9
 
+    @classmethod
+    def __check_active_threads(cls):
+        reps = 5
+        for num in range(reps):
+            if threading.activeCount() < 2:
+                break
+
+            need_hdr = True
+            for thrd in threading.enumerate():
+                if thrd.name == "MainThread":
+                    continue
+
+                if need_hdr:
+                    print("---- Active threads #%d" %
+                          (reps - num), file=sys.stderr)
+                    need_hdr = False
+                print("  %s" % thrd, file=sys.stderr)
+
+            time.sleep(1)
+
+        if threading.activeCount() > 1:
+            print("tearDown exiting with %d active threads" %
+                  threading.activeCount(), file=sys.stderr)
+
     def __create_components(self):
         hs_dir = "/mnt/data/nowhere"
         hs_interval = 15.0
@@ -998,7 +1010,8 @@ class IntegrationTest(unittest.TestCase):
 
         return (self.__live, log)
 
-    def __create_loggers(self, run_options, live_run_only):
+    @classmethod
+    def __create_loggers(cls, run_options, live_run_only):
         if not RunOption.is_log_to_file(run_options) and not live_run_only:
             appender = None
         else:
@@ -1030,9 +1043,10 @@ class IntegrationTest(unittest.TestCase):
         else:
             live_port = None
 
-        self.__cnc = MostlyCnCServer(clu_cfg, None, live_port, self.COPY_DIR,
-                                     self.LOG_DIR, self.CONFIG_DIR,
-                                     self.DATA_DIR, self.SPADE_DIR)
+        self.__cnc = MostlyCnCServer(clu_cfg, log_port, live_port,
+                                     self.COPY_DIR, self.LOG_DIR,
+                                     self.CONFIG_DIR, self.DATA_DIR,
+                                     self.SPADE_DIR)
         self.__cnc.set_dash_appender(dash_log)
 
         return (self.__cnc, appender, dash_log)
@@ -1117,7 +1131,8 @@ class IntegrationTest(unittest.TestCase):
             time.sleep(MostlyTaskManager.WAITSECS)
             task_mgr.wait_for_tasks()
 
-    def __get_connection_list(self, name):
+    @classmethod
+    def __get_connection_list(cls, name):
         if name == 'stringHub':
             conn_list = [
                 ('moniData', Connector.OUTPUT, -1),
@@ -1726,7 +1741,7 @@ class IntegrationTest(unittest.TestCase):
             log_server.check_status(10)
 
     @staticmethod
-    def __wait_for_empty_log(log, errmsg):
+    def __wait_for_empty_log(log, errmsg):  # pylint: disable=unused-argument
         for _ in range(5):
             if log.is_empty:
                 break
@@ -1792,10 +1807,11 @@ class IntegrationTest(unittest.TestCase):
     def tearDown(self):
         try:
             self.__log_factory.tearDown()
-        except:
+        except:  # pylint: disable=bare-except
             traceback.print_exc()
 
-        if self.__comp_list is not None and len(self.__comp_list) > 0:
+        if self.__comp_list is not None and \
+          len(self.__comp_list) > 0:  # pylint: disable=len-as-condition
             for comp in self.__comp_list:
                 comp.close()
         if self.__cnc is not None:
@@ -1811,28 +1827,7 @@ class IntegrationTest(unittest.TestCase):
         shutil.rmtree(IntegrationTest.LOG_DIR, ignore_errors=True)
         IntegrationTest.LOG_DIR = None
 
-        if False:
-            reps = 5
-            for num in range(reps):
-                if threading.activeCount() < 2:
-                    break
-
-                need_hdr = True
-                for thrd in threading.enumerate():
-                    if thrd.name == "MainThread":
-                        continue
-
-                    if need_hdr:
-                        print("---- Active threads #%d" %
-                              (reps - num), file=sys.stderr)
-                        need_hdr = False
-                    print("  %s" % thrd, file=sys.stderr)
-
-                time.sleep(1)
-
-            if threading.activeCount() > 1:
-                print("tearDown exiting with %d active threads" %
-                      threading.activeCount(), file=sys.stderr)
+        self.__check_active_threads()
 
         RunXMLValidator.tearDown()
 
@@ -1840,7 +1835,7 @@ class IntegrationTest(unittest.TestCase):
             self.tearDownClass()
 
     def test_finish_in_main(self):
-        run_options = RunOption.LOG_TO_FILE | RunOption.MONI_TO_FILE
+        run_options = RunOption.MONI_TO_FILE
 
         (cnc, appender, dash_log) = \
             self.__create_run_objects(run_options)
@@ -1853,7 +1848,7 @@ class IntegrationTest(unittest.TestCase):
                         False)
 
     def test_cnc_in_main(self):
-        run_options = RunOption.LOG_TO_FILE | RunOption.MONI_TO_FILE
+        run_options = RunOption.MONI_TO_FILE
 
         (cnc, appender, dash_log) = self.__create_run_objects(run_options)
 

@@ -6,6 +6,7 @@ from .validate_configs import validate_default_dom_geom
 import os
 import sys
 
+
 def main():
     "Main program"
 

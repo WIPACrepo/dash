@@ -5,9 +5,10 @@ from __future__ import print_function
 import sys
 
 from DAQLog import DAQLog, LiveSocketAppender, LogException, LogSocketAppender
+from i3helper import Comparable
 
 
-class LogInfo(object):
+class LogInfo(Comparable):
     "Paired pDAQ+Live logging information"
     def __init__(self, log_host, log_port, live_host, live_port):
         """
@@ -21,16 +22,6 @@ class LogInfo(object):
         self.__live_host = live_host
         self.__live_port = live_port
 
-    def __cmp__(self, other):
-        val = cmp(self.log_host, other.log_host)
-        if val == 0:
-            val = cmp(self.log_port, other.log_port)
-            if val == 0:
-                val = cmp(self.live_host, other.live_host)
-                if val == 0:
-                    val = cmp(self.live_port, other.live_port)
-        return val
-
     def __str__(self):
         outstr = ''
         if self.__log_host is not None and self.__log_port is not None:
@@ -40,6 +31,12 @@ class LogInfo(object):
         if outstr == "":
             return 'NoInfo'
         return outstr[1:]
+
+    @property
+    def compare_key(self):
+        "Return the keys to be used by the Comparable methods"
+        return (self.__log_host, self.__log_port, self.__live_host,
+                self.__live_port)
 
     @property
     def live_host(self):
@@ -111,7 +108,7 @@ class CnCLogger(DAQLog):
             super(CnCLogger, self)._logmsg(level, msg)
         except LogException:
             self.__reset_and_retry(level, msg, retry=retry)
-        except Exception as ex:
+        except Exception as ex:  # pylint: disable=broad-except
             if str(ex).find('Connection refused') < 0:
                 raise
             print('Lost logging connection to %s' %
@@ -173,7 +170,8 @@ class CnCLogger(DAQLog):
     def reset_log(self):
         "close current log and reset to initial state"
 
-        if self.__prev_info is not None and self.__log_info != self.__prev_info:
+        if self.__prev_info is not None and \
+          self.__log_info != self.__prev_info:
             self.close()
             self.__log_info = self.__prev_info
             self.__prev_info = None

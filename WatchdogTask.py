@@ -31,18 +31,9 @@ class UnhealthyRecord(Comparable):
         """
         return "#%d: %s" % (self.__order, self.__msg)
 
-    def __cmp__(self, other):
-        "Compare this record with others"
-        if not isinstance(other, UnhealthyRecord):
-            return -1
-
-        val = cmp(self.__order, other.order)
-        if val == 0:
-            val = cmp(self.__msg, other.message)
-        return val
-
     @property
-    def compare_tuple(self):
+    def compare_key(self):
+        "Return the keys to be used by the Comparable methods"
         return (self.__order, self.__msg)
 
     @property
@@ -106,7 +97,8 @@ class ThresholdWatcher(Watcher):
 
         full_name = "%s %s.%s %s %s" % \
             (comp.fullname, bean_name, field_name, updown, self.__threshold)
-        super(ThresholdWatcher, self).__init__(full_name, bean_name, field_name)
+        super(ThresholdWatcher, self).__init__(full_name, bean_name,
+                                               field_name)
 
     def __compare(self, threshold, value):
         "Check the value against the threshold value"
@@ -124,7 +116,7 @@ class ThresholdWatcher(Watcher):
                                  " is %s") %
                                 (str(self), str(type(self.__threshold)),
                                  str(type(new_value))))
-        elif new_type == list or new_type == dict:
+        elif new_type in (list, dict):
             raise TaskException("ThresholdWatcher does not support %s" %
                                 new_type)
         elif self.__compare(self.__threshold, new_value):
@@ -152,7 +144,7 @@ class ValueWatcher(Watcher):
         "Create a value watcher"
         self.__from_comp = from_comp
         self.__to_comp = to_comp
-        self.__order = self.__compute_order(bean_name, field_name)
+        self.__order = self.__compute_order()
         self.__prev_value = None
         self.__unchanged = 0
 
@@ -168,7 +160,7 @@ class ValueWatcher(Watcher):
 
         return new_value == old_value
 
-    def __compute_order(self, bean_name, field_name):
+    def __compute_order(self):
         "Compute the order of this component in the DAQ data flow"
         if self.__from_comp.is_builder and self.__to_comp.is_source:
             return self.__from_comp.order + 1
@@ -290,7 +282,7 @@ class WatchData(object):
             if bad_list is not None:
                 unhealthy += bad_list
 
-        if len(unhealthy) == 0:
+        if len(unhealthy) == 0:  # pylint: disable=len-as-condition
             return None
 
         return unhealthy
@@ -305,7 +297,7 @@ class WatchData(object):
                 val = self.__mbean_client.get(bean_name, fld_name)
 
                 chk_val = watch_list[0].check(val)
-            except Exception as exc:
+            except Exception as exc:  # pylint: disable=broad-except
                 unhealthy.append(watch_list[0].unhealthy_record(exc))
                 chk_val = True
             if not chk_val:
@@ -326,7 +318,7 @@ class WatchData(object):
             try:
                 val_map = self.__mbean_client.get_attributes(bean_name,
                                                              fld_list)
-            except Exception as exc:
+            except Exception as exc:  # pylint: disable=broad-except
                 fld_list = []
                 unhealthy.append(watch_list[0].unhealthy_record(exc))
 
@@ -341,13 +333,13 @@ class WatchData(object):
 
                 try:
                     chk_val = watch_list[index].check(val)
-                except Exception as exc:
+                except Exception as exc:  # pylint: disable=broad-except
                     unhealthy.append(watch_list[index].unhealthy_record(exc))
                     chk_val = True
                 if not chk_val:
                     unhealthy.append(watch_list[index].unhealthy_record(val))
 
-        if len(unhealthy) == 0:
+        if len(unhealthy) == 0:  # pylint: disable=len-as-condition
             return None
 
         return unhealthy
@@ -399,7 +391,7 @@ class WatchData(object):
                     # add any input problems to the 'starved' list
                     starved += bad_list
                     is_ok = False
-            except:
+            except:  # pylint: disable=bare-except
                 self.__dashlog.error(self.__comp.fullname + " inputs: " +
                                      exc_string())
                 is_ok = False
@@ -412,7 +404,7 @@ class WatchData(object):
                     # add any output problems to the 'stagnant' list
                     stagnant += bad_list
                     is_ok = False
-            except:
+            except:  # pylint: disable=bare-except
                 self.__dashlog.error(self.__comp.fullname + " outputs: " +
                                      exc_string())
                 is_ok = False
@@ -426,7 +418,7 @@ class WatchData(object):
                     #  to the 'threshold' list
                     threshold += bad_list
                     is_ok = False
-            except:
+            except:  # pylint: disable=bare-except
                 self.__dashlog.error(self.__comp.fullname + " thresholds: " +
                                      exc_string())
                 is_ok = False
@@ -484,7 +476,7 @@ class WatchdogThread(CnCThread):
                     self.__mbean_client,
                     self.__runset.components,
                     self.__dashlog)
-            except:
+            except:  # pylint: disable=bare-except
                 self.__init_fail += 1
                 self.__dashlog.error(("Initialization failure #%d" +
                                       " for %s %s: %s") %
@@ -587,7 +579,8 @@ class StringHubRule(WatchdogRule):
             data.add_input_value(comp, "sender", "NumReadoutRequestsReceived")
             data.add_output_value(comp, "sender", "NumReadoutsSent")
 
-    def matches(self, comp):
+    @classmethod
+    def matches(cls, comp):
         "Return True if this rule applies to the component"
         return comp.name == "stringHub" or comp.name == "replayHub"
 
@@ -621,7 +614,8 @@ class LocalTriggerRule(WatchdogRule):
         if comp is not None:
             data.add_output_value(comp, "trigger", "RecordsSent")
 
-    def matches(self, comp):
+    @classmethod
+    def matches(cls, comp):
         "Return True if this rule applies to the component"
         return comp.name == "inIceTrigger" or \
                    comp.name == "simpleTrigger" or \
@@ -641,7 +635,8 @@ class GlobalTriggerRule(WatchdogRule):
         if comp is not None:
             data.add_output_value(comp, "glblTrig", "RecordsSent")
 
-    def matches(self, comp):
+    @classmethod
+    def matches(cls, comp):
         "Return True if this rule applies to the component"
         return comp.name == "globalTrigger"
 
@@ -667,7 +662,8 @@ class EventBuilderRule(WatchdogRule):
         data.add_threshold_value("backEnd", "DiskAvailable", 1024)
         data.add_threshold_value("backEnd", "NumBadEvents", 0, False)
 
-    def matches(self, comp):
+    @classmethod
+    def matches(cls, comp):
         "Return True if this rule applies to the component"
         return comp.name == "eventBuilder"
 
@@ -686,7 +682,8 @@ class SecondaryBuildersRule(WatchdogRule):
         # data.add_output_value(self.DISPATCH_COMP, "tcalBuilder",
         #                       "NumDispatchedData")
 
-    def matches(self, comp):
+    @classmethod
+    def matches(cls, comp):
         "Return True if this rule applies to the component"
         return comp.name == "secondaryBuilders"
 
@@ -747,7 +744,7 @@ class WatchdogTask(CnCTask):
                 if not found:
                     self.log_error("Couldn't create watcher for unknown" +
                                    " component " + comp.fullname)
-            except:
+            except:  # pylint: disable=bare-except
                 self.log_error("Couldn't create watcher for component %s: %s" %
                                (comp.fullname, exc_string()))
         return thread_list
@@ -793,21 +790,21 @@ class WatchdogTask(CnCTask):
         extra_healthy = self.__health_meter > self.HEALTH_METER_FULL
 
         healthy = True
-        if len(hanging) > 0:
+        if len(hanging) > 0:  # pylint: disable=len-as-condition
             if not extra_healthy:
                 hang_str = ComponentManager.format_component_list(hanging)
                 self.log_error("%s reports hanging components:\n    %s" %
                                (self.name, hang_str))
             healthy = False
-        if len(starved) > 0:
+        if len(starved) > 0:  # pylint: disable=len-as-condition
             if not extra_healthy:
                 self.__log_unhealthy("starved", starved)
             healthy = False
-        if len(stagnant) > 0:
+        if len(stagnant) > 0:  # pylint: disable=len-as-condition
             if not extra_healthy:
                 self.__log_unhealthy("stagnant", stagnant)
             healthy = False
-        if len(threshold) > 0:
+        if len(threshold) > 0:  # pylint: disable=len-as-condition
             if not extra_healthy:
                 self.__log_unhealthy("threshold", threshold)
             healthy = False
@@ -841,10 +838,10 @@ class WatchdogTask(CnCTask):
     def close(self):
         "Close everything associated with this task"
         saved_exc = None
-        for thrd in list(self.__thread_list.values()):
+        for thrd in self.__thread_list.values():
             try:
                 thrd.close()
-            except:
+            except:  # pylint: disable=bare-except
                 if not saved_exc:
                     saved_exc = sys.exc_info()
 

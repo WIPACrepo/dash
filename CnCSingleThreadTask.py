@@ -12,9 +12,9 @@ class CnCSingleThreadTask(CnCTask):
     def __init__(self, task_mgr, runset, dashlog, live_moni=None, period=None,
                  need_live_moni=True):
         """
-        If `live_moni` is None and `need_live_moni` is True, nothing will be run
-        If `live_moni` is None and `need_live_moni` is False, the task will be
-        run but (obviously) nothing will be sent to I3Live.
+        If `live_moni` is None and `need_live_moni` is True, nothing is run
+        If `live_moni` is None and `need_live_moni` is False, the task is
+        run but (obviously) nothing is sent to I3Live.
 
         `detail_time` is a secondary timer which can be used to trigger an
         additional, more detailed report at a lower interval than the usual
@@ -33,6 +33,8 @@ class CnCSingleThreadTask(CnCTask):
             name = self.name
             if period is None:
                 period = self.period
+
+            # pylint: disable=assignment-from-none
             self.__detail_time = self.create_detail_timer(task_mgr)
 
         super(CnCSingleThreadTask, self).__init__(name, task_mgr, dashlog,
@@ -103,7 +105,8 @@ class CnCSingleThreadTask(CnCTask):
         if self._running():
             self.__thread.close()
 
-    def create_detail_timer(self, task_mgr):
+    @classmethod
+    def create_detail_timer(cls, task_mgr):  # pylint: disable=unused-argument
         "No detail timer is needed by default"
         return None
 
@@ -115,12 +118,12 @@ class CnCSingleThreadTask(CnCTask):
             thrd.start()
 
     @classproperty
-    def name(cls):
+    def name(cls):  # pylint: disable=no-self-argument
         "Name of this task"
         raise NotImplementedError()
 
     @classproperty
-    def period(cls):
+    def period(cls):  # pylint: disable=no-self-argument
         "Number of seconds between tasks"
         raise NotImplementedError()
 

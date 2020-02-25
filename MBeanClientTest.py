@@ -7,8 +7,8 @@ from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
 
-class MBeanAgentException(Exception):
-    pass
+class MBCTestExceptioneption(Exception):
+    "General MBeanAgent exception"
 
 
 class MockMBeanAgent(object):
@@ -21,7 +21,7 @@ class MockMBeanAgent(object):
     def __validate_bean(self, bean):
         self.__validate_dict()
         if bean not in self.__mbean_dict:
-            raise MBeanAgentException("Unknown MBean \"%s\"" % bean)
+            raise MBCTestExceptioneption("Unknown MBean \"%s\"" % bean)
         if isinstance(self.__mbean_dict[bean], Exception):
             tmp_except = self.__mbean_dict[bean]
             raise tmp_except
@@ -30,8 +30,8 @@ class MockMBeanAgent(object):
         self.__validate_dict()
         self.__validate_bean(bean)
         if fld not in self.__mbean_dict[bean]:
-            raise MBeanAgentException("Unknown MBean \"%s\" attribute \"%s\"" %
-                                      (bean, fld))
+            raise MBCTestExceptioneption("Unknown MBean \"%s\" attribute"
+                                         " \"%s\"" % (bean, fld))
         if isinstance(self.__mbean_dict[bean][fld], Exception):
             raise self.__mbean_dict[bean][fld]
 
@@ -56,7 +56,7 @@ class MockMBeanAgent(object):
 
 
 class MockRPCClient(object):
-    def __init__(self, host, port, agent):
+    def __init__(self, host, port, agent):  # pylint: disable=unused-argument
         self.mbean = agent
 
 
@@ -81,7 +81,7 @@ class TestMBeanClient(unittest.TestCase):
 
         client = MostlyMBeanClient(client_name, "localhost", 123, agent)
 
-        agent.setMBeans(MBeanAgentException("Test fail"))
+        agent.setMBeans(MBCTestExceptioneption("Test fail"))
         try:
             client.get(bean, fld)
         except BeanLoadException as ble:
@@ -89,7 +89,7 @@ class TestMBeanClient(unittest.TestCase):
                                        (client_name, bean, fld)):
                 self.fail("Unexpected exception: " + exc_string())
 
-        agent.setMBeans({bean: MBeanAgentException("Test fail"), })
+        agent.setMBeans({bean: MBCTestExceptioneption("Test fail"), })
         try:
             client.get(bean, fld)
         except BeanLoadException as ble:
@@ -122,17 +122,8 @@ class TestMBeanClient(unittest.TestCase):
 
         client.reload()
 
-        try:
-            bean_list = client.get_bean_names()
-            self.fail("get_bean_names should throw an exception")
-        except:
-            pass
-
-        try:
-            bean_list = client.get_bean_fields(bean)
-            self.fail("get_bean_fields should throw an exception")
-        except:
-            pass
+        bean_list = client.get_bean_names()
+        fld_list = client.get_bean_fields(bean)
 
 
 if __name__ == '__main__':

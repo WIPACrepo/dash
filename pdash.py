@@ -19,6 +19,23 @@ class Dash(cmd.Cmd):
 
         self.prompt = "> "
 
+    def __fetch_runset_component(self):
+        rs_dict = {}
+
+        ids = self.__cnc.rpc_runset_list_ids()
+        for rsid in ids:
+            rs_comps = self.__cnc.rpc_runset_list(rsid)
+
+            rs_dict[rsid] = {}
+            for sub in rs_comps:
+                if sub["compNum"] == 0:
+                    name = sub["compName"]
+                else:
+                    name = "%s#%s" % (sub["compName"], sub["compNum"])
+                rs_dict[rsid][name] = sub["id"]
+
+        return rs_dict
+
     @staticmethod
     def __find_component_id(comp_dict, comp_name):
         try:
@@ -79,13 +96,13 @@ class Dash(cmd.Cmd):
         comps = self.__cnc.rpc_component_list_dicts(list(comp_dict.values()),
                                                     False)
 
-        if len(comps) > 0:
+        if len(comps) > 0:  # pylint: disable=len-as-condition
             print("Components:")
             self.__print_components(comps, "  ")
-            if len(ids) > 0:
+            if len(ids) > 0:  # pylint: disable=len-as-condition
                 print()
 
-        if len(ids) > 0:
+        if len(ids) > 0:  # pylint: disable=len-as-condition
             num_ids = len(ids)
             for i in range(num_ids):
                 rsid = ids[i]
@@ -118,13 +135,13 @@ class Dash(cmd.Cmd):
     @classmethod
     def __print_components(cls, comps, indent):
         for cdict in comps:
-            print("%s#%d: %s#%d (%s)" % \
+            print("%s#%d: %s#%d (%s)" %
                   (indent, cdict["id"], cdict["compName"],
                    cdict["compNum"], cdict["state"]))
 
     def __run_cmd_bean(self, args):
         "Get bean data"
-        if len(args) == 0:
+        if len(args) == 0:  # pylint: disable=len-as-condition
             print("Please specify a component.bean.field", file=sys.stderr)
             return
 
@@ -138,20 +155,7 @@ class Dash(cmd.Cmd):
                 self.__find_component_from_string(comp_dict, bflds[0])
             if comp_name is None:
                 if rs_dict is None:
-                    rs_dict = {}
-
-                    ids = self.__cnc.rpc_runset_list_ids()
-                    for rsid in ids:
-                        rs_comps = self.__cnc.rpc_runset_list(rsid)
-
-                        rs_dict[rsid] = {}
-                        for sub in rs_comps:
-                            if sub["compNum"] == 0:
-                                name = sub["compName"]
-                            else:
-                                name = "%s#%s" % (sub["compName"],
-                                                  sub["compNum"])
-                            rs_dict[rsid][name] = sub["id"]
+                    rs_dict = self.__fetch_runset_component()
 
                 for rsid in rs_dict:
                     (comp_name, comp_id) = \
@@ -191,8 +195,8 @@ class Dash(cmd.Cmd):
                 val = self.__cnc.rpc_component_get_bean_field(comp_id,
                                                               bean_name,
                                                               fld_name, True)
-                print("%s bean %s field %s: %s" % \
-                    (comp_name, bean_name, fld_name, val))
+                print("%s bean %s field %s: %s" %
+                      (comp_name, bean_name, fld_name, val))
 
                 return
 
@@ -204,7 +208,7 @@ class Dash(cmd.Cmd):
             if arg.find("-") < 0:
                 try:
                     i = int(arg)
-                except:
+                except ValueError:
                     print("Bad file %s" % (arg, ), file=sys.stderr)
                     break
 
@@ -214,7 +218,7 @@ class Dash(cmd.Cmd):
                 try:
                     idx1 = int(arg1)
                     idx2 = int(arg2)
-                except:
+                except ValueError:
                     print("Bad range %s" % arg, file=sys.stderr)
                     break
 
@@ -225,7 +229,7 @@ class Dash(cmd.Cmd):
 
     def __run_cmd_list(self, args):
         "List component info"
-        if len(args) == 0:
+        if len(args) == 0:  # pylint: disable=len-as-condition
             self.__list_all()
             return
 
@@ -260,34 +264,37 @@ class Dash(cmd.Cmd):
             print("Unknown component \"%s\" YYY" % cstr, file=sys.stderr)
             continue
 
-        if len(id_list) > 0:
+        if len(id_list) > 0:  # pylint: disable=len-as-condition
             self.__print_component_details(id_list)
 
-    def __run_cmd_open_files(self, args):
+    def __run_cmd_open_files(self, _):
         "List open files"
         for opn in self.__cnc.rpc_list_open_files():
             try:
                 print("  %4.4s %6.6s %s%s" % tuple(opn))
-            except:
+            except:  # pylint: disable=bare-except
                 print("  ??? %s" % opn)
 
     def do_bean(self, line):
         "Get bean data"
         try:
             self.__run_cmd_bean(line.split())
-        except:
+        except:  # pylint: disable=bare-except
             traceback.print_exc()
 
     def do_close(self, line):
         "Close open file"
         try:
             self.__run_cmd_close(line.split())
-        except:
+        except:  # pylint: disable=bare-except
             traceback.print_exc()
 
     @classmethod
-    def do_EOF(cls, line):
-        "Finish this session"
+    def do_EOF(cls, _):  # pylint: disable=invalid-name
+        """
+        Finish this session
+        NOTE: Non-snake-case 'do_EOF' name is required by cmd.Cmd
+        """
         print()
         return True
 
@@ -295,7 +302,7 @@ class Dash(cmd.Cmd):
         "List component info"
         try:
             self.__run_cmd_list(line.split())
-        except:
+        except:  # pylint: disable=bare-except
             traceback.print_exc()
 
     def do_ls(self, args):
@@ -306,7 +313,7 @@ class Dash(cmd.Cmd):
         "List open files"
         try:
             self.__run_cmd_open_files(line.split())
-        except:
+        except:  # pylint: disable=bare-except
             traceback.print_exc()
 
 
@@ -316,7 +323,7 @@ def process_commands(commands, verbose=False):
 
     for arg in commands:
         argsplit = arg.split(" ", 1)
-        if len(argsplit) == 0:
+        if argsplit == "":
             print("Ignoring empty command \"%s\"" % arg, file=sys.stderr)
             continue
 
@@ -332,7 +339,7 @@ def process_commands(commands, verbose=False):
             getattr(dash, "do_" + acmd)(remainder)
         except AttributeError:
             print("Unknown command \"%s\"" % acmd, file=sys.stderr)
-        except:
+        except:  # pylint: disable=bare-except
             traceback.print_exc()
 
 
@@ -341,13 +348,15 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-c", "--command", dest="command", action="append",
-                        help="Command to run (may be specified multiple times)")
+                        help=("Command to run (may be specified"
+                              " multiple times)"))
     parser.add_argument("-v", "--verbose", dest="verbose", action="store_true",
                         help="Print command before running it")
 
     args = parser.parse_args()
 
-    if args.command is None or len(args.command) == 0:
+    if args.command is None or \
+      len(args.command) == 0:  # pylint: disable=len-as-condition
         Dash().cmdloop()
     else:
         process_commands(args.command)

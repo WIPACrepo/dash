@@ -30,7 +30,7 @@ from RunCluster import RunCluster
 from RunSet import RunSet
 from decorators import classproperty
 from i3helper import Comparable
-from leapseconds import leapseconds, MJD
+from leapseconds import LeapSeconds, MJD
 from locate_pdaq import find_pdaq_trunk
 from utils import ip
 from utils.DashXMLLog import DashXMLLog
@@ -94,8 +94,8 @@ class BaseLiveChecker(BaseChecker):
             if set_error:
                 name = str(checker)
                 if debug:
-                    print('*** %s:SVC: %s (%s)' % \
-                        (name, SERVICE_NAME, self._value), file=sys.stderr)
+                    print('*** %s:SVC: %s (%s)' %
+                          (name, SERVICE_NAME, self._value), file=sys.stderr)
                 checker.set_error('Expected %s I3Live service "%s", not "%s"'
                                   ' in "%s"' %
                                   (name, SERVICE_NAME, svc_name, msg))
@@ -105,7 +105,7 @@ class BaseLiveChecker(BaseChecker):
             if set_error:
                 name = str(checker)
                 if debug:
-                    print('*** %s:VAR: %s (%s)' % \
+                    print('*** %s:VAR: %s (%s)' %
                           (name, self.__var_name, self._value),
                           file=sys.stderr)
                     checker.set_error('Expected %s I3Live var_name "%s",'
@@ -118,8 +118,8 @@ class BaseLiveChecker(BaseChecker):
             if set_error:
                 name = str(checker)
                 if debug:
-                    print('*** %s:TYPE: %s (%s)' % \
-                        (name, type_str, self._value), file=sys.stderr)
+                    print('*** %s:TYPE: %s (%s)' %
+                          (name, type_str, self._value), file=sys.stderr)
                 checker.set_error('Expected %s I3Live type "%s", not "%s"'
                                   ' in %s' % (name, type_str, var_type, msg))
             return False
@@ -146,7 +146,8 @@ class ExactChecker(BaseChecker):
             if set_error:
                 name = str(checker)
                 if debug:
-                    print('*** %s:XACT: %s' % (name, self.__text), file=sys.stderr)
+                    print('*** %s:XACT: %s' % (name, self.__text),
+                          file=sys.stderr)
                 checker.set_error('Expected %s exact log message "%s",'
                                   ' not "%s"' % (name, self.__text, msg))
             return False
@@ -235,8 +236,8 @@ class LiveRegexpChecker(BaseLiveChecker):
             if set_error:
                 name = str(checker)
                 if debug:
-                    print('*** %s:RLIV: %s' % \
-                        (name, self.__regexp.pattern), file=sys.stderr)
+                    print('*** %s:RLIV: %s' %
+                          (name, self.__regexp.pattern), file=sys.stderr)
                 checker.set_error('Expected %s I3Live regexp message "%s",'
                                   ' not "%s"' %
                                   (name, self.__regexp.pattern, msg))
@@ -271,8 +272,8 @@ class RegexpChecker(BaseChecker):
             if set_error:
                 name = str(checker)
                 if debug:
-                    print('*** %s:REXP: %s' % \
-                        (name, self.__regexp.pattern), file=sys.stderr)
+                    print('*** %s:REXP: %s' %
+                          (name, self.__regexp.pattern), file=sys.stderr)
                 checker.set_error('Expected %s regexp log message of "%s",'
                                   ' not "%s"' %
                                   (name, self.__regexp.pattern, msg))
@@ -295,8 +296,9 @@ class RegexpTextChecker(BaseChecker):
             if set_error:
                 name = str(checker)
                 if debug:
-                    print('*** %s:RFMT: %s' % \
-                        (name, BaseChecker.PAT_DAQLOG.pattern), file=sys.stderr)
+                    print('*** %s:RFMT: %s' %
+                          (name, BaseChecker.PAT_DAQLOG.pattern),
+                          file=sys.stderr)
                 checker.set_error('Bad format for %s log message "%s"' %
                                   (name, msg))
             return False
@@ -306,8 +308,8 @@ class RegexpTextChecker(BaseChecker):
             if set_error:
                 name = str(checker)
                 if debug:
-                    print('*** %s:RTXT: %s' % \
-                        (name, self.__regexp.pattern), file=sys.stderr)
+                    print('*** %s:RTXT: %s' %
+                          (name, self.__regexp.pattern), file=sys.stderr)
                 checker.set_error('Expected %s regexp text log message,'
                                   ' of "%s" not "%s"' %
                                   (name, self.__regexp.pattern, msg))
@@ -330,8 +332,9 @@ class TextChecker(BaseChecker):
             if set_error:
                 name = str(checker)
                 if debug:
-                    print('*** %s:TFMT: %s' % \
-                        (name, BaseChecker.PAT_DAQLOG.pattern), file=sys.stderr)
+                    print('*** %s:TFMT: %s' %
+                          (name, BaseChecker.PAT_DAQLOG.pattern),
+                          file=sys.stderr)
                 checker.set_error('Bad format for %s log message "%s"' %
                                   (name, msg))
             return False
@@ -428,9 +431,9 @@ class LogChecker(object):
 
     def add_expected_live_moni(self, var_name, value, val_type=None):
         if LogChecker.DEBUG:
-            print("AddLiveMoni(%s): %s=%s%s" % \
-                (self, var_name, value,
-                 val_type is None and "" or "(%s)" % (val_type, )),
+            print("AddLiveMoni(%s): %s=%s%s" %
+                  (self, var_name, value,
+                   val_type is None and "" or "(%s)" % (val_type, )),
                   file=sys.stderr)
         self.__exp_msgs.append(LiveChecker(var_name, value, val_type))
 
@@ -511,8 +514,11 @@ class MockClusterWriter(object):
     def write_jvm_xml(cls, file_handle, indent, path, is_server, heap_init,
                       heap_max, args, extra_args):
 
-        if path is not None or is_server or heap_init is not None or \
-           heap_max is not None or args is not None or extra_args is not None:
+        # if any field has a non-standard value, print this entry
+        nonstandard = path is not None or is_server or heap_init is not None
+        nonstandard = nonstandard or heap_max is not None or args is not None
+        nonstandard = nonstandard or extra_args is not None
+        if nonstandard:
             jstr = "jvm"
             jstr = cls.__append_attr(jstr, 'path', path)
             if is_server:
@@ -605,9 +611,10 @@ class MockCluCfgCtlSrvr(object):
 class MockCluCfgFileComp(MockClusterWriter):
     """Used by MockClusterConfigFile for <component>"""
     def __init__(self, name, num=0, required=False, hitspool_directory=None,
-                 hitspool_interval=None, hitspool_max_files=None, jvm_path=None,
-                 jvm_server=None, jvm_heap_init=None, jvm_heap_max=None,
-                 jvm_args=None, jvm_extra_args=None, log_level=None):
+                 hitspool_interval=None, hitspool_max_files=None,
+                 jvm_path=None, jvm_server=None, jvm_heap_init=None,
+                 jvm_heap_max=None, jvm_args=None, jvm_extra_args=None,
+                 log_level=None):
         self.__name = name
         self.__num = num
         self.__required = required
@@ -748,8 +755,8 @@ class MockCluCfgFileComp(MockClusterWriter):
         else:
             endstr = "/"
 
-        print("%s<component name=\"%s\"%s%s%s>" % \
-            (indent, self.__name, numstr, reqstr, endstr), file=file_handle)
+        print("%s<component name=\"%s\"%s%s%s>" %
+              (indent, self.__name, numstr, reqstr, endstr), file=file_handle)
 
         if multiline:
             indent2 = indent + "  "
@@ -966,8 +973,9 @@ class MockCluCfgFileSimHubs(MockClusterWriter):
         else:
             iustr = ""
 
-        print("%s<simulatedHub number=\"%d\" priority=\"%d\"%s/>" % \
-            (indent, self.__number, self.__priority, iustr), file=file_handle)
+        print("%s<simulatedHub number=\"%d\" priority=\"%d\"%s/>" %
+              (indent, self.__number, self.__priority, iustr),
+              file=file_handle)
 
 
 class MockClusterComponent(Component):
@@ -993,10 +1001,10 @@ class MockClusterComponent(Component):
         return "%s(%s)" % (self.fullname, self.__host)
 
     def dump(self, file_handle, indent):
-        print("%s<location name=\"%s\" host=\"%s\">" % \
-            (indent, self.__host, self.__host), file=file_handle)
-        print("%s    <module name=\"%s\" id=\"%02d\"/?>" % \
-            (indent, self.name, self.id), file=file_handle)
+        print("%s<location name=\"%s\" host=\"%s\">" %
+              (indent, self.__host, self.__host), file=file_handle)
+        print("%s    <module name=\"%s\" id=\"%02d\"/?>" %
+              (indent, self.name, self.id), file=file_handle)
         print("%s</location>" % indent, file=file_handle)
 
     @property
@@ -1152,9 +1160,9 @@ class MockClusterConfigFile(MockClusterWriter):
                                        self.__default_jvm_extra_args)
 
                 if has_hub_xml:
-                    #self.writeHubXML(file_handle, indent2,
-                    #                 self.__default_alert_email,
-                    #                 self.__default_ntp_host)
+                    # self.writeHubXML(file_handle, indent2,
+                    #                  self.__default_alert_email,
+                    #                  self.__default_ntp_host)
                     raise NotImplementedError("writeHubXML")
 
                 if self.__default_log_level is not None:
@@ -1209,13 +1217,13 @@ class MockClusterConfigFile(MockClusterWriter):
     def default_jvm_server(self):
         return self.__default_jvm_server
 
-    def default_log_level(self, comp_name=None):
+    def default_log_level(self, _=None):
         if self.__default_log_level is None:
             return ClusterDescription.DEFAULT_LOG_LEVEL
 
         return self.__default_log_level
 
-    def default_ntp_host(self, comp_name=None):
+    def default_ntp_host(self, _=None):
         return self.__default_ntp_host
 
     @property
@@ -1345,7 +1353,7 @@ class MockConnection(object):
 
 
 class MockDeployComponent(Component):
-    def __init__(self, name, id, log_level, hs_dir, hs_interval, hs_max_files,
+    def __init__(self, name, num, log_level, hs_dir, hs_interval, hs_max_files,
                  jvm_path, jvm_server, jvm_heap_init, jvm_heap_max, jvm_args,
                  jvm_extra_args, alert_email, ntp_host, num_replay_files=None,
                  host=None):
@@ -1363,7 +1371,7 @@ class MockDeployComponent(Component):
         self.__num_replay_files = num_replay_files
         self.__host = host
 
-        super(MockDeployComponent, self).__init__(name, id, log_level)
+        super(MockDeployComponent, self).__init__(name, num, log_level)
 
     @property
     def alert_email(self):
@@ -1464,10 +1472,10 @@ class MockMBeanClient(object):
             field_name in self.__bean_data[bean_name]
 
     def get(self, bean_name, field_name):
-        if not bean_name in self.__bean_data:
+        if bean_name not in self.__bean_data:
             raise Exception("Unknown bean %s for %s (valid beans: %s)" %
                             (bean_name, self, list(self.__bean_data.keys())))
-        if not field_name in self.__bean_data[bean_name]:
+        if field_name not in self.__bean_data[bean_name]:
             raise Exception("No %s data for bean %s field %s"
                             " (valid fields: %s)" %
                             (self, bean_name, field_name,
@@ -1532,12 +1540,6 @@ class MockComponent(Comparable):
         self.__last_good_time = None
         self.__mbean_client = None
 
-    def __cmp__(self, other):
-        val = cmp(self.name, other.name)
-        if val == 0:
-            val = cmp(self.num, other.num)
-        return val
-
     def __repr__(self):
         return str(self)
 
@@ -1577,14 +1579,15 @@ class MockComponent(Comparable):
     def close(self):
         pass
 
-    def commit_subrun(self, id, start_time):
+    def commit_subrun(self, subrun_num, start_time):
         pass
 
     @property
-    def compare_tuple(self):
+    def compare_key(self):
+        "Return the keys to be used by the Comparable methods"
         return (self.__name, self.__num)
 
-    def configure(self, config_name=None):
+    def configure(self, _=None):
         if not self.__connected:
             self.__connected = True
         self.__configured = True
@@ -1598,7 +1601,7 @@ class MockComponent(Comparable):
     def configure_wait(self, wait_num):
         self.__config_wait = wait_num
 
-    def connect(self, conn=None):
+    def connect(self, _=None):
         self.__connected = True
         return 'OK'
 
@@ -1633,7 +1636,7 @@ class MockComponent(Comparable):
     def filename(self):
         return '%s-%d' % (self.__name, self.__num)
 
-    def get_run_data(self, run_num):
+    def get_run_data(self, _):
         if self.__mbean_client is None:
             self.__mbean_client = self.create_mbean_client()
 
@@ -1677,7 +1680,7 @@ class MockComponent(Comparable):
     def is_builder(self):
         return self.__is_bldr
 
-    def is_component(self, name, num=-1):
+    def is_component(self, name, _=None):
         return self.__name == name
 
     @property
@@ -1730,7 +1733,7 @@ class MockComponent(Comparable):
     def order(self, num):
         self.__cmd_order = num
 
-    def prepare_subrun(self, id):
+    def prepare_subrun(self, subrun_num):
         pass
 
     def reset(self):
@@ -1752,13 +1755,15 @@ class MockComponent(Comparable):
     def set_stop_fail(self):
         self.__stop_fail = True
 
-    def set_first_good_time(self, time):
+    def set_first_good_time(self,
+                            time):  # pylint: disable=redefined-outer-name
         self.__first_good_time = time
 
     def set_hang_type(self, hang_type):
         self.__hang_type = hang_type
 
-    def set_last_good_time(self, time):
+    def set_last_good_time(self,
+                           time):  # pylint: disable=redefined-outer-name
         self.__last_good_time = time
 
     def set_monitor_state(self, new_state):
@@ -1770,13 +1775,13 @@ class MockComponent(Comparable):
 
         self.__run_number = run_num
 
-    def start_subrun(self, data):
+    def start_subrun(self, _):
         if self.__is_bad_hub:
             return None
         return 100
 
     @property
-    def state(self):
+    def state(self):  # pylint: disable=too-many-return-statements
         if self.__monitor_state is not None:
             self.__monitor_count += 1
             return self.__monitor_state
@@ -1835,8 +1840,8 @@ class MockDefaultDomGeometryFile(object):
                               file=file_handle)
                         print("      <name>%s</name>" % dom.name,
                               file=file_handle)
-                        print("      <productionId>%s</productionId>" % \
-                            dom.prod_id, file=file_handle)
+                        print("      <productionId>%s</productionId>" %
+                              dom.prod_id, file=file_handle)
                         print("    </dom>", file=file_handle)
                     print("  </string>", file=file_handle)
 
@@ -1905,7 +1910,7 @@ class MockIntervalTimer(object):
         return "Timer#%s%s" % \
             (self.__name, self.__is_time and "!is_time!" or "")
 
-    def is_time(self, now=None):
+    def is_time(self, now=None):  # pylint: disable=unused-argument
         self.__got_time = True
         return self.__is_time
 
@@ -2001,8 +2006,11 @@ class MockLogger(LogChecker):
     def warn(self, msg):
         self._check_msg(msg)
 
-    def write(self, msg, time=None, level=None):
+    # pylint: disable=redefined-outer-name,unused-argument
+    def write(self, msg, time=None,
+              level=None):
         self._check_msg(msg)
+    # pylint: enable=redefined-outer-name,unused-argument
 
 
 class MockParallelShell(object):
@@ -2017,6 +2025,7 @@ class MockParallelShell(object):
         self.__debug = debug
 
     def __add_expected(self, cmd):
+        # pylint: disable=chained-comparison
         if cmd.find("/bin/StringHub") > 0 and cmd.find(".componentId=") < 0:
             raise Exception("Missing componentId: %s" % cmd)
         self.__exp.append(cmd)
@@ -2115,8 +2124,7 @@ class MockParallelShell(object):
 
         self.__add_expected(cmd)
 
-    def add_expected_java_kill(self, comp_name, comp_id, kill_with_9, verbose,
-                               host):
+    def add_expected_java_kill(self, comp_name, comp_id, kill_with_9, host):
         if kill_with_9:
             nine_arg = '-9'
         else:
@@ -2144,8 +2152,8 @@ class MockParallelShell(object):
                                 (ssh_cmd, pkill_opt, kill_pat))
 
     def add_expected_python(self, do_cnc, dash_dir, config_dir, log_dir,
-                            daq_data_dir, spade_dir, clu_cfg_name, cfg_name,
-                            copy_dir, log_port, live_port, force_restart=True):
+                            daq_data_dir, spade_dir, clu_cfg_name, copy_dir,
+                            log_port, live_port, force_restart=True):
         if do_cnc:
             cmd = os.path.join(dash_dir, 'CnCServer.py')
             cmd += ' -c %s' % config_dir
@@ -2211,9 +2219,6 @@ class MockParallelShell(object):
             raise Exception(('ParallelShell did not receive expected commands:'
                              ' %s') % str(self.__exp))
 
-    def __get_meta_path(self, subdir):
-        return os.path.join(find_pdaq_trunk(), subdir)
-
     def get_result(self, idx):
         if idx < 0 or idx >= len(self.__results):
             raise Exception("Cannot return result %d (only %d available)" %
@@ -2260,9 +2265,9 @@ class MockRPCClient(object):
 
 
 class MockRunComponent(object):
-    def __init__(self, name, id, inetAddr, rpc_port, mbean_port):
+    def __init__(self, name, comp_id, inetAddr, rpc_port, mbean_port):
         self.__name = name
-        self.__id = id
+        self.__id = comp_id
         self.__inet_addr = inetAddr
         self.__rpc_port = rpc_port
         self.__mbean_port = mbean_port
@@ -2271,7 +2276,7 @@ class MockRunComponent(object):
         return "%s#%s" % (self.__name, self.__id)
 
     @property
-    def id(self):
+    def id(self):  # pylint: disable=invalid-name
         return self.__id
 
     @property
@@ -2398,7 +2403,7 @@ class MockLeapsecondFile(object):
         if not os.path.isdir(nist_path):
             os.mkdir(nist_path)
 
-        filepath = os.path.join(nist_path, leapseconds.DEFAULT_FILENAME)
+        filepath = os.path.join(nist_path, LeapSeconds.DEFAULT_FILENAME)
         with open(filepath, "w") as out:
             print("# Mock NIST leapseconds file", file=out)
             print("#@\t%d" % (expiration, ), file=out)
@@ -2500,8 +2505,8 @@ class MockRunConfigFile(object):
                 dom_cfg = "string-%d-config" % hub
                 self.__make_dom_config(dom_cfg, dom_list, debug=debug)
 
-                print("    <stringHub hubId=\"%s\" domConfig=\"%s\"/>" % \
-                    (hub, dom_cfg), file=file_handle)
+                print("    <stringHub hubId=\"%s\" domConfig=\"%s\"/>" %
+                      (hub, dom_cfg), file=file_handle)
 
             print("    <triggerConfig>%s</triggerConfig>" % trig_cfg.name,
                   file=file_handle)
@@ -2704,7 +2709,7 @@ class SocketReader(LogChecker):
     @classproperty
     def __next_port(cls):  # pylint: disable=no-self-argument
         port = cls.NEXT_PORT
-        cls.NEXT_PORT += 1
+        cls.NEXT_PORT += 1  # pylint: disable=invalid-name
         if cls.NEXT_PORT > DAQPort.EPHEMERAL_MAX:
             cls.NEXT_PORT = DAQPort.EPHEMERAL_BASE
         return port
@@ -2813,7 +2818,6 @@ class SocketWriter(object):
             raise socket.error('Cannot connect to %s:%d: %s' %
                                (node, port, str(err)))
 
-
         self.__loc = (node, port)
 
     def __str__(self):
@@ -2827,11 +2831,11 @@ class SocketWriter(object):
         "Write message to remote logger"
         self.socket.send(msg.encode("utf-8"))
 
-    def write_ts(self, tstamp, time=None):
+    def write_ts(self, tstamp, logtime=None):
         "Write time-stamped log msg to remote logger"
-        if time is None:
-            time = datetime.datetime.now()
-        output = "- - [%s] %s" % (time, tstamp)
+        if logtime is None:
+            logtime = datetime.datetime.now()
+        output = "- - [%s] %s" % (logtime, tstamp)
         self.socket.send(output.encode("utf-8"))
 
     def close(self):
@@ -2952,7 +2956,7 @@ class MockRunSet(object):
                 self.__num_tcal)
 
     @property
-    def id(self):
+    def id(self):  # pylint: disable=invalid-name
         return self.__id
 
     @property
@@ -2992,7 +2996,7 @@ class MockTaskManager(object):
                             timer.name)
         self.__timer_dict[timer.name] = timer
 
-    def create_interval_timer(self, name, period):
+    def create_interval_timer(self, name, _):
         if name not in self.__timer_dict:
             raise Exception("Cannot find timer named \"%s\"" % name)
         return self.__timer_dict[name]
@@ -3020,8 +3024,9 @@ class MockLiveMoni(object):
     def sent_all_moni(self):
         return len(self.__exp_moni) == 0
 
+    # pylint: disable=redefined-outer-name
     def sendMoni(self, var, val, prio,  # pylint: disable=invalid-name
-                 time=datetime.datetime.now()):
+                 time=None):  # pylint: disable=unused-argument
         if var not in self.__exp_moni:
             raise Exception(("Unexpected live monitor data"
                              " (var=%s, val=%s, prio=%d)") % (var, val, prio))
@@ -3057,3 +3062,4 @@ class MockLiveMoni(object):
                             (var, self.__exp_moni[var], var, val, prio))
 
         return True
+    # pylint: enable=redefined-outer-name

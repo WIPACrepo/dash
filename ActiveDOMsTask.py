@@ -47,7 +47,7 @@ class ActiveDOMThread(CnCThread):
                 try:
                     tmp_active = int(prevpair[0])
                     tmp_total = int(prevpair[1])
-                except:
+                except ValueError:
                     tmp_active = 0
                     tmp_total = 0
         return (tmp_active, tmp_total)
@@ -67,7 +67,7 @@ class ActiveDOMThread(CnCThread):
         return None
 
     def __got_data(self, totals):
-        if len(totals) == 0:
+        if len(totals) == 0:  # pylint: disable=len-as-condition
             return False
         if self.KEY_ACTIVE not in totals or self.KEY_TOTAL not in totals:
             return False
@@ -79,7 +79,7 @@ class ActiveDOMThread(CnCThread):
         try:
             hub_active_doms = int(result[self.KEY_ACT_TOT][0])
             hub_total_doms = int(result[self.KEY_ACT_TOT][1])
-        except:
+        except ValueError:
             self.__dashlog.error("Cannot get # active DOMS from %s string:"
                                  " %s" % (comp.fullname, exc_string()))
             (hub_active_doms, hub_total_doms) \
@@ -103,6 +103,7 @@ class ActiveDOMThread(CnCThread):
         #
         self.__set_previous(comp.num, hub_active_doms, hub_total_doms,
                             hub_lbm_overflows)
+
     def _run(self):
         # build a list of hubs
         src_set = []
@@ -150,7 +151,7 @@ class ActiveDOMThread(CnCThread):
             self.__process_result(comp, result, totals, lbm_overflows)
 
         # report hanging components
-        if len(hanging) > 0:
+        if len(hanging) > 0:  # pylint: disable=len-as-condition
             errmsg = "Cannot get %s bean data from hanging components (%s)" % \
                      (ActiveDOMsTask.name, hanging)
             self.__dashlog.error(errmsg)
@@ -188,7 +189,6 @@ class ActiveDOMThread(CnCThread):
             if self.__send_details:
                 # important messages that go out every ten minutes
                 pass
-
 
     def __send_lbm_overflow(self, lbmo_dict, start_time, run_number):
         # get the total LBM overflow count

@@ -17,7 +17,6 @@ from payload import PayloadReader, SimpleHit, MonitorASCII, StopMessage, \
 
 class FakeError(Exception):
     """Component error"""
-    pass
 
 
 class PayloadGenerator(object):
@@ -319,7 +318,8 @@ class LocalTrigger(TriggerHandler):
         super(LocalTrigger, self).__init__(comp_name, comp_num, input_name,
                                            self.__output_name, prescale)
 
-    def xxx_process_payload(self, pay_type, utc, payload):
+    def xxx_process_payload(self, pay_type,
+                            utc, payload):  # pylint: disable=unused-argument
         if pay_type != SimpleHit.TYPE_ID:
             print("Unexpected %s payload type %d" %
                   (self.fullname, pay_type), file=sys.stderr)
@@ -373,7 +373,8 @@ class GlobalTrigger(TriggerHandler):
         super(GlobalTrigger, self).__init__("globalTrigger", 0, "trigger",
                                             self.__output_name, prescale)
 
-    def xxx_process_payload(self, pay_type, utc, payload):
+    def xxx_process_payload(self, pay_type,
+                            utc, payload):  # pylint: disable=unused-argument
         if pay_type != self.TRIGGER_REQUEST_ID:
             print("Unexpected %s payload type %d" %
                   (self.fullname, pay_type), file=sys.stderr)
@@ -439,7 +440,7 @@ def main():
         try:
             if not comp.monitor_server():
                 break
-        except:
+        except:  # pylint: disable=bare-except
             import traceback
             traceback.print_exc()
 

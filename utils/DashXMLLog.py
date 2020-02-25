@@ -7,15 +7,15 @@ from DAQTime import DAQDateTime
 
 
 class DashXMLLogException(Exception):
-    pass
+    "General DashXMLLog exception"
 
 
 class FileNotFoundException(DashXMLLogException):
-    pass
+    "File not found"
 
 
 class MalformedFileException(DashXMLLogException):
-    pass
+    "Bad filename"
 
 
 class DashXMLLog(object):
@@ -93,7 +93,7 @@ class DashXMLLog(object):
 
         if mtch.group(8) is None:
             return DAQDateTime(dtflds[0], dtflds[1], dtflds[2], dtflds[3],
-                               dtflds[4], dtflds[5])
+                               dtflds[4], dtflds[5], dtflds[6])
 
         # extract subsecond string
         sstr = mtch.group(8)
@@ -104,8 +104,8 @@ class DashXMLLog(object):
         try:
             subsec = int((sstr + "0000000000")[:10])
         except ValueError:
-                raise ValueError("Cannot parse subseconds \"%s\" from date"
-                                 " string \"%s\"" % (mtch.group(8), fld))
+            raise ValueError("Cannot parse subseconds \"%s\" from date"
+                             " string \"%s\"" % (mtch.group(8), fld))
 
         return DAQDateTime(dtflds[0], dtflds[1], dtflds[2], dtflds[3],
                            dtflds[4], dtflds[5], subsec)
@@ -494,7 +494,7 @@ class DashXMLLog(object):
                 "Bad run file \"%s\": %s" % (path, ex))
 
         root_list = parsed.getElementsByTagName("DAQRunlog")
-        if len(root_list) == 0:
+        if len(root_list) == 0:  # pylint: disable=len-as-condition
             raise MalformedFileException("No DAQRunlog entries found" +
                                          " in \"%s\"" % path)
         elif len(root_list) > 1:

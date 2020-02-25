@@ -6,6 +6,8 @@ from RunJava import run_java
 
 
 def add_arguments(parser):
+    "Add command-line arguments"
+
     parser.add_argument("-D", "--config_dir", dest="config_dir",
                         help="Configuration directory")
     parser.add_argument("-S", "--summarize", dest="summarize",

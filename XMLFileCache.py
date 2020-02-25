@@ -9,7 +9,7 @@ from DAQConfigExceptions import DAQConfigException
 
 
 class XMLFileCacheException(DAQConfigException):
-    pass
+    "General XMLFileCache exception"
 
 
 class XMLFileCache(object):

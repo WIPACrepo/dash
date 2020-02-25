@@ -29,7 +29,6 @@ SVN_ID = "$Id: DAQLaunch.py 13550 2012-03-08 23:12:05Z dglo $"
 
 class ComponentNotFoundInDatabase(Exception):
     "Thrown when a caller specified an unknown component"
-    pass
 
 
 class ComponentManager(object):
@@ -156,14 +155,14 @@ class ComponentManager(object):
         "Report which daemons were launched/killed and which were ignored"
 
         if logger is not None:
-            if len(action_list) > 0:
-                if len(ignored) > 0:
+            if len(action_list) > 0:  # pylint: disable=len-as-condition
+                if len(ignored) > 0:  # pylint: disable=len-as-condition
                     logger.info("%s %s, ignored %s" %
                                 (action, ", ".join(action_list),
                                  ", ".join(ignored)))
                 else:
                     logger.info("%s %s" % (action, ", ".join(action_list)))
-            elif len(ignored) > 0:
+            elif len(ignored) > 0:  # pylint: disable=len-as-condition
                 logger.info("Ignored %s" % ", ".join(ignored))
 
     @classmethod
@@ -207,9 +206,9 @@ class ComponentManager(object):
             yield sleepr + (fmt_str % niner)
 
     @classmethod
-    def __build_start_cmd(cls, comp, dry_run, verbose, config_dir, daq_data_dir,
-                          bin_dir, log_port, live_port, event_check,
-                          check_exists, logger):
+    def __build_start_cmd(cls, comp, dry_run, verbose, config_dir,
+                          daq_data_dir, bin_dir, log_port, live_port,
+                          event_check, check_exists, logger):
         """
         Construct the command to start this component
         """
@@ -226,13 +225,13 @@ class ComponentManager(object):
         jvm_args = "-Dicecube.daq.component.configDir='%s'" % config_dir
         if comp.jvm_server is not None and comp.jvm_server:
             jvm_args += " -server"
-        if comp.jvm_heap_init is not None and len(comp.jvm_heap_init) > 0:
+        if comp.jvm_heap_init is not None and comp.jvm_heap_init != "":
             jvm_args += " -Xms" + comp.jvm_heap_init
-        if comp.jvm_heap_max is not None and len(comp.jvm_heap_max) > 0:
+        if comp.jvm_heap_max is not None and comp.jvm_heap_max != "":
             jvm_args += " -Xmx" + comp.jvm_heap_max
-        if comp.jvm_args is not None and len(comp.jvm_args) > 0:
+        if comp.jvm_args is not None and comp.jvm_args != "":
             jvm_args += " " + comp.jvm_args
-        if comp.jvm_extra_args is not None and len(comp.jvm_extra_args) > 0:
+        if comp.jvm_extra_args is not None and comp.jvm_extra_args != "":
             jvm_args += " " + comp.jvm_extra_args
 
         if comp.is_real_hub:
@@ -312,8 +311,9 @@ class ComponentManager(object):
 
                     rcomp.host = node.hostname
                     rcomp.set_jvm_options(None, comp.jvm_path, comp.jvm_server,
-                                          comp.jvm_heap_init, comp.jvm_heap_max,
-                                          comp.jvm_args, comp.jvm_extra_args)
+                                          comp.jvm_heap_init,
+                                          comp.jvm_heap_max, comp.jvm_args,
+                                          comp.jvm_extra_args)
 
                     comp_list.append(rcomp)
         return comp_list
@@ -327,7 +327,7 @@ class ComponentManager(object):
         # Get the number of active runsets from CnCServer
         try:
             has_sets = cnc.rpc_runset_count() > 0
-        except:
+        except:  # pylint: disable=bare-except
             has_sets = False
 
         runsets = {}
@@ -423,7 +423,7 @@ class ComponentManager(object):
                 comps = cls.__get_cnc_components()
                 if logger is not None:
                     logger.info("Extracted active components from CnCServer")
-            except:
+            except:  # pylint: disable=bare-except
                 if logger is not None:
                     logger.error("Failed to extract active components:\n" +
                                  traceback.format_exc())
@@ -491,13 +491,14 @@ class ComponentManager(object):
 
         if verbose and not dry_run and logger is not None:
             logger.info("DONE killing Java Processes.")
+        # pylint: disable=len-as-condition
         if len(killed) > 0 or len(ignored) > 0 or len(comps) > 0:
             jstr = cls.format_component_list(comps)
             jlist = jstr.split(", ")
             try:
                 # CnCServer may be part of the list of launched components
                 jlist.remove(server_name)
-            except:
+            except ValueError:
                 pass
             cls.__report_action(logger, "Killed", killed + jlist, ignored)
 
@@ -516,11 +517,6 @@ class ComponentManager(object):
             if comp.jvm_path is None:
                 continue
 
-            if comp.is_hub:
-                kill_pat = "stringhub.componentId=%d " % comp.id
-            else:
-                kill_pat = cls.get_component_jar(comp.name)
-
             for cmd in cls.__generate_kill_cmd(comp, kill_with_9):
                 if verbose or dry_run:
                     if logger is not None:
@@ -537,10 +533,7 @@ class ComponentManager(object):
             # check for ssh failures here
             for cmd, rtuple in parallel.command_results.items():
                 rtn_code, results = rtuple
-                if cmd in cmd2host:
-                    node_name = cmd2host[cmd]
-                else:
-                    node_name = "unknown"
+                node_name = cmd2host.get(cmd, "unknown")
                 # pkill return codes
                 # 0 -> killed something
                 # 1 -> no matched process to kill
@@ -637,6 +630,8 @@ class ComponentManager(object):
 
         if verbose and not dry_run and logger is not None:
             logger.info("DONE with starting Java Processes.")
+
+        # pylint: disable=len-as-condition
         if len(launched) > 0 or len(ignored) > 0 or len(comps) > 0:
             jstr = cls.format_component_list(comps)
             jlist = jstr.split(", ")
@@ -665,8 +660,8 @@ class ComponentManager(object):
         meta_dir = find_pdaq_trunk()
 
         # The dir where all the "executable" jar files are
-        bin_dir = os.path.join(meta_dir, 'target', 'pDAQ-%s-dist' % cls.RELEASE,
-                               'bin')
+        bin_dir = os.path.join(meta_dir, 'target',
+                               'pDAQ-%s-dist' % cls.RELEASE, 'bin')
         if check_exists and not os.path.isdir(bin_dir):
             bin_dir = os.path.join(meta_dir, 'target',
                                    'pDAQ-%s-dist.dir' % cls.RELEASE, 'bin')
@@ -717,16 +712,9 @@ class ComponentManager(object):
                 # check for ssh failures here
                 for cmd, rtuple in parallel.command_results.items():
                     rtn_code, results = rtuple
-                    if cmd in cmd2host:
-                        node_name = cmd2host[cmd]
-                    else:
-                        node_name = "unknown"
+                    node_name = cmd2host.get(cmd, "unknown")
                     if rtn_code != 0 and logger is not None:
                         logger.error(("Error non zero return code ( %s )" +
                                       " for host: %s, cmd: %s") %
                                      (rtn_code, node_name, cmd))
                         logger.error("Results '%s'" % results)
-
-
-if __name__ == '__main__':
-    pass

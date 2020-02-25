@@ -27,10 +27,12 @@ PARTITION_KEYS = (
 
 
 class SplitException(Exception):
-    pass
+    "General SplitDetector exception"
 
 
 def add_arguments(parser):
+    "Add command-line arguments"
+
     parser.add_argument("-A", "--altconfigs_only", dest="altconfigs_only",
                         action="store_true", default=False,
                         help="Only generate alternate run configurations")
@@ -173,7 +175,7 @@ def sanity_check(altconfigs, name, keys, expected):
                 continue
             overlap = [hub for hub in altconfigs[key1]
                        if hub in altconfigs[key2]]
-            if len(overlap) > 0:
+            if len(overlap) > 0:  # pylint: disable=len-as-condition
                 raise SystemExit("Alternate configurations \"%s\" and \"%s\""
                                  " both contain hubs %s" %
                                  (key1, key2, overlap))
@@ -249,11 +251,11 @@ def split_detector(args):
                     _ = create_config(run_config, [comp.id, ], None,
                                       force=args.force, verbose=args.verbose)
                 elif args.verbose:
-                    print("  writing to %s-no%s" % \
-                        (run_config.basename, get_hub_name(comp.id)))
+                    print("  writing to %s-no%s" %
+                          (run_config.basename, get_hub_name(comp.id)))
                 else:
-                    print("%s-no%s" % \
-                        (run_config.basename, get_hub_name(comp.id)))
+                    print("%s-no%s" %
+                          (run_config.basename, get_hub_name(comp.id)))
 
                 # XXX not adding noxx config to tstlist
 

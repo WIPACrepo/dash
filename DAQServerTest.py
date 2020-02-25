@@ -21,14 +21,14 @@ class TinyMBeanClient(object):
     def __init__(self):
         pass
 
-    def get_attributes(self, beanname, fldlist):
+    @classmethod
+    def get_attributes(cls, beanname, fldlist):
         if beanname != "stringhub":
             raise Exception("Unknown bean \"%s\"" % beanname)
         rtndict = {}
         for fld in fldlist:
-            if fld == "LatestFirstChannelHitTime" or \
-                fld == "NumberOfNonZombies" or \
-                fld == "EarliestLastChannelHitTime":
+            if fld in ("LatestFirstChannelHitTime", "NumberOfNonZombies",
+                       "EarliestLastChannelHitTime"):
                 rtndict[fld] = 10
             else:
                 raise Exception("Unknown beanField \"%s.%s\"" %
@@ -63,10 +63,10 @@ class TinyClient(object):
             (self.__id, self.__name, self.__num, self.__host, self.__port,
              mstr)
 
-    def configure(self, config_name=None):
+    def configure(self, config_name=None):  # pylint: disable=unused-argument
         self.__state = 'ready'
 
-    def connect(self, conn_list=None):
+    def connect(self, conn_list=None):  # pylint: disable=unused-argument
         self.__state = 'connected'
 
     def connectors(self):
@@ -79,7 +79,7 @@ class TinyClient(object):
         return "%s#%d" % (self.__name, self.__num)
 
     @property
-    def id(self):
+    def id(self):  # pylint: disable=invalid-name
         return self.__id
 
     @property
@@ -138,7 +138,7 @@ class TinyClient(object):
     def reset_logging(self):
         pass
 
-    def start_run(self, run_num):
+    def start_run(self, run_num):  # pylint: disable=unused-argument
         self.__state = 'running'
 
     @property
@@ -346,7 +346,7 @@ class TestDAQServer(unittest.TestCase):
     def tearDown(self):
         try:
             self.__log_factory.tearDown()
-        except:
+        except:  # pylint: disable=bare-except
             traceback.print_exc()
 
         if self.__run_config_dir is not None:
@@ -386,7 +386,8 @@ class TestDAQServer(unittest.TestCase):
 
         logger.add_expected_text('Registered %s' % full_name)
 
-        rtn_array = cnc.rpc_component_register(name, num, host, port, mport, [])
+        rtn_array = cnc.rpc_component_register(name, num, host, port, mport,
+                                               [])
 
         local_addr = ip.get_local_address()
 
@@ -432,7 +433,8 @@ class TestDAQServer(unittest.TestCase):
 
         logger.add_expected_text('Registered %s' % full_name)
 
-        rtn_array = cnc.rpc_component_register(name, num, host, port, mport, [])
+        rtn_array = cnc.rpc_component_register(name, num, host, port, mport,
+                                               [])
 
         local_addr = ip.get_local_address()
 

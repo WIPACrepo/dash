@@ -172,7 +172,7 @@ class PCmd(object):
                 with open(self.__out_file, "r") as fin:
                     self.__output += "".join(fin.readlines())
                 os.unlink(self.__out_file)
-            except Exception as exc:
+            except Exception as exc:  # pylint: disable=broad-except
                 self.__output += \
                   "Could not read or delete result file %s (%s)!" % \
                   (self.__out_file, exc)
@@ -311,7 +311,8 @@ class ParallelShell(object):
         """
         return self.__parallel
 
-    def system(self, cmd):
+    @classmethod
+    def system(cls, cmd):
         "Unit tests override this to check `os.system` calls"
         return os.system(cmd)
 

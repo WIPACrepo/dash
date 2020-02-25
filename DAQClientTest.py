@@ -7,7 +7,8 @@ from DAQMocks import MockCnCLogger, MockLogger
 
 
 class MostlyDAQClient(DAQClient):
-    def __init__(self, name, num, host, port, mbean_port, connectors, appender):
+    def __init__(self, name, num, host, port, mbean_port, connectors,
+                 appender):
         self.__appender = appender
 
         super(MostlyDAQClient, self).__init__(name, num, host, port,
@@ -23,7 +24,7 @@ class MostlyDAQClient(DAQClient):
 
 
 class TestDAQClient(unittest.TestCase):
-    def test_init(self):
+    def test_init(self):  # pylint: disable=no-self-use
         appender = MockLogger('test')
         MostlyDAQClient('foo', 0, 'localhost', 543, 0, [], appender)
 

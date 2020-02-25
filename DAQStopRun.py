@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+Stop a run without going through 'livecmd'
+"""
 
 from __future__ import print_function
 
@@ -6,20 +9,16 @@ import sys
 
 from DAQConst import DAQPort
 from DAQRPC import RPCClient
+from i3helper import read_input
 from utils.Machineid import Machineid
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
 
-# Python 2/3 compatibility hack
-if sys.version_info >= (3, 0):
-    read_input = input
-else:
-    read_input = raw_input
-
-
 def add_arguments(parser):
+    "Add command-line arguments"
+
     parser.add_argument("-m", "--no-host-check", dest="nohostcheck",
                         action="store_true", default=False,
                         help="Don't check the host type for run permission")
@@ -29,21 +28,51 @@ def add_arguments(parser):
     parser.add_argument("runset", nargs="*")
 
 
+def stop_runset_with_prompt(rsid):
+    """
+    Ask user if the specified RunSet should be stopped,
+    then stop the RunSet if they agree
+    """
+
+    try:
+        state = cncrpc.rpc_runset_state(rsid)
+    except:  # pylint: disable=bare-except
+        state = "UNKNOWN"
+
+    while True:
+        reply = read_input("Are you sure you want to stop" +
+                           " runset #%d (%s) without 'livecmd'? " %
+                           (rsid, state))
+        lreply = reply.strip().lower()
+        if lreply in ("y", "ye", "yes"):
+            try:
+                cncrpc.rpc_runset_stop_run(rsid)
+                print("Stopped runset #%d" % rsid)
+            except:  # pylint: disable=bare-except
+                print("Could not stop runset #%d: %s" %
+                      (rsid, exc_string()), file=sys.stderr)
+            break
+        elif lreply in ("n", "no"):
+            break
+        print("Please answer 'yes' or 'no'", file=sys.stderr)
+
+
 def stoprun(args):
+    "Stop the current run"
     stop_ids = []
 
     cncrpc = RPCClient("localhost", DAQPort.CNCSERVER)
 
     try:
         rsids = cncrpc.rpc_runset_list_ids()
-    except:
+    except:  # pylint: disable=bare-except
         rsids = []
 
-    if len(rsids) == 0:
+    if len(rsids) == 0:  # pylint: disable=len-as-condition
         raise SystemExit("There are currently no active runsets")
 
     list_rs = False
-    if len(args.runset) > 0:
+    if len(args.runset) > 0:  # pylint: disable=len-as-condition
         for rs_arg in args.runset:
             try:
                 rsid = int(rs_arg)
@@ -63,7 +92,7 @@ def stoprun(args):
     elif len(rsids) == 1:
         stop_ids.append(rsids[0])
 
-    if len(stop_ids) == 0:
+    if len(stop_ids) == 0:  # pylint: disable=len-as-condition
         print("Please specify a runset ID", file=sys.stderr)
         list_rs = False
 
@@ -74,26 +103,7 @@ def stoprun(args):
         raise SystemExit(errmsg)
 
     for rsid in stop_ids:
-        try:
-            state = cncrpc.rpc_runset_state(rsid)
-        except:
-            state = "UNKNOWN"
-        while True:
-            reply = read_input("Are you sure you want to stop" +
-                               " runset #%d (%s) without 'livecmd'? " %
-                               (rsid, state))
-            lreply = reply.strip().lower()
-            if lreply == "y" or lreply == "yes":
-                try:
-                    cncrpc.rpc_runset_stop_run(rsid)
-                    print("Stopped runset #%d" % rsid)
-                except:
-                    print("Could not stop runset #%d: %s" %
-                          (rsid, exc_string()), file=sys.stderr)
-                break
-            elif lreply in ("n", "no"):
-                break
-            print("Please answer 'yes' or 'no'", file=sys.stderr)
+        stop_runset_with_prompt(rsid)
 
 
 def main():

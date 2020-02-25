@@ -4,7 +4,6 @@
 
 class CnCServerException(Exception):
     "Base CnCServer exception class"
-    pass
 
 
 class MissingComponentException(CnCServerException):
@@ -25,4 +24,3 @@ class MissingComponentException(CnCServerException):
 
 class StartInterruptedException(CnCServerException):
     "Thrown when a runset cannot be created because the process was halted"
-    pass

@@ -14,11 +14,11 @@ from BaseRun import FlasherScript
 from cncrun import CnCRun
 from utils.Machineid import Machineid
 
-SVN_ID = "$Id: ExpControlSkel.py 17710 2020-02-06 20:00:36Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 17720 2020-02-25 21:53:22Z dglo $"
 
 
 class DOMArgumentException(Exception):
-    pass
+    "Problem with a DOM argument"
 
 
 class SubRunDOM(object):
@@ -114,6 +114,8 @@ class SubRun(object):
 
 
 def add_arguments(parser, config_as_arg=False):
+    "Add command-line arguments"
+
     parser.add_argument("-C", "--cluster-desc", dest="cluster_desc",
                         help="Cluster description name.")
     if config_as_arg:

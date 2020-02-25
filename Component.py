@@ -1,23 +1,19 @@
 #!/usr/bin/env python
 "Base class for pDAQ components"
 
-class Component(object):
+from i3helper import Comparable
+
+
+class Component(Comparable):
     "pDAQ Component"
 
-    def __init__(self, name, id, log_level=None, host=None):
+    def __init__(self, name, num, log_level=None, host=None):
         "Create a component object"
         self.__name = name
-        self.__id = id
+        self.__num = num
         self.__log_level = log_level
         self.__host = host
         self.__order = None
-
-    def __lt__(self, other):
-        if self.__name < other.name:
-            return True
-        if self.__id < other.id:
-            return True
-        return False
 
     def __str__(self):
         "Return the full name of this component"
@@ -28,14 +24,18 @@ class Component(object):
         return self.fullname
 
     @property
+    def compare_key(self):
+        return (self.__name, self.__num)
+
+    @property
     def fullname(self):
         """
         Return the full name of this component
         (including instance number only on hub components)
         """
-        if self.__id == 0 and not self.is_hub:
+        if self.__num == 0 and not self.is_hub:
             return self.__name
-        return "%s#%d" % (self.__name, self.__id)
+        return "%s#%d" % (self.__name, self.__num)
 
     @property
     def host(self):
@@ -48,9 +48,9 @@ class Component(object):
         self.__host = newhost
 
     @property
-    def id(self):
+    def id(self):  # pylint: disable=invalid-name
         "CnCServer identifier for this component"
-        return self.__id
+        return self.__num
 
     @property
     def is_builder(self):
@@ -71,7 +71,7 @@ class Component(object):
     @property
     def is_real_hub(self):
         "Return True if this is a stringHub component running at SPS"
-        return self.__name.lower() == "stringhub" and self.__id < 1000
+        return self.__name.lower() == "stringhub" and self.__num < 1000
 
     @property
     def is_source(self):
@@ -101,7 +101,7 @@ class Component(object):
     @property
     def num(self):
         "Component instance number"
-        return self.__id
+        return self.__num
 
     @property
     def order(self):

@@ -59,7 +59,7 @@ def __copy_spade_tar_file(logger, copy_dir, spade_base_name, tar_file,
             raise OSError(str(exc) + ": Copy %s to %s" % (tar_file, copy_file))
 
 
-def __find_executable(cmd, dry_run=False):
+def __find_executable(cmd):
     """Find 'cmd' in the user's PATH"""
     path = os.environ["PATH"].split(":")
     for pdir in path:
@@ -76,6 +76,8 @@ def __get_run_data(run_dir):
     end_time = run_xml.end_time
     delta = end_time - run_xml.start_time
     try:
+        # pylint: disable=no-member
+        # PyLint thinks 'delta' is a 'float'
         duration = int(delta.seconds)
     except ValueError:
         duration = 0
@@ -181,6 +183,8 @@ def __write_spade_tar_file(spade_dir, spade_base_name, run_dir, run_num,
 
 
 def add_arguments(parser):
+    "Add command-line arguments"
+
     parser.add_argument("-a", "--check-all", dest="check_all",
                         action="store_true", default=False,
                         help="Queue all unqueued daqrun directories")
@@ -202,7 +206,7 @@ def add_arguments(parser):
 
 
 def check_all(logger, spade_dir, copy_dir, log_dir, no_combine=False,
-              force=False, verbose=False, dry_run=False):
+              force=False, dry_run=False):
     if log_dir is None or not os.path.exists(log_dir):
         logger.info("Log directory \"%s\" does not exist" % log_dir)
         return
@@ -221,12 +225,11 @@ def check_all(logger, spade_dir, copy_dir, log_dir, no_combine=False,
 
             queue_for_spade(logger, spade_dir, copy_dir, log_dir, run_num,
                             no_combine=no_combine, force=force,
-                            verbose=verbose, dry_run=dry_run)
+                            dry_run=dry_run)
 
 
 def queue_for_spade(logger, spade_dir, copy_dir, log_dir, run_num,
-                    no_combine=False, force=False, verbose=False,
-                    dry_run=False):
+                    no_combine=False, force=False, dry_run=False):
     if log_dir is None or not os.path.exists(log_dir):
         logger.error("Log directory \"%s\" does not exist" % log_dir)
         return
@@ -269,7 +272,7 @@ def queue_for_spade(logger, spade_dir, copy_dir, log_dir, run_num,
             os.rename(tmppath, path)
             try:
                 logger.error("Wrote combined log for run %d" % run_num)
-            except:
+            except:  # pylint: disable=bare-except
                 # don't die if we lose the race to close the file
                 pass
 
@@ -298,7 +301,7 @@ def queue_for_spade(logger, spade_dir, copy_dir, log_dir, run_num,
             logger.info(("Queued data for SPADE (spadeDir=%s" +
                          ", run_dir=%s, run_num=%s)...") %
                         (spade_dir, run_dir, run_num))
-    except:
+    except:  # pylint: disable=bare-except
         logger.error("FAILED to queue data for SPADE: " + exc_string())
 
 
@@ -315,17 +318,18 @@ def queue_logs(args):
     log_dir = cluster.daq_log_dir
     copy_dir = None
 
-    if args.check_all or len(args.run_number) == 0:
+    if args.check_all or \
+      len(args.run_number) == 0:  # pylint: disable=len-as-condition
         check_all(logger, spade_dir, copy_dir, log_dir,
                   no_combine=args.no_combine, force=args.force,
-                  verbose=args.verbose, dry_run=args.dry_run)
+                  dry_run=args.dry_run)
     else:
         for numstr in args.run_number:
             run_num = int(numstr)
 
             queue_for_spade(logger, spade_dir, copy_dir, log_dir, run_num,
                             no_combine=args.no_combine, force=args.force,
-                            verbose=args.verbose, dry_run=args.dry_run)
+                            dry_run=args.dry_run)
 
 
 def main():

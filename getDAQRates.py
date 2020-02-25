@@ -126,19 +126,7 @@ class Component(object):
         self.num = comp_num
 
         self.full_str = None
-        self.hash = None
-
-    def __cmp__(self, other):
-        val = cmp(self.name, other.name)
-        if val == 0:
-            val = cmp(self.num, other.num)
-        return val
-
-    def __hash__(self):
-        if self.hash is None:
-            self.hash = ((hash(self.name) * 100) % sys.maxsize) + \
-                (self.num % 100)
-        return self.hash
+        self.__hash = None
 
     def __str__(self):
         if self.full_str is None:
@@ -148,6 +136,11 @@ class Component(object):
                 self.full_str = "%s-%d" % (self.name, self.num)
 
         return self.full_str
+
+    @property
+    def compare_key(self):
+        "Return the keys to be used by the Comparable methods"
+        return (self.name, self.num)
 
 
 def compute_rates(data_dict):
@@ -398,17 +391,20 @@ def report_rates_internal(all_data, report_list, time_interval, verbose=False):
     combined_rate = None
     combined_split = None
 
-    for rpt_tuple in report_list:
+    for rpt_tuple in report_list:  # pylint: disable=too-many-nested-blocks
         is_combined = rpt_tuple[0].endswith('Hub') or \
             (rpt_tuple[0].endswith('Trigger') and
              rpt_tuple[0] != 'globalTrigger' and rpt_tuple[1] == 'trigger')
 
         if combined_field is not None:
             if not is_combined or combined_field != rpt_tuple[1]:
+                # pylint: disable=bad-string-format-type
+                # PyLint thinks 'combined_rate' is None here, disable the check
                 if combined_rate is None:
                     print('    %s.%s: Not enough data' %
                           (combined_comp, combined_field))
-                elif time_interval is None or len(combined_split) == 0:
+                elif time_interval is None or \
+                  len(combined_split) == 0:  # pylint: disable=len-as-condition
                     print('    %s.%s: %.1f' %
                           (combined_comp, combined_field, combined_rate))
                 else:

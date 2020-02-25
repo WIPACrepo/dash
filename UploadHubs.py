@@ -70,12 +70,12 @@ class ThreadableProcess(object):
 
         while not self.do_stop:
             ready = select.select([fileno], [], [], 1)
-            if len(ready[0]) < 1:
+            if len(ready[0]) < 1:  # pylint: disable=len-as-condition
                 continue  # Pick up stop signal
-            self.lock.acquire()
-            buf = os.read(fileno, 4096)
-            self.output += buf
-            self.lock.release()
+            with self.lock:
+                buf = os.read(fileno, 4096)
+                self.output += buf
+
             if buf == "":
                 break
 
@@ -92,7 +92,7 @@ class ThreadableProcess(object):
         """
         while not self.done:
             time.sleep(0.3)
-        if self.pop:
+        if self.pop is not None:
             if self.verbose:
                 print("Waiting for %s" % self.pop.pid)
             self.pop.wait()
@@ -245,19 +245,19 @@ class DOMCounter(object):
         outstr = ""
         # Show DOMs with warnings:
         warns = self.warning_doms()
-        if len(warns) > 0:
+        if len(warns) > 0:  # pylint: disable=len-as-condition
             outstr += "\n%2d DOMs with WARNINGS:\n" % len(warns)
             for dom in warns:
                 outstr += str(dom)
         # Show failed/unfinished DOMs:
         notdone = self.not_done_doms()
-        if len(notdone) > 0:
+        if len(notdone) > 0:  # pylint: disable=len-as-condition
             outstr += "\n%2d DOMs failed or did not finish:\n" % len(notdone)
             for dom in notdone:
                 outstr += str(dom)
         # Show versions
         vcnt = self.version_counts()
-        if len(vcnt) == 0:
+        if len(vcnt) == 0:  # pylint: disable=len-as-condition
             outstr += "NO DOMs UPLOADED SUCCESSFULLY!\n"
         elif len(vcnt) == 1:
             outstr += "Uploaded DOM-MB %s to %d DOMs\n" % \
@@ -348,13 +348,13 @@ class HubThreadSet(ThreadSet):
                     if not_doms and delta.seconds > self.straggler_time:
                         print("Waiting for %s:" % hub)
                         for not_done in cntr.not_done_doms():
-                            print("\t%s: %s" % \
-                                (not_done.cwd, not_done.last_state()))
+                            print("\t%s: %s" %
+                                  (not_done.cwd, not_done.last_state()))
                 if num_done == len(self.hubs):
                     break
-                print("%s Done with %d of %d hubs (%d DOMs)." % \
-                    (str(datetime.datetime.now()), num_done, len(self.hubs),
-                     done_dom_count))
+                print("%s Done with %d of %d hubs (%d DOMs)." %
+                      (datetime.datetime.now(), num_done, len(self.hubs),
+                       done_dom_count))
             time.sleep(1)
 
 

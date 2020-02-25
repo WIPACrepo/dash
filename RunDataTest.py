@@ -61,7 +61,8 @@ class TinyMoniClient(object):
             raise Exception("Expected #%s %s, not %s" %
                             (name, expected, actual))
 
-    def sendMoni(self, name, value, prio=None, time=None):
+    def sendMoni(self, name, value,      # pylint: disable=invalid-name
+                 prio=None, time=None):  # pylint: disable=unused-argument
         if self.__exception is not None:
             raise self.__exception
 
@@ -137,8 +138,7 @@ class TinyRunSet(object):
         self.__run_dir = tmp_dir
         return self.__run_dir
 
-    def get_first_event_time(self, evt_bldr,  # pylint: disable=no-self-use
-                             run_data):
+    def get_first_event_time(self, _, run_data):  # pylint: disable=no-self-use
         return run_data.first_physics_time
 
     @property
@@ -199,7 +199,7 @@ class MyRunData(RunData):
 
 
 class RunDataTest(unittest.TestCase):
-    TOP_DIR = None
+    top_dir = None
 
     TICKS_PER_SEC = 10000000000
 
@@ -236,14 +236,14 @@ class RunDataTest(unittest.TestCase):
         return num_evts / tick_seconds
 
     def __create_directories(self):
-        self.TOP_DIR = tempfile.mkdtemp()
+        self.top_dir = tempfile.mkdtemp()
 
         # create JADE directory
-        spade_dir = os.path.join(self.TOP_DIR, "spade")
+        spade_dir = os.path.join(self.top_dir, "spade")
         os.mkdir(spade_dir)
 
         # create log directory
-        log_dir = os.path.join(self.TOP_DIR, "log")
+        log_dir = os.path.join(self.top_dir, "log")
         os.mkdir(log_dir)
 
         return spade_dir, log_dir
@@ -293,9 +293,8 @@ class RunDataTest(unittest.TestCase):
                              "Expected \"%s\" value %s, not %s" %
                              (key, val, result[key]))
 
-    def __validate_result(self, result, num_evts, first_time, evt_time,
-                          num_moni, moni_time, num_sn, sn_time, num_tcal,
-                          tcal_time):
+    def __validate_result(self, result, num_evts, evt_time, num_moni,
+                          moni_time, num_sn, sn_time, num_tcal, tcal_time):
         self.assertTrue(isinstance(result, (list, tuple)),
                         "Result should be a list/tuple, not %s" %
                         type(result).__name__)
@@ -341,8 +340,8 @@ class RunDataTest(unittest.TestCase):
             raise Exception("Found existing run.xml file; aborting")
 
     def tearDown(self):
-        if self.TOP_DIR is not None:
-            shutil.rmtree(self.TOP_DIR)
+        if self.top_dir is not None:
+            shutil.rmtree(self.top_dir)
         if os.path.exists("run.xml"):
             raise Exception("Test created a run.xml file; aborting")
 
@@ -567,7 +566,7 @@ class RunDataTest(unittest.TestCase):
 
         # another attempt without a known first time
         self.__add_components(runset)
-        rdata.dashlog.add_expected_regexp(r"Couldn't find first good time for ")
+        rdata.dashlog.add_expected_regexp(r"Couldn't find first good time ")
         rdata.report_first_good_time(runset)
 
         # this should finally succeed
@@ -923,9 +922,8 @@ class RunDataTest(unittest.TestCase):
         rdata.dashlog.add_expected_exact("Cannot get first event time (None)")
 
         result = rdata.update_counts_and_rate(runset)
-        self.__validate_result(result, num_evts, None, evt_time,
-                               num_moni, moni_time, num_sn, sn_time, num_tcal,
-                               tcal_time)
+        self.__validate_result(result, num_evts, evt_time, num_moni, moni_time,
+                               num_sn, sn_time, num_tcal, tcal_time)
 
     def test_update_counts_and_rate_no_data(self):
         runset = self.__build_standard_runset()
@@ -955,8 +953,7 @@ class RunDataTest(unittest.TestCase):
                                               r" %s.*" % (cname, ))
 
         result = rdata.update_counts_and_rate(runset)
-        self.__validate_result(result, 0, None, None, 0, None, 0, None, 0,
-                               None)
+        self.__validate_result(result, 0, None, 0, None, 0, None, 0, None)
 
     def test_update_counts_and_rate_wrong_data(self):
         runset = self.__build_standard_runset()

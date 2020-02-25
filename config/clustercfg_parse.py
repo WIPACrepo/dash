@@ -7,6 +7,7 @@ import glob
 import os
 import sys
 
+
 def main():
     "Main program"
 

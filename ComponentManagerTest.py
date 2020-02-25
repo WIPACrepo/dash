@@ -93,7 +93,9 @@ class MockServer(object):
         thrd.setDaemon(True)
         thrd.start()
 
-    def __list_comp_dicts(self, id_list=None, get_all=True):
+    def __list_comp_dicts(self,
+                          id_list=None,   # pylint: disable=unused-argument
+                          get_all=True):  # pylint: disable=unused-argument
         dictlist = []
         for comp in self.__unused:
             newc = {}
@@ -266,7 +268,7 @@ class ComponentManagerTest(unittest.TestCase):
                     parallel = MockParallelShell()
 
                     parallel.add_expected_java_kill(comp_name, comp_id,
-                                                    kill_with_9, verbose, host)
+                                                    kill_with_9, host)
 
                     ComponentManager.kill_components(node.components,
                                                      dry_run=dry_run,
@@ -339,9 +341,8 @@ class ComponentManagerTest(unittest.TestCase):
                         parallel.add_expected_python(do_cnc, dash_dir,
                                                      config_dir, log_dir,
                                                      daq_data_dir, spade_dir,
-                                                     clu_desc, cfg_name,
-                                                     copy_dir, log_port,
-                                                     live_port)
+                                                     clu_desc, copy_dir,
+                                                     log_port, live_port)
                         parallel.add_expected_java(comp, config_dir,
                                                    daq_data_dir,
                                                    DAQPort.CATCHALL, live_port,
@@ -402,7 +403,7 @@ class ComponentManagerTest(unittest.TestCase):
 
                     parallel.add_expected_python_kill(do_cnc, kill_with_9)
                     parallel.add_expected_java_kill(comp_name, comp_id,
-                                                    kill_with_9, verbose, host)
+                                                    kill_with_9, host)
 
                     ComponentManager.kill(node.components, verbose=verbose,
                                           dry_run=dry_run, kill_cnc=do_cnc,

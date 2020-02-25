@@ -36,11 +36,11 @@ from DAQConst import DAQPort
 
 
 class LightModeException(RunException):
-    pass
+    "Problem with the light-in-the-detector mode"
 
 
 class LiveTimeoutException(RunException):
-    pass
+    "Timeout exception"
 
 
 class AbstractState(object):
@@ -250,7 +250,8 @@ class LiveState(object):
 
         return summary
 
-    def __parse_line(self, parse_state, line):
+    def __parse_line(self,  # pylint: disable=too-many-return-statements
+                     parse_state, line):
         """
         Parse a live of output from 'livecmd check'
 

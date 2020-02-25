@@ -38,5 +38,5 @@ class CnCThread(threading.Thread):
     def run(self):
         try:
             self._run()
-        except:
+        except:  # pylint: disable=bare-except
             self.__log.error(self.__name + ": " + exc_string())

@@ -44,7 +44,8 @@ class GThread(threading.Thread):
         "Return True if this thread encountered an error"
         return self.__error is not None
 
-    def report_exception(self, exception):
+    def report_exception(self,        # pylint: disable=no-self-use
+                         exception):  # pylint: disable=unused-argument
         "Don't report exceptions"
         return
 
@@ -163,7 +164,3 @@ class ThreadGroup(object):
                     alive |= thrd.is_alive()
             if not alive:
                 break
-
-
-if __name__ == "__main__":
-    pass

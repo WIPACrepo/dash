@@ -21,7 +21,3 @@ class RunSetState(object):
     RESETTING = "resetting"
     # ERROR is not defined in DAQComponent
     ERROR = "error"
-
-
-if __name__ == "__main__":
-    pass

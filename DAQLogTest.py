@@ -83,7 +83,6 @@ class TestDAQLog(unittest.TestCase):
 
         self.__check_log(log_path, ('%s - - [%s] %s' % (cname, now, msg), ))
 
-
     def test_log_socket_server(self):
         "Test LogSocketServer"
         port = 5432

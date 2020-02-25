@@ -12,6 +12,8 @@ from utils.Machineid import Machineid
 
 
 def add_arguments(parser):
+    "Add command-line arguments"
+
     parser.add_argument("-c", "--daq-config", dest="daqConfig",
                         help="DAQ run configuration")
     parser.add_argument("-d", "--flasher-delay", type=int, dest="delay",
@@ -77,7 +79,7 @@ def flash(args):
             flash_pairs = FlasherScript.parse(args.flash_name)
             flash_name = args.flash_name
             cfg = args.config
-        except:
+        except:  # pylint: disable=bare-except
             try:
                 flash_pairs = FlasherScript.parse(args.config)
                 flash_name = args.config

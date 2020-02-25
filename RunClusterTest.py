@@ -14,7 +14,7 @@ class DeployData(object):
     def __init__(self, host, name, compid=0):
         self.host = host
         self.name = name
-        self.id = compid
+        self.id = compid  # pylint: disable=invalid-name
         self.found = False
 
     def __str__(self):
@@ -176,7 +176,7 @@ class RunClusterTest(unittest.TestCase):
         self.__check_cluster(clu_cfg, exp_nodes, spade_dir, log_copy_dir,
                              daq_log_dir, daq_data_dir)
 
-    def test_deploy_s_p_t_s64(self):
+    def test_deploy_spts64(self):
         cfg_name = 'simpleConfig'
         cluster_name = "spts64"
 
@@ -212,7 +212,7 @@ class RunClusterTest(unittest.TestCase):
             if not str(rce).endswith("Only have space for 10 of 11 hubs"):
                 self.fail("Unexpected exception: " + str(rce))
 
-    def test_deploy_s_p_s(self):
+    def test_deploy_sps(self):
         cfg_name = 'sps-IC40-IT6-Revert-IceTop-V029'
         cluster_name = "sps"
 
@@ -292,7 +292,7 @@ class RunClusterTest(unittest.TestCase):
     @classmethod
     def __add_hubs_from_run_config(cls, nodes, filename):
         # NOTE: only a fool parses XML code with regexps!
-        HIT_PAT = re.compile(r'^\s*<hits hub="(\d+)" host="(\S+)"\s*/>\s*$')
+        hit_pat = re.compile(r'^\s*<hits hub="(\d+)" host="(\S+)"\s*/>\s*$')
 
         path = os.path.join(cls.CONFIG_DIR, filename)
         if not path.endswith(".xml"):
@@ -301,7 +301,7 @@ class RunClusterTest(unittest.TestCase):
         found = False
         with open(path, "r") as fin:
             for line in fin:
-                mtch = HIT_PAT.match(line)
+                mtch = hit_pat.match(line)
                 if mtch is None:
                     continue
 

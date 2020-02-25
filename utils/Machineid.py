@@ -155,6 +155,10 @@ class Machineid(object):
         return self.__hname
 
 
-if __name__ == "__main__":
+def main():
     TEST = Machineid()
     print(TEST)
+
+
+if __name__ == "__main__":
+    main()

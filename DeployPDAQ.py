@@ -34,9 +34,8 @@ PDAQ_HOME = find_pdaq_trunk()
 
 
 def add_arguments(parser, config_as_arg=True):
-    """
-    Declare all arguments here (this is also called by the `pdaq` metacommand)
-    """
+    "Add command-line arguments"
+
     parser.add_argument("-C", "--cluster-desc", dest="cluster_desc",
                         help="Cluster description name")
     if config_as_arg:
@@ -131,7 +130,8 @@ class RSyncRunner(object):
         for line in string.split(os.linesep):
             if line.find("connection unexpectedly closed") >= 0:
                 continue
-            if line.find("unexplained error") >= 0 and len(kept) > 0:
+            if line.find("unexplained error") >= 0 and \
+              len(kept) > 0:  # pylint: disable=len-as-condition
                 continue
             kept.append(line)
         return kept
@@ -144,7 +144,7 @@ class RSyncRunner(object):
         while self.__running:
             with self.__qlock:
                 # if no commands remain, this thread can exit
-                if len(self.__queue) == 0:
+                if len(self.__queue) == 0:  # pylint: disable=len-as-condition
                     break
 
                 # queue contains a simple description and full shell command
@@ -335,7 +335,7 @@ def deploy(config, pdaq_dir, subdirs, delete, dry_run, deep_dry_run,
     for node in config.nodes():
         hosts[node.hostname] = 1
 
-    if len(hosts) > 0 and trace_level > 0:
+    if len(hosts) > 0 and trace_level > 0:  # pylint: disable=len-as-condition
         print("COMMANDS:")
 
     for node_name in sorted(hosts.keys()):

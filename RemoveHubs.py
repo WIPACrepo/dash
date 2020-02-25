@@ -15,9 +15,8 @@ from utils.Machineid import Machineid
 
 
 def add_arguments(parser):
-    """
-    Parse command-line arguments
-    """
+    "Add command-line arguments"
+
     config_dir = find_pdaq_config()
     if not os.path.exists(config_dir):
         raise SystemExit("Cannot find configuration directory")

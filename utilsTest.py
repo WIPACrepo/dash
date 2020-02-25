@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+
+from __future__ import print_function
+
+import os
+import tempfile
 import unittest
 
 from lxml import etree
@@ -7,7 +13,8 @@ from utils.Machineid import Machineid
 
 
 class TestUtils(unittest.TestCase):
-    def normalize_xml(self, xml_str):
+    @classmethod
+    def normalize_xml(cls, xml_str):
         tree = etree.fromstring(xml_str)
         for element in tree.iter("*"):
             if element.text is not None:
@@ -116,6 +123,21 @@ class TestUtils(unittest.TestCase):
         exp_str = self.normalize_xml(expected_doc_str)
 
         self.assertEqual(real_str, exp_str)
+
+        (fdout, tmppath) = tempfile.mkstemp(suffix=".xml")
+        try:
+            os.write(fdout, expected_doc_str.encode("utf-8"))
+            os.close(fdout)
+
+            dirnm, filenm = os.path.split(tmppath)
+
+            nulog = DashXMLLog.parse(dirnm, filenm)
+
+            new_str = self.normalize_xml(nulog.document_to_string(indent=""))
+
+            self.assertEqual(new_str, exp_str)
+        finally:
+            os.remove(tmppath)
 
 
 if __name__ == "__main__":

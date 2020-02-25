@@ -15,7 +15,6 @@ from i3helper import Comparable
 
 class RunClusterError(Exception):
     "Base exception for this package"
-    pass
 
 
 class RunNode(Comparable):
@@ -35,12 +34,6 @@ class RunNode(Comparable):
         self.__default_log_level = default_log_level
         self.__comps = []
 
-    def __cmp__(self, other):
-        val = cmp(self.hostname, other.hostname)
-        if val == 0:
-            val = cmp(self.location, other.location)
-        return val
-
     def __str__(self):
         return "%s(%s)*%d" % (self.__hostname, self.__default_log_level,
                               len(self.__comps))
@@ -50,7 +43,8 @@ class RunNode(Comparable):
         self.__comps.append(comp)
 
     @property
-    def compare_tuple(self):
+    def compare_key(self):
+        "Return the keys to be used by the Comparable methods"
         return (self.__hostname, self.__loc_name)
 
     @property
@@ -78,16 +72,6 @@ class SimAlloc(object):
         self.__percent = 0.0
 
         self.__allocated = 0
-
-    def __lt__(self, other):
-        if self.allocated < other.allocated:
-            return True
-
-        if self.allocated == other.allocated and \
-             self.host > other.host:
-            return True
-
-        return False
 
     def __str__(self):
         return "%s#%d%%%.2f=%d" % (self.__comp.host, self.__number,
@@ -118,6 +102,16 @@ class SimAlloc(object):
     @property
     def allocated(self):
         return self.__allocated
+
+    def __lt__(self, other):
+        if self.allocated < other.allocated:
+            return True
+
+        if self.allocated == other.allocated and \
+             self.host > other.host:
+            return True
+
+        return False
 
     @property
     def host(self):
@@ -171,8 +165,8 @@ class RunCluster(CachedConfigName):
         for (host, comp) in cluster_desc.host_component_pairs:
             if not comp.is_hub:
                 continue
-            for idx in range(0, len(hub_list)):
-                if comp.id == hub_list[idx].id:
+            for idx, hub in enumerate(hub_list):
+                if comp.id == hub.id:
                     cls.__add_component(host_map, host, comp)
                     del hub_list[idx]
                     break
@@ -194,8 +188,8 @@ class RunCluster(CachedConfigName):
         jvm_args = cluster_desc.default_jvm_args("StringHub")
         jvm_extra = cluster_desc.default_jvm_extra_args("StringHub")
 
-        #alert_email = cluster_desc.default_alert_email("StringHub")
-        #ntp_host = cluster_desc.default_ntp_host("StringHub")
+        # alert_email = cluster_desc.default_alert_email("StringHub")
+        # ntp_host = cluster_desc.default_ntp_host("StringHub")
 
         log_level = cluster_desc.default_log_level("StringHub")
 
@@ -245,7 +239,7 @@ class RunCluster(CachedConfigName):
     def __add_sim_hubs(cls, cluster_desc, hub_list, host_map):
         "Add simulated hubs to host_map"
         sim_list = cls.__get_sorted_sim_hubs(cluster_desc, host_map)
-        if len(sim_list) == 0:
+        if len(sim_list) == 0:  # pylint: disable=len-as-condition
             missing = []
             for hub in hub_list:
                 missing.append(str(hub))
@@ -306,7 +300,8 @@ class RunCluster(CachedConfigName):
 
         log_level = cluster_desc.default_log_level("StringHub")
 
-        if False:
+        if False:  # pylint: disable=using-constant-test
+            # debugging code to dump the hub lists
             print()
             print("======= SimList")
             for sim in sim_list:
@@ -416,12 +411,12 @@ class RunCluster(CachedConfigName):
 
         cls.__add_required(cluster_desc, host_map)
         cls.__add_triggers(cluster_desc, hub_list, host_map)
-        if len(hub_list) > 0:
+        if len(hub_list) > 0:  # pylint: disable=len-as-condition
             cls.__add_real_hubs(cluster_desc, hub_list, host_map)
-            if len(hub_list) > 0:
+            if len(hub_list) > 0:  # pylint: disable=len-as-condition
                 cls.__add_replay_hubs(cluster_desc, hub_list, host_map,
                                       run_cfg)
-                if len(hub_list) > 0:
+                if len(hub_list) > 0:  # pylint: disable=len-as-condition
                     cls.__add_sim_hubs(cluster_desc, hub_list, host_map)
 
         return cls.__convert_to_nodes(cluster_desc, host_map)
@@ -577,13 +572,13 @@ def main():
             continue
         except KeyboardInterrupt:
             break
-        except:
+        except:  # pylint: disable=bare-except
             print('For %s:' % name, file=sys.stderr)
             traceback.print_exc()
             continue
 
-        print('RunCluster: %s (%s)' % \
-            (run_cluster.config_name, run_cluster.description))
+        print('RunCluster: %s (%s)' %
+              (run_cluster.config_name, run_cluster.description))
         print('--------------------')
         if run_cluster.log_dir_for_spade is not None:
             print('SPADE logDir: %s' % run_cluster.log_dir_for_spade)
@@ -595,8 +590,8 @@ def main():
             print('DAQ logDir: %s' % run_cluster.daq_log_dir)
         print('Default log level: %s' % run_cluster.default_log_level)
         for node in run_cluster.nodes():
-            print('  %s@%s logLevel %s' % \
-                (node.location, node.hostname, node.default_log_level))
+            print('  %s@%s logLevel %s' %
+                  (node.location, node.hostname, node.default_log_level))
             comps = sorted(node.components)
             for comp in comps:
                 print('    %s %s' % (comp, comp.log_level))

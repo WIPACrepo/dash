@@ -133,9 +133,9 @@ class MockTMMBeanClient(object):
         "Return the entire dictionary of MBean data"
         return copy.deepcopy(self.__bean_data)
 
-    def reload(self):
+    def reload(self):  # pylint: disable=no-self-use
         "Pretend to reload the MBean data"
-        pass
+        return
 
 
 class MockTMComponent(Component):
@@ -221,7 +221,7 @@ class MyTaskManager(TaskManager):
         self.__timer_dict[name] = timer
         return timer
 
-    def triggerTimers(self):
+    def trigger_timers(self):
         "Trigger cached task timers so tasks will be run"
         for k in self.__timer_dict:
             self.__timer_dict[k].trigger()
@@ -303,7 +303,6 @@ class TaskManagerTest(unittest.TestCase):
             "missingDOMs": 1,
         }
         live.add_expected("dom_update", dom_dict, Prio.ITS)
-
 
     def setUp(self):
         self.__first_time = True
@@ -389,7 +388,7 @@ class TaskManagerTest(unittest.TestCase):
                                    " %d moni events, %d SN events, %d tcals" %
                                    runset.rates)
 
-        rst.triggerTimers()
+        rst.trigger_timers()
         rst.start()
 
         for _ in range(20):
@@ -443,7 +442,7 @@ class TaskManagerTest(unittest.TestCase):
                                    " %d moni events, %d SN events, %d tcals" %
                                    runset.rates)
 
-        rst.triggerTimers()
+        rst.trigger_timers()
 
         rst.start()
 
@@ -473,7 +472,7 @@ class TaskManagerTest(unittest.TestCase):
                                    " %d moni events, %d SN events, %d tcals" %
                                    runset.rates)
 
-        rst.triggerTimers()
+        rst.trigger_timers()
 
         for _ in range(20):
             wait_for_thread = False

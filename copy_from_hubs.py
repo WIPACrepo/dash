@@ -15,7 +15,6 @@ import time
 
 class HSCopyException(Exception):
     "Hub copy exceptions"
-    pass
 
 
 class DAQState(object):
@@ -115,7 +114,7 @@ class DAQState(object):
                 if front == "run":
                     try:
                         self.__run_num = int(back)
-                    except:
+                    except ValueError:
                         self.__run_num = back
                 elif front == "Time until stop":
                     self.__time_left \
@@ -444,18 +443,20 @@ class CopyManager(object):
         for proc in self.__hub_procs:
             proc.start()
 
-
     def kill_processes(self):
         "Kill copy processes on hubs"
         for proc in self.__hub_procs:
             proc.kill()
 
-    def kill_with_signal(self, signum, frame):
+    def kill_with_signal(self,
+                         signum, frame):  # pylint: disable=unused-argument
         self.kill_processes()
         sys.exit(0)
 
+
 def add_arguments(parser):
-    "Add all arguments"
+    "Add command-line arguments"
+
     parser.add_argument("-C", "--hub-command", dest="hub_command",
                         default="pdaq copy_hs_files",
                         help="Hub command to run")
@@ -504,7 +505,7 @@ def process_args(args):
 
     hub_list = []
 
-    if len(args.positional) == 0:
+    if len(args.positional) == 0:  # pylint: disable=len-as-condition
         raise HSCopyException("Please specify start and end times")
 
     for arg in args.positional:
@@ -556,7 +557,7 @@ def process_args(args):
     elif not os.path.exists(destination):
         raise HSCopyException("Destination \"%s\" does not exist" %
                               str(destination))
-    elif len(hub_list) == 0:
+    elif len(hub_list) == 0:  # pylint: disable=len-as-condition
         raise HSCopyException("Please specify one or more hubs")
 
     return (hub_list, destination, start_ticks, stop_ticks, bwlimit,

@@ -80,10 +80,10 @@ class TestCnCMisc(unittest.TestCase):
         for key in list(entries.keys()):
             entries[key].build_connection_map(cmap)
 
-        for key in list(cmap.keys()):
-            print(str(key) + ':')
-            for entry in cmap[key]:
-                print('  ' + str(entry))
+        # for key in list(cmap.keys()):
+        #     print(str(key) + ':')
+        #     for entry in cmap[key]:
+        #         print('  ' + str(entry))
 
     def test_conn_type_entry_optional(self):
         inputs = (('Start', 1, 'here',
@@ -111,11 +111,11 @@ class TestCnCMisc(unittest.TestCase):
             key = "%s#%d" % (inputs[i][0], inputs[i][1])
             exp_map[key] = {}
             for conn in inputs[i][3:]:
-                if conn[0].find("None") < 0 and \
-                   (conn[1] == Connector.OUTPUT or
-                    conn[1] == Connector.OPT_OUTPUT):
-                    exp_map[key][conn[0]] = "%s#%d" % \
-                                           (inputs[i + 1][0], inputs[i + 1][1])
+                if conn[1] == Connector.OUTPUT or \
+                  conn[1] == Connector.OPT_OUTPUT:
+                    if conn[0].find("None") < 0:
+                        exp_map[key][conn[0]] = "%s#%d" % \
+                          (inputs[i + 1][0], inputs[i + 1][1])
 
         for comp in list(cmap.keys()):
             key = str(comp)

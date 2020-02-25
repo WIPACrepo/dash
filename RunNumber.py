@@ -8,16 +8,11 @@ import os
 import re
 import sys
 
-
-# Python 2/3 compatibility hack
-if sys.version_info >= (3, 0):
-    read_input = input
-else:
-    read_input = raw_input
+from i3helper import read_input
 
 
 class RunNumberException(Exception):
-    pass
+    "General RunNumber exception"
 
 
 class RunNumber(object):
@@ -73,6 +68,8 @@ class RunNumber(object):
 
 
 def add_arguments(parser):
+    "Add command-line arguments"
+
     parser.add_argument("run_number",
                         type=int, default=None, nargs="?",
                         help="Last run number")

@@ -34,7 +34,6 @@ FIELD_NAMES = ["release", "repo_rev", "date", "time"]
 
 class SCMVersionError(Exception):
     """Base package exception"""
-    pass
 
 
 SCM_GIT = "_git_"
@@ -218,6 +217,7 @@ def __get_svn_externals(svn_dir, dir_url):
 
     return externals
 
+
 def __get_svn_info(svn_dir):
     """
     Gather the Subversion version info for the specified directory,
@@ -337,8 +337,10 @@ def __parse_date_time(datestr, fmtstr):
         dttm = datetime.strptime(datestr, fmtstr + " %z")
     except ValueError:
         dflds = datestr.split()
+
+        # pylint: disable=len-as-condition
         if len(dflds[-1]) > 0 and \
-           (dflds[-1][0] == '-' or dflds[-1][0] == '+'):
+          (dflds[-1][0] == '-' or dflds[-1][0] == '+'):
             # try trimming timezone
             try:
                 dttm = datetime.strptime(" ".join(dflds[:-1]), fmtstr)

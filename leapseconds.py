@@ -19,7 +19,7 @@ from locate_pdaq import find_pdaq_config
 
 
 class LeapsecondException(Exception):
-    pass
+    "General LeapSecond exception"
 
 
 class MJD(Comparable):
@@ -35,11 +35,15 @@ class MJD(Comparable):
         53400.0
         >>> MJD(1985, 2, 17.25).value
         46113.25
+        >>> MJD(rawvalue=56109.0).value
+        56109.0
         """
 
         if rawvalue is not None:
-            if year is not None or month is not None or day is not None or \
-               hour is not None or minute is not None or second is not None:
+            is_bad = year is not None or month is not None or day is not None
+            is_bad = is_bad or hour is not None or minute is not None or \
+              second is not None
+            if is_bad:
                 raise LeapsecondException("Cannot specify 'rawvalue' with"
                                           " any time-based parameters")
             value = rawvalue
@@ -66,7 +70,8 @@ class MJD(Comparable):
         self.__value = value
 
     @property
-    def compare_tuple(self):
+    def compare_key(self):
+        "Return the keys to be used by the Comparable methods"
         return self.__value
 
     def __sub__(self, other):
@@ -159,7 +164,7 @@ class MJD(Comparable):
         return self.__value
 
 
-class leapseconds(object):
+class LeapSeconds(object):
     # default file name
     DEFAULT_FILENAME = "leapseconds-latest"
     # First year covered by NIST file
@@ -245,7 +250,7 @@ class leapseconds(object):
 
         if cls.__INSTANCE is None or \
            not cls.__INSTANCE.is_config_dir(config_dir):
-            cls.__INSTANCE = leapseconds(os.path.join(config_dir, "nist",
+            cls.__INSTANCE = LeapSeconds(os.path.join(config_dir, "nist",
                                                       cls.DEFAULT_FILENAME))
 
         return cls.__INSTANCE
@@ -329,9 +334,9 @@ class NISTParser(object):
         else:
             final_year = expire_year
 
-        if final_year - leapseconds.NIST_EPOCH_YEAR < \
+        if final_year - LeapSeconds.NIST_EPOCH_YEAR < \
            self.MAX_PRECALCULATE_SPAN:
-            first_year = leapseconds.NIST_EPOCH_YEAR
+            first_year = LeapSeconds.NIST_EPOCH_YEAR
         else:
             first_year = final_year - self.MAX_PRECALCULATE_SPAN
 
@@ -407,7 +412,7 @@ class NISTParser(object):
                 continue
         if expiry is None:
             raise LeapsecondException("No expiration line found")
-        if len(tai_map) == 0:
+        if len(tai_map) == 0:  # pylint: disable=len-as-condition
             raise LeapsecondException("No leapsecond data found")
 
         return expiry
@@ -425,7 +430,7 @@ class NISTParser(object):
 def main():
     "Main program"
 
-    ls_inst = leapseconds.instance()
+    ls_inst = LeapSeconds.instance()
 
     ls_inst.dump_offsets()
 
@@ -436,5 +441,5 @@ def test():
 
 
 if __name__ == "__main__":
-    #main()
+    # main()
     test()

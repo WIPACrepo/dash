@@ -32,7 +32,8 @@ class RateThread(CnCThread):
                                      (num_evts, ratestr, num_moni, num_sn,
                                       num_tcal))
 
-    def get_new_thread(self, ignored=True):
+    def get_new_thread(self,
+                       send_details=False):  # pylint: disable=unused-argument
         "Create a new copy of this thread"
         thrd = RateThread(self.__runset, self.__dashlog)
         return thrd
@@ -54,12 +55,12 @@ class RateTask(CnCSingleThreadTask):
         return RateThread(runset, dashlog)
 
     @classproperty
-    def name(cls):
+    def name(cls):  # pylint: disable=no-self-argument
         "Name of this task"
         return cls.__NAME
 
     @classproperty
-    def period(cls):
+    def period(cls):  # pylint: disable=no-self-argument
         "Number of seconds between tasks"
         return cls.__PERIOD
 

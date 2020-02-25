@@ -19,8 +19,8 @@ def nicknames(fhndl):
         if line[0] == '#':
             continue
 
-        mbid, domid, name, loc, _ = line.split(None, 4)
-        domlist.append((mbid, domid, name, loc))
+        mbid, domid, domname, loc, _ = line.split(None, 4)
+        domlist.append((mbid, domid, domname, loc))
     return domlist
 
 
@@ -130,8 +130,7 @@ def create_config(cursor, mbid, **kwargs):
         lc_tx_mode = "none"
 
     # Check for special LC cases
-    if om_key in LC_SPECIAL_MODES:
-        lc_mode = LC_SPECIAL_MODES[om_key]
+    lc_mode = LC_SPECIAL_MODES.get(om_key, lc_mode)
 
     lc_span = 1
     lc_pre_trigger = 1000
@@ -148,21 +147,18 @@ def create_config(cursor, mbid, **kwargs):
     else:
         clen = clen_u
 
-    if "gain" in kwargs:
-        gain = kwargs["gain"]
+    gain = kwargs.get("gain", gain)
     mpe_q = 16.0 * gain / 1.0e+7
     spe_q = 0.4 * gain / 1.0e+7
+
+    lc_span = kwargs.get("span", 1)
+    lc_pre_trigger = kwargs.get("pre_trigger", 1000)
+    lc_post_trigger = kwargs.get("post_trigger", 1000)
     if "eng_format" not in kwargs and "deltaFormat" not in kwargs:
         kwargs["eng_format"] = [(128, 128, 128, 0), 250]
-    if "span" in kwargs:
-        lc_span = kwargs["span"]
-    if "pre_trigger" in kwargs:
-        lc_pre_trigger = kwargs["pre_trigger"]
-    if "post_trigger" in kwargs:
-        lc_post_trigger = kwargs["post_trigger"]
 
     # Calculate the HV
-    if om_key in HV_SPECIALS:
+    if om_key in HV_SPECIALS:  # pylint: disable=consider-using-get
         dac = HV_SPECIALS[om_key]
     else:
         dac = get_hv(cursor, domid, gain)
@@ -235,11 +231,11 @@ def create_config(cursor, mbid, **kwargs):
 DOM_DB = dict()
 DOM_DB_BY_OMKEY = dict()
 if "NICKNAMES" in os.environ:
-    names = nicknames(file(os.environ["NICKNAMES"]))
-    for name in names:
-        DOM_DB[name[0]] = name
-        if name[3] != "-":
-            DOM_DB_BY_OMKEY[name[3]] = name
+    NICKNAMES = nicknames(file(os.environ["NICKNAMES"]))
+    for nickname in NICKNAMES:
+        DOM_DB[nickname[0]] = nickname
+        if nickname[3] != "-":
+            DOM_DB_BY_OMKEY[nickname[3]] = nickname
 
 LC_SPECIAL_MODES = {
     '29-58': 'up',     # 29-59 (Nix) is dead
@@ -258,6 +254,7 @@ LC_SPECIAL_MODES = {
 HV_SPECIALS = {
     '21-30': 1250      # Phenol
 }
+
 
 def main():
     "Main program"

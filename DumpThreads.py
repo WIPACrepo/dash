@@ -34,13 +34,16 @@ class DumpThreadsOnSignal(object):
 
         return None
 
-    def __handle_signal(self, signum, frame):
+    def __handle_signal(self,
+                        signum, frame):  # pylint: disable=unused-argument
         self.dump_threads(self.__file_handle, self.__logger)
 
     @classmethod
     def dump_threads(cls, file_handle=None, logger=None):
+        frames = sys._current_frames()  # pylint: disable=protected-access
+
         first = True
-        for tid, stack in list(sys._current_frames().items()):
+        for tid, stack in frames.items():
             thrd = cls.__find_thread(tid)
             if thrd is None:
                 tstr = "Thread #%d" % tid

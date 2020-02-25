@@ -23,11 +23,7 @@ class MockArguments(object):
         """
         if "dest" not in kwargs:
             raise Exception("No 'dest' for %s" % str(args))
-        if "default" in kwargs:
-            dflt = kwargs["default"]
-        else:
-            dflt = None
-        setattr(self, kwargs["dest"], dflt)
+        setattr(self, kwargs["dest"], kwargs.get("default", None))
 
     def set_argument(self, name, value):
         """
@@ -39,7 +35,8 @@ class MockArguments(object):
 
 
 class TestDAQLaunch(unittest.TestCase):
-    def __create_cluster_config_file(self, config_dir, clu_desc, daq_data_dir,
+    @classmethod
+    def __create_cluster_config_file(cls, config_dir, clu_desc, daq_data_dir,
                                      log_dir, spade_dir, comp_host_dict):
         clu_cfg_file = MockClusterConfigFile(config_dir, clu_desc)
 
@@ -102,7 +99,7 @@ class TestDAQLaunch(unittest.TestCase):
         shell = MockParallelShell()
         shell.add_expected_python(True, dash_dir, config_dir, log_dir,
                                   daq_data_dir, spade_dir, clu_cfg_file.name,
-                                  cfg_name, copy_dir, log_port, live_port,
+                                  copy_dir, log_port, live_port,
                                   force_restart=force_restart)
 
         args = MockArguments()

@@ -68,7 +68,7 @@ class BadCloseThread(object):
         self.__closed = True
         raise Exception("Forced exception")
 
-    def is_alive(self):
+    def is_alive(self):  # pylint: disable=no-self-use
         return True
 
     @property
@@ -140,7 +140,7 @@ class MonitorTaskTest(unittest.TestCase):
                                       " Connect failed %d times") % \
                                       (comp.fullname, idx)
                             logger.add_expected_exact(errmsg)
-                        elif idx >= 0 and idx < 3:
+                        elif 0 <= idx < 3:
                             comp.mbean.raise_socket_error()
                     elif idx > 0 and raise_exception:
                         errmsg = "Ignoring %s:(.*:)? Exception.*$" % \
@@ -167,8 +167,8 @@ class MonitorTaskTest(unittest.TestCase):
     def __validate_files(self, run_opt, comp_list):
         files = os.listdir(self.__temp_dir)
         if not RunOption.is_moni_to_file(run_opt):
-            self.assertFalse(len(files) > 0,
-                             "Found unexpected monitoring files: " +
+            found = len(files) > 0  # pylint: disable=len-as-condition
+            self.assertFalse(found, "Found unexpected monitoring files: %s" %
                              str(files))
             return
 
@@ -187,7 +187,7 @@ class MonitorTaskTest(unittest.TestCase):
     def tearDown(self):
         try:
             shutil.rmtree(self.__temp_dir)
-        except:
+        except:  # pylint: disable=bare-except
             pass  # ignore errors
 
     def test_bad_run_opt(self):
@@ -270,7 +270,7 @@ class MonitorTaskTest(unittest.TestCase):
 
         try:
             tsk.close()
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-except
             if not str(exc).endswith("Forced exception"):
                 raise
         self.assertTrue(tsk.open_threads == 0,

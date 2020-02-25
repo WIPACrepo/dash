@@ -9,7 +9,7 @@ set_exc_string_encoding("ascii")
 
 
 class ComponentOperationException(Exception):
-    pass
+    "General ComponentOperation exception"
 
 
 class ComponentOperation(object):
@@ -20,7 +20,7 @@ class ComponentOperation(object):
         return self.name
 
     @classproperty
-    def has_result(cls):  # pylint: disable=no-self-argument
+    def has_result(cls):  # pylint: disable=no-self-use,no-self-argument
         "Does this operator return a result?"
         return True
 
@@ -213,8 +213,7 @@ class ComponentResult(OperationResult):
     def __str__(self):
         if self.__arguments is None:
             astr = "NONE"
-        elif isinstance(self.__arguments, list) or \
-             isinstance(self.__arguments, tuple):
+        elif isinstance(self.__arguments, (list, tuple)):
             astr = ",".join(str(arg) for arg in self.__arguments)
         else:
             astr = str(self.__arguments)
@@ -365,7 +364,3 @@ class ComponentGroup(ThreadGroup):
                     alive |= thrd.is_alive()
             if not alive:
                 break
-
-
-if __name__ == "__main__":
-    pass

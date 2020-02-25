@@ -62,7 +62,7 @@ class DAQPool(object):
 
         super(DAQPool, self).__init__()
 
-    def __add_internal(self, comp):
+    def __add_to_pool(self, comp):
         "This method assumes that self.__pool_lock has already been acquired"
         if comp.name not in self.__pool:
             self.__pool[comp.name] = []
@@ -73,14 +73,46 @@ class DAQPool(object):
         self.__pool[comp.name].append(comp)
         return True
 
-    def __add_runset(self, runset):
-        self.__sets_lock.acquire()
-        try:
-            self.__sets.append(runset)
-        finally:
-            self.__sets_lock.release()
+    def __add_known(self, needed, comp_list):
+        wait_list = []
+        for cobj in needed:
+            found = False
 
-    def __build_comp_name_list(self, namelist):
+            # are there any components with this name?
+            if cobj.name not in self.__pool:
+                has_entries = False
+            else:
+                plen = len(self.__pool[cobj.name])
+                has_entries = plen > 0
+
+            # if a component with this name has registered...
+            if has_entries:
+                for comp in self.__pool[cobj.name]:
+                    # ...and it's the number we want and it's alive...
+                    if comp.num == cobj.num and not comp.is_dying:
+                        # grab the component from the pool
+                        self.__pool[cobj.name].remove(comp)
+                        pool_len = len(self.__pool[cobj.name])
+                        if pool_len == 0:
+                            # delete component list if this was the only entry
+                            del self.__pool[cobj.name]
+
+                        # add this component to the final list
+                        comp_list.append(comp)
+                        found = True
+                        break
+
+            if not found:
+                wait_list.append(cobj)
+
+        return wait_list
+
+    def __add_runset(self, runset):
+        with self.__sets_lock:
+            self.__sets.append(runset)
+
+    @classmethod
+    def __build_comp_name_list(cls, namelist):
         """Build a list of ComponentNames from a list of name strings"""
         compnames = []
         for cname in namelist:
@@ -107,37 +139,18 @@ class DAQPool(object):
         Return the list of any missing components if we time out.
         """
         needed = self.__build_comp_name_list(required_list)
-        wait_list = []
 
         dt_timeout = datetime.timedelta(seconds=timeout)
 
         tstart = datetime.datetime.now()
-        while self.__starting and len(needed) > 0:
+        while self.__starting and \
+          len(needed) > 0:  # pylint: disable=len-as-condition
 
-            self.__pool_lock.acquire()
-            try:
-                for cobj in needed:
-                    found = False
-                    if cobj.name in self.__pool and \
-                            len(self.__pool[cobj.name]) > 0:
-                        for comp in self.__pool[cobj.name]:
-                            if comp.num == cobj.num and not comp.is_dying:
-                                self.__pool[cobj.name].remove(comp)
-                                if len(self.__pool[cobj.name]) == 0:
-                                    del self.__pool[cobj.name]
-                                comp_list.append(comp)
-                                found = True
-                                break
+            # add all known components, unknown components are left in 'needed'
+            with self.__pool_lock:
+                needed = self.__add_known(needed, comp_list)
 
-                    if not found:
-                        wait_list.append(cobj)
-            finally:
-                self.__pool_lock.release()
-
-            needed = wait_list
-            wait_list = []
-
-            if len(needed) > 0:
+            if len(needed) > 0:  # pylint: disable=len-as-condition
                 if datetime.datetime.now() - tstart >= dt_timeout:
                     break
 
@@ -148,7 +161,7 @@ class DAQPool(object):
         if not self.__starting:
             raise StartInterruptedException("Collect interrupted")
 
-        if len(needed) == 0:
+        if len(needed) == 0:  # pylint: disable=len-as-condition
             return None
         return needed
 
@@ -173,7 +186,8 @@ class DAQPool(object):
         for comp in run_config.components:
             name_list.append(comp.fullname)
 
-        if name_list is None or len(name_list) == 0:
+        if name_list is None or \
+          len(name_list) == 0:  # pylint: disable=len-as-condition
             raise CnCServerException("No components found in" +
                                      " run configuration \"%s\"" % run_config)
 
@@ -248,11 +262,8 @@ class DAQPool(object):
 
         This method can throw ValueError if the runset is not found
         """
-        self.__sets_lock.acquire()
-        try:
+        with self.__sets_lock:
             self.__sets.remove(runset)
-        finally:
-            self.__sets_lock.release()
 
     def __restart_missing_components(self, wait_list, run_config, logger,
                                      daq_data_dir):
@@ -262,13 +273,13 @@ class DAQPool(object):
                          " No cluster config")
         else:
             (dead_list, missing_list) = clu_cfg.extract_components(wait_list)
-            if len(missing_list) > 0:
+            if len(missing_list) > 0:  # pylint: disable=len-as-condition
                 cstr = ComponentManager.format_component_list(missing_list)
                 logger.error(("Cannot restart missing %s: Not found in"
                               " cluster config \"%s\"") %
                              (cstr, clu_cfg.config_name))
 
-            if len(dead_list) > 0:
+            if len(dead_list) > 0:  # pylint: disable=len-as-condition
                 self.cycle_components(dead_list, run_config.configdir,
                                       daq_data_dir, logger)
 
@@ -276,53 +287,43 @@ class DAQPool(object):
         ComponentGroup.run_simple(OpResetComponent, comp_list, (), logger,
                                   report_errors=True)
 
-        self.__pool_lock.acquire()
-        try:
+        with self.__pool_lock:
             for comp in comp_list:
-                self.__add_internal(comp)
-        finally:
-            self.__pool_lock.release()
+                self.__add_to_pool(comp)
 
     def add(self, comp):
         "Add the component to the config server's pool"
-        self.__pool_lock.acquire()
-        try:
-            return self.__add_internal(comp)
-        finally:
-            self.__pool_lock.release()
+        with self.__pool_lock:
+            return self.__add_to_pool(comp)
 
     @property
     def components(self):
         comp_list = []
-        self.__pool_lock.acquire()
-        try:
+        with self.__pool_lock:
             for k in self.__pool:
                 for comp in self.__pool[k]:
                     comp_list.append(comp)
-        finally:
-            self.__pool_lock.release()
 
         return comp_list
 
     def create_runset(self, run_config, comp_list, logger):
         return RunSet(self, run_config, comp_list, logger)
 
+    # pylint: disable=no-self-use
     def cycle_components(self, comp_list, run_config_dir, daq_data_dir, logger,
                          verbose=False, kill_with_9=False, event_check=False):
-        RunSet.cycle_components(comp_list, run_config_dir, daq_data_dir, logger,
-                                verbose=verbose, kill_with_9=kill_with_9,
+        RunSet.cycle_components(comp_list, run_config_dir, daq_data_dir,
+                                logger, verbose=verbose,
+                                kill_with_9=kill_with_9,
                                 event_check=event_check)
 
     def find_runset(self, rsid):
         "Find the runset with the specified ID"
-        self.__sets_lock.acquire()
-        try:
+        with self.__sets_lock:
             for runset in self.__sets:
                 if runset.id == rsid:
                     runset = runset
                     return runset
-        finally:
-            self.__sets_lock.release()
 
         return None
 
@@ -374,12 +375,11 @@ class DAQPool(object):
                 self.remove(client)
                 try:
                     client.close()
-                except:
+                except:  # pylint: disable=bare-except
                     if logger is not None:
                         logger.error("Could not close %s: %s" %
                                      (client.fullname, exc_string()))
-            elif state_str == DAQClientState.MISSING or \
-                 state_str == DAQClientState.HANGING:
+            elif state_str in (DAQClientState.MISSING, DAQClientState.HANGING):
                 client.add_dead_count()
             else:
                 count += 1
@@ -388,13 +388,10 @@ class DAQPool(object):
 
     def num_active_sets(self):
         num = 0
-        self.__sets_lock.acquire()
-        try:
+        with self.__sets_lock:
             for runset in self.__sets:
                 if runset.is_running:
                     num += 1
-        finally:
-            self.__sets_lock.release()
 
         return num
 
@@ -402,12 +399,9 @@ class DAQPool(object):
     def num_components(self):
         tot = 0
 
-        self.__pool_lock.acquire()
-        try:
+        with self.__pool_lock:
             for bin_name in self.__pool:
                 tot += len(self.__pool[bin_name])
-        finally:
-            self.__pool_lock.release()
 
         return tot
 
@@ -425,14 +419,12 @@ class DAQPool(object):
 
     def remove(self, comp):
         "Remove a component from the pool"
-        self.__pool_lock.acquire()
-        try:
+        with self.__pool_lock:
             if comp.name in self.__pool:
                 self.__pool[comp.name].remove(comp)
-                if len(self.__pool[comp.name]) == 0:
+                pool_len = len(self.__pool[comp.name])
+                if pool_len == 0:
                     del self.__pool[comp.name]
-        finally:
-            self.__pool_lock.release()
 
         return comp
 
@@ -448,7 +440,7 @@ class DAQPool(object):
             self.restart_runset_components(runset, verbose=verbose,
                                            kill_with_9=kill_with_9,
                                            event_check=event_check)
-        except:
+        except:  # pylint: disable=bare-except
             logger.error("Cannot restart %s (#%d available - %s): %s" %
                          (runset, len(self.__sets), self.__sets, exc_string()))
 
@@ -465,27 +457,24 @@ class DAQPool(object):
         NOTE: This DESTROYS all runsets, unless there is an active run
         """
         removed = None
-        self.__sets_lock.acquire()
-        try:
+        with self.__sets_lock:
             for runset in self.__sets:
                 if runset.is_running and not kill_running:
                     return False
             removed = self.__sets[:]
             del self.__sets[:]
-        finally:
-            self.__sets_lock.release()
 
         saved_exc = None
         for runset in removed:
             try:
                 self.return_runset_components(runset)
-            except:
+            except:  # pylint: disable=bare-except
                 if not saved_exc:
                     saved_exc = sys.exc_info()
 
             try:
                 runset.destroy()
-            except:
+            except:  # pylint: disable=bare-except
                 if not saved_exc:
                     saved_exc = sys.exc_info()
 
@@ -508,7 +497,7 @@ class DAQPool(object):
         finally:
             try:
                 runset.destroy()
-            except:
+            except:  # pylint: disable=bare-except
                 saved_exc = sys.exc_info()
 
         if saved_exc:
@@ -527,12 +516,9 @@ class DAQPool(object):
         "List active runset IDs"
         rsids = []
 
-        self.__sets_lock.acquire()
-        try:
+        with self.__sets_lock:
             for runset in self.__sets:
                 rsids.append(runset.id)
-        finally:
-            self.__sets_lock.release()
 
         return rsids
 
@@ -542,7 +528,7 @@ class DAQPool(object):
 
 
 class ThreadedRPCServer(ThreadingMixIn, RPCServer):
-    pass
+    "The standard out-of-the-both threaded RPC server"
 
 
 class Connector(object):
@@ -640,7 +626,8 @@ class CnCServer(DAQPool):
 
         self.__cluster_desc = cluster_desc
         self.__copy_dir = copy_dir
-        self.__dash_dir = os.path.join(PDAQ_HOME, "dash")
+        self.__dash_dir = dash_dir if dash_dir is not None \
+          else os.path.join(PDAQ_HOME, "dash")
         self.__run_config_dir = run_config_dir
         self.__daq_data_dir = daq_data_dir
         self.__spade_dir = spade_dir
@@ -725,7 +712,8 @@ class CnCServer(DAQPool):
     def __str__(self):
         return "%s<%s>" % (self.__name, self.get_cluster_config().config_name)
 
-    def __close_on_sigint(self, signum, frame):
+    def __close_on_sigint(self,
+                          signum, frame):  # pylint: disable=unused-argument
         if self.close_server(False):
             print("\nExiting", file=sys.stderr)
             sys.exit(0)
@@ -762,7 +750,8 @@ class CnCServer(DAQPool):
     def __get_components(self, id_list, get_all):
         comp_list = []
 
-        if id_list is None or len(id_list) == 0:
+        if id_list is None or \
+          len(id_list) == 0:  # pylint: disable=len-as-condition
             comp_list += self.components
         else:
             for comp in self.components:
@@ -772,7 +761,8 @@ class CnCServer(DAQPool):
                     del id_list[i]
                     break
 
-        if get_all or (id_list is not None and len(id_list) > 0):
+        if get_all or (id_list is not None and
+                       len(id_list) > 0):  # pylint: disable=len-as-condition
             for rsid in self.runset_ids:
                 runset = self.find_runset(rsid)
                 if get_all:
@@ -784,7 +774,7 @@ class CnCServer(DAQPool):
                             comp_list.append(comp)
                             del id_list[idx]
                             break
-                    if len(id_list) == 0:
+                    if len(id_list) == 0:  # pylint: disable=len-as-condition
                         break
 
         return comp_list
@@ -811,7 +801,8 @@ class CnCServer(DAQPool):
     def __list_cnc_open_files(cls):
         user_list = ListOpenFiles.run(os.getpid())
 
-        if user_list is None or len(user_list) <= 0:
+        if user_list is None or \
+          len(user_list) <= 0:  # pylint: disable=len-as-condition
             raise CnCServerException("No open file list available!")
 
         if len(user_list) > 1:
@@ -830,7 +821,7 @@ class CnCServer(DAQPool):
     def __report_open_files(self):
         try:
             of_list = self.__list_cnc_open_files()
-        except:
+        except:  # pylint: disable=bare-except
             self.__log.error("Cannot list open files: " + exc_string())
             return
 
@@ -850,7 +841,7 @@ class CnCServer(DAQPool):
         if not runset.is_ready:
             try:
                 had_error = runset.stop_run("BreakRunset")
-            except:
+            except:  # pylint: disable=bare-except
                 self.__log.error("While breaking %s: %s" %
                                  (runset, exc_string()))
 
@@ -859,19 +850,20 @@ class CnCServer(DAQPool):
                 self.restart_runset(runset, self.__log)
             else:
                 self.return_runset(runset, self.__log)
-        except:
+        except:  # pylint: disable=bare-except
             self.__log.error("Failed to break %s: %s" %
                              (runset, exc_string()))
 
     @property
     def client_statistics(self):
+        # pylint: disable=no-value-for-parameter
         return RPCClient.client_statistics()
 
     def close_server(self, kill_running=True):
         try:
             if not self.return_all(kill_running):
                 return False
-        except:
+        except:  # pylint: disable=bare-except
             pass
 
         self.__monitoring = False
@@ -893,7 +885,7 @@ class CnCServer(DAQPool):
         return DAQClient(name, num, host, port, mbean_port, connectors,
                          self.__quiet)
 
-    def create_cnc_logger(self, quiet):
+    def create_cnc_logger(self, quiet):  # pylint: disable=no-self-use
         return CnCLogger("CnC", quiet=quiet)
 
     def get_cluster_config(self, run_config=None):
@@ -917,7 +909,7 @@ class CnCServer(DAQPool):
         else:
             try:
                 self.__cluster_config.load_if_changed(run_config)
-            except Exception as ex:
+            except Exception as ex:  # pylint: disable=broad-except
                 self.__log.error("Cannot reload cluster config \"%s\": %s" %
                                  (self.__cluster_config.description, ex))
 
@@ -949,7 +941,7 @@ class CnCServer(DAQPool):
                 check_clients = 0
                 try:
                     count = self.monitor_clients(self.__log)
-                except:
+                except:  # pylint: disable=bare-except
                     self.__log.error("Monitoring clients: " + exc_string())
                     count = last_count
 
@@ -971,7 +963,7 @@ class CnCServer(DAQPool):
                         self.restart_runset(runset, self.__log)
                     else:
                         self.return_runset(runset, self.__log)
-                except:
+                except:  # pylint: disable=bare-except
                     self.__log.error("Failed to return %s: %s" %
                                      (runset, exc_string()))
 
@@ -985,8 +977,8 @@ class CnCServer(DAQPool):
         log_name = os.path.join(log_dir, "catchall.log")
         return LogSocketServer(port, "CnCServer", log_name, quiet=self.__quiet)
 
-    def restart_runset_components(self, runset, verbose=False, kill_with_9=True,
-                                  event_check=False):
+    def restart_runset_components(self, runset, verbose=False,
+                                  kill_with_9=True, event_check=False):
         clu_cfg = self.get_cluster_config(run_config=runset.run_config_data)
         runset.restart_all_components(clu_cfg, self.__run_config_dir,
                                       self.__daq_data_dir, verbose=verbose,
@@ -1007,7 +999,7 @@ class CnCServer(DAQPool):
             try:
                 os.close(file_handle)
                 self.__log.error("Manually closed file #%s" % file_handle)
-            except:
+            except OSError:
                 if not saved_exc:
                     saved_exc = (file_handle, exc_string())
 
@@ -1093,15 +1085,14 @@ class CnCServer(DAQPool):
                                conn_array):
         "register a component with the server"
 
-        if not isinstance(name, str) or len(name) == 0:
+        if not isinstance(name, str) or name == "":
             raise CnCServerException("Bad component name (should be a string)")
         if not isinstance(num, int):
             raise CnCServerException("Bad component number" +
                                      " (should be an integer)")
 
         connectors = []
-        for idx in range(len(conn_array)):
-            conn = conn_array[idx]
+        for idx, conn in enumerate(conn_array):
             if not isinstance(conn, tuple) and not isinstance(conn, list):
                 errmsg = "Bad %s#%d connector#%d \"%s\"%s" % \
                     (name, num, idx, str(conn), str(type(conn)))
@@ -1112,7 +1103,7 @@ class CnCServer(DAQPool):
                           " elements)") % (name, num, idx, str(conn))
                 self.__log.info(errmsg)
                 raise CnCServerException(errmsg)
-            if not isinstance(conn[0], str) or len(conn[0]) == 0:
+            if not isinstance(conn[0], str) or conn[0] == "":
                 errmsg = ("Bad %s#%d connector#%d %s (first element should" +
                           " be name)") % (name, num, idx, str(conn))
                 self.__log.info(errmsg)
@@ -1266,8 +1257,7 @@ class CnCServer(DAQPool):
 
         return self.__list_component_dicts(runset.components)
 
-    def rpc_runset_make(self, run_config, run_num=None, strict=False,
-                        timeout=REGISTRATION_TIMEOUT):
+    def rpc_runset_make(self, run_config, run_num=None, strict=False):
         "build a runset from the specified run configuration"
         if self.__run_config_dir is None:
             raise CnCServerException("Run configuration directory" +
@@ -1283,7 +1273,7 @@ class CnCServer(DAQPool):
             self.__log.error("%s while making runset from \"%s\"" %
                              (str(mce), run_config))
             runset = None
-        except:
+        except:  # pylint: disable=bare-except
             self.__log.error("While making runset from \"%s\": %s" %
                              (run_config, exc_string()))
             runset = None
@@ -1408,7 +1398,7 @@ class CnCServer(DAQPool):
 
         try:
             self.__live = self.start_live_thread()
-        except:
+        except:  # pylint: disable=bare-except
             self.__log.error("Cannot start I3Live thread: " + exc_string())
 
         self.__server.serve_forever()
@@ -1447,7 +1437,7 @@ class CnCServer(DAQPool):
 
         try:
             open_count = self.__count_file_descriptors()
-        except:
+        except:  # pylint: disable=bare-except
             self.__log.error("Cannot count open files: %s" % exc_string())
             open_count = 0
 
@@ -1456,11 +1446,12 @@ class CnCServer(DAQPool):
 
         failed_trace = None
         try:
-            runset.start_run(run_num, clu_cfg, run_options, self.__version_info,
-                             self.__spade_dir, copy_dir=self.__copy_dir,
-                             log_dir=log_dir, quiet=self.__quiet)
+            runset.start_run(run_num, clu_cfg, run_options,
+                             self.__version_info, self.__spade_dir,
+                             copy_dir=self.__copy_dir, log_dir=log_dir,
+                             quiet=self.__quiet)
             success = True
-        except:
+        except:  # pylint: disable=bare-except
             import traceback
             failed_trace = traceback.format_exc()
 
@@ -1484,7 +1475,7 @@ class CnCServer(DAQPool):
                                  (rsid, failed_trace))
                 runset.reset()
                 runset.destroy()
-            except:
+            except:  # pylint: disable=bare-except
                 self.__log.error("Cannot reset runset#%s: %s" %
                                  (rsid, failed_trace))
             raise CnCServerException("Cannot start runset %s" % (runset, ))
@@ -1589,7 +1580,8 @@ def main():
     if args.copy_dir is not None:
         args.copy_dir = os.path.abspath(args.copy_dir)
         if not os.path.exists(args.copy_dir):
-            sys.exit("Log copies directory '%s' doesn't exist!" % args.copy_dir)
+            sys.exit("Log copies directory '%s' doesn't exist!" %
+                     args.copy_dir)
 
     if args.default_log_dir is not None:
         args.default_log_dir = os.path.abspath(args.default_log_dir)

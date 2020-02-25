@@ -16,6 +16,7 @@ PDAQ_HOME = find_pdaq_trunk()
 # list of all pDAQ command objects (classes which add the @command decorator)
 COMMANDS = []
 
+
 def command(cls):
     """
     Decorator which adds a command class to the master list
@@ -32,7 +33,7 @@ class FakeArgParser(object):
     def __init__(self):
         self.__args = []
 
-    def add_argument(self, *args, **kwargs):
+    def add_argument(self, *args, **kwargs):  # pylint: disable=unused-argument
         "Simulates argparse.ArgumentParser.add_argument()"
         for arg in args:
             if arg != "" and arg[0] == "-":
@@ -73,11 +74,11 @@ class BaseCmd(object):
 
     "Basic structure of a 'pdaq' command"
     @classmethod
-    def add_arguments(cls, parser):
+    def add_arguments(cls, _):
         """
         Argument handling for this subcommand
         """
-        pass
+        return
 
     @classmethod
     def cmdtype(cls):
@@ -89,7 +90,7 @@ class BaseCmd(object):
         raise NotImplementedError()
 
     @classproperty
-    def epilog(cls):  # pylint: disable=no-self-argument
+    def epilog(cls):  # pylint: disable=no-self-argument,no-self-use
         "Optional extra information/instructions for a subcommand"
         return None
 

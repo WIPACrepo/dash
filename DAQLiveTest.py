@@ -82,13 +82,13 @@ class MockRunSet(object):
             raise Exception("Runset destroyed")
 
         if had_error != self.__exp_stop_err:
-            raise Exception("Expected 'had_error' to be %s" %
-                            (self.__exp_stop_err, ))
+            raise Exception("Expected 'had_error' (from %s) to be %s" %
+                            (caller_name, self.__exp_stop_err, ))
 
         self.__state = self.STATE_READY
         return self.__stop_return
 
-    def stopping(self):
+    def stopping(self):  # pylint: disable=no-self-use
         return False
 
     def subrun(self, subrun_id, dom_list):
@@ -108,9 +108,10 @@ class MockCnC(object):
         self.__missing_comps = None
         self.__runset = None
 
-    def break_runset(self, runset):
+    def break_runset(self, runset):  # pylint: disable=no-self-use
         runset.destroy()
 
+    @property
     def is_starting(self):
         return False
 

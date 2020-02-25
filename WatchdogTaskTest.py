@@ -12,7 +12,8 @@ class BadMatchRule(WatchdogRule):
     def init_data(self, data, this_comp, components):
         pass
 
-    def matches(self, comp):
+    @classmethod
+    def matches(cls, comp):
         raise Exception("FAIL")
 
 
@@ -20,7 +21,8 @@ class BadInitRule(WatchdogRule):
     def init_data(self, data, this_comp, components):
         raise Exception("FAIL")
 
-    def matches(self, comp):
+    @classmethod
+    def matches(cls, comp):
         return comp.name == "foo"
 
 
@@ -32,7 +34,8 @@ class BarRule(WatchdogRule):
         if self.__check_val:
             data.add_input_value(this_comp, "barBean", "barFld")
 
-    def matches(self, comp):
+    @classmethod
+    def matches(cls, comp):
         return comp.name == "bar"
 
 
@@ -58,12 +61,14 @@ class FooRule(WatchdogRule):
         if self.__test_thresh:
             data.add_threshold_value("threshBean", "threshFld", 10)
 
-    def matches(self, comp):
+    @classmethod
+    def matches(cls, comp):
         return comp.name == "foo"
 
 
 class WatchdogTaskTest(unittest.TestCase):
-    def __build_foo(self):
+    @classmethod
+    def __build_foo(cls):
         foo_comp = MockComponent("foo", 1)
         foo_comp.order = 1
         foo_comp.mbean.add_mock_data("inBean", "inFld", 0)
@@ -71,7 +76,8 @@ class WatchdogTaskTest(unittest.TestCase):
         foo_comp.mbean.add_mock_data("threshBean", "threshFld", 0)
         return foo_comp
 
-    def __build_bar(self, add_bar_beans=False):
+    @classmethod
+    def __build_bar(cls, add_bar_beans=False):
         bar_comp = MockComponent("bar", 0)
         bar_comp.order = 2
         if add_bar_beans:
@@ -146,7 +152,7 @@ class WatchdogTaskTest(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def test_unknown_comp(self):
+    def test_unknown_comp(self):  # pylint: disable=no-self-use
         timer = MockIntervalTimer(WatchdogTask.name)
         task_mgr = MockTaskManager()
         task_mgr.add_interval_timer(timer)
@@ -165,7 +171,7 @@ class WatchdogTaskTest(unittest.TestCase):
 
         logger.check_status(1)
 
-    def test_bad_match_rule(self):
+    def test_bad_match_rule(self):  # pylint: disable=no-self-use
         timer = MockIntervalTimer(WatchdogTask.name)
         task_mgr = MockTaskManager()
         task_mgr.add_interval_timer(timer)

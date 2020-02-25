@@ -19,21 +19,20 @@ try:
 except ModuleNotFoundError:
     from io import StringIO
 
+from i3helper import Comparable
+
+
 class PayloadException(Exception):
     "Payload exception"
-    pass
 
 
 class StopMessage(object):
-    def __init__(self):
-        pass
-
     @property
     def bytes(self):
         return struct.pack(">I", 4)
 
 
-class Payload(object):
+class Payload(Comparable):
     "Base payload class"
     TYPE_ID = None
     ENVELOPE_LENGTH = 16
@@ -48,20 +47,17 @@ class Payload(object):
             self.__data = None
             self.__valid_data = False
 
-    def __cmp__(self, other):
-        "Compare envelope times"
-        if self.__utime < other.utime:
-            return -1
-        if self.__utime > other.utime:
-            return 1
-        return 0
-
     @property
     def bytes(self):
         "Return the binary representation of this payload"
         if not self.__valid_data:
             raise PayloadException("Data was discarded; cannot return bytes")
         return self.envelope + self.__data
+
+    @property
+    def compare_key(self):
+        "Return the keys to be used by the Comparable methods"
+        return self.__time
 
     @property
     def data_bytes(self):
@@ -90,7 +86,7 @@ class Payload(object):
                 rawval >>= 8
             return tmpbytes
 
-        if isinstance(rawval, list) or isinstance(rawval, tuple):
+        if isinstance(rawval, (list, tuple)):
             if len(rawval) != 6:
                 raise PayloadException("Expected 6 clock bytes, not " +
                                        len(rawval))
@@ -715,17 +711,10 @@ class DeltaHitRecord(BaseHitRecord):
     "Delta-compressed hit record inside V5 event payload"
     TYPE_ID = 1
 
-    def __init__(self, base_time, hdr, data, offset):
-        super(DeltaHitRecord, self).__init__(base_time, hdr, data, offset)
-
 
 class EngineeringHitRecord(BaseHitRecord):
     "Engineering hit record inside V5 event payload"
     TYPE_ID = 0
-
-    def __init__(self, base_time, hdr, data, offset):
-        super(EngineeringHitRecord, self).__init__(base_time, hdr, data,
-                                                   offset)
 
 
 class Monitor(object):
@@ -775,6 +764,10 @@ class MonitorRecord(object):
         self.__utime = utime
         self.__dom_id = dom_id
         self.__clock_bytes = Payload.extract_clock_bytes(domclock)
+
+    @property
+    def bytes(self):
+        return NotImplementedError()
 
     @property
     def clockbytes(self):
@@ -1202,7 +1195,7 @@ class PayloadReader(object):
 
         return UnknownPayload(type_id, utime, rawdata, keep_data=keep_data)
 
-    next = __next__ # XXX backward compatibility for Python 2
+    next = __next__  # XXX backward compatibility for Python 2
 
 
 if __name__ == "__main__":

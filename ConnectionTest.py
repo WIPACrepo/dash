@@ -13,6 +13,9 @@ LOUD = False
 
 
 class MyDAQPool(DAQPool):
+    def get_cluster_config(self, run_config=None):
+        raise NotImplementedError("Unimplemented")
+
     def return_runset_components(self, runset, verbose=False, kill_with_9=True,
                                  event_check=False):
         runset.return_components(self, None, None, None, verbose=verbose,

@@ -10,7 +10,7 @@ from ANSIEscapeCode import ANSIEscapeCode
 
 
 class ColorException(Exception):
-    pass
+    "General ColorFileParser exception"
 
 
 class ColorFileParser(object):
@@ -54,7 +54,7 @@ class ColorFileParser(object):
 
             # if no colors are specified, they must want a plain line
             if color_dict[fld] is None or \
-               len(color_dict[fld]) == 0:
+               len(color_dict[fld]) == 0:  # pylint: disable=len-as-condition
                 continue
 
             # if they only specified the foreground color,
@@ -82,8 +82,8 @@ class ColorFileParser(object):
         modified = False
 
         # complain if a field entry is unspecified
-        for idx in range(len(defaults)):
-            if defaults[idx] is None:
+        for idx, dflt in enumerate(defaults):
+            if dflt is None:
                 if idx == 2:
                     defaults[2] = ""
                     modified = True
@@ -102,16 +102,16 @@ class ColorFileParser(object):
 
         return defaults
 
-    def __parse_colors(self, fldstr):
+    def __parse_colors(self, fldstr, linenum, line):
         # nothing is defined initially
         colors = [None, None, None]
 
         # parse color definitions
         cflds = fldstr.split("/", 2)
-        for cnum in range(len(cflds)):
+        for cnum, cfld in enumerate(cflds):
 
             # extract next definition
-            clow = cflds[cnum].strip().lower()
+            clow = cfld.strip().lower()
 
             # modifier fields
             if cnum == 2:
@@ -150,7 +150,7 @@ class ColorFileParser(object):
             try:
                 colors[cnum] = self.value(clow)
                 continue
-            except ColorException as cex:
+            except ColorException:
                 raise ColorException("Bad %s in \"%s\" line %d: %s" %
                                      (self.FIELDNAMES[cnum], self.__filename,
                                       linenum, line))
@@ -207,7 +207,7 @@ class ColorFileParser(object):
                     name = self.DEFAULT_FIELD
 
                 # parse and assign colors
-                predefined[name] = self.__parse_colors(flds[1])
+                predefined[name] = self.__parse_colors(flds[1], linenum, line)
 
             self.__fill_in_defaults(predefined)
 
@@ -222,8 +222,8 @@ class ColorFileParser(object):
             raise ColorException("Dictionary is missing a default entry")
 
         print("# field: foreground / background / bold italic underline")
-        print("# can also specify \"none\" for no colors" \
-            " or \"skip\" to not print the line")
+        print("# can also specify \"none\" for no colors"
+              " or \"skip\" to not print the line")
         print()
 
         defaults = color_dict[ColorFileParser.DEFAULT_FIELD]
@@ -234,15 +234,15 @@ class ColorFileParser(object):
 
             if colors is None:
                 fstr = "skip"
-            elif len(colors) == 0:
+            elif len(colors) == 0:  # pylint: disable=len-as-condition
                 fstr = "none"
             else:
                 if len(colors) != len(defaults):
                     same = False
                 else:
                     same = not is_dflt
-                    for idx in range(len(colors)):
-                        if colors[idx] != defaults[idx]:
+                    for idx, color in enumerate(colors):
+                        if color != defaults[idx]:
                             same = False
 
                 if same:

@@ -15,6 +15,8 @@ CURRENT = "pDAQ_current"
 
 
 def add_arguments(parser):
+    "Add command-line arguments"
+
     parser.add_argument("-m", "--no-host-check", dest="nohostcheck",
                         action="store_true", default=False,
                         help=("Disable checking the host type"

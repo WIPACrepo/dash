@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 "Wrap a function around the Python3 method of reraising exceptions"
 
+
 # XXX replace this function with the actual code after Python3 port is complete
 def reraise_excinfo(exc_info):
     "Reraise Python3 exception"

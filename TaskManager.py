@@ -51,7 +51,7 @@ class TaskManager(threading.Thread):
                 if task is None:
                     break
                 task_list.append(task)
-            except:
+            except:  # pylint: disable=bare-except
                 self.__dashlog.error("Cannot create task#%d: %s" %
                                      (task_num, exc_string()))
             task_num += 1
@@ -91,7 +91,7 @@ class TaskManager(threading.Thread):
 
                 try:
                     task_secs = tsk.check()
-                except:
+                except:  # pylint: disable=bare-except
                     if self.__dashlog is not None:
                         self.__dashlog.error("%s exception: %s" %
                                              (str(tsk), exc_string()))
@@ -100,11 +100,8 @@ class TaskManager(threading.Thread):
                     wait_secs = task_secs
 
             if not self.__stopping:
-                self.__flag.acquire()
-                try:
+                with self.__flag:
                     self.__flag.wait(wait_secs)
-                finally:
-                    self.__flag.release()
 
         self.__running = False
 
@@ -112,7 +109,7 @@ class TaskManager(threading.Thread):
         for tsk in self.__tasks:
             try:
                 tsk.close()
-            except:
+            except:  # pylint: disable=bare-except
                 if not saved_exc:
                     saved_exc = sys.exc_info()
 
@@ -140,7 +137,7 @@ class TaskManager(threading.Thread):
     def run(self):
         try:
             self.__run()
-        except:
+        except:  # pylint: disable=bare-except
             if self.__dashlog is not None:
                 self.__dashlog.error(exc_string())
 
@@ -149,12 +146,9 @@ class TaskManager(threading.Thread):
 
     def stop(self):
         if self.__running and not self.__stopping:
-            self.__flag.acquire()
-            try:
+            with self.__flag:
                 self.__stopping = True
                 self.__flag.notify()
-            finally:
-                self.__flag.release()
 
     def wait_for_tasks(self):
         for tsk in self.__tasks:

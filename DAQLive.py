@@ -13,8 +13,9 @@ from RunOption import RunOption
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
+
 class LiveException(Exception):
-    pass
+    "General DAQLive exception"
 
 
 class ActionThread(threading.Thread):
@@ -55,7 +56,7 @@ class ActionThread(threading.Thread):
 
         try:
             self.run_action(*args, **kwargs)
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-except
             if self.__exception is None:
                 self.__exception = exc
 
@@ -77,8 +78,6 @@ class RecoverThread(ActionThread):
         self.__log = logger
 
     def run_action(self, *args, **kwargs):
-        #(run_cfg, run_num) = args
-
         cnc = self.__daq_live.command_and_control
         runset = self.__daq_live.runset
 
@@ -108,7 +107,7 @@ class RecoverThread(ActionThread):
                 if stop_val:
                     self.__log.error("DAQLive stop_run %s returned %s" %
                                      (runset, stop_val))
-            except:
+            except:  # pylint: disable=bare-except
                 self.__log.error("DAQLive stop_run %s failed: %s" %
                                  (runset, exc_string()))
 
@@ -292,12 +291,13 @@ class DAQLive(LiveComponent):
 
         if timeout is None:
             super(DAQLive, self).__init__(SERVICE_NAME, rpc_port,
-                                          synchronous=True, lightSensitive=True,
-                                          makesLight=True)
+                                          synchronous=True,
+                                          lightSensitive=True, makesLight=True)
         else:
             super(DAQLive, self).__init__(SERVICE_NAME, rpc_port,
-                                          synchronous=True, lightSensitive=True,
-                                          makesLight=True, timeout=timeout)
+                                          synchronous=True,
+                                          lightSensitive=True, makesLight=True,
+                                          timeout=timeout)
 
     def __check_active_thread(self, name):
         """
@@ -334,7 +334,7 @@ class DAQLive(LiveComponent):
     def recover_attempts(self):
         return self.__recover_attempts
 
-    def recovering(self, retry=True):
+    def recovering(self, _=None):
         # count another recovery attempt
         self.__recover_attempts += 1
 
@@ -348,12 +348,11 @@ class DAQLive(LiveComponent):
 
         return INCOMPLETE_STATE_CHANGE
 
-
     @property
     def command_and_control(self):
         return self.__cnc
 
-    def running(self, retry=True):
+    def running(self, _=None):
         # if the runset was destroyed, forget about it
         if self.__runset is not None and self.__runset.is_destroyed:
             self.__log.error("DAQLive.running() throwing away destroyed"
@@ -400,17 +399,18 @@ class DAQLive(LiveComponent):
     def runset(self, new_runset):
         self.__runset = new_runset
 
-    def starting(self, state_args=None):
+    def starting(self, stateArgs=None):
         """
         Start a new pDAQ run
-        state_args - should be a dictionary of run data:
+        stateArgs - should be a dictionary of run data:
             "runConfig" - the name of the run configuration
             "runNumber" - run number
             "subRunNumber" - subrun number
         """
         # validate state arguments
-        if state_args is None or len(state_args) == 0:
-            raise LiveException("No state_args specified")
+        if stateArgs is None or \
+          len(stateArgs) == 0:  # pylint: disable=len-as-condition
+            raise LiveException("No state argumentss specified")
 
         chkval = self.__check_active_thread(StartThread.NAME)
         if chkval is not None:
@@ -421,12 +421,12 @@ class DAQLive(LiveComponent):
 
         try:
             key = "runConfig"
-            run_cfg = state_args[key]
+            run_cfg = stateArgs[key]
 
             key = "runNumber"
-            run_num = state_args[key]
+            run_num = stateArgs[key]
         except KeyError:
-            raise LiveException("state_args does not contain key \"%s\"" %
+            raise LiveException("State arguments do not contain key \"%s\"" %
                                 (key, ))
 
         # start thread now, subsequent calls will check the thread result
@@ -435,7 +435,7 @@ class DAQLive(LiveComponent):
 
         return INCOMPLETE_STATE_CHANGE
 
-    def stopping(self, state_args=None):
+    def stopping(self, _=None):
         debug = False
         if debug:
             self.__log.error("LiveStop: TOP")
@@ -455,20 +455,21 @@ class DAQLive(LiveComponent):
         self.__thread.start()
         return INCOMPLETE_STATE_CHANGE
 
-    def subrun(self, subrun_id, dom_list):
+    def subrun(self, subRun, domList):
         if self.__runset is None:
             raise LiveException("Cannot stop run; no active runset")
 
-        self.__runset.subrun(subrun_id, dom_list)
+        self.__runset.subrun(subRun, domList)
 
         return "OK"
 
-    def switchrun(self, state_args=None):
+    def switchrun(self, stateArgs=None):
         if self.__runset is None or self.__runset.is_destroyed:
             raise LiveException("Cannot switch run; no active runset")
 
-        if state_args is None or len(state_args) == 0:
-            raise LiveException("No state_args specified for switchrun")
+        if stateArgs is None or \
+          len(stateArgs) == 0:  # pylint: disable=len-as-condition
+            raise LiveException("No state argumentss specified for switchrun")
 
         if self.__thread is None:
             thrd_name = "UNKNOWN"
@@ -490,9 +491,10 @@ class DAQLive(LiveComponent):
 
         try:
             key = "runNumber"
-            run_num = state_args[key]
+            run_num = stateArgs[key]
         except KeyError:
-            raise LiveException("state_args does not contain key \"%s\"" % key)
+            raise LiveException("State arguments do not contain key \"%s\"" %
+                                (key, ))
 
         # start thread now, subsequent calls will check the thread result
         self.__thread = SwitchThread(self, self.__log, run_num)

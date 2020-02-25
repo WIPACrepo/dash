@@ -11,7 +11,11 @@ import SpadeQueue
 
 from ClusterDescription import ClusterDescription
 from CnCThread import CnCThread
-from CompOp import *  # we need most of the Op* classes
+from CompOp import ComponentGroup, OpConfigureComponent, OpConfigureLogging, \
+     OpConnect, OpForcedStop, OpGetConnectionInfo, OpGetGoodTime, \
+     OpGetReplayTime, OpGetRunData, OpGetSingleBeanField, OpGetState, \
+     OpResetComponent, OpResetLogging, OpSetReplayOffset, OpStartRun, \
+     OpStartSubrun, OpStopLocalLogger, OpStopRun, OpSwitchRun
 from ComponentManager import ComponentManager
 from DAQClient import DAQClientState
 from DAQConfig import DOMNotInConfigException
@@ -24,8 +28,8 @@ from RunOption import RunOption
 from RunSetState import RunSetState
 from TaskManager import TaskManager
 from UniqueID import UniqueID
-from i3helper import reraise_excinfo
-from leapseconds import leapseconds, LeapsecondException, MJD
+from i3helper import Comparable, reraise_excinfo
+from leapseconds import LeapSeconds, LeapsecondException, MJD
 from scmversion import get_scmversion_str
 from utils import ip
 from utils.DashXMLLog import DashXMLLog, DashXMLLogException, \
@@ -36,19 +40,19 @@ set_exc_string_encoding("ascii")
 
 
 class RunSetException(Exception):
-    pass
+    "General RunSet exception"
 
 
 class ConnectionException(RunSetException):
-    pass
+    "Problem connecting the components to each other"
 
 
 class InvalidSubrunData(RunSetException):
-    pass
+    "Problem with the data for a subrun request"
 
 
 class SummaryNotReady(RunSetException):
-    pass
+    "Run summary is not yet ready"
 
 
 class Connection(object):
@@ -128,6 +132,7 @@ class ConnTypeEntry(object):
 
         # if there are no inputs and no required outputs (or no required
         # inputs and no outputs), we're done
+        # pylint: disable=len-as-condition
         if (out_len == 0 and len(self.__in_list) == 0) or \
            (in_len == 0 and len(self.__out_list) == 0):
             return
@@ -496,22 +501,21 @@ class LastGoodTimeThread(GoodTimeThread):
         return False
 
 
-class RateEntry(object):
+class RateEntry(Comparable):
     def __init__(self, ticks, count):
         self.__ticks = ticks
         self.__count = count
-
-    def __cmp__(self, other):
-        val = cmp(self.ticks, other.ticks)
-        if val == 0:
-            val = cmp(self.count, other.count)
-        return val
 
     def __repr__(self):
         return "RateEntry(%s, %s)" % (self.__ticks, self.__count)
 
     def __str__(self):
         return "RateEntry[%s -> %s]" % (self.__ticks, self.__count)
+
+    @property
+    def compare_key(self):
+        "Return the keys to be used by the Comparable methods"
+        return (self.ticks, self.count)
 
     @property
     def count(self):
@@ -699,7 +703,7 @@ class RunData(object):
             return MoniClient("pdaq", "localhost", port)
 
         if not self.LIVE_WARNING:
-            self.LIVE_WARNING = True
+            self.LIVE_WARNING = True  # pylint: disable=invalid-name
             self.__dashlog.error("Cannot import IceCube Live code, so" +
                                  " per-string active DOM stats wil not" +
                                  " be reported")
@@ -935,8 +939,8 @@ class RunData(object):
             self.error("SuperSaver run stop : %s (%d)" %
                        (last_dt, last_pay_time))
 
-    def reset(self):
-        pass
+    def reset(self):  # pylint: disable=no-self-use
+        return
 
     @property
     def run_configuration(self):
@@ -1054,7 +1058,9 @@ class RunData(object):
 
         self.send_count_updates(moni_data, prio)
 
-    def send_moni(self, name, value, prio=None, time=None, debug=False):
+    def send_moni(self, name, value, prio=None,
+                  time=None,  # pylint: disable=redefined-outer-name
+                  debug=False):
         if not self.has_moni_client:
             self.__dashlog.error("No monitoring client")
 
@@ -1386,8 +1392,8 @@ class RunSet(object):
         cur_secs = time.time()
         end_secs = cur_secs + timeout_secs
 
-        while (len(src_set) > 0 or        # pylint: disable=len-as-condition
-               len(other_set) > 0) and cur_secs < end_secs:
+        # pylint: disable=len-as-condition
+        while (len(src_set) > 0 or len(other_set) > 0) and cur_secs < end_secs:
             changed = self.__stop_components(src_set, other_set, conn_dict)
             if not changed:
                 #
@@ -1456,7 +1462,7 @@ class RunSet(object):
         Complain if the leapseconds file is due to expire
         """
         try:
-            leapsec = leapseconds.instance(config_dir)
+            leapsec = LeapSeconds.instance(config_dir)
         except LeapsecondException:
             if not run_data.has_moni_client:
                 run_data.error("NIST leapsecond file not found in %s" %
@@ -1572,7 +1578,7 @@ class RunSet(object):
                 msg = "%s: Could not stop %s" % \
                     (self, self.__bad_state_string(bad_states))
                 self.__log_error(msg)
-            except Exception as ex:
+            except Exception as ex:  # pylint: disable=broad-except
                 msg = "%s: Components in bad states: %s" % (self, ex)
             self.__state = RunSetState.ERROR
             raise RunSetException(msg)
@@ -1848,7 +1854,8 @@ class RunSet(object):
 
             self.__spade_thread = thrd
 
-    def __report_run_start(self, moni_client, run_number, release, revision,
+    @classmethod
+    def __report_run_start(cls, moni_client, run_number, release, revision,
                            started, start_time=None):
         data = {
             "runnum": run_number,
@@ -2069,6 +2076,7 @@ class RunSet(object):
                 self.__attempt_to_stop(src_set, other_set, rs_state, comp_op,
                                        op_timeout)
 
+                # pylint: disable=len-as-condition
                 if len(src_set) == 0 and len(other_set) == 0:
                     break
         finally:
@@ -2080,7 +2088,8 @@ class RunSet(object):
                 pass
 
         final_set = src_set + other_set
-        if len(final_set) > 0 and run_data is not None:
+        if run_data is not None and \
+          len(final_set) > 0:  # pylint: disable=len-as-condition
             cstr = ComponentManager.format_component_list(final_set)
             run_data.error("%s failed for %s" % (comp_op.name, cstr))
 
@@ -2145,7 +2154,8 @@ class RunSet(object):
 
         start_secs = time.time()
         end_secs = start_secs + timeout_secs
-        while len(waitlist) > 0 and time.time() < end_secs:
+        while time.time() < end_secs and \
+           len(waitlist) > 0:  # pylint: disable=len-as-condition
             new_list = waitlist[:]
             states = ComponentGroup.run_simple(OpGetState, waitlist, (),
                                                self.__logger)
@@ -2549,7 +2559,7 @@ class RunSet(object):
             raise SummaryNotReady("No summary found for run %d" % (run_num, ))
 
     @property
-    def id(self):
+    def id(self):  # pylint: disable=invalid-name
         return self.__id
 
     def init_replay_hubs(self):
@@ -2785,6 +2795,7 @@ class RunSet(object):
 
     def set_order(self, conn_map, logger):
         "Set the order in which components are started/stopped"
+        # pylint: disable=len-as-condition
 
         # build initial lists of source components
         #
@@ -2810,7 +2821,7 @@ class RunSet(object):
             if comp.is_source:
                 cur_level.append(comp)
 
-        if len(cur_level) == 0:  # pylint: disable=len-as-condition
+        if len(cur_level) == 0:
             raise RunSetException("No sources found")
 
         # walk through detector, setting order number for each component
@@ -3210,7 +3221,3 @@ class RunSet(object):
         rate = self.__run_data.rate
 
         return (num_evts, rate, num_moni, num_sn, num_tcal)
-
-
-if __name__ == "__main__":
-    pass

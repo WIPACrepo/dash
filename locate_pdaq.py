@@ -8,11 +8,11 @@ CONFIGDIR = None
 
 
 class DirectoryNotFoundException(Exception):
-    pass
+    "Thrown if a directory cannot be found"
 
 
 class DirectoryAlreadySetException(Exception):
-    pass
+    "Thrown if the caller attempts to override the existing CONFIGDIR"
 
 
 def find_pdaq_config():

@@ -113,7 +113,7 @@ class MockMBeanClient(object):
 
         return val_map
 
-    def get_bean_names(self):
+    def get_bean_names(self):  # pylint: disable=no-self-use
         return []
 
     def get_dictionary(self):
@@ -150,13 +150,13 @@ class MockComponent(Comparable):
         pass
 
     @property
-    def compare_tuple(self):
+    def compare_key(self):
         return (self.__name, self.__num)
 
-    def configure(self, run_cfg):
+    def configure(self, run_cfg):  # pylint: disable=unused-argument
         self.__state = "ready"
 
-    def connect(self, conn_map=None):
+    def connect(self, conn_map=None):  # pylint: disable=unused-argument
         self.__state = "connected"
 
     def connectors(self):
@@ -247,7 +247,7 @@ class MockComponent(Comparable):
     def set_last_good_time(self, pay_time):
         pass
 
-    def start_run(self, run_cfg):
+    def start_run(self, run_cfg):  # pylint: disable=unused-argument
         self.__state = "running"
 
     def stop_run(self):
@@ -283,7 +283,8 @@ class FakeMoniClient(object):
     def close(self):
         pass
 
-    def sendMoni(self, name, data, prio=None, time=None):
+    def sendMoni(self, name, data, prio=None,  # pylint: disable=invalid-name
+                 time=None):             # pylint: disable=redefined-outer-name
         pass
 
 
@@ -472,7 +473,8 @@ class CnCRunSetTest(unittest.TestCase):
         },
     }
 
-    def __add_live_moni(self, comps, live_moni, comp_name, comp_num, bean_name,
+    @classmethod
+    def __add_live_moni(cls, comps, live_moni, comp_name, comp_num, bean_name,
                         field_name, is_json=False):
 
         if not LIVE_IMPORT:
@@ -492,8 +494,7 @@ class CnCRunSetTest(unittest.TestCase):
         raise Exception("Unknown component %s-%d" % (comp_name, comp_num))
 
     @classmethod
-    def __add_run_start_moni(cls, live_moni, run_num, release, revision,
-                             started):
+    def __add_run_start_moni(cls, live_moni, run_num, release, revision):
 
         if not LIVE_IMPORT:
             return
@@ -505,8 +506,7 @@ class CnCRunSetTest(unittest.TestCase):
         live_moni.add_expected_live_moni("runstart", data, "json")
 
     @classmethod
-    def __add_run_stop_moni(cls, live_moni, first_time, last_time, num_evts,
-                            run_num):
+    def __add_run_stop_moni(cls, live_moni, first_time, num_evts, run_num):
 
         if not LIVE_IMPORT:
             return
@@ -674,13 +674,14 @@ class CnCRunSetTest(unittest.TestCase):
             if comp.name not in cls.BEAN_DATA:
                 raise Exception("No bean data found for %s" % str(comp))
 
-            for bean in cls.BEAN_DATA[comp.name]:
-                if len(cls.BEAN_DATA[comp.name][bean]) == 0:
+            bean_data = cls.BEAN_DATA[comp.name]
+            for bean in bean_data:
+                # pylint: disable=len-as-condition
+                if len(bean_data[bean]) == 0:
                     comp.mbean.set_data(bean, "xxx", 0)
                 else:
-                    for fld in cls.BEAN_DATA[comp.name][bean]:
-                        comp.mbean.set_data(bean, fld,
-                                            cls.BEAN_DATA[comp.name][bean][fld])
+                    for fld in bean_data[bean]:
+                        comp.mbean.set_data(bean, fld, bean_data[bean][fld])
 
     def __run_direct(self, fail_reset):
         self.__copy_dir = tempfile.mkdtemp()
@@ -837,9 +838,9 @@ class CnCRunSetTest(unittest.TestCase):
         logger.check_status(5)
         dash_log.check_status(5)
 
-        RunXMLValidator.validate(self, run_num, run_config, clu_cfg.description,
-                                 None, None, num_evts, num_moni, num_sn,
-                                 num_tcal, False)
+        RunXMLValidator.validate(self, run_num, run_config,
+                                 clu_cfg.description, None, None, num_evts,
+                                 num_moni, num_sn, num_tcal, False)
 
     @staticmethod
     def __set_bean_data(comps, comp_name, comp_num, bean_name, field_name,
@@ -1089,7 +1090,7 @@ class CnCRunSetTest(unittest.TestCase):
             live_moni.add_expected_live_moni("firstGoodTime", data, "json")
 
         (rel, rev) = self.__cnc.release
-        self.__add_run_start_moni(live_moni, run_num, rel, rev, True)
+        self.__add_run_start_moni(live_moni, run_num, rel, rev)
 
         catchall.add_expected_text("Starting run #%d on \"%s\"" %
                                    (run_num, clu_cfg.description))
@@ -1152,8 +1153,7 @@ class CnCRunSetTest(unittest.TestCase):
         dash_log.add_expected_exact("Not logging to file so cannot queue to"
                                     " SPADE")
 
-        self.__add_run_stop_moni(live_moni, first_time, pay_time, num_evts,
-                                 run_num)
+        self.__add_run_stop_moni(live_moni, first_time, num_evts, run_num)
 
         self.__set_bean_data(comps, "stringHub", self.HUB_NUMBER,
                              "stringhub", "EarliestLastChannelHitTime", 20)

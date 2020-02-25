@@ -39,7 +39,6 @@ class Profile(object):
 
 class ProcessException(Exception):
     "Process exception"
-    pass
 
 
 def find_python_process(target):
@@ -68,11 +67,11 @@ def list_processes():
 
 class HSCopyException(Exception):
     "HitSpool copy exception"
-    pass
 
 
 def add_arguments(parser):
-    "Add all arguments"
+    "Add command-line arguments"
+
     parser.add_argument("-b", "--bwlimit", type=int, dest="bwlimit",
                         action="store", default=BWLIMIT,
                         help="Bandwidth limit for 'rsync' copies")
@@ -91,9 +90,6 @@ def add_arguments(parser):
     parser.add_argument("-n", "--dry-run", dest="dry_run",
                         action="store_true", default=False,
                         help="Dry run (do not actually change anything)")
-    parser.add_argument("-v", "--verbose", dest="verbose",
-                        action="store_true", default=False,
-                        help="Print details")
     parser.add_argument(dest="positional", nargs="*")
 
 
@@ -127,8 +123,8 @@ def copy_files_in_range(args):
         raise SystemExit("Another copy of \"%s\" is running!" % my_name)
 
     # load all arguments
-    destination, start_ticks, stop_ticks, bwlimit, chunk_size, dry_run, \
-      verbose = process_args(args)
+    destination, start_ticks, stop_ticks, bwlimit, chunk_size, \
+      dry_run = process_args(args)
 
     if not dry_run:
         hs_spooldir, file_list = list_hs_files(start_ticks, stop_ticks)
@@ -136,7 +132,7 @@ def copy_files_in_range(args):
         hs_spooldir = "/tmp/spool"
         file_list = ["ONE", "TWO", "THREE"]
 
-    while len(file_list) > 0:
+    while len(file_list) > 0:  # pylint: disable=len-as-condition
         chunk = file_list[:chunk_size]
 
         rtncode = copy_hs_files(destination, hs_spooldir, chunk, bwlimit,
@@ -231,7 +227,8 @@ def list_hs_files(start_ticks, stop_ticks,
     finally:
         conn.close()
 
-    if hs_files is None or len(hs_files) == 0:
+    if hs_files is None or \
+      len(hs_files) == 0:  # pylint: disable=len-as-condition
         raise HSCopyException("No data found between %s and %s" %
                               (start_ticks, stop_ticks))
 
@@ -242,22 +239,20 @@ def process_args(args):
     """
     Parse arguments
     Return a tuple containing
-    (destination, start_ticks, stop_ticks, bwlimit, chunk_size, dry_run,
-     verbose)
+    (destination, start_ticks, stop_ticks, bwlimit, chunk_size, dry_run)
     """
     # assign argument values
     bwlimit = args.bwlimit
     chunk_size = args.chunk_size
     destination = args.destination
     dry_run = args.dry_run
-    verbose = args.verbose
 
     start_ticks = None
     stop_ticks = None
 
     # --kill ignores all other arguments
     if not args.kill:
-        if len(args.positional) == 0:
+        if len(args.positional) == 0:  # pylint: disable=len-as-condition
             raise HSCopyException("Please specify start and end times")
 
         # extract remaining values from positional parameters
@@ -295,15 +290,14 @@ def process_args(args):
         elif destination is None:
             raise HSCopyException("Please specify destination")
 
-    return (destination, start_ticks, stop_ticks, bwlimit, chunk_size, dry_run,
-            verbose)
+    return (destination, start_ticks, stop_ticks, bwlimit, chunk_size, dry_run)
 
 
 def main():
     "Main program"
     parser = argparse.ArgumentParser()
     add_arguments(parser)
-    parser = argp.parse_args()
+    args = parser.parse_args()
 
     copy_files_in_range(args)
 

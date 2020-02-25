@@ -37,7 +37,7 @@ def moni_stream(filename, fix_values=True, fix_profile=False,
     for line in open(filename, "r"):
         line = line.rstrip()
 
-        if len(line) == 0:
+        if line == "":
             continue
 
         mtch = CATTIME_PAT.match(line)

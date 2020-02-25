@@ -9,7 +9,7 @@ import sys
 import time
 
 from i3helper import Comparable
-from leapseconds import leapseconds, MJD
+from leapseconds import LeapSeconds, MJD
 
 
 class DAQDateTimeDelta(object):
@@ -48,7 +48,7 @@ class DAQDateTime(Comparable):
             self.__daq_ticks = (daqticks / 10000) * 10000
             self.__high_precision = False
 
-        self.leap = leapseconds.instance()
+        self.leap = LeapSeconds.instance()
         self.mjd_day = MJD(year, month, day, hour, minute, second)
 
         self.year = year
@@ -87,16 +87,6 @@ class DAQDateTime(Comparable):
         return "DAQDateTime(%d, %d, %d, %d, %d, %d, %d%s%s)" % \
             (self.year, self.month, self.day, self.hour,
              self.minute, self.second, self.__daq_ticks, tzstr, hpstr)
-
-    def __cmp__(self, other):
-        # compare two date time objects
-        if other is None:
-            return -1
-
-        val = cmp(self.tuple[0:6], other.tuple[0:6])
-        if val == 0:
-            val = cmp(self.daq_ticks, other.daq_ticks)
-        return val
 
     def __sub__(self, other):
         # assumes that all days are 86400 seconds long
@@ -140,7 +130,8 @@ class DAQDateTime(Comparable):
         return DAQDateTimeDelta(days, secs, int(usecs))
 
     @property
-    def compare_tuple(self):
+    def compare_key(self):
+        "Return the keys to be used by the Comparable methods"
         return (self.tuple[0:6], self.__daq_ticks)
 
     @property
@@ -163,7 +154,7 @@ class YearData(object):
         # does this year include a leap second?
         raw_tuple = time.struct_time((year, 7, 1, 0, 0, 0, 0, 0, -1))
         july1_tuple = time.gmtime(calendar.timegm(raw_tuple))
-        leapsec = leapseconds.instance().get_leap_offset(july1_tuple.tm_yday,
+        leapsec = LeapSeconds.instance().get_leap_offset(july1_tuple.tm_yday,
                                                          year)
         self.__has_leapsecond = leapsec > 0
 
@@ -335,7 +326,7 @@ def main():
     parser.add_argument("time", nargs="*")
     args = parser.parse_args()
 
-    if len(args.time) == 0:
+    if len(args.time) == 0:  # pylint: disable=len-as-condition
         # pattern %Y-%m-%d %H:%M:%S
         base = "2012-01-10 10:19:23"
         dttm0 = PayloadTime.from_string(base + ".0001000000")
@@ -365,7 +356,7 @@ def main():
                 dttm = PayloadTime.from_string(arg, True)
                 print("\"%s\" -> %s" % (arg, dttm))
 
-        except:
+        except:  # pylint: disable=bare-except
             print("Bad date: " + arg)
             import traceback
             traceback.print_exc()

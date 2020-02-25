@@ -21,12 +21,12 @@ class CnCLoggerTest(unittest.TestCase):
     def tearDown(self):
         try:
             self.__log_factory.tearDown()
-        except:
+        except:  # pylint: disable=bare-except
             traceback.print_exc()
 
         self.__appender.check_status(10)
 
-    def test_no_appenders(self):
+    def test_no_appenders(self):  # pylint: disable=no-self-use
         "Test opening and resetting pDAQ logger"
         clog = CnCLogger("NoAppenders", appender=None, quiet=True)
         # this message will get dropped

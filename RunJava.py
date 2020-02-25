@@ -20,6 +20,8 @@ from distutils.version import LooseVersion
 
 
 def add_arguments(parser):
+    "Add command-line arguments"
+
     parser.add_argument("-D", "--repo-dir", dest="repo_dir",
                         help="Local Maven repository cache")
     parser.add_argument("-d", "--daq-dependency", dest="daq_deps",
@@ -51,7 +53,6 @@ def jzmq_native_specifier():
 
 class RunnerException(Exception):
     """Exception in Java code runner"""
-    pass
 
 
 class JavaCommand(object):
@@ -329,9 +330,9 @@ class JavaRunner(object):
                         tmpname = cls.__build_jar_name(name, entry, extra)
                         tmpjar = os.path.join(projdir, entry, tmpname)
                         if os.path.exists(tmpjar):
-                            print("WARNING: Using %s version" \
-                                " %s instead of requested %s" % \
-                                (name, entry, vers), file=sys.stderr)
+                            print("WARNING: Using %s version %s instead of"
+                                  " requested %s" % (name, entry, vers),
+                                  file=sys.stderr)
                             return tmpjar
 
         if dist_dir is not None:
@@ -348,9 +349,9 @@ class JavaRunner(object):
                         vstr = entry[len(namedash):jarext]
                         nvers = LooseVersion(vstr)
                         if overs <= nvers:
-                            print("WARNING: Using %s version" \
-                                " %s instead of requested %s" % \
-                                (name, vstr, vers), file=sys.stderr)
+                            print("WARNING: Using %s version %s instead of"
+                                  " requested %s" % (name, vstr, vers),
+                                  file=sys.stderr)
                             return os.path.join(dist_dir, entry)
 
         raise SystemExit("Cannot find Maven jar file %s" % jarname)
@@ -464,7 +465,7 @@ class JavaRunner(object):
 
         self.__proc = None
 
-    def __send_signal(self, sig, frame):
+    def __send_signal(self, sig, frame):  # pylint: disable=unused-argument
         """Send a signal to the process"""
         if self.__proc is not None:
             os.killpg(self.__proc.pid, sig)
@@ -518,7 +519,7 @@ class JavaRunner(object):
 
         return rundata
 
-    def send_signal(self, sig, frame):
+    def send_signal(self, sig, frame):  # pylint: disable=unused-argument
         """Send a signal to the process"""
         if self.__proc is not None:
             os.killpg(self.__proc.pid, sig)

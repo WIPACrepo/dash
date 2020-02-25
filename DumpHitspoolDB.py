@@ -13,6 +13,8 @@ HSDB_PATH = os.path.join(HITSPOOL_DIR, "hitspool.db")
 
 
 def add_arguments(parser):
+    "Add command-line arguments"
+
     parser.add_argument("-r", "--raw", dest="rawtimes",
                         action="store_true", default=False,
                         help="Dump times as DAQ ticks (0.1ns)")
@@ -47,8 +49,8 @@ def dump_db(args):
                 rmstr = ""
             else:
                 rmstr = " [NO FILE]"
-            print("%s [%s-%s] (%.02fs)%s" % \
-                (filename, start_val, stop_val, secs, rmstr))
+            print("%s [%s-%s] (%.02fs)%s" %
+                  (filename, start_val, stop_val, secs, rmstr))
     finally:
         conn.close()
 

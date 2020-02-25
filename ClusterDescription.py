@@ -16,11 +16,11 @@ from utils.Machineid import Machineid
 
 
 class ClusterDescriptionFormatError(XMLFormatError):
-    pass
+    "Formatting error"
 
 
 class ClusterDescriptionException(Exception):
-    pass
+    "General exception"
 
 
 class ConfigXMLBase(XMLParser):
@@ -146,8 +146,8 @@ class JVMArgs(object):
         else:
             outstr = self.__path
 
-        if self.__is_server is not None and not self.__is_server:
-            outstr += " !server"
+        if self.__is_server is not None and self.__is_server:
+            outstr += " server"
 
         if self.__heap_init is not None:
             outstr += " ms=" + self.__heap_init
@@ -161,6 +161,12 @@ class JVMArgs(object):
             outstr += " | " + self.__extra_args
 
         return outstr
+
+    @property
+    def has_data(self):
+        return self.__path is not None and self.__is_server is not None and \
+          self.__heap_init is not None and self.__heap_max is not None and \
+          self.__args is not None and self.__extra_args is not None
 
     @property
     def args(self):
@@ -201,7 +207,7 @@ class JavaComponent(ClusterComponent):
     @property
     def internal_str(self):
         superstr = super(JavaComponent, self).internal_str
-        if self.__jvm is None:
+        if self.__jvm is None or not self.__jvm.has_data:
             return superstr
 
         jvm_str = str(self.__jvm)
@@ -333,6 +339,11 @@ class HSArgs(object):
         return self.__directory
 
     @property
+    def has_data(self):
+        return self.__directory is not None or self.__interval is not None or \
+          self.__max_files is not None
+
+    @property
     def interval(self):
         return self.__interval
 
@@ -387,12 +398,19 @@ class HubComponent(JavaComponent):
     def internal_str(self):
         if self.__hs is None:
             istr = "hs[???]"
-        else:
+        elif self.__hs.has_data:
             istr = "hs[%s]" % str(self.__hs)
+        else:
+            istr = ""
+
         if self.__alert_email is not None:
             istr += " | alert=%s" % self.__alert_email
         if self.__ntp_host is not None:
             istr += " | ntp=%s" % self.__ntp_host
+
+        if istr.startswith(" | "):
+            istr = istr[4:]
+
         return istr
 
     @property
@@ -503,9 +521,6 @@ class ClusterHost(Comparable):
         self.sim_hubs = None
         self.ctl_server = False
 
-    def __cmp__(self, other):
-        return cmp(self.name, str(other))
-
     def __str__(self):
         return self.name
 
@@ -540,7 +555,8 @@ class ClusterHost(Comparable):
         return newhub
 
     @property
-    def compare_tuple(self):
+    def compare_key(self):
+        "Return the keys to be used by the Comparable methods"
         return (self.name, self.ctl_server)
 
     def dump(self, file_handle=None, prefix=None):
@@ -627,30 +643,29 @@ class ClusterDefaults(object):
                 val_name in self.components[comp_name]:
             return self.components[comp_name][val_name]
 
+        val = None
         if val_name == 'hitspoolDirectory':
-            return self.hitspool.directory
-        if val_name == 'hitspoolInterval':
-            return self.hitspool.interval
-        if val_name == 'hitspoolMaxFiles':
-            return self.hitspool.max_files
+            val = self.hitspool.directory
+        elif val_name == 'hitspoolInterval':
+            val = self.hitspool.interval
+        elif val_name == 'hitspoolMaxFiles':
+            val = self.hitspool.max_files
+        elif val_name == 'jvmPath':
+            val = self.jvm.path
+        elif val_name == 'jvmServer':
+            val = self.jvm.is_server
+        elif val_name == 'jvmHeapInit':
+            val = self.jvm.heap_init
+        elif val_name == 'jvmHeapMax':
+            val = self.jvm.heap_max
+        elif val_name == 'jvmArgs':
+            val = self.jvm.args
+        elif val_name == 'jvmExtraArgs':
+            val = self.jvm.extra_args
+        elif val_name == 'logLevel':
+            val = self.loglevel
 
-        if val_name == 'jvmPath':
-            return self.jvm.path
-        if val_name == 'jvmServer':
-            return self.jvm.is_server
-        if val_name == 'jvmHeapInit':
-            return self.jvm.heap_init
-        if val_name == 'jvmHeapMax':
-            return self.jvm.heap_max
-        if val_name == 'jvmArgs':
-            return self.jvm.args
-        if val_name == 'jvmExtraArgs':
-            return self.jvm.extra_args
-
-        if val_name == 'logLevel':
-            return self.loglevel
-
-        return None
+        return val
 
 
 class ClusterDescription(ConfigXMLBase):
@@ -761,15 +776,13 @@ class ClusterDescription(ConfigXMLBase):
 
             comp.set_hub_options(defaults, alert_email, ntp_host)
 
-            (hs_dir, hs_interval, hs_max_files) \
-              = cls.__parse_hs_nodes(name, node)
+            (hs_dir, hs_interval, hs_max_files) = cls.__parse_hs_nodes(node)
             comp.set_hit_spool_options(defaults, hs_dir, hs_interval,
                                        hs_max_files)
 
     def __parse_default_nodes(self, clu_name, defaults, node):
         """load JVM defaults"""
-        (hs_dir, hs_ival, hs_maxfiles) = \
-            self.__parse_hs_nodes(clu_name, node)
+        (hs_dir, hs_ival, hs_maxfiles) = self.__parse_hs_nodes(node)
         defaults.hitspool = HSArgs(hs_dir, hs_ival, hs_maxfiles)
 
         (path, is_server, heap_init, heap_max, args, extra_args) = \
@@ -793,8 +806,7 @@ class ClusterDescription(ConfigXMLBase):
                 if name not in defaults.components:
                     defaults.components[name] = {}
 
-                (hs_dir, hs_ival, hs_maxfiles) \
-                  = self.__parse_hs_nodes(name, kid)
+                (hs_dir, hs_ival, hs_maxfiles) = self.__parse_hs_nodes(kid)
                 if hs_dir is not None:
                     defaults.components[name]['hitspoolDirectory'] = hs_dir
                 if hs_ival is not None:
@@ -877,7 +889,7 @@ class ClusterDescription(ConfigXMLBase):
         return host_map
 
     @classmethod
-    def __parse_hs_nodes(cls, name, node):
+    def __parse_hs_nodes(cls, node):
         # create all hitspool-related variables
         hs_dir = None
         interval = None

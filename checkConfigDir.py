@@ -15,11 +15,12 @@ import time
 
 from DAQConfig import DAQConfigParser
 from decorators import classproperty
+from i3helper import Comparable
 from locate_pdaq import find_pdaq_config
 from utils.Machineid import Machineid
 
 
-class Ancient(object):
+class Ancient(Comparable):
     """
     Object representing an "ancient" file (older than one year)
     """
@@ -28,8 +29,10 @@ class Ancient(object):
         self.__filename = filename
         self.__mtime = mtime
 
-    def __cmp__(self, other):
-        return self.mtime - other.mtime
+    @property
+    def compare_key(self):
+        "Return the keys to be used by the Comparable methods"
+        return self.__mtime
 
     def __str__(self):
         return "%s (%d days)" % \
@@ -368,7 +371,7 @@ class ConfigDirChecker(object):
     @classmethod
     def find_executable(cls, cmd, helptext=None, dryrun=False):
         "Find 'cmd' in the user's PATH"
-        for pdir in cls.path_elements:
+        for pdir in cls.path_elements:  # pylint: disable=not-an-iterable
             pcmd = os.path.join(pdir, cmd)
             if os.path.exists(pcmd):
                 return pcmd
@@ -394,6 +397,7 @@ class ConfigDirChecker(object):
         "Yield each entry in the user's $PATH environment variable"
 
         if cls.PATH_LIST is None:
+            # pylint: disable=invalid-name
             cls.PATH_LIST = os.environ["PATH"].split(":")
         for elem in cls.PATH_LIST:
             yield elem

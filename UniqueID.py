@@ -19,12 +19,8 @@ class UniqueID(object):
 
         return rtnval
 
-    next = __next__ # XXX backward compatibility for Python 2
+    next = __next__  # XXX backward compatibility for Python 2
 
     def peek_next(self):
         "Peek at the next ID"
         return self.__val
-
-
-if __name__ == "__main__":
-    pass

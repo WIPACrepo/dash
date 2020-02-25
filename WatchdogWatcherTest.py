@@ -37,7 +37,8 @@ class MockComponent(object):
 
 
 class WatchdogWatcherTest(unittest.TestCase):
-    def __build_value_comps(self, fname, fnum, forder, tname, tnum, torder,
+    @classmethod
+    def __build_value_comps(cls, fname, fnum, forder, tname, tnum, torder,
                             bits):
         fbldr = False
         fsrc = False
@@ -97,7 +98,7 @@ class WatchdogWatcherTest(unittest.TestCase):
                                  "Expected message %s, not %s" %
                                  (umsg, urec.message))
 
-    def test_threshold_bad_type(self):
+    def test_threshold_bad_type(self):  # pylint: disable=no-self-use
         comp = MockComponent("foo", 1, 1)
 
         bean_name = "bean"
@@ -115,7 +116,7 @@ class WatchdogWatcherTest(unittest.TestCase):
             if str(tex).find(exp_msg) < 0:
                 raise
 
-    def test_threshold_unsupported(self):
+    def test_threshold_unsupported(self):  # pylint: disable=no-self-use
         comp = MockComponent("foo", 1, 1)
 
         bean_name = "bean"
@@ -256,7 +257,7 @@ class WatchdogWatcherTest(unittest.TestCase):
         watcher.check(lst)
 
         ls2 = lst[:]
-        for idx in range(len(ls2)):
+        for idx in range(len(ls2)):  # pylint: disable=consider-using-enumerate
             ls2[idx] -= 2
 
         try:

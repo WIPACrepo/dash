@@ -7,7 +7,7 @@ import sys
 
 
 class ListOpenFileException(Exception):
-    pass
+    "General ListOpenFiles exception"
 
 
 class UserInfo(object):
@@ -253,11 +253,11 @@ class CharacterFile(StandardFile):
 
 
 class NoFile(BaseFile):
-    pass
+    "Base class for non-file entries"
 
 
 class Directory(StandardFile):
-    pass
+    "Directory"
 
 
 class FIFO(BaseFile):
@@ -311,15 +311,15 @@ class BaseIP(BaseFile):
 
 
 class IPv4(BaseIP):
-    pass
+    "IPv4 entry"
 
 
 class IPv6(BaseIP):
-    pass
+    "IPv6 entry"
 
 
 class KQueue(BaseFile):
-    pass
+    "kqueue entry"
 
 
 class Pipe(BaseFile):
@@ -338,19 +338,19 @@ class Pipe(BaseFile):
 
 
 class RegularFile(StandardFile):
-    pass
+    "Regular file"
 
 
 class EventPoll(StandardFile):
-    pass
+    "Event poll entry"
 
 
 class SystemFile(BaseFile):
-    pass
+    "System file"
 
 
 class UnixSocket(BaseFile):
-    pass
+    "Unix socket"
 
 
 class UnknownSocket(BaseFile):
@@ -369,50 +369,61 @@ class UnknownSocket(BaseFile):
 
 
 class UnknownEntry(BaseFile):
+    "Stand-in for unknown entry"
+    def __init__(self, file_type, file_desc, access_mode, lock_status):
+        super(UnknownEntry, self).__init__(file_type, file_desc, access_mode,
+                                           lock_status)
+        self.__size = None
+
     @property
     def size_offset(self):
-        pass
+        return self.__size
 
     @size_offset.setter
     def size_offset(self, val):
-        pass
+        self.__size = val
 
 
 class ListOpenFiles(object):
+    "Get he list of open files using 'lsof'"
+
     @classmethod
     def __create(cls, file_desc, access_mode, lock_status, file_type=None):
+        obj = None
         if file_type is None:
-            return NoFile(file_type, file_desc, access_mode, lock_status)
-        if file_type == "CHR":
-            return CharacterFile(file_type, file_desc, access_mode,
-                                 lock_status)
-        if file_type == "DIR":
-            return Directory(file_type, file_desc, access_mode, lock_status)
-        if file_type == "FIFO":
-            return FIFO(file_type, file_desc, access_mode, lock_status)
-        if file_type == "IPv4":
-            return IPv4(file_type, file_desc, access_mode, lock_status)
-        if file_type == "IPv6":
-            return IPv6(file_type, file_desc, access_mode, lock_status)
-        if file_type == "KQUEUE":
-            return KQueue(file_type, file_desc, access_mode, lock_status)
-        if file_type == "PIPE":
-            return Pipe(file_type, file_desc, access_mode, lock_status)
-        if file_type == "REG":
-            return RegularFile(file_type, file_desc, access_mode, lock_status)
-        if file_type == "sock":
-            return UnknownSocket(file_type, file_desc, access_mode,
-                                 lock_status)
-        if file_type == "systm":
-            return SystemFile(file_type, file_desc, access_mode, lock_status)
-        if file_type == "unix":
-            return UnixSocket(file_type, file_desc, access_mode, lock_status)
-        if file_type == "unknown":
-            return NoFile(file_type, file_desc, access_mode, lock_status)
-        if file_type == "0000":
-            return EventPoll(file_type, file_desc, access_mode, lock_status)
+            obj = NoFile(file_type, file_desc, access_mode, lock_status)
+        elif file_type == "CHR":
+            obj = CharacterFile(file_type, file_desc, access_mode,
+                                lock_status)
+        elif file_type == "DIR":
+            obj = Directory(file_type, file_desc, access_mode, lock_status)
+        elif file_type == "FIFO":
+            obj = FIFO(file_type, file_desc, access_mode, lock_status)
+        elif file_type == "IPv4":
+            obj = IPv4(file_type, file_desc, access_mode, lock_status)
+        elif file_type == "IPv6":
+            obj = IPv6(file_type, file_desc, access_mode, lock_status)
+        elif file_type == "KQUEUE":
+            obj = KQueue(file_type, file_desc, access_mode, lock_status)
+        elif file_type == "PIPE":
+            obj = Pipe(file_type, file_desc, access_mode, lock_status)
+        elif file_type == "REG":
+            obj = RegularFile(file_type, file_desc, access_mode, lock_status)
+        elif file_type == "sock":
+            obj = UnknownSocket(file_type, file_desc, access_mode,
+                                lock_status)
+        elif file_type == "systm":
+            obj = SystemFile(file_type, file_desc, access_mode, lock_status)
+        elif file_type == "unix":
+            obj = UnixSocket(file_type, file_desc, access_mode, lock_status)
+        elif file_type == "unknown":
+            obj = NoFile(file_type, file_desc, access_mode, lock_status)
+        elif file_type == "0000":
+            obj = EventPoll(file_type, file_desc, access_mode, lock_status)
+        else:
+            obj = UnknownEntry(file_type, file_desc, access_mode, lock_status)
 
-        return UnknownEntry(file_type, file_desc, access_mode, lock_status)
+        return obj
 
     @classmethod
     def __parse_output(cls, fin):
@@ -429,7 +440,7 @@ class ListOpenFiles(object):
 
             if line.startswith("f"):
                 # file descriptor
-                if len(tmp_info) > 0:
+                if len(tmp_info) > 0:  # pylint: disable=len-as-condition
                     errmsg = "Parse error for file descriptor (%s)" % tmp_info
                     raise ListOpenFileException(errmsg)
 

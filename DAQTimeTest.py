@@ -42,12 +42,12 @@ class TestDAQTime(unittest.TestCase):
     def __check_compare(self, dttm0, dttm1, exp_result):
         result = self.__compare_dates(dttm0, dttm1)
         self.assertEqual(exp_result, result,
-                         "Expected cmp(%s, %s) to return %s, not %s" %
+                         "Expected %s <=> %s to return %s, not %s" %
                          (dttm0, dttm1, exp_result, result))
 
         result = self.__compare_dates(dttm1, dttm0)
         self.assertEqual(-exp_result, result,
-                         "Expected inverted cmp(%s, %s) to return %s, not %s" %
+                         "Expected inverted %s <=> %s to return %s, not %s" %
                          (dttm1, dttm0, -exp_result, result))
 
     @classmethod
@@ -72,6 +72,7 @@ class TestDAQTime(unittest.TestCase):
 
     def setUp(self):
         if self.CUR_YEAR is None:
+            # pylint: disable=invalid-name
             self.CUR_YEAR = PayloadTime.get_current_year()
 
         set_pdaq_config_dir("src/test/resources/config", override=True)
@@ -125,7 +126,8 @@ class TestDAQTime(unittest.TestCase):
 
         expstr = self.__delta_format(-1, 0, 0, 0, 0)
         self.assertEqual(expstr, str(dttm0 - dttm1),
-                         "Expected delta2 %s, not %s" % (expstr, dttm0 - dttm1))
+                         "Expected delta2 %s, not %s" %
+                         (expstr, dttm0 - dttm1))
 
     def test_delta_two_weeks(self):
         jan1 = time.struct_time((self.CUR_YEAR, 1, 1, 0, 0, 0, 0, 0, -1))
@@ -143,7 +145,8 @@ class TestDAQTime(unittest.TestCase):
 
         expstr = self.__delta_format(-15, 20, 57, 58, 898900)
         self.assertEqual(expstr, str(dttm0 - dttm1),
-                         "Expected delta2 %s, not %s" % (expstr, dttm0 - dttm1))
+                         "Expected delta2 %s, not %s" %
+                         (expstr, dttm0 - dttm1))
 
     def test_delta_two_weeks_h_p(self):
         jan1 = time.struct_time((self.CUR_YEAR, 1, 1, 0, 0, 0, 0, 0, -1))
@@ -161,7 +164,8 @@ class TestDAQTime(unittest.TestCase):
 
         expstr = self.__delta_format(-15, 20, 57, 58, 898900)
         self.assertEqual(expstr, str(dttm0 - dttm1),
-                         "Expected delta2 %s, not %s" % (expstr, dttm0 - dttm1))
+                         "Expected delta2 %s, not %s" %
+                         (expstr, dttm0 - dttm1))
 
     def test_delta_subsec(self):
         self.__validate_delta((self.CUR_YEAR, 1, 10, 10, 19, 23, 9876543210),
@@ -233,14 +237,14 @@ class TestDAQTime(unittest.TestCase):
 
         expstr = fmtstr % (self.CUR_YEAR, low_digits, hpstr)
         shortstr = fmtstr % (self.CUR_YEAR, short_digits, hpstr)
-        dttm = eval(expstr)
+        dttm = eval(expstr)  # pylint: disable=eval-used
         self.assertEqual(shortstr, repr(dttm),
                          "Expected repr %s, not %s" % (shortstr, repr(dttm)))
 
     def test_repr_h_p(self):
         expstr = ("DAQDateTime(%d, 1, 10, 10, 19, 23, 9876543210," +
                   " high_precision=True)") % self.CUR_YEAR
-        dttm = eval(expstr)
+        dttm = eval(expstr)  # pylint: disable=eval-used
         self.assertEqual(expstr, repr(dttm),
                          "Expected repr %s, not %s" % (expstr, repr(dttm)))
 

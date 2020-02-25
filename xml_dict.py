@@ -1,5 +1,5 @@
 """A set of utilities that aims at making accessing xml files a little easier
-xml_dict will transform an xml file into a python dictionary.  See the
+XMLDict will transform an xml file into a python dictionary.  See the
 associated doctests for xml_fmt or dict_xml_tree for examples of how this
 works.  The two functions contained here are for accessing attributes or
 values of the root element of the python dictionary passed to them."""
@@ -39,14 +39,14 @@ def get_value(xdict):
     return xdict['__contents__']
 
 
-class xml_dict(object):
+class XMLDict(object):
     def __init__(self, fname):
         parser = etree.XMLParser(remove_blank_text=True)
         tree = etree.parse(fname, parser)
 
         root = tree.getroot()
 
-        self.xml_dict = xml_dict.xml_fmt(root)
+        self.xml_dict = XMLDict.xml_fmt(root)
         self.encoding = tree.docinfo.encoding
 
     @staticmethod
@@ -60,7 +60,7 @@ class xml_dict(object):
         >>> from StringIO import StringIO
         >>> xml = '<runCfg><domConfigList hub="5">spts-something</domConfigList></runCfg>'
         >>> tree = etree.parse(StringIO(xml), etree.XMLParser(remove_blank_text=True))
-        >>> xml_dict.xml_fmt(tree.getroot()) # doctest: +NORMALIZE_WHITESPACE
+        >>> XMLDict.xml_fmt(tree.getroot()) # doctest: +NORMALIZE_WHITESPACE
         {'runCfg': {'__children__': {'domConfigList': [{'__attribs__': {'hub': '5'},
         '__contents__': 'spts-something'}]}}}
         """
@@ -71,9 +71,11 @@ class xml_dict(object):
         # if the parent element has no children,
         # no attributes and only content, just set it to
         # be the contents
+        # pylint: disable=len-as-condition
         if len(attribs) == 0 and \
           len(parent_element) == 0:  # pylint: disable=len-as-condition
             return parent_element.text
+        # pylint: enable=len-as-condition
 
         ret[parent_element.tag] = {}
 
@@ -97,7 +99,7 @@ class xml_dict(object):
 
         tmp = {}
         for child in parent_element:
-            child_dict = xml_dict.xml_fmt(child)
+            child_dict = XMLDict.xml_fmt(child)
             if child.tag not in tmp:
                 tmp[child.tag] = []
             if child_dict:
@@ -113,15 +115,17 @@ class xml_dict(object):
 
     @staticmethod
     def dict_xml_tree(elem_dict, root=None):
+        # pylint: disable=line-too-long
         """xml_fmt takes an XML file and outputs a specially formatted python
         dictionary.  If you pass that dictionary to this method it will return
         an lxml element tree.  That can be handed off to 'to_string()' to
         reproduce a human readable xml file
 
         >>> xml_d = {'runCfg': {'__children__': {'domConfigList': [{'__attribs__': {'hub': '5'}, '__contents__': 'spts-something'}]}}}
-        >>> xml_dict.to_string(xml_d, pretty_print=False)
+        >>> XMLDict.to_string(xml_d, pretty_print=False)
         '<?xml version=\\'1.0\\' encoding=\\'ASCII\\'?>\\n<runCfg><domConfigList hub="5">spts-something</domConfigList></runCfg>'
         """
+        # pylint: enable=line-too-long
 
         tag, contents = next(iter(list(elem_dict.items())))
         if root is not None:
@@ -176,7 +180,7 @@ class xml_dict(object):
                     child_element.text = child_desc[0]
                 else:
                     for entry in child_desc:
-                        xml_dict.dict_xml_tree({child_name: entry}, root=elem)
+                        XMLDict.dict_xml_tree({child_name: entry}, root=elem)
             else:
                 print("Not handling <%s>%s" %
                       (type(child_desc).__name__, child_desc), file=sys.stderr)
@@ -185,7 +189,7 @@ class xml_dict(object):
 
     @staticmethod
     def to_string(info_dict, pretty_print=True):
-        root = xml_dict.dict_xml_tree(info_dict)
+        root = XMLDict.dict_xml_tree(info_dict)
         tree = etree.ElementTree(root)
         outstr = etree.tostring(tree, method="xml", xml_declaration=True,
                                 pretty_print=pretty_print)
@@ -197,6 +201,10 @@ class xml_dict(object):
         return self.to_string(self.xml_dict)
 
 
-if __name__ == "__main__":
+def main():
     import doctest
     doctest.testmod()
+
+
+if __name__ == "__main__":
+    main()

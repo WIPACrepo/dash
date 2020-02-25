@@ -3,6 +3,10 @@
 # assume that the imports will succeed
 LIVE_IMPORT = True
 
+# pylint: disable=ungrouped-imports,unused-import
+# The point of this module is to provide a consistent interface to Live
+#  so it CANNOT group imports or use everything that's been imported
+
 # attempt to import MoniClient
 try:
     from livecore.messaging.moniclient import DefaultMoniClient as MoniClient
@@ -11,6 +15,7 @@ except ImportError:
         from live.transport.moniclient import DefaultMoniClient as MoniClient
     except ImportError:
         LIVE_IMPORT = False
+
         class MoniClient(object):
             def __init__(self, service, host, port, logger=None):
                 pass
@@ -25,7 +30,8 @@ except ImportError:
             def close(self):
                 pass
 
-            def sendMoni(self, name, data, prio=None, time=None):
+            def sendMoni(self, name, data,  # pylint: disable=invalid-name
+                         prio=None, time=None):
                 pass
 
 # attempt to import MoniPort
@@ -46,6 +52,7 @@ except ImportError:
         from live.control.component import Component as LiveComponent
     except ImportError:
         LIVE_IMPORT = False
+
         class LiveComponent(object):
             def __init__(self, compName, rpcPort=None, moniHost=None,
                          moniPort=None, synchronous=None, lightSensitive=None,
@@ -76,6 +83,7 @@ except ImportError:
         from live.transport.prioqueue import Prio
     except ImportError:
         LIVE_IMPORT = False
+
         class Prio(object):
             ITS = 123
             EMAIL = 444
@@ -87,7 +95,3 @@ if LIVE_IMPORT:
     SERVICE_NAME = "pdaq"
 else:
     SERVICE_NAME = "pdaqFake"
-
-
-if __name__ == "__main__":
-    pass

@@ -49,22 +49,18 @@ def unfix_value(obj):
 
 class BeanException(Exception):
     "Base MBean exception"
-    pass
 
 
 class BeanFieldNotFoundException(BeanException):
     "Exception thrown when an MBean field was not found"
-    pass
 
 
 class BeanLoadException(BeanException):
     "Exception thrown when MBean data cannot be loaded from the MBean client"
-    pass
 
 
 class BeanTimeoutException(BeanException):
     "Exception thrown when the MBean client times out"
-    pass
 
 
 class MBeanClient(object):
@@ -99,15 +95,16 @@ class MBeanClient(object):
         except (xclient.Fault, xclient.ProtocolError) as xerr:
             raise BeanTimeoutException("Cannot get list of %s MBeans: %s" %
                                        (self.__comp_name, xerr))
-        except:
+        except:  # pylint: disable=bare-except
             raise BeanLoadException("Cannot load list of %s MBeans: %s " %
                                     (self.__comp_name, exc_string()))
 
         failed = []
         for bean in self.__bean_list:
             try:
-                self.__bean_fields[bean] = self.__client.mbean.listGetters(bean)
-            except:
+                self.__bean_fields[bean] = \
+                  self.__client.mbean.listGetters(bean)
+            except:  # pylint: disable=bare-except
                 # don't let a single failure abort remaining fetches,
                 failed.append(bean)
 
@@ -115,7 +112,7 @@ class MBeanClient(object):
                 if bean not in self.__bean_fields:
                     self.__bean_fields[bean] = []
 
-        if len(failed) > 0:
+        if len(failed) > 0:  # pylint: disable=len-as-condition
             raise BeanLoadException("Cannot load %s MBeans %s: %s" %
                                     (self.__comp_name, failed, exc_string()))
 
@@ -129,7 +126,7 @@ class MBeanClient(object):
                 if not self.__loaded_info:
                     self.__load_bean_info()
 
-    def create_client(self, host, port):
+    def create_client(self, host, port):  # pylint: disable=no-self-use
         "create an MBean RPC client"
         return RPCClient(host, port)
 
@@ -145,7 +142,7 @@ class MBeanClient(object):
         except (xclient.Fault, xclient.ProtocolError) as xerr:
             raise BeanTimeoutException("Cannot get %s MBean \"%s:%s\": %s" %
                                        (self.__comp_name, bean, fld, xerr))
-        except:
+        except:  # pylint: disable=bare-except
             raise BeanLoadException("Cannot load %s MBean \"%s:%s\": %s" %
                                     (self.__comp_name, bean, fld,
                                      exc_string()))
@@ -165,7 +162,7 @@ class MBeanClient(object):
             raise BeanTimeoutException("Cannot get %s MBean \"%s\":"
                                        " attributes %s" %
                                        (self.__comp_name, bean, xerr))
-        except:
+        except:  # pylint: disable=bare-except
             raise BeanLoadException("Cannot load %s MBean \"%s\""
                                     " attributes %s: %s" %
                                     (self.__comp_name, bean, fld_list,
@@ -174,11 +171,12 @@ class MBeanClient(object):
         if not isinstance(attrs, dict):
             raise BeanException("%s getAttributes(%s, %s) should return dict,"
                                 " not %s (%s)" % (self.__comp_name, bean,
-                                                  fld_list, type(attrs), attrs))
+                                                  fld_list, type(attrs),
+                                                  attrs))
 
-        if len(attrs) > 0:
-            for k in list(attrs.keys()):
-                attrs[k] = unfix_value(attrs[k])
+        if len(attrs) > 0:  # pylint: disable=len-as-condition
+            for key, val in attrs.items():
+                attrs[key] = unfix_value(val)
         return attrs
 
     def get_bean_names(self):
@@ -210,19 +208,19 @@ class MBeanClient(object):
             except (xclient.Fault, xclient.ProtocolError) as xerr:
                 raise BeanTimeoutException("Cannot get %s MBean attributes:"
                                            " %s" % (self.__comp_name, xerr))
-            except:
+            except:  # pylint: disable=bare-except
                 raise BeanLoadException("Cannot load %s MBean attributes:"
                                         " %s" %
                                         (self.__comp_name, exc_string()))
 
         if not isinstance(attrs, dict):
             raise BeanException("%s get_dictionary() should return dict,"
-                                " not %s (%s)" % \
-                                (self.__comp_name, type(attrs).__name__, attrs))
+                                " not %s (%s)" % (self.__comp_name,
+                                                  type(attrs).__name__, attrs))
 
-        if len(attrs) > 0:
-            for k in list(attrs.keys()):
-                attrs[k] = unfix_value(attrs[k])
+        if len(attrs) > 0:  # pylint: disable=len-as-condition
+            for key, val in attrs.items():
+                attrs[key] = unfix_value(val)
         return attrs
 
     def reload(self):
@@ -243,7 +241,8 @@ class ComponentName(Comparable):
         return self.fullname
 
     @property
-    def compare_tuple(self):
+    def compare_key(self):
+        "Return the keys to be used by the Comparable methods"
         return (self.__name, self.__num)
 
     @property
@@ -296,7 +295,6 @@ class ComponentName(Comparable):
 
 class DAQClientException(Exception):
     "Base DAQ client exception"
-    pass
 
 
 class DAQClientState(object):
@@ -374,7 +372,7 @@ class DAQClient(ComponentName):
 
         try:
             self.__mbean_client = self.create_mbean_client()
-        except:
+        except:  # pylint: disable=bare-except
             self.__mbean_client = None
 
     def __str__(self):
@@ -390,7 +388,8 @@ class DAQClient(ComponentName):
             mbean_str = ' M#%d' % self.__mbean_port
 
         extra_str = ''
-        if self.__connectors and len(self.__connectors) > 0:
+        if self.__connectors and \
+          len(self.__connectors) > 0:  # pylint: disable=len-as-condition
             first = True
             for conn in self.__connectors:
                 if first:
@@ -420,7 +419,7 @@ class DAQClient(ComponentName):
         "Start marking events with the subrun number"
         try:
             return self.__client.xmlrpc.commitSubrun(subrun_num, latest_time)
-        except:
+        except:  # pylint: disable=bare-except
             self.__log.error(exc_string())
             return None
 
@@ -430,7 +429,7 @@ class DAQClient(ComponentName):
             if config_name is None:
                 return self.__client.xmlrpc.configure()
             return self.__client.xmlrpc.configure(config_name)
-        except:
+        except:  # pylint: disable=bare-except
             self.__log.error(exc_string())
             return None
 
@@ -467,7 +466,7 @@ class DAQClient(ComponentName):
         "Force component to stop running"
         try:
             return self.__client.xmlrpc.forcedStop()
-        except:
+        except:  # pylint: disable=bare-except
             self.__log.error(exc_string())
             return None
 
@@ -475,7 +474,7 @@ class DAQClient(ComponentName):
         "Get the earliest time for a replay hub"
         try:
             return unfix_value(self.__client.xmlrpc.getReplayStartTime())
-        except:
+        except:  # pylint: disable=bare-except
             self.__log.error(exc_string())
             return None
 
@@ -483,7 +482,7 @@ class DAQClient(ComponentName):
         "Get the run data for the specified run"
         try:
             return unfix_value(self.__client.xmlrpc.getRunData(run_num))
-        except:
+        except:  # pylint: disable=bare-except
             self.__log.error(exc_string())
             return None
 
@@ -491,7 +490,7 @@ class DAQClient(ComponentName):
         "Get the current run number"
         try:
             return self.__client.xmlrpc.getRunNumber()
-        except:
+        except:  # pylint: disable=bare-except
             self.__log.error(exc_string())
             return None
 
@@ -501,7 +500,7 @@ class DAQClient(ComponentName):
         return self.__host
 
     @property
-    def id(self):
+    def id(self):  # pylint: disable=invalid-name
         "Return the CnCServer ID of this component"
         return self.__id
 
@@ -598,7 +597,7 @@ class DAQClient(ComponentName):
         "Start marking events as bogus in preparation for subrun"
         try:
             return self.__client.xmlrpc.prepareSubrun(subrun_num)
-        except:
+        except:  # pylint: disable=bare-except
             self.__log.error(exc_string())
             return None
 
@@ -616,28 +615,28 @@ class DAQClient(ComponentName):
         "Set the first time where all hubs have reported a hit"
         try:
             self.__client.xmlrpc.setFirstGoodTime(str(pay_time) + "L")
-        except:
+        except:  # pylint: disable=bare-except
             self.__log.error(exc_string())
 
     def set_last_good_time(self, pay_time):
         "Set the last time where all hubs have reported a hit"
         try:
             self.__client.xmlrpc.setLastGoodTime(str(pay_time) + "L")
-        except:
+        except:  # pylint: disable=bare-except
             self.__log.error(exc_string())
 
     def set_replay_offset(self, offset):
         "Get the time offset for a replay hub"
         try:
             self.__client.xmlrpc.setReplayOffset(str(offset) + "L")
-        except:
+        except:  # pylint: disable=bare-except
             self.__log.error(exc_string())
 
     def start_run(self, run_num):
         "Start component processing DAQ data"
         try:
             return self.__client.xmlrpc.startRun(run_num)
-        except:
+        except:  # pylint: disable=bare-except
             self.__log.error(exc_string())
             return None
 
@@ -645,7 +644,7 @@ class DAQClient(ComponentName):
         "Send subrun data to stringHubs"
         try:
             return self.__client.xmlrpc.startSubrun(data)
-        except:
+        except:  # pylint: disable=bare-except
             self.__log.error(exc_string())
             return None
 
@@ -656,7 +655,7 @@ class DAQClient(ComponentName):
             state = self.__client.xmlrpc.getState()
         except (socket.error, xclient.Fault, xclient.ProtocolError):
             state = None
-        except:
+        except:  # pylint: disable=bare-except
             self.__log.error(exc_string())
             state = None
 
@@ -673,7 +672,7 @@ class DAQClient(ComponentName):
         "Stop component processing DAQ data"
         try:
             return self.__client.xmlrpc.stopRun()
-        except:
+        except:  # pylint: disable=bare-except
             self.__log.error(exc_string())
             return None
 
@@ -684,7 +683,7 @@ class DAQClient(ComponentName):
             if isinstance(evts, str):
                 evts = int(evts[:-1])
             return evts
-        except:
+        except:  # pylint: disable=bare-except
             self.__log.error(exc_string())
             return None
 
@@ -692,21 +691,20 @@ class DAQClient(ComponentName):
         "Switch to new run"
         try:
             return self.__client.xmlrpc.switchToNewRun(new_run)
-        except:
+        except:  # pylint: disable=bare-except
             self.__log.error(exc_string())
             return None
 
     def terminate(self):
         "Terminate component"
         state = self.state
-        if state != "idle" and state != "ready" and \
-                state != DAQClientState.MISSING and \
-                state != DAQClientState.DEAD:
+        if state not in ("idle", "ready", DAQClientState.MISSING,
+                         DAQClientState.DEAD):
             raise DAQClientException("%s state is %s" % (self, state))
 
         self.__log.close_final()
         try:
             self.__client.xmlrpc.terminate()
-        except:
+        except:  # pylint: disable=bare-except
             # ignore termination exceptions
             pass

@@ -30,17 +30,18 @@ import socket
 import subprocess
 import time
 
+from xml.dom import minidom, Node
+
 from BaseRun import BaseRun, RunException, StateException
 from RunNumber import RunNumber
 from RunOption import RunOption
 from RunSetState import RunSetState
 from exc_string import exc_string
-from xml.dom import minidom, Node
 from xmlparser import XMLParser
 
 
 class FlasherDataException(Exception):
-    pass
+    "General FlasherData exception"
 
 
 class FlasherDataParser(XMLParser):
@@ -49,12 +50,12 @@ class FlasherDataParser(XMLParser):
         """Parse and return data from flasher file"""
         try:
             dom = minidom.parse(data_file)
-        except Exception:
+        except:  # pylint: disable=bare-except
             raise FlasherDataException("Cannot parse \"%s\": %s" %
                                        (data_file, exc_string()))
 
         fmain = dom.getElementsByTagName("flashers")
-        if len(fmain) == 0:
+        if len(fmain) == 0:  # pylint: disable=len-as-condition
             raise FlasherDataException("File \"%s\" has no <flashers>" %
                                        data_file)
         elif len(fmain) > 1:
@@ -262,7 +263,7 @@ class CnCRun(BaseRun):
         if filename is not None:
             try:
                 data = FlasherDataParser.load(filename)
-            except:
+            except:  # pylint: disable=bare-except
                 self.log_error("Cannot flash: " + exc_string())
                 return True
 
@@ -270,8 +271,8 @@ class CnCRun(BaseRun):
             RunNumber.set_last(run_num, subrun + 1)
 
             if self.__dry_run:
-                print("Flash subrun#%d - %s for %s second" % \
-                    (subrun, data[0], data[1]))
+                print("Flash subrun#%d - %s for %s second" %
+                      (subrun, data[0], data[1]))
             else:
                 cnc.rpc_runset_subrun(self.__runset_id, subrun, data)
 
@@ -414,8 +415,8 @@ class CnCRun(BaseRun):
         run_options = RunOption.LOG_TO_FILE | RunOption.MONI_TO_FILE
 
         if self.__dry_run:
-            print("Start run#%d with runset#%d" % \
-                (self.__run_number, self.__runset_id))
+            print("Start run#%d with runset#%d" %
+                  (self.__run_number, self.__runset_id))
         else:
             cnc.rpc_runset_start_run(self.__runset_id, self.__run_number,
                                      run_options)
@@ -427,13 +428,16 @@ class CnCRun(BaseRun):
         cnc = self.cnc_connection(False)
         if cnc is None:
             return "DEAD"
+
         if self.__runset_id is None:
             return "STOPPED"
+
         try:
             state = cnc.rpc_runset_state(self.__runset_id)
-            return str(state).upper()
-        except:
+        except:  # pylint: disable=bare-except
             return "ERROR"
+
+        return str(state).upper()
 
     def stop_run(self):
         """Stop the run"""
@@ -471,7 +475,7 @@ class CnCRun(BaseRun):
 
         try:
             state = cnc.rpc_runset_state(self.__runset_id)
-        except:
+        except:  # pylint: disable=bare-except
             state = RunSetState.ERROR
 
         if state == RunSetState.UNKNOWN:

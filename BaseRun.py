@@ -11,7 +11,10 @@ import subprocess
 import sys
 import threading
 import time
-import xmlrpclib
+try:
+    from xmlrpclib import Fault
+except ModuleNotFoundError:
+    from xmlrpc.client import Fault
 
 from ANSIEscapeCode import ANSIEscapeCode
 from ComponentManager import ComponentManager
@@ -27,19 +30,19 @@ set_exc_string_encoding("ascii")
 
 
 class RunException(Exception):
-    pass
+    "General exception"
 
 
 class FlashFileException(RunException):
-    pass
+    "Problem with a flasher file"
 
 
 class LaunchException(RunException):
-    pass
+    "Problem while launching components"
 
 
 class StateException(RunException):
-    pass
+    "Bad component state"
 
 
 class FlasherThread(threading.Thread):
@@ -84,18 +87,15 @@ class FlasherThread(threading.Thread):
 
     def run(self):
         "Body of the flasher thread"
-        self.__sem.acquire()
-        self.__running = True
+        with self.__sem:
+            self.__running = True
 
-        try:
             self.__run_body()
-        finally:
             self.__running = False
-            self.__sem.release()
 
         try:
             self.__run.stop_run()
-        except:
+        except:  # pylint: disable=bare-except
             pass
 
     def __run_body(self):
@@ -195,7 +195,7 @@ class FlasherScript(object):
     @classmethod
     def __is_quote(cls, char):
         """Is this character a quote mark?"""
-        return char == "'" or char == '"'
+        return char in ("'", '"')
 
     @classmethod
     def __parse_flasher_options(cls, options, basedir=None):
@@ -297,7 +297,7 @@ class FlasherScript(object):
 
                 # ignore blank lines
                 #
-                if len(full_line) == 0:
+                if full_line == "":
                     full_line = None
                     continue
 
@@ -319,7 +319,7 @@ class FlasherScript(object):
                 if len(words) == 2 and words[0] == "sleep":
                     try:
                         flasher_data.append((None, int(words[1])))
-                    except Exception:
+                    except:  # pylint: disable=bare-except
                         print("Bad flasher line#%d: %s (bad sleep time)" %
                               (linenum, full_line))
                         failed = True
@@ -332,11 +332,12 @@ class FlasherScript(object):
                     dur_str = cls.__clean_string(words[1])
                 else:
                     words = full_line.split(",")
-                    if len(words) == 2:
+                    wordlen = len(words)
+                    if wordlen == 2:  # pylint: disable=len-as-condition
                         # found 'file,duration'
                         name = cls.__clean_string(words[0])
                         dur_str = cls.__clean_string(words[1])
-                    elif len(words) == 3 and len(words[0]) == 0:
+                    elif wordlen == 3 and words[0] == "":
                         # found ',file,duration'
                         name = cls.__clean_string(words[1])
                         dur_str = cls.__clean_string(words[2])
@@ -353,7 +354,7 @@ class FlasherScript(object):
                     try:
                         duration = int(name)
                         name = dur_str
-                    except:
+                    except ValueError:
                         print("Bad flasher line#%d: %s" % (linenum, line))
                         failed = True
                         full_line = None
@@ -453,7 +454,7 @@ class Run(object):
 
         try:
             rtnval = self.__mgr.summarize(self.__run_num)
-        except:
+        except:  # pylint: disable=bare-except
             self.__mgr.log_error("Cannot summarize run %d: %s" %
                                  (self.__run_num, exc_string()))
             rtnval = False
@@ -611,7 +612,7 @@ class Run(object):
             while self.__run_num < cur_run_num:
                 try:
                     self.__mgr.summarize(self.__run_num)
-                except:
+                except:  # pylint: disable=bare-except
                     import traceback
                     logger.error("Cannot summarize %d:\n%s" %
                                  (self.__run_num, traceback.format_exc()))
@@ -757,7 +758,7 @@ class BaseRun(object):
             with open(cluster_file, 'r') as fin:
                 ret = fin.readline()
                 return ret.rstrip('\r\n')
-        except:
+        except:  # pylint: disable=bare-except
             return None
 
     def cnc_connection(self, abort_on_fail=True):
@@ -920,7 +921,7 @@ class BaseRun(object):
 
         try:
             run.wait()
-        except:
+        except:  # pylint: disable=bare-except
             import traceback
             traceback.print_exc()
 
@@ -987,7 +988,7 @@ class BaseRun(object):
             try:
                 summary = cnc.rpc_run_summary(run_number)
                 break
-            except xmlrpclib.Fault as fault:
+            except Fault as fault:
                 if fault.faultString.find("SummaryNotReady") < 0:
                     raise
                 summary = None

@@ -14,8 +14,6 @@ from scmversion import get_scmversion_str
 
 from DAQMocks import MockClusterConfig, MockComponent, MockLogger
 
-CAUGHT_WARNING = True
-
 
 class FakeLogger(object):
     def __init__(self, port):
@@ -41,7 +39,8 @@ class FakeRunConfig(object):
     def basename(self):
         return self.__name
 
-    def has_dom(self, mbid):
+    @classmethod
+    def has_dom(cls, _):
         return True
 
 
@@ -101,8 +100,9 @@ class FakeMoniClient(object):
     def add_moni(self, name, value, prio=Prio.ITS, time=None):
         self.__expected.append((name, value, prio, time))
 
-    def send_moni(self, name, value, prio=Prio.ITS, time=None):
-        if len(self.__expected) == 0:
+    def send_moni(self, name, value, prio=Prio.ITS,
+                  time=None):          # pylint: disable=unused-argument
+        if len(self.__expected) == 0:  # pylint: disable=len-as-condition
             raise AssertionError("Received unexpected moni message \"%s\":"
                                  " %s" % (name, value))
         (xname, xvalue, xprio, _) = self.__expected.pop(0)
@@ -295,7 +295,14 @@ class MyRunSet(RunSet):
 
 
 class TestRunSet(unittest.TestCase):
-    def __add_hub_mbeans(self, comp_list):
+    CAUGHT_WARNING = True
+
+    @classmethod
+    def set_caught_warning(cls, val=True):
+        cls.CAUGHt_WARNING = val
+
+    @classmethod
+    def __add_hub_mbeans(cls, comp_list):
         for comp in comp_list:
             if comp.is_source:
                 bean = "stringhub"
@@ -304,10 +311,11 @@ class TestRunSet(unittest.TestCase):
                             "NumberOfNonZombies"):
                     try:
                         comp.mbean.get(bean, fld)
-                    except:
+                    except:  # pylint: disable=bare-except
                         comp.mbean.add_mock_data(bean, fld, 1)
 
-    def __add_moni_run_update(self, runset, moni_client, run_num):
+    @classmethod
+    def __add_moni_run_update(cls, runset, moni_client, run_num):
         ec_dict = runset.get_event_counts(run_num)
         run_update = {
             "version": 0,
@@ -327,7 +335,8 @@ class TestRunSet(unittest.TestCase):
                         run_update[key] = str(ec_dict[key])
         moni_client.add_moni("run_update", run_update)
 
-    def __build_cluster_config(self, comp_list, base_name):
+    @classmethod
+    def __build_cluster_config(cls, comp_list, base_name):
         jvm_path = "java-" + base_name
         jvm_args = "args=" + base_name
 
@@ -338,7 +347,8 @@ class TestRunSet(unittest.TestCase):
 
         return cluster_cfg
 
-    def __build_comp_list(self, name_list):
+    @classmethod
+    def __build_comp_list(cls, name_list):
         comp_list = []
 
         num = 1
@@ -350,7 +360,8 @@ class TestRunSet(unittest.TestCase):
 
         return comp_list
 
-    def __build_comp_string(self, name_list):
+    @classmethod
+    def __build_comp_string(cls, name_list):
         comp_str = None
 
         prev = None
@@ -360,6 +371,8 @@ class TestRunSet(unittest.TestCase):
                 if prev == name:
                     continue
 
+                # PyLint thinks 'prev_num' is None here, disable the check
+                # pylint: disable=bad-string-format-type
                 if prev_num == idx:
                     new_str = "%s#%d" % (prev, prev_num)
                 else:
@@ -393,14 +406,16 @@ class TestRunSet(unittest.TestCase):
                              "Component %s: %s != expected %s" %
                              (comp, stat_dict[comp], exp_state_dict[comp]))
 
-    def __is_comp_list_configured(self, comp_list):
+    @classmethod
+    def __is_comp_list_configured(cls, comp_list):
         for comp in comp_list:
             if not comp.is_configured:
                 return False
 
         return True
 
-    def __is_comp_list_running(self, comp_list, run_num=-1):
+    @classmethod
+    def __is_comp_list_running(cls, comp_list, run_num=-1):
         for comp in comp_list:
             if comp.run_number is None:
                 return False
@@ -423,7 +438,8 @@ class TestRunSet(unittest.TestCase):
 
         moni_client = FakeMoniClient()
 
-        runset = MyRunSet(MyParent(), run_config, comp_list, logger, moni_client)
+        runset = MyRunSet(MyParent(), run_config, comp_list, logger,
+                          moni_client)
 
         exp_state = "idle"
 
@@ -443,7 +459,7 @@ class TestRunSet(unittest.TestCase):
         self.__check_status(runset, comp_list, exp_state)
         logger.check_status(10)
 
-        if len(comp_list) > 0:
+        if len(comp_list) > 0:  # pylint: disable=len-as-condition
             self.assertTrue(self.__is_comp_list_configured(comp_list),
                             'Components should be configured')
             self.assertFalse(self.__is_comp_list_running(comp_list),
@@ -505,8 +521,8 @@ class TestRunSet(unittest.TestCase):
                 comp.mbean.add_mock_data("stringhub",
                                          "EarliestLastChannelHitTime", 10)
 
-        self.__stop_run(runset, run_num, run_config, clu_cfg, moni_client,
-                        components=comp_list, logger=logger)
+        self.__stop_run(runset, run_num, moni_client, components=comp_list,
+                        logger=logger)
 
     def __run_tests(self, comp_list, run_num, hang_type=None):
         logger = MockLogger('foo#0')
@@ -527,7 +543,8 @@ class TestRunSet(unittest.TestCase):
 
         moni_client = FakeMoniClient()
 
-        runset = MyRunSet(MyParent(), run_config, comp_list, logger, moni_client)
+        runset = MyRunSet(MyParent(), run_config, comp_list, logger,
+                          moni_client)
 
         exp_state = "idle"
 
@@ -567,7 +584,7 @@ class TestRunSet(unittest.TestCase):
         self.__check_status(runset, comp_list, exp_state)
         logger.check_status(10)
 
-        if len(comp_list) > 0:
+        if len(comp_list) > 0:  # pylint: disable=len-as-condition
             self.assertTrue(self.__is_comp_list_configured(comp_list),
                             'Components should be configured')
             self.assertFalse(self.__is_comp_list_running(comp_list),
@@ -607,8 +624,8 @@ class TestRunSet(unittest.TestCase):
                 comp.mbean.add_mock_data("stringhub",
                                          "EarliestLastChannelHitTime", 10)
 
-        self.__stop_run(runset, run_num, run_config, clu_cfg, moni_client,
-                        components=comp_list, logger=logger, hang_type=hang_type)
+        self.__stop_run(runset, run_num, moni_client, components=comp_list,
+                        logger=logger, hang_type=hang_type)
 
         exp_state = "ready"
 
@@ -631,7 +648,7 @@ class TestRunSet(unittest.TestCase):
         self.assertEqual(str(runset), 'RunSet #%d (%s)' %
                          (runset.id, exp_state))
 
-        if len(comp_list) > 0:
+        if len(comp_list) > 0:  # pylint: disable=len-as-condition
             self.assertFalse(self.__is_comp_list_configured(comp_list),
                              "Components should be configured")
             self.assertFalse(self.__is_comp_list_running(comp_list),
@@ -644,10 +661,8 @@ class TestRunSet(unittest.TestCase):
                     run_options=RunOption.MONI_TO_NONE, version_info=None,
                     spade_dir="/tmp", copy_dir=None, log_dir=None,
                     components=None, logger=None):
-        global CAUGHT_WARNING
-
-        if not LIVE_IMPORT and not CAUGHT_WARNING:
-            CAUGHT_WARNING = True
+        if not LIVE_IMPORT and not self.CAUGHT_WARNING:
+            self.set_caught_warning()
             logger.add_expected_regexp(r"^Cannot import IceCube Live.*")
 
         has_source = False
@@ -660,7 +675,7 @@ class TestRunSet(unittest.TestCase):
                                 "NumberOfNonZombies"):
                         try:
                             comp.mbean.get(bean, fld)
-                        except:
+                        except:  # pylint: disable=bare-except
                             comp.mbean.add_mock_data(bean, fld, 10)
 
         if version_info is None:
@@ -701,7 +716,8 @@ class TestRunSet(unittest.TestCase):
                 raise
             return False
 
-        if components is not None and len(components) > 0:
+        if components is not None and \
+          len(components) > 0:  # pylint: disable=len-as-condition
             self.assertTrue(self.__is_comp_list_configured(components),
                             'Components should be configured')
             self.assertTrue(self.__is_comp_list_running(components, run_num),
@@ -712,8 +728,8 @@ class TestRunSet(unittest.TestCase):
 
         return True
 
-    def __stop_run(self, runset, run_num, run_config, clu_cfg, moni_client,
-                   components=None, logger=None, hang_type=None):
+    def __stop_run(self, runset, run_num, moni_client, components=None,
+                   logger=None, hang_type=None):
         exp_state = "stopping"
 
         # default to type 0
@@ -804,7 +820,7 @@ class TestRunSet(unittest.TestCase):
                          (runset.id, run_num, exp_state))
         self.assertFalse(runset.stopping(), "RunSet #%d is still stopping")
 
-        if len(components) > 0:
+        if len(components) > 0:  # pylint: disable=len-as-condition
             self.assertTrue(self.__is_comp_list_configured(components),
                             "Components should be configured")
             self.assertFalse(self.__is_comp_list_running(components),
@@ -893,7 +909,8 @@ class TestRunSet(unittest.TestCase):
 
         moni_client = FakeMoniClient()
 
-        runset = MyRunSet(MyParent(), run_config, comp_list, logger, moni_client)
+        runset = MyRunSet(MyParent(), run_config, comp_list, logger,
+                          moni_client)
 
         base_name = "failCluCfg"
 
@@ -928,7 +945,8 @@ class TestRunSet(unittest.TestCase):
 
         moni_client = FakeMoniClient()
 
-        runset = MyRunSet(MyParent(), run_config, comp_list, logger, moni_client)
+        runset = MyRunSet(MyParent(), run_config, comp_list, logger,
+                          moni_client)
 
         extra_comp = MockComponent("queen", 10)
 
@@ -968,7 +986,8 @@ class TestRunSet(unittest.TestCase):
 
         moni_client = FakeMoniClient()
 
-        runset = MyRunSet(MyParent(), run_config, comp_list, logger, moni_client)
+        runset = MyRunSet(MyParent(), run_config, comp_list, logger,
+                          moni_client)
 
         cluster_cfg = self.__build_cluster_config(comp_list, "restart")
 
@@ -995,7 +1014,8 @@ class TestRunSet(unittest.TestCase):
 
         moni_client = FakeMoniClient()
 
-        runset = MyRunSet(MyParent(), run_config, comp_list, logger, moni_client)
+        runset = MyRunSet(MyParent(), run_config, comp_list, logger,
+                          moni_client)
 
         cluster_cfg = self.__build_cluster_config(comp_list, "restartAll")
 
@@ -1036,7 +1056,7 @@ class TestRunSet(unittest.TestCase):
             self.assertFalse(runset.stop_run(stop_name, timeout=0),
                              "stop_run() encountered error")
             self.fail("stop_run() on new runset should throw exception")
-        except Exception as ex:
+        except Exception as ex:  # pylint: disable=broad-except
             if str(ex) != "RunSet #%d is not running" % runset.id:
                 raise
 
@@ -1047,7 +1067,8 @@ class TestRunSet(unittest.TestCase):
 
         moni_client = FakeMoniClient()
 
-        runset = MyRunSet(MyParent(), run_config, comp_list, logger, moni_client)
+        runset = MyRunSet(MyParent(), run_config, comp_list, logger,
+                          moni_client)
 
         runset.configure()
 
@@ -1059,8 +1080,8 @@ class TestRunSet(unittest.TestCase):
         self.__start_run(runset, run_num, run_config, clu_cfg,
                          components=comp_list, logger=logger)
 
-        self.__stop_run(runset, run_num, run_config, clu_cfg, moni_client,
-                        components=comp_list, logger=logger)
+        self.__stop_run(runset, run_num, moni_client, components=comp_list,
+                        logger=logger)
 
     def test_short_stop_hang(self):
         comp_list = self.__build_comp_list(("oneHub", "two", "three"))
@@ -1069,7 +1090,8 @@ class TestRunSet(unittest.TestCase):
 
         moni_client = FakeMoniClient()
 
-        runset = MyRunSet(MyParent(), run_config, comp_list, logger, moni_client)
+        runset = MyRunSet(MyParent(), run_config, comp_list, logger,
+                          moni_client)
 
         runset.configure()
 
@@ -1087,8 +1109,8 @@ class TestRunSet(unittest.TestCase):
 
         RunSet.TIMEOUT_SECS = 5
 
-        self.__stop_run(runset, run_num, run_config, clu_cfg, moni_client,
-                        components=comp_list, logger=logger, hang_type=hang_type)
+        self.__stop_run(runset, run_num, moni_client, components=comp_list,
+                        logger=logger, hang_type=hang_type)
 
     def test_bad_stop(self):
         comp_names = ("firstHub", "middle", "middle", "middle", "middle",
@@ -1099,7 +1121,8 @@ class TestRunSet(unittest.TestCase):
 
         moni_client = FakeMoniClient()
 
-        runset = MyRunSet(MyParent(), run_config, comp_list, logger, moni_client)
+        runset = MyRunSet(MyParent(), run_config, comp_list, logger,
+                          moni_client)
 
         runset.configure()
 

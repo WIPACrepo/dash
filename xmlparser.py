@@ -7,15 +7,15 @@ from xml.dom import Node
 
 
 class XMLError(Exception):
-    pass
+    "General XMLParser error"
 
 
 class XMLFormatError(XMLError):
-    pass
+    "Formatting error encountered by XMLParser"
 
 
 class XMLBadFileError(XMLError):
-    pass
+    "Bad file encountered by XMLParser"
 
 
 class XMLParser(object):
@@ -59,9 +59,11 @@ class XMLParser(object):
     def get_child_text(cls, node, strict=False):
         "Return the text from this node's child"
 
+        # pylint: disable=len-as-condition
         if strict and (node.childNodes is None or len(node.childNodes) == 0):
             raise XMLFormatError("No %s child nodes" %
                                  cls.fix_node_name(node))
+        # pylint: enable=len-as-condition
 
         text = None
         for kid in node.childNodes:
@@ -95,7 +97,7 @@ class XMLParser(object):
     def get_node_xxx(cls, node, name):
         """Get single subnode named 'name'"""
         kids = node.getElementsByTagName(name)
-        if len(kids) < 1:
+        if len(kids) < 1:  # pylint: disable=len-as-condition
             return None
 
         if len(kids) > 1:
@@ -123,7 +125,7 @@ class XMLParser(object):
             return attr_val
 
         kids = node.getElementsByTagName(name)
-        if len(kids) < 1:
+        if len(kids) < 1:  # pylint: disable=len-as-condition
             # if no named attribute or node, return default value
             return default_val
 

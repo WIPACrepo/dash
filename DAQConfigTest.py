@@ -115,7 +115,7 @@ class CommonCode(unittest.TestCase):
         for comp in comps:
             try:
                 expected.index(comp.fullname)
-            except:
+            except ValueError:
                 self.fail('Unexpected component "%s"' % comp)
 
     def run_lookup_sim5_test(self, new_format):
@@ -179,7 +179,7 @@ class CommonCode(unittest.TestCase):
         for comp in comps:
             try:
                 expected.index(comp.fullname)
-            except:
+            except ValueError:
                 self.fail('Unexpected component "%s"' % comp)
 
     def run_lookup_sps_ic40_it6_test(self, new_format):
@@ -245,7 +245,7 @@ class CommonCode(unittest.TestCase):
         for comp in comps:
             try:
                 expected.index(comp.fullname)
-            except:
+            except ValueError:
                 self.fail('Unexpected component "%s"' % comp)
 
 

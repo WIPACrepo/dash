@@ -39,11 +39,10 @@ class FakeCluster(object):
 
 
 class MockRunData(object):
-    def __init__(self, run_num, cluster_config_name, run_options, version_info,
-                 spade_dir, copy_dir, log_dir, testing=True):
+    def __init__(self, run_num, logger):
         self.__run_number = run_num
+        self.__logger = logger
 
-        self.__logger = None
         self.__finished = False
 
     def connect_to_live(self):
@@ -83,9 +82,6 @@ class MockRunData(object):
     def set_finished(self):
         self.__finished = True
 
-    def set_mock_logger(self, logger):
-        self.__logger = logger
-
     def stop_tasks(self):
         pass
 
@@ -103,10 +99,7 @@ class MyRunSet(RunSet):
 
     def create_run_data(self, run_num, cluster_config, run_options,
                         version_info, spade_dir, copy_dir=None, log_dir=None):
-        mrd = MockRunData(run_num, cluster_config, run_options,
-                          version_info, spade_dir, copy_dir, log_dir, True)
-        mrd.set_mock_logger(self.get_log("dashLog"))
-        return mrd
+        return MockRunData(run_num, self.get_log("dashLog"))
 
     def final_report(self, comps, run_data, had_error=False, switching=False):
         self.__logger.error("MockRun final report")
@@ -308,7 +301,8 @@ class TestDAQPool(unittest.TestCase):
                             daq_data_dir, force_restart=False, strict=False)
             self.fail("make_runset should not succeed")
         except ConnectionException as cex:
-            if str(cex).find("No outputs found for %s inputs" % input_name) < 0:
+            exp_str = "No outputs found for %s inputs" % input_name
+            if str(cex).find(exp_str) < 0:
                 raise
 
         self.assertEqual(mgr.num_components, len(comp_list))
@@ -359,7 +353,8 @@ class TestDAQPool(unittest.TestCase):
                             daq_data_dir, force_restart=False, strict=False)
             self.fail("make_runset should not succeed")
         except ConnectionException as cex:
-            if str(cex).find("No outputs found for %s inputs" % input_name) < 0:
+            exp_str = "No outputs found for %s inputs" % input_name
+            if str(cex).find(exp_str) < 0:
                 raise
 
         self.assertEqual(mgr.num_components, len(comp_list))
@@ -791,9 +786,9 @@ class TestDAQPool(unittest.TestCase):
         dash_log.check_status(10)
 
         num_evts = 1
-        #num_moni = 0
-        #num_sn = 0
-        #num_tcal = 0
+        # num_moni = 0
+        # num_sn = 0
+        # num_tcal = 0
 
         first_time = 12345678
         last_time = 23456789

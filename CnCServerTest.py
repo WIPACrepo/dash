@@ -8,7 +8,6 @@ import sys
 import tempfile
 import threading
 import time
-import traceback
 import unittest
 
 try:
@@ -35,7 +34,8 @@ from DAQMocks \
 
 
 class MostlyDAQClient(DAQClient):
-    def __init__(self, name, num, host, port, mbean_port, connectors, appender):
+    def __init__(self, name, num, host, port, mbean_port, connectors,
+                 appender):
         self.__appender = appender
 
         super(MostlyDAQClient, self).__init__(name, num, host, port,
@@ -74,7 +74,7 @@ class FakeRunData(object):
 
         self.__finished = False
 
-    def clone(self, parent, new_num):
+    def clone(self, _, new_num):
         return FakeRunData(new_num, self.__run_config, self.__cluster_config,
                            dashlog=self.__dashlog)
 
@@ -196,7 +196,8 @@ class MostlyRunSet(RunSet):
 
         self.__dashlog.error("%d physics events collected in %d seconds"
                              " (%.2f Hz)" % (num_evts, num_secs,
-                                             float(num_evts) / float(num_secs)))
+                                             float(num_evts) /
+                                             float(num_secs)))
         self.__dashlog.error("%d moni events, %d SN events, %d tcals" %
                              (num_moni, num_sn, num_tcal))
 
@@ -305,7 +306,7 @@ class RealComponent(Component):
         self.__bean_data = {}
         self.__event_counts = None
 
-        #self.__connections = []
+        # self.__connections = []
 
         self.__cmd = self.__create_cmd_server()
         self.__mbean = self.__create_mbean_server()
@@ -381,17 +382,10 @@ class RealComponent(Component):
         self.__state = "ready"
         return "CONFIGURED"
 
-    def __cmd_connect(self, conn_list=None):
-        try:
-            return self.__cmd_connect_internal(conn_list)
-        except:
-            traceback.print_exc()
-            raise
-
-    def __cmd_connect_internal(self, conn_list=None):
-        #if conn_list is not None:
-        #    for cdict in conn_list:
-        #        self.__connections.append(cdict)
+    def __cmd_connect(self, conn_list=None):  # pylint: disable=unused-argument
+        # if conn_list is not None:
+        #     for cdict in conn_list:
+        #         self.__connections.append(cdict)
 
         self.__state = "connected"
         return "CONNECTED"
@@ -402,10 +396,12 @@ class RealComponent(Component):
     def __cmd_get_state(self):
         return self.__state
 
-    def __cmd_log_to(self, log_host, log_port, live_host, live_port):
+    def __cmd_log_to(self, log_host,
+                     log_port,  # pylint: disable=unused-argument
+                     live_host,
+                     live_port):  # pylint: disable=unused-argument
         if log_host is not None:
             self.__daqlog = MockLogger("DAQLog(%s)" % (self.fullname, ))
-            #self.__daqlog.error("Howdy from %s" % (self.fullname, ))
         if live_host is not None:
             self.__livelog = MockLogger("LiveLog(%s)" % (self.fullname, ))
         return "LOGGING"
@@ -427,7 +423,8 @@ class RealComponent(Component):
 
         return "RESETLOG"
 
-    def __cmd_set_first_good_time(self, first_time):
+    @classmethod
+    def __cmd_set_first_good_time(cls, _):
         return "SetFGT"
 
     def __cmd_set_last_good_time(self, last_time):
@@ -476,10 +473,12 @@ class RealComponent(Component):
         raise Exception("Unknown %s bean/attribute \"%s.%s\"" %
                         (self.fullname, bean, attr))
 
-    def __mbean_list(self):
+    @classmethod
+    def __mbean_list(cls):
         return NotImplementedError("mbean_list")
 
-    def __mbean_list_getters(self, bean):
+    @classmethod
+    def __mbean_list_getters(cls, _):
         return NotImplementedError("mbean_list_getters")
 
     def check_status(self, reps=100):
@@ -512,7 +511,7 @@ class RealComponent(Component):
         return self.__cmd.portnum
 
     @property
-    def id(self):
+    def id(self):  # pylint: disable=invalid-name
         return self.__id
 
     @property
@@ -619,7 +618,8 @@ class RateTracker(object):
                 comp.set_bean_field_value("backEnd", "FirstEventTime",
                                           self.__first_evt_time)
                 comp.set_bean_field_value("backEnd", "GoodTimes",
-                                          (self.__first_evt_time, last_evt_time))
+                                          (self.__first_evt_time,
+                                           last_evt_time))
             elif comp.name == "secondaryBuilders":
                 comp.set_run_data(self.__num_tcal, self.__num_sn,
                                   self.__num_moni)
@@ -651,7 +651,7 @@ class CnCServerTest(unittest.TestCase):
         if self.cnc is not None:
             try:
                 self.cnc.close_server()
-            except:
+            except:  # pylint: disable=bare-except
                 pass
 
         for comp in self.comps:
@@ -673,7 +673,8 @@ class CnCServerTest(unittest.TestCase):
 
         set_pdaq_config_dir(None, override=True)
 
-    def __add_range(self, range_str, rstart, rcurrent):
+    @classmethod
+    def __add_range(cls, range_str, rstart, rcurrent):
         if not range_str.endswith(" "):
             range_str += ","
         if rstart == rcurrent:
@@ -683,7 +684,7 @@ class CnCServerTest(unittest.TestCase):
         return range_str
 
     def __list_components_legibly(self, comps):
-        cycle_list = sorted(self.comps[:])
+        cycle_list = sorted(comps[:])
 
         comp_dict = {}
         for comp in cycle_list:
@@ -726,8 +727,10 @@ class CnCServerTest(unittest.TestCase):
         dashlog = MockLogger('dashlog')
 
         comp_data = [('stringHub', self.HUB_NUMBER, (("hit", "o", 1), )),
-                     ('inIceTrigger', 0, (("hit", "i", 2), ("trig", "o", 3), )),
-                     ('eventBuilder', 0, (("trig", "i", 4), )), ]
+                     ('inIceTrigger', 0, (("hit", "i", 2),
+                                          ("trig", "o", 3), )),
+                     ('eventBuilder', 0, (("trig", "i", 4), )),
+                     ]
         comp_host = 'localhost'
 
         clu_cfg = MockClusterConfig("clusterFoo")
@@ -837,10 +840,8 @@ class CnCServerTest(unittest.TestCase):
         self.assertEqual(len(self.comps), len(rscomps),
                          "Expected one component, not %d" % len(self.comps))
         for rscomp in rscomps:
-            badcomp = None
             for centry in self.comps:
                 if centry.id != rscomp["id"]:
-                    badcomp = centry
                     break
 
                 comp = centry

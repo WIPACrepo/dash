@@ -42,14 +42,13 @@ class MockRSyncRunner(object):
                      express=DeployPDAQ.EXPRESS_DEFAULT):
         pass
 
-    def add_first(self, description, hostname, command):
+    def add_first(self, description,   # pylint: disable=unused-argument
+                  hostname, command):  # pylint: disable=unused-argument
         self.__cmd_count += 1
 
-    def add_last(self, description, hostname, command):
+    def add_last(self, description,    # pylint: disable=unused-argument
+                 hostname, command):   # pylint: disable=unused-argument
         self.__cmd_count += 1
-
-    def check(self):
-        return False
 
     @property
     def num_remaining_commands(self):
@@ -81,7 +80,8 @@ class MockRSyncRunner(object):
 
 
 class DeployPDAQTest(unittest.TestCase):
-    def __check_deploy(self, hosts, subdirs, delete, dry_run, deep_dry_run,
+    @classmethod
+    def __check_deploy(cls, hosts, subdirs, delete, dry_run, deep_dry_run,
                        nice_level=DeployPDAQ.NICE_LEVEL_DEFAULT,
                        express=DeployPDAQ.EXPRESS_DEFAULT):
         top_dir = tempfile.mkdtemp()
@@ -108,14 +108,12 @@ class DeployPDAQTest(unittest.TestCase):
                           express=express, home=home_dir,
                           rsync_runner=runner)
 
-        runner.check()
-
     def setUp(self):
         parent = os.path.dirname(SCM_REV_FILENAME)
         if not os.path.exists(parent):
             try:
                 os.makedirs(parent)
-            except:
+            except:  # pylint: disable=bare-except
                 import traceback
                 traceback.print_exc()
 

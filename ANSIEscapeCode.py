@@ -5,7 +5,6 @@ from __future__ import print_function
 
 class ColorException(Exception):
     "Base exception for this code"
-    pass
 
 
 def escape_string(code):

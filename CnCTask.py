@@ -4,7 +4,6 @@
 
 class TaskException(Exception):
     "Base CnCTask exception"
-    pass
 
 
 class CnCTask(object):
@@ -33,9 +32,9 @@ class CnCTask(object):
         "Deal with hanging threads and/or start new threads"
         raise NotImplementedError()
 
-    def _reset(self):
+    def _reset(self):  # pylint: disable=no-self-use
         "Do task-specific cleanup at the end of the run"
-        pass
+        return
 
     def check(self):
         """

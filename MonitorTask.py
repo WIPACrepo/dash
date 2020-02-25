@@ -108,7 +108,7 @@ class MBeanThread(MonitorThread):
                 self.__refused += 1
                 self.error("Could not load monitoring data from %s" %
                            (self.__mbean_client, ))
-        except:
+        except:  # pylint: disable=bare-except
             bean_dict = None
             if not self.is_closed:
                 self.error("Ignoring %s: %s" %
@@ -119,7 +119,7 @@ class MBeanThread(MonitorThread):
                 self.error("%s get_dictionary() returned %s, not dict (%s)" %
                            (self.__mbean_client.fullname,
                             type(bean_dict).__name__, bean_dict))
-            elif len(bean_dict) > 0:
+            elif len(bean_dict) > 0:  # pylint: disable=len-as-condition
                 # report monitoring data
                 with self.__reporter_lock:
                     reporter = self.__reporter
@@ -148,7 +148,7 @@ class MBeanThread(MonitorThread):
                 if self.__reporter is not None:
                     try:
                         self.__reporter.close()
-                    except:
+                    except:  # pylint: disable=bare-except
                         self.error(("Could not close %s monitor thread: %s") %
                                    (self.__mbean_client.fullname,
                                     exc_string()))
@@ -200,7 +200,8 @@ class CnCMoniThread(MonitorThread):
                 return
 
         cstats = self.__runset.client_statistics
-        if cstats is not None and len(cstats) > 0:
+        if cstats is not None and \
+          len(cstats) > 0:  # pylint: disable=len-as-condition
             self.__reporter.send(datetime.datetime.now(), "client", cstats)
 
     def get_new_thread(self):
@@ -251,9 +252,9 @@ class MonitorToLive(object):
         self.__name = name
         self.__live_moni = live_moni
 
-    def close(self):
+    def close(self):  # pylint: disable=no-self-use
         "Close I3Live monitoring object"
-        pass
+        return
 
     def send(self, now, bean_name, attrs):
         "Send monitoring data to I3Live"
@@ -354,7 +355,7 @@ class MonitorTask(CnCTask):
         for thr in list(self.__thread_list.values()):
             try:
                 thr.close()
-            except:
+            except:  # pylint: disable=bare-except
                 if not saved_exc:
                     saved_exc = sys.exc_info()
 

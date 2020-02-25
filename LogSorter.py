@@ -11,15 +11,16 @@ import sys
 
 from ClusterDescription import ClusterDescription
 from DAQTime import DAQDateTime, PayloadTime
+from i3helper import Comparable
 from utils.DashXMLLog import DashXMLLog
 
 
 class LogParseException(Exception):
     "Log parsing exception"
-    pass
+    pass  # pylint: disable=unnecessary-pass
 
 
-class LogLevel(object):
+class LogLevel(Comparable):
     "Translate between string and integer log levels"
     def __init__(self, level):
         if level is None or level.strip() == "":
@@ -43,8 +44,10 @@ class LogLevel(object):
             else:
                 raise ValueError("Unrecognized log level \"%s\"" % level)
 
-    def __cmp__(self, other):
-        return cmp(self.__level, other.level)
+    @property
+    def compare_key(self):
+        "Return the keys to be used by the Comparable methods"
+        return self.__level
 
     def __repr__(self):
         val = None
@@ -82,7 +85,8 @@ class LogLevel(object):
         "Return the numeric value of this log level"
         return self.__level
 
-class LogLine(object):
+
+class LogLine(Comparable):
     "A single log line"
 
     def __init__(self, component, class_name, log_level, date, text):
@@ -91,17 +95,6 @@ class LogLine(object):
         self.__log_level = LogLevel(log_level)
         self.__date = date
         self.__text = text
-
-    def __cmp__(self, other):
-        val = cmp(self.__date, other.date)
-        if val == 0:
-            val = cmp(self.__log_level, other.log_level)
-            if val == 0:
-                val = cmp(self.__component, other.component)
-                if val == 0:
-                    val = cmp(self.__class_name, other.class_name)
-
-        return val
 
     def __repr__(self):
         "Return a formatted log line"
@@ -123,6 +116,12 @@ class LogLine(object):
     def class_name(self):
         "Return the class name from this log line"
         return self.__class_name
+
+    @property
+    def compare_key(self):
+        "Return the keys to be used by the Comparable methods"
+        return (self.__date, self.__log_level, self.__component,
+                self.__class_name)
 
     @property
     def component(self):
@@ -221,9 +220,9 @@ class BaseLog(object):
 
         return False
 
-    def cleanup(self, lobj):
+    def cleanup(self, lobj):  # pylint: disable=no-self-use,unused-argument
         "Clean up the log line"
-        pass
+        return
 
     def parse(self, path, verbose=False):
         "Parse a log file"
@@ -283,7 +282,7 @@ class CatchallLog(BaseLog):
 class CnCServerLog(BaseLog):
     "Parser for CnCServer log files"
 
-    def _is_noise(self, lobj):
+    def _is_noise(self, _):
         """Return True if this line is "noise" and should be ignored"""
         return False
 
@@ -312,7 +311,7 @@ class DashLog(BaseLog):
 class EventBuilderLog(BaseLog):
     "Parser for eventBuilder log files"
 
-    def _is_noise(self, lobj):
+    def _is_noise(self, _):
         """Return True if this line is "noise" and should be ignored"""
         return False
 
@@ -320,7 +319,7 @@ class EventBuilderLog(BaseLog):
 class GlobalTriggerLog(BaseLog):
     "Parser for globalTrigger log files"
 
-    def _is_noise(self, lobj):
+    def _is_noise(self, _):
         """Return True if this line is "noise" and should be ignored"""
         return False
 
@@ -328,7 +327,7 @@ class GlobalTriggerLog(BaseLog):
 class LocalTriggerLog(BaseLog):
     "Parser for inIceTrigger/iceTopTrigger log files"
 
-    def _is_noise(self, lobj):
+    def _is_noise(self, _):
         """Return True if this line is "noise" and should be ignored"""
         return False
 
@@ -336,7 +335,7 @@ class LocalTriggerLog(BaseLog):
 class SecondaryBuildersLog(BaseLog):
     "Parser for secondaryBuilders log files"
 
-    def _is_noise(self, lobj):
+    def _is_noise(self, _):
         """Return True if this line is "noise" and should be ignored"""
         return False
 
@@ -384,7 +383,7 @@ class StringHubLog(BaseLog):
 class ReplayHubLog(BaseLog):
     "Parser for replayHub log files"
 
-    def _is_noise(self, lobj):
+    def _is_noise(self, _):
         """Return True if this line is "noise" and should be ignored"""
         return False
 
@@ -433,7 +432,8 @@ class LogSorter(object):
         log = None
         if not file_name.endswith(".log"):
             return [BadLine("Ignoring \"%s\"" % path), ]
-        elif file_name.startswith("stringHub-"):
+
+        if file_name.startswith("stringHub-"):
             log = StringHubLog(file_name, show_tcal=show_tcal,
                                hide_sn_gaps=hide_sn_gaps,
                                show_lbmdebug=show_lbmdebug)
@@ -467,7 +467,7 @@ class LogSorter(object):
         "Print a summary of the run"
         try:
             run_xml = DashXMLLog.parse(self.__run_dir)
-        except:
+        except:  # pylint: disable=bare-except
             run_xml = None
 
         if run_xml is None:
@@ -484,18 +484,20 @@ class LogSorter(object):
                 secs = 0
             else:
                 delta = run_xml.end_time - run_xml.start_time
+                # pylint: disable=no-member
+                # PyLint thinks 'delta' is a 'float'
                 secs = float(delta.seconds) + \
                        (float(delta.microseconds) / 1000000.0)
 
         if cond == "ERROR":
             print("-v-v-v-v-v-v-v-v-v-v ERROR v-v-v-v-v-v-v-v-v-v-", file=out)
         if run_xml is not None:
-            print("Run %s: %s, %d evts, %s secs" % \
-                (run_xml.run_number, cond, run_xml.num_physics, secs),
+            print("Run %s: %s, %d evts, %s secs" %
+                  (run_xml.run_number, cond, run_xml.num_physics, secs),
                   file=out)
             print("    %s" % run_xml.run_config_name, file=out)
-            print("    from %s to %s" % \
-                (run_xml.start_time, run_xml.end_time), file=out)
+            print("    from %s to %s" %
+                  (run_xml.start_time, run_xml.end_time), file=out)
         log = sorted(self.__process_dir(self.__run_dir, verbose=verbose,
                                         show_tcal=show_tcal,
                                         hide_rates=hide_rates,
@@ -508,7 +510,7 @@ class LogSorter(object):
 
 
 def add_arguments(parser):
-    "Add all arguments"
+    "Add command-line arguments"
 
     parser.add_argument("-d", "--rundir", dest="rundir",
                         help=("Directory holding pDAQ run monitoring"
@@ -544,13 +546,13 @@ def get_dir_and_runnum(top_dir, sub_dir):
             try:
                 num = int(sub_dir)
                 fullpath = os.path.join(top_dir, "daqrun%05d" % num)
-            except:
+            except ValueError:
                 continue
         elif i == 3:
             try:
                 num = int(sub_dir)
                 fullpath = "daqrun%05d" % num
-            except:
+            except ValueError:
                 continue
         else:
             break
@@ -567,7 +569,7 @@ def get_dir_and_runnum(top_dir, sub_dir):
                     numstr = filename
             try:
                 return(fullpath, int(numstr))
-            except:
+            except ValueError:
                 pass
 
     return (None, None)

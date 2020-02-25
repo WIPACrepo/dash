@@ -10,16 +10,15 @@ import sys
 
 from DefaultDomGeometry import DefaultDomGeometryReader, NicknameReader
 
+
 def dump_nicknames(geom, out=sys.stdout):
     "Dump the DOM data in nicknames.txt format"
     all_doms = []
     for dom in geom.doms():
         all_doms.append(dom)
 
-    all_doms.sort(cmp=lambda x, y: cmp(x.name.lower(), y.name.lower()))
-
     print("mbid\tthedomid\tthename\tlocation\texplanation", file=out)
-    for dom in all_doms:
+    for dom in sorted(all_doms, key=lambda x: x.name.lower()):
         if dom.prod_id is None:
             continue
         if dom.string not in NicknameReader.SPECIAL_STRINGS and \
@@ -33,7 +32,7 @@ def dump_nicknames(geom, out=sys.stdout):
         else:
             try:
                 desc = dom.description.encode("iso-8859-1")
-            except:
+            except:  # pylint: disable=bare-except
                 desc = "-"
 
         if dom.original_string is None:
@@ -53,9 +52,9 @@ def dump_nicknames(geom, out=sys.stdout):
         else:
             pstr = "%02d" % dom.pos
 
-        print("%s\t%s\t%s\t%s-%s\t%s" % \
-              (dom.mbid, dom.prod_id, name, sstr, pstr, desc),
-              file=out)
+        print("%s\t%s\t%s\t%s-%s\t%s" %
+              (dom.mbid, dom.prod_id, name, sstr, pstr, desc), file=out)
+
 
 def main():
     "Main program"
@@ -69,6 +68,7 @@ def main():
 
     # dump the new default-dom-geometry data to sys.stdout
     dump_nicknames(geom)
+
 
 if __name__ == "__main__":
     main()
