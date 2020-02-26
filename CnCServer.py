@@ -10,6 +10,7 @@ import socket
 import sys
 import threading
 import time
+import traceback
 
 try:
     from SocketServer import ThreadingMixIn
@@ -29,6 +30,7 @@ from DAQLive import DAQLive
 from DAQLog import LogSocketServer
 from DAQRPC import RPCClient, RPCServer
 from Daemon import Daemon
+from DumpThreads import DumpThreadsOnSignal
 from ListOpenFiles import ListOpenFiles
 from Process import find_python_process
 from RunSet import RunSet
@@ -386,15 +388,6 @@ class DAQPool(object):
 
         return count
 
-    def num_active_sets(self):
-        num = 0
-        with self.__sets_lock:
-            for runset in self.__sets:
-                if runset.is_running:
-                    num += 1
-
-        return num
-
     @property
     def num_components(self):
         tot = 0
@@ -565,18 +558,6 @@ class Connector(object):
             return '%d%s>%s' % (self.__port, conn_char, self.__name)
         return self.__name + conn_char + '>'
 
-    def connector_tuple(self):
-        """Return connector tuple (used when registering components)
-        This method can raise a ValueError exception if __port is none."""
-        if self.__port is not None:
-            port = self.__port
-        elif not self.is_input:
-            port = 0
-        else:
-            raise ValueError("Connector %s port was set to None" % str(self))
-
-        return (self.__name, self.__descr_char, port)
-
     @property
     def is_input(self):
         "Return True if this is an input connector"
@@ -706,7 +687,6 @@ class CnCServer(DAQPool):
             self.__server.register_function(self.rpc_runset_switch_run)
             self.__server.register_function(self.rpc_version)
 
-        from DumpThreads import DumpThreadsOnSignal
         DumpThreadsOnSignal(sys.stderr, logger=self.__log)
 
     def __str__(self):
@@ -1452,7 +1432,6 @@ class CnCServer(DAQPool):
                              quiet=self.__quiet)
             success = True
         except:  # pylint: disable=bare-except
-            import traceback
             failed_trace = traceback.format_exc()
 
         # file leaks are reported after start_run() because dash.log
@@ -1557,7 +1536,6 @@ def main():
         mypid = os.getpid()
         for pid in pids:
             if pid != mypid:
-                # print "Killing %d..." % p
                 os.kill(pid, signal.SIGKILL)
 
         sys.exit(0)
