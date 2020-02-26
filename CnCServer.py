@@ -628,6 +628,14 @@ class CnCServer(DAQPool):
 
         super(CnCServer, self).__init__()
 
+        # whine if new signal handler overrides an existing signal handler
+        signum = signal.SIGINT
+        old_handler = signal.getsignal(signum)
+        if old_handler not in (signal.SIG_IGN, signal.SIG_DFL):
+            print("Overriding %s handler <%s>%s for CnCServer" %
+                  (signum, type(old_handler), old_handler),
+                  file=sys.stderr)
+
         # close and exit on ctrl-C
         #
         signal.signal(signal.SIGINT, self.__close_on_sigint)
@@ -694,10 +702,22 @@ class CnCServer(DAQPool):
 
     def __close_on_sigint(self,
                           signum, frame):  # pylint: disable=unused-argument
-        if self.close_server(False):
+        print("Shutting down...", file=sys.stderr)
+
+        closed = False
+        try:
+            if self.close_server(False):
+                closed = True
+        except:
+            print("Error while closing RPC server\n%s" %
+                  traceback.format_exc())
+
+        if not closed:
+            print("Cannot exit with active runset(s)", file=sys.stderr)
+        else:
             print("\nExiting", file=sys.stderr)
+            # DumpThreadsOnSignal.dump_threads(file_handle=sys.stderr)
             sys.exit(0)
-        print("Cannot exit with active runset(s)", file=sys.stderr)
 
     @staticmethod
     def __count_file_descriptors():
@@ -844,11 +864,15 @@ class CnCServer(DAQPool):
             if not self.return_all(kill_running):
                 return False
         except:  # pylint: disable=bare-except
-            pass
+            print("Failed to return one or more runset components"
+                  " to the pool\n%s" % traceback.format_exc())
 
         self.__monitoring = False
         if self.__server is not None:
-            self.__server.server_close()
+            try:
+                self.__server.server_close()
+            except:
+                pass
 
         ComponentGroup.run_simple(OpClose, self.components, (), self.__log,
                                   report_errors=True)
@@ -857,6 +881,11 @@ class CnCServer(DAQPool):
         if self.__log_server is not None:
             self.__log_server.stop_serving()
             self.__log_server = None
+
+        try:
+            self.__live.close()
+        except:
+            pass
 
         return True
 
@@ -1382,6 +1411,7 @@ class CnCServer(DAQPool):
             self.__log.error("Cannot start I3Live thread: " + exc_string())
 
         self.__server.serve_forever()
+        # DumpThreadsOnSignal.dump_threads(file_handle=sys.stderr)
 
     def save_catchall(self, run_dir):
         "save the catchall.log file to the run directory"

@@ -7,6 +7,8 @@
 # J. Jacobsen, for UW-IceCube 2006-2007
 #
 
+from __future__ import print_function
+
 try:
     from DocXMLRPCServer import DocXMLRPCServer
     from xmlrpclib import ServerProxy, Transport
@@ -144,7 +146,13 @@ class RPCServer(DocXMLRPCServer):
     def server_close(self):
         if self.__running:
             self.__running = False
-            self.__is_shut_down.wait()
+            try:
+                self.socket.shutdown(2)
+                self.socket.close()
+            except:
+                print("Error while closing RPCServer\n%s" %
+                      traceback.format_exc()
+            # self.__is_shut_down.wait()
         DocXMLRPCServer.server_close(self)
 
     def server_statistics(self):
@@ -182,6 +190,7 @@ class RPCServer(DocXMLRPCServer):
                 break
             if rdat:
                 self.handle_request()
+
         self.__is_shut_down.set()
 
 
