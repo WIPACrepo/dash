@@ -633,8 +633,8 @@ class CnCServer(DAQPool):
         old_handler = signal.getsignal(signum)
         if old_handler not in (signal.SIG_IGN, signal.SIG_DFL):
             print("Overriding %s handler <%s>%s for CnCServer" %
-                  (signum, type(old_handler), old_handler),
-                  file=sys.stderr)
+                  (self.__get_signal_name(signum), type(old_handler),
+                   old_handler), file=sys.stderr)
 
         # close and exit on ctrl-C
         #
@@ -778,6 +778,18 @@ class CnCServer(DAQPool):
                         break
 
         return comp_list
+
+    @classmethod
+    def __get_signal_name(cls, signum):
+        if sys.version_info >= (3, 5):
+            return signal.Signals(signum).name
+
+        for signame in dir(signal):
+            if signame.startswith('SIG') and '_' not in signame and \
+              getattr(signal, signame) == signum:
+                return signame
+
+        return "Mystery signal #%d" % (signum, )
 
     def __list_component_dicts(self, comp_list):
         slst = []
