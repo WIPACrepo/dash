@@ -335,14 +335,15 @@ class RandomConfig(object):
         str_id, excluded = self.__parse_random_hub(xdict)
 
         # fetch the list of DOMs for this string
-        doms = RunDom.doms_on_string(config_dir, str_id)
-        if doms is None or len(doms) == 0:  # pylint: disable=len-as-condition
+        self.rundoms = RunDom.doms_on_string(config_dir, str_id)
+        if self.rundoms is None or \
+          len(self.rundoms) == 0:  # pylint: disable=len-as-condition
             msg = "Unknown random hub %d" % str_id
             raise DAQConfigException(msg)
 
         self.hub_id = str_id
 
-        for dom in doms:
+        for dom in self.rundoms:
             if excluded is not None and dom.mbid in excluded:
                 continue
 
@@ -855,7 +856,7 @@ class DAQConfig(ConfigObject):
         if self.strict:
             self.validate()
 
-    def has_dom(self, domid):
+    def has_dom(self, dom_str):
         """Take a hex string and search for a dom
         with that id.
 
@@ -863,16 +864,15 @@ class DAQConfig(ConfigObject):
         Return true if the dom with the given id is found
         and false otherwise"""
         try:
-            val = int(domid, 16)
+            val = int(dom_str, 16)
             domid = val
         except ValueError:
-            raise BadDOMID("Invalid DOM ID \"%s\"" % domid)
+            raise BadDOMID("Invalid DOM ID \"%s\"" % dom_str)
 
         for dcfg in self.dom_cfgs:
             for entry in dcfg.rundoms:
-                if entry.mbid == domid:
+                if entry.mbid == domid or entry.mbid == dom_str:
                     return True
-
         return False
 
     @property
