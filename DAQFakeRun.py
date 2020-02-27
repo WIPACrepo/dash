@@ -3,8 +3,8 @@
 Manage a 'fake' run (which can include 'real' Java components)
 
 To test CnCServer, start it with:
-    python CnCServer.py -o "/tmp/pdaq/log" -q "/tmp/pdaq/pdaqlocal" \
-        -c "/tmp/pdaq/config" -v
+    python CnCServer.py -c "/tmp/pdaq/config" -j "/tmp/pdaq/jade" \
+        -o "/tmp/pdaq/log" -q "/tmp/pdaq/pdaqlocal" -v
 
 then run this program to simulate a pDAQ run:
     PYTHONPATH=~/prj/livecore python DAQFakeRun.py
@@ -14,6 +14,7 @@ from __future__ import print_function
 
 import datetime
 import os
+import random
 import select
 import shutil
 import socket
@@ -23,7 +24,7 @@ import time
 import traceback
 
 from CnCServer import Connector
-from DAQConfig import ConfigNotSpecifiedException, DAQConfigParser
+from DAQConfig import ConfigNotSpecifiedException, DAQConfig, DAQConfigParser
 from DAQConst import DAQPort
 from DAQMocks import MockLeapsecondFile
 from DAQRPC import RPCClient
@@ -398,6 +399,13 @@ class DAQFakeRun(object):
 
         self.__client = RPCClient(cnc_host, cnc_port)
 
+    def __check_finished_run(self, run_num):
+        summary = self.__client.rpc_run_summary(run_num)
+        if "result" not in summary:
+            raise FakeException("No result field found in run #%d summary" %
+                                (run_num, ))
+        print("Run #%d: %s" % (run_num, summary["result"]))
+
     @staticmethod
     def __create_cluster_desc_file(run_cfg_dir):
         path = os.path.join(run_cfg_dir, "sps-cluster.cfg")
@@ -426,7 +434,32 @@ class DAQFakeRun(object):
         diff = datetime.datetime.now() - start_time
         return float(diff.seconds) + (float(diff.microseconds) / 1000000.0)
 
-    def __run_internal(self, runset_id, run_num, duration, test_subrun=True,
+    def __monitor_run(self, runset_id, run_num, start_time, duration,
+                      num_checks):
+        wait_secs = duration / float(num_checks)
+
+        reps = 0
+        run_secs = 0
+        while run_secs <= duration and reps < num_checks:
+            time.sleep(wait_secs)
+
+            try:
+                num_evts = self.__client.rpc_runset_events(runset_id, -1)
+            except:  # pylint: disable=bare-except
+                num_evts = None
+
+            run_secs = self.__get_run_time(start_time)
+            if num_evts is not None:
+                print("RunSet %d had %d event%s after %.2f secs" %
+                      (runset_id, num_evts, "s" if num_evts != 1 else "",
+                       run_secs))
+            else:
+                print("RunSet %d could not get event count after %.2f secs" %
+                      (runset_id, run_secs))
+
+            reps += 1
+
+    def __run_internal(self, runset_id, run_num, duration, subrun_doms=None,
                        verbose=False):
         """
         Take all components through a simulated run
@@ -454,6 +487,7 @@ class DAQFakeRun(object):
 
         run_options = RunOption.LOG_TO_FILE | RunOption.MONI_TO_FILE
 
+        stopped = False
         try:
             self.__client.rpc_runset_start_run(runset_id, run_num, run_options)
 
@@ -465,66 +499,45 @@ class DAQFakeRun(object):
 
             time.sleep(1)
 
-            if test_subrun:
-                self.__client.rpc_runset_subrun(runset_id, -1,
-                                                [("0123456789abcdef",
-                                                  0, 1, 2, 3, 4), ])
+            if subrun_doms is not None:
+                data = []
+                for mbid in subrun_doms:
+                    data.append((mbid, 0, 1, 2, 3, 4))
 
-            do_switch = True
+                print("Subrun data %s" % str(data), file=sys.stderr)
+                self.__client.rpc_runset_subrun(runset_id, -1, data)
+                self.__client.rpc_runset_subrun(runset_id, 1, data)
+                self.__client.rpc_runset_subrun(runset_id, -2, data)
+                self.__client.rpc_runset_subrun(runset_id, 2, data)
 
-            runtime = self.__get_run_time(start_time)
-            wait_secs = duration - runtime
-            if wait_secs <= 0.0:
-                wait_slice = 0.0
-            else:
-                if do_switch:
-                    slices = 6
-                else:
-                    slices = 3
-                wait_slice = wait_secs / float(slices)
+            self.__monitor_run(runset_id, run_num, start_time, duration, 6)
 
-            for switch in (False, True):
-                if switch and do_switch:
-                    self.__client.rpc_runset_switch_run(runset_id, run_num + 1)
+            self.__client.rpc_runset_switch_run(runset_id, run_num + 1)
+            switch_time = datetime.datetime.now()
+            self.__check_finished_run(run_num)
 
-                reps = 0
-                while wait_secs > 0:
-                    time.sleep(wait_slice)
-                    try:
-                        num_evts = self.__client.rpc_runset_events(runset_id,
-                                                                   -1)
-                    except:  # pylint: disable=bare-except
-                        num_evts = None
+            self.__monitor_run(runset_id, run_num + 1, switch_time, duration,
+                               3)
 
-                    run_secs = self.__get_run_time(start_time)
-                    if num_evts is not None:
-                        print("RunSet %d had %d event%s after %.2f secs" %
-                              (runset_id, num_evts,
-                               "s" if num_evts != 1 else "", run_secs))
-                    else:
-                        print("RunSet %d could not get event count after"
-                              " %.2f secs" % (runset_id, run_secs))
+            self.__client.rpc_runset_stop_run(runset_id)
+            stopped = True
+            self.__check_finished_run(run_num + 1)
 
-                    wait_secs = duration - run_secs
-
-                    reps += 1
-                    if do_switch and not switch and reps == 3:
-                        break
         finally:
-            try:
-                self.__client.rpc_runset_stop_run(runset_id)
-            except:  # pylint: disable=bare-except
-                print("Cannot stop run for runset #%d" % runset_id,
-                      file=sys.stderr)
-                traceback.print_exc()
+            if not stopped:
+                try:
+                    self.__client.rpc_runset_stop_run(runset_id)
+                except:  # pylint: disable=bare-except
+                    print("Cannot stop run for runset #%d\n%s" %
+                          (runset_id, traceback.format_exc()), file=sys.stderr)
 
-    def __run_one(self, comp_list, run_cfg_dir, mock_run_cfg, run_num,
-                  duration, verbose=False, test_subrun=False):
+    def __run_one(self, comp_list, run_cfg, run_num, duration, verbose=False,
+                  subrun_doms=None):
         """
         Simulate a run
 
         comp_list - list of components
-        run_cfg - run configuration name
+        run_cfg - run configuration object
         run_num - run number
         duration - length of run in seconds
         """
@@ -536,21 +549,17 @@ class DAQFakeRun(object):
                 print(str(cdict), file=sys.stderr)
             print("---", file=sys.stderr)
 
-        leapfile = MockLeapsecondFile(run_cfg_dir)
-        leapfile.create()
-
-        self.hack_active_config(mock_run_cfg)
-
-        runset_id = self.make_runset(comp_list, mock_run_cfg, run_num)
+        runset_id = self.make_runset(comp_list, run_cfg.basename, run_num)
 
         if num_sets != self.__client.rpc_runset_count() - 1:
             print("Expected %d run sets" % (num_sets + 1), file=sys.stderr)
 
         try:
             self.__run_internal(runset_id, run_num, duration, verbose=verbose,
-                                test_subrun=test_subrun)
+                                subrun_doms=subrun_doms)
+        except:
+            print("Run #%s FAILED:\n%s" % (run_num, traceback.format_exc()))
         finally:
-            traceback.print_exc()
             self.close_all(runset_id)
 
     def __wait_for_components(self, num_comps):
@@ -791,14 +800,36 @@ class DAQFakeRun(object):
 
         return runset_id
 
-    def run_all(self, comps, start_num, num_runs, duration, run_cfg_dir,
-                mock_run_cfg, verbose=False, test_subrun=False):
+    def run_all(self, comps, start_num, num_runs, duration, run_cfg,
+                verbose=False, test_subrun=False):
         "Shepherd a set of components through the specified runs"
         run_num = start_num
 
         # grab the number of components before we add ours
         #
         num_comps = self.__client.rpc_component_count()
+
+        if not test_subrun:
+            subrun_doms = None
+        else:
+            # build a list of all DOMs in the run configuration
+            doms = []
+            for dom_cfg in run_cfg.dom_cfgs:
+                for entry in dom_cfg.rundoms:
+                    doms.append(entry)
+
+            # randomly choose a couple of DOMs to be used in the subrun
+            subrun_doms = []
+            for idx in range(2):
+                entry = random.choice(doms)
+                if isinstance(entry.mbid, int):
+                    mbid = "%x" % entry.mbid
+                else:
+                    mbid = entry.mbid
+                subrun_doms.append(mbid)
+
+        # set the active configuration to our run configuration name
+        self.hack_active_config(run_cfg.basename)
 
         # do all the runs
         #
@@ -814,9 +845,8 @@ class DAQFakeRun(object):
             # simulate a run
             #
             try:
-                self.__run_one(comps, run_cfg_dir, mock_run_cfg, run_num,
-                               duration, verbose=verbose,
-                               test_subrun=test_subrun)
+                self.__run_one(comps, run_cfg, run_num, duration,
+                               verbose=verbose, subrun_doms=subrun_doms)
             except:  # pylint: disable=bare-except
                 traceback.print_exc()
             run_num += 1
@@ -886,6 +916,9 @@ def main():
     parser.add_argument("-i", "--inice-trigger", dest="inice_trig",
                         action="store_true", default=False,
                         help="Use existing in-ice trigger")
+    parser.add_argument("-j", "--jade-dir", dest="jade_dir",
+                        default="/tmp/pdaq/spade",
+                        help="Directory holding files queued for JADE/SPADE")
     parser.add_argument("-K", "--keep-old-files", dest="keep_old_files",
                         action="store_true", default=False,
                         help=("Keep old runs from /tmp/pdaq/log and"
@@ -947,9 +980,11 @@ def main():
     log_path = args.log_dir
     data_path = args.daq_data_dir
     cfg_path = args.run_cfg_dir
+    jade_path = args.jade_dir
 
     for subdir, dirname in ((log_path, "log"), (data_path, "data"),
-                            (cfg_path, "run configuration")):
+                            (cfg_path, "run configuration"),
+                            (jade_path, "JADE")):
         if not args.keep_old_files:
             clear_directory(subdir, dirname)
 
@@ -997,11 +1032,15 @@ def main():
     if args.verbose:
         print("Created cluster configuration \"%s\"" % (cc_path, ))
 
-    mock_run_cfg, _ = DAQFakeRun.make_mock_run_config(run_cfg_dir,
+    run_cfg_name, _ = DAQFakeRun.make_mock_run_config(run_cfg_dir,
                                                       comp_data,
                                                       args.moni_period)
+
+    # load the (newly created?) run configuration
+    run_cfg = DAQConfig(run_cfg_dir, run_cfg_name)
+
     if args.verbose:
-        rc_path = os.path.join(run_cfg_dir, mock_run_cfg + ".xml")
+        rc_path = os.path.join(run_cfg_dir, run_cfg_name + ".xml")
         print("Created run configuration \"%s\"" % (rc_path, ))
 
     if args.extra_hubs <= 0:
@@ -1010,6 +1049,10 @@ def main():
         extra_data = ComponentData.create_hubs(args.extra_hubs,
                                                args.num_hubs + 1,
                                                args.fake_names, False)
+
+    # create a fake leapseconds file
+    leapfile = MockLeapsecondFile(run_cfg_dir)
+    leapfile.create()
 
     # create components
     #
@@ -1021,8 +1064,8 @@ def main():
         if serr.errno != 111:
             raise
         errmsg = "Please start CnCServer before faking a run\n\n" \
-          "python CnCServer.py -o \"%s\" -q \"%s\" -c \"%s\" -v" % \
-          (args.log_dir, args.daq_data_dir, args.run_cfg_dir)
+          "python CnCServer.py -c \"%s\" -o \"%s\" -q \"%s\" -s \"%s\" -v" % \
+          (args.run_cfg_dir, args.log_dir, args.daq_data_dir, args.jade_dir)
         raise SystemExit(errmsg)
 
     if extra_data is not None:
@@ -1042,8 +1085,7 @@ def main():
     runner = DAQFakeRun()
 
     runner.run_all(comps, args.run_num, args.num_runs, args.duration,
-                   run_cfg_dir, mock_run_cfg, verbose=args.verbose,
-                   test_subrun=args.test_subrun)
+                   run_cfg, verbose=args.verbose, test_subrun=args.test_subrun)
 
 
 if __name__ == "__main__":

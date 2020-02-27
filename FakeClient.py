@@ -855,10 +855,10 @@ class FakeClient(object):
             conn.start()
 
     def start_run(self, run_num):
-        print("%s not starting run#%s" % (self, run_num), file=sys.stderr)
+        print("%s fake-starting run#%s" % (self, run_num), file=sys.stderr)
 
     def stop_run(self):
-        print("%s not stopping run" % (self, ), file=sys.stderr)
+        print("%s fake-stopping run" % (self, ), file=sys.stderr)
 
     def switch_run(self, run_num):
-        print("%s not switching to run#%s" % (self, run_num), file=sys.stderr)
+        print("%s fake-switching to run#%s" % (self, run_num), file=sys.stderr)
