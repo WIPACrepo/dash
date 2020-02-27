@@ -1174,7 +1174,6 @@ class RunData(object):
                 physics_count = int(evt_data[1])
                 wall_time = datetime.datetime.utcnow()
                 last_pay_time = int(evt_data[2])
-
             elif comp.is_component("secondaryBuilders"):
                 if len(evt_data) != 3:
                     self.error("Got bad event data %s (expected 3 entries)" %
@@ -2235,6 +2234,7 @@ class RunSet(object):
         "Return RPC statistics for server->client calls"
         return self.__parent.client_statistics()
 
+    @property
     def cluster_config(self):
         if self.__run_data is None:
             return None

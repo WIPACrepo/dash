@@ -1229,7 +1229,7 @@ class CnCServer(DAQPool):
         if not runset:
             raise CnCServerException('Could not find runset#%d' % rsid)
 
-        clucfg = runset.cluster_config()
+        clucfg = runset.cluster_config
         if clucfg is None:
             return runset.config_name
         return "%s@%s" % (runset.config_name, clucfg)
