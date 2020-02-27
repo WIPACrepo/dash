@@ -151,7 +151,7 @@ class RPCServer(DocXMLRPCServer):
                 self.socket.close()
             except:
                 print("Error while closing RPCServer\n%s" %
-                      traceback.format_exc()
+                      traceback.format_exc())
             # self.__is_shut_down.wait()
         DocXMLRPCServer.server_close(self)
 
