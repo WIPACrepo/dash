@@ -8,6 +8,10 @@ import socket
 import sys
 import threading
 import time
+try:
+    import xmlrpc.client as rpcclient
+except ImportError:
+    import xmlrpclib as rpcclient
 
 from DAQConst import DAQPort
 from DAQRPC import RPCClient, RPCServer
@@ -394,7 +398,7 @@ class FakeMBeanData(object):
         "eventBuilder": {
             "backEnd": {
                 "DiskAvailable": (2048, None),
-                "EventData": ((0, 1), (None, 3, 10000000000)),
+                "EventData": ((0, 1), (3, 10000000000)),
                 "FirstEventTime": (0, None),
                 "GoodTimes": ((0, 0), None),
                 "NumBadEvents": (0, None),
@@ -407,14 +411,17 @@ class FakeMBeanData(object):
         "secondaryBuilders": {
             "moniBuilder": {
                 "DiskAvailable": (2048, None),
+                "EventData": ((0, 22), (2, 10000000000)),
                 "NumDispatchedData": (0, 100),
                 },
             "snBuilder": {
                 "DiskAvailable": (2048, None),
+                "EventData": ((0, 33), (1, 10000000000)),
                 "NumDispatchedData": (0, 100),
                 },
             "tcalBuilder": {
                 "DiskAvailable": (2048, None),
+                "EventData": ((0, 44), (1, 10000000000)),
                 "NumDispatchedData": (0, 100),
                 },
             }}
@@ -517,6 +524,24 @@ class FakeClient(object):
         self.__state = "connected"
         return self.__state
 
+    @classmethod
+    def __fix_value(cls, obj):
+        if isinstance(obj, dict):
+            for key, val in list(obj.items()):
+                obj[key] = cls.__fix_value(val)
+        elif isinstance(obj, list):
+            for idx, val in enumerate(obj):
+                obj[idx] = cls.__fix_value(val)
+        elif isinstance(obj, tuple):
+            new_obj = []
+            for val in obj:
+                new_obj.append(cls.__fix_value(val))
+            obj = tuple(new_obj)
+        elif isinstance(obj, int):
+            if obj < rpcclient.MININT or obj > rpcclient.MAXINT:
+                return str(obj)
+        return obj
+
     def __get_mbean_attributes(self, bean, attr_list):
         val_dict = {}
         for attr in attr_list:
@@ -531,13 +556,15 @@ class FakeClient(object):
             raise Exception("Unknown %s MBean \"%s\" attribute \"%s\"" %
                             (self, bean, attr))
 
-        self.__mbean_dict[bean][attr].update()
+        upval = self.__mbean_dict[bean][attr].update()
 
         val = self.__mbean_dict[bean][attr].get()
         if val is None:
-            return ''
+            val = ''
 
-        return val
+        print("\t## %s MBean %s.%s -> <%s>%s" %
+              (self, bean, attr, type(val), val), file=sys.stderr)
+        return self.__fix_value(val)
 
     def __get_events(self, subrun_num):
         if not self.__quiet:
