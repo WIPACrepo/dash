@@ -376,6 +376,7 @@ class FakeMBeanData(object):
                 "NumberOfActiveAndTotalChannels": ((0, 0), None),
                 "NumberOfNonZombies": (60, 60),
                 "LatestFirstChannelHitTime": (12345, 67890),
+                "EarliestLastChannelHitTime": (23456, 98765),
                 "TotalLBMOverflows": (0, 0),
                 },
             },
@@ -398,8 +399,8 @@ class FakeMBeanData(object):
         "eventBuilder": {
             "backEnd": {
                 "DiskAvailable": (2048, None),
-                "EventData": ((0, 1), (3, 10000000000)),
-                "FirstEventTime": (0, None),
+                "EventData": ((0, 10000000001), (3, 10000000000)),
+                "FirstEventTime": (10000000001, None),
                 "GoodTimes": ((0, 0), None),
                 "NumBadEvents": (0, None),
                 "NumEventsSent": (0, 1),
@@ -562,8 +563,16 @@ class FakeClient(object):
         if val is None:
             val = ''
 
-        print("\t## %s MBean %s.%s -> <%s>%s" %
-              (self, bean, attr, type(val), val), file=sys.stderr)
+        if attr == "EventData":
+            if not isinstance(val, (tuple, list)):
+                raise FakeClientException("EventData should be tuple/list,"
+                                          " not %s" % type(val).__name__)
+            elif len(val) != 2:
+                raise FakeClientException("EventData should be (count, time),"
+                                          " not %s" % str(val))
+
+            val = (self.__run_num, val[0], val[1])
+
         return self.__fix_value(val)
 
     def __get_events(self, subrun_num):
@@ -606,9 +615,18 @@ class FakeClient(object):
         return path
 
     def __get_run_data(self, run_num):
-        if not self.__quiet:
-            print("GetRunData %s run %d" % (self, run_num))
-        return (int(1), int(2), int(3), int(4), int(5))
+        if self.__name == "eventBuilder":
+            first_time = self.__mbean_dict["backEnd"]["FirstEventTime"].get()
+            count, now = self.__mbean_dict["backEnd"]["EventData"].get()
+
+            val = (count, first_time, now, first_time, now)
+        elif self.__name.endswith("Builders"):
+            val = (int(1), int(2), int(3), int(4), int(5), int(6))
+        else:
+            raise FakeClientException("Cannot return run data for"
+                                      " non-builder %s" % (self.__name, ))
+
+        return self.__fix_value(val)
 
     def __get_run_number(self):
         return self.__run_num
@@ -697,11 +715,17 @@ class FakeClient(object):
             print("SetFirstGoodTime %s -> %s" % (self, first_time))
         return "SetFirstGoodTime"
 
+    def __set_last_good_time(self, last_time):
+        if not self.__quiet:
+            print("SetLastGoodTime %s -> %s" % (self, last_time))
+        return "SetLastGoodTime"
+
     def __start_run(self, run_num):
         if not self.__quiet:
             print("StartRun %s" % self)
         self.start_run(run_num)
         self.__state = "running"
+        self.__run_num = run_num
         return self.__state
 
     def __start_subrun(self, data):
@@ -794,6 +818,8 @@ class FakeClient(object):
         rpc_srvr.register_function(self.__reset_logging, 'xmlrpc.resetLogging')
         rpc_srvr.register_function(self.__set_first_good_time,
                                    'xmlrpc.setFirstGoodTime')
+        rpc_srvr.register_function(self.__set_last_good_time,
+                                   'xmlrpc.setLastGoodTime')
         rpc_srvr.register_function(self.__start_run, 'xmlrpc.startRun')
         rpc_srvr.register_function(self.__stop_run, 'xmlrpc.stopRun')
 
