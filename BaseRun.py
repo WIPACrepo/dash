@@ -13,7 +13,7 @@ import threading
 import time
 try:
     from xmlrpclib import Fault
-except ModuleNotFoundError:
+except:  # ModuleNotFoundError only works under 2.7/3.0
     from xmlrpc.client import Fault
 
 from ANSIEscapeCode import ANSIEscapeCode

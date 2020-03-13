@@ -12,7 +12,7 @@ import unittest
 
 try:
     from xmlrpclib import ServerProxy
-except ModuleNotFoundError:
+except:  # ModuleNotFoundError only works under 2.7/3.0
     from xmlrpc.client import ServerProxy
 
 from CnCExceptions import CnCServerException

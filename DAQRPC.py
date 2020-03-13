@@ -12,7 +12,7 @@ from __future__ import print_function
 try:
     from DocXMLRPCServer import DocXMLRPCServer
     from xmlrpclib import ServerProxy, Transport
-except ModuleNotFoundError:
+except:  # ModuleNotFoundError only works under 2.7/3.0
     from xmlrpc.server import DocXMLRPCServer
     from xmlrpc.client import ServerProxy, Transport
 import errno

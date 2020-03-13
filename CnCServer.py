@@ -14,7 +14,7 @@ import traceback
 
 try:
     from SocketServer import ThreadingMixIn
-except ModuleNotFoundError:
+except:  # ModuleNotFoundError only works under 2.7/3.0
     from socketserver import ThreadingMixIn
 
 from CnCExceptions import CnCServerException, MissingComponentException, \

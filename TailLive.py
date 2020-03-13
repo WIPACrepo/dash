@@ -13,7 +13,7 @@ import sys
 import threading
 try:
     import queue
-except ModuleNotFoundError:
+except:  # ModuleNotFoundError only works under 2.7/3.0
     import Queue as queue
 
 from ANSIEscapeCode import ANSIEscapeCode, background_color, foreground_color

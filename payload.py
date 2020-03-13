@@ -16,7 +16,7 @@ import struct
 
 try:
     from cStringIO import StringIO
-except ModuleNotFoundError:
+except:  # ModuleNotFoundError only works under 2.7/3.0
     from io import StringIO
 
 from i3helper import Comparable
