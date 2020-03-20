@@ -191,6 +191,9 @@ def add_arguments(parser):
                         action="store_true", default=False,
                         help=("Don't run commands, just print as they"
                               " would be run"))
+    parser.add_argument("-O", "--old-commands", dest="old_commands",
+                        action="store_true", default=False,
+                        help="Use old, pre-2020 commands for 'livecmd'")
     parser.add_argument("-q", "--quick", dest="quick",
                         action="store_true", default=False,
                         help="Reduce 4/8 hour tests to 2/4 minute tests")
@@ -269,7 +272,8 @@ def run_tests(args):
                              show_command_output=args.show_command_output,
                              show_check=args.show_check,
                              show_check_output=args.show_check_output,
-                             dry_run=args.dry_run)
+                             dry_run=args.dry_run,
+                             old_commands=args.old_commands)
 
         if sys.version_info > (2, 3):
             from DumpThreads import DumpThreadsOnSignal
