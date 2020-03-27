@@ -3,8 +3,9 @@
 # Run a DAQ Java program
 #
 # Example:
-#    ./RunJava.py -d daq-common -d splicer -d payload -d daq-io \
-#        -m log4j:log4j:1.2.7 -m commons-logging:commons-logging:1.0.3 \
+#    ./RunJava.py \
+#        -d daq-common -d splicer -d payload -d daq-io \
+#        -m log4j:log4j:1.2.7 \
 #        icecube.daq.io.PayloadDumper physics_123456_0_0_2511.dat
 
 from __future__ import print_function

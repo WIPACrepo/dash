@@ -32,8 +32,7 @@ def dump_payloads(args):
     app = "icecube.daq.io.PayloadDumper"
     java_args = ["-mx2000m"]
     daq_projects = ["daq-common", "splicer", "payload", "daq-io"]
-    maven_deps = [("log4j", "log4j", "1.2.7"),
-                  ("commons-logging", "commons-logging", "1.0.3")]
+    maven_deps = [("log4j", "log4j", "1.2.7"), ]
 
     arglist = []
     if args.config_dir is not None:
