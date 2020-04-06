@@ -374,10 +374,10 @@ class StringHubLog(BaseLog):
         "Clean up the log line"
         if lobj.text.find("Got IO exception") >= 0 and \
                 lobj.text.find("TCAL read failed") > 0:
-            lobj.set_text("TCAL read failed")
+            lobj.text = "TCAL read failed"
         elif lobj.text.find("Ignoring tcal error") >= 0 and \
              lobj.text.find("TCAL read failed") > 0:
-            lobj.set_text("TCAL read failed")
+            lobj.text = "TCAL read failed"
 
 
 class ReplayHubLog(BaseLog):
