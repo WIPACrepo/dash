@@ -21,7 +21,8 @@ __UNRELEASED = 'trunk'
 PDAQ_HOME = find_pdaq_trunk()
 
 # file which caches the revision information
-SCM_REV_FILENAME = os.path.join(PDAQ_HOME, "target", ".deployed_rev")
+TARGET_PATH = os.path.join(PDAQ_HOME, "target")
+SCM_REV_FILENAME = os.path.join(TARGET_PATH, ".deployed_rev")
 
 # ignore these externals when calculating version information
 #  (once contained ['cluster-config', 'config'] but both directories
@@ -462,6 +463,13 @@ def store_scmversion(svn_dir=None):
     except SCMVersionError as exc:
         print("SCMVersionError: " + str(exc), file=sys.stderr)
         return ""
+
+    if not os.path.exists(SCM_REV_FILENAME):
+        if not os.path.exists(TARGET_PATH):
+            raise SystemExit("%s has not been built, run"
+                             " 'mvn assembly:assembly' first" % (PDAQ_HOME, ))
+        raise SystemExit("Cannot find %s, something has gone wrong!" %
+                         (SVN_REV_FILENAME, ))
 
     with open(SCM_REV_FILENAME, "w") as svn_rev_file:
         svn_rev_file.write(scmstr)
