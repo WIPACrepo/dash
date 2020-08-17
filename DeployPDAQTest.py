@@ -106,6 +106,7 @@ class DeployPDAQTest(unittest.TestCase):
         DeployPDAQ.deploy(config, top_dir, subdirs, delete, dry_run,
                           deep_dry_run, trace_level, nice_level=nice_level,
                           express=express, home=home_dir,
+                          ignore_missing_deployed_rev=True,
                           rsync_runner=runner)
 
     def setUp(self):

@@ -449,7 +449,7 @@ def get_scmversion_str(svn_dir=None, info=None):
     return rtnstr
 
 
-def store_scmversion(svn_dir=None):
+def store_scmversion(svn_dir=None, ignore_missing=False):
     """
     Calculate and store the version information in a file for later querying.
     If there is a problem getting the version info, print a warning to stderr
@@ -473,8 +473,9 @@ def store_scmversion(svn_dir=None):
         if not os.path.exists(TARGET_PATH):
             raise SystemExit("%s has not been built, run"
                              " 'mvn assembly:assembly' first" % (PDAQ_HOME, ))
-        raise SystemExit("Cannot find %s, something has gone wrong!" %
-                         (SVN_REV_FILENAME, ))
+        if not ignore_missing:
+            raise SystemExit("Cannot find %s, something has gone wrong!" %
+                             (SCM_REV_FILENAME, ))
 
     with open(SCM_REV_FILENAME, "w") as svn_rev_file:
         svn_rev_file.write(scmstr)
