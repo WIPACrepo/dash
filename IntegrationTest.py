@@ -664,6 +664,10 @@ class RealComponent(Comparable):
             log_host = None
         if log_port == 0:
             log_port = None
+
+        # close old logger before opening new logger
+        if self.__logger is not None:
+            self.__logger.close()
         if log_host is not None and log_port is not None:
             self.__logger = SocketWriter(log_host, log_port)
         else:
@@ -690,7 +694,9 @@ class RealComponent(Comparable):
         return 'RESET'
 
     def __reset_logging(self):
-        self.__logger = None
+        if self.__logger is not None:
+            self.__logger.close()
+            self.__logger = None
 
         return 'RLOG'
 
