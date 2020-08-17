@@ -63,12 +63,15 @@ def __exec_cmd(cmd, shell=False, cwd=None):
         raise SCMVersionError("Command: '%s' returned non-zero code: '%s'" %
                               (cmd, ret_code))
 
-    stdout, stderr = proc.communicate()
-    if stderr is not None and stderr != "":
-        raise SCMVersionError("Command: '%s' returned non-empty stderr: '%s'" %
-                              (cmd, stderr))
+    rawout, rawerr = proc.communicate()
 
-    return stdout
+    if rawerr is not None:
+        stderr = rawerr.decode("utf-8").rstrip()
+        if stderr != "":
+            raise SCMVersionError("Command: '%s' returned non-empty stderr:"
+                                  " '%s'" % (cmd, stderr))
+
+    return rawout.decode("utf-8").rstrip()
 
 
 def __get_git_info(svn_dir):
@@ -231,7 +234,7 @@ def __get_svn_info(svn_dir):
     # First, run svnversion on the dir
     proc = subprocess.Popen("svnversion", stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, cwd=svn_dir)
-    svn_rev = proc.communicate()[0].rstrip()
+    svn_rev = proc.communicate()[0].decode("utf-8").rstrip()
     proc.stdout.close()
 
     # Get the repo URL used by the directory (used to see if any of the
@@ -240,10 +243,11 @@ def __get_svn_info(svn_dir):
     proc = subprocess.Popen(["svn", "info"], stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, cwd=svn_dir)
     for line in proc.stdout:
-        if line.startswith(b"URL:"):
+        line = line.decode("utf-8").rstrip()
+        if line.startswith("URL:"):
             dir_url = line.split()[1].strip()
-        elif line.startswith(b"Last Changed Date:"):
-            dstr = line.split(b':', 1)[1].strip()
+        elif line.startswith("Last Changed Date:"):
+            dstr = line.split(':', 1)[1].strip()
 
             # only care about first 3 fields (date time timezone)
             bflds = dstr.split(None, 3)[:3]
@@ -252,6 +256,7 @@ def __get_svn_info(svn_dir):
             (date, time) = __parse_date_time(" ".join(dflds),
                                              "%Y-%m-%d %H:%M:%S")
     proc.stdout.close()
+    proc.wait()
 
     repo_rev = __get_svn_repo_revision(svn_dir, dir_url, svn_rev)
 
