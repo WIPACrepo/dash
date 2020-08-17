@@ -942,7 +942,8 @@ class BaseRun(object):
         raise NotImplementedError()
 
     def start_run(self, run_cfg_name, duration, num_runs=1, ignore_db=False,
-                  run_mode=None, filter_mode=None, verbose=False):
+                  run_mode=None, filter_mode=None, extended_mode=False,
+                  verbose=False):
         """
         Start a run
 
@@ -952,6 +953,7 @@ class BaseRun(object):
         ignore_db - don't check the database for this run config
         run_mode - Run mode for 'livecmd'
         filter_mode - Run mode for 'livecmd'
+        extended_mode - True if DOMs should be put into "extended" mode
         verbose - print more details of run transitions
 
         Return True if the run was started

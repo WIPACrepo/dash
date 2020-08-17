@@ -8,10 +8,11 @@ class RunOption(object):
     LOG_TO_FILE = 0x2
     LOG_TO_LIVE = 0x4
     LOG_TO_BOTH = LOG_TO_FILE | LOG_TO_LIVE
-    MONI_TO_NONE = 0x1000
-    MONI_TO_FILE = 0x2000
-    MONI_TO_LIVE = 0x4000
+    MONI_TO_NONE = 0x10
+    MONI_TO_FILE = 0x20
+    MONI_TO_LIVE = 0x40
     MONI_TO_BOTH = MONI_TO_FILE | MONI_TO_LIVE
+    EXTENDED_MODE = 0x100
 
     @staticmethod
     def __append_with_comma(prevstr, addstr):
@@ -28,6 +29,11 @@ class RunOption(object):
     def __is_option(flags, option):
         "Return True if the 'option' bit is set in 'flags'"
         return (flags & option) == option
+
+    @staticmethod
+    def is_extended_mode(flags):
+        "Return True if this is an 'extended DOM mode' run"
+        return RunOption.__is_option(flags, RunOption.EXTENDED_MODE)
 
     @staticmethod
     def is_log_to_both(flags):
@@ -98,4 +104,11 @@ class RunOption(object):
         elif monistr is None:
             monistr = ""
 
-        return "RunOption[log(%s)moni(%s)]" % (logstr, monistr)
+        xstr = None
+        if RunOption.is_extended_mode(flags):
+            xstr = "extended"
+        else:
+            xstr = "normal"
+
+        return "RunOption[log(%s)moni(%s)dommode(%s)]" % \
+          (logstr, monistr, xstr)

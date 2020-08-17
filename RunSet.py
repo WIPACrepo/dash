@@ -561,6 +561,12 @@ class RunData(object):
     # maximum number of physics count entries
     MAX_PHYSICS_ENTRIES = 1000
 
+    # NOTE: These values must match the Java IComponent.DOMMODE_* values
+    # normal DOM mode
+    DOMMODE_NORMAL = 1
+    # extended DOM mode
+    DOMMODE_EXTENDED = 2
+
     def __init__(self, run_set, run_number, cluster_config, run_config,
                  run_options, version_info, spade_dir, copy_dir, log_dir):
         """
@@ -949,6 +955,12 @@ class RunData(object):
     @property
     def run_directory(self):
         return self.__run_dir
+
+    @property
+    def dom_mode(self):
+        if RunOption.is_extended_mode(self.__run_options):
+            return self.DOMMODE_EXTENDED
+        return self.DOMMODE_NORMAL
 
     @property
     def run_number(self):
@@ -1939,7 +1951,7 @@ class RunSet(object):
         """
         rstart = datetime.datetime.now()
 
-        op_data = (self.__run_data.run_number, )
+        op_data = (self.__run_data.run_number, self.__run_data.dom_mode)
         ComponentGroup.run_simple(OpStartRun, components, op_data,
                                   self.__run_data, report_errors=True)
 

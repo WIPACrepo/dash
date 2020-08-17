@@ -24,7 +24,7 @@ from DAQConst import DAQPort
 from DAQLog import LogSocketServer
 from DAQRPC import RPCServer
 from RunOption import RunOption
-from RunSet import RunSet
+from RunSet import RunData, RunSet
 from locate_pdaq import set_pdaq_config_dir
 
 from DAQMocks \
@@ -87,6 +87,10 @@ class FakeRunData(object):
 
     def destroy(self):
         pass
+
+    @property
+    def dom_mode(self):
+        return RunData.DOMMODE_NORMAL
 
     def error(self, logmsg):
         if self.__dashlog is None:
@@ -432,7 +436,7 @@ class RealComponent(Component):
               (self.fullname, last_time), file=sys.stderr)
         return "SetLGT"
 
-    def __cmd_start_run(self, run_number):
+    def __cmd_start_run(self, run_number, dom_mode):
         self.__run_number = run_number
         self.__state = "running"
         return "RUNNING"

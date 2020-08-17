@@ -156,7 +156,7 @@ class StartThread(ActionThread):
         """
         Attempt to build a runset and start a run from within a thread.
         """
-        (run_cfg, run_num) = args
+        (run_cfg, run_num, extended_mode) = args
 
         cnc = self.__daq_live.command_and_control
 
@@ -196,6 +196,8 @@ class StartThread(ActionThread):
             raise LiveException(errmsg)
 
         run_options = RunOption.LOG_TO_BOTH | RunOption.MONI_TO_FILE
+        if extended_mode:
+            run_options |= RunOption.EXTENDED_MODE
         cnc.start_run(runset, run_num, run_options)
 
         # we're now using the new runset
@@ -406,6 +408,7 @@ class DAQLive(LiveComponent):
             "runConfig" - the name of the run configuration
             "runNumber" - run number
             "subRunNumber" - subrun number
+            "extendedMode" - True if extended mode is enabled
         """
         # validate state arguments
         if stateArgs is None or \
@@ -425,12 +428,16 @@ class DAQLive(LiveComponent):
 
             key = "runNumber"
             run_num = stateArgs[key]
+
+            key = "extendedMode"
+            extended_mode = key in stateArgs and stateArgs[key]
         except KeyError:
             raise LiveException("State arguments do not contain key \"%s\"" %
                                 (key, ))
 
         # start thread now, subsequent calls will check the thread result
-        self.__thread = StartThread(self, self.__log, run_cfg, run_num)
+        self.__thread = StartThread(self, self.__log, run_cfg, run_num,
+                                    extended_mode)
         self.__thread.start()
 
         return INCOMPLETE_STATE_CHANGE
@@ -492,6 +499,9 @@ class DAQLive(LiveComponent):
         try:
             key = "runNumber"
             run_num = stateArgs[key]
+
+            key = "extendedMode"
+            extended = stateArgs[key]
         except KeyError:
             raise LiveException("State arguments do not contain key \"%s\"" %
                                 (key, ))

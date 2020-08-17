@@ -8,7 +8,7 @@ from DAQLog import LogSocketServer
 from DAQTime import PayloadTime
 from LiveImports import LIVE_IMPORT, Prio
 from RunOption import RunOption
-from RunSet import ConnectionException, RunSet, RunSetException
+from RunSet import ConnectionException, RunData, RunSet, RunSetException
 from locate_pdaq import set_pdaq_config_dir
 from scmversion import get_scmversion_str
 
@@ -132,6 +132,10 @@ class FakeRunData(object):
 
     def connect_to_live(self):
         pass
+
+    @property
+    def dom_mode(self):
+        return RunData.DOMMODE_NORMAL
 
     def error(self, logmsg):
         if self.__logger is None:

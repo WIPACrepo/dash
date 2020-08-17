@@ -359,7 +359,8 @@ class CnCRun(BaseRun):
         return  # for non-Live runs, this is driven by BaseRun.waitForRun()
 
     def start_run(self, run_cfg_name, duration, num_runs=1, ignore_db=False,
-                  run_mode=None, filter_mode=None, verbose=False):
+                  run_mode=None, filter_mode=None, extended_mode=False,
+                  verbose=False):
         """
         Start a run
 
@@ -368,7 +369,8 @@ class CnCRun(BaseRun):
         num_runs - number of runs (default=1)
         ignore_db - don't check the database for this run config
         run_mode - Run mode for 'livecmd'
-        filter_mode - Run mode for 'livecmd'
+        filter_mode - Filter mode for 'livecmd'
+        extended_mode - True if DOMs should be put into "extended" mode
         verbose - print more details of run transitions
 
         Return True if the run was started
@@ -413,6 +415,8 @@ class CnCRun(BaseRun):
             self.log_error("Ignoring filter mode %s" % filter_mode)
 
         run_options = RunOption.LOG_TO_FILE | RunOption.MONI_TO_FILE
+        if extended_mode:
+            run_options |= RunOption.EXTENDED_MODE
 
         if self.__dry_run:
             print("Start run#%d with runset#%d" %

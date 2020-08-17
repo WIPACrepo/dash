@@ -708,7 +708,7 @@ class RealComponent(Comparable):
         self.__last_good_time = pay_time
         return "OK"
 
-    def __start_run(self, run_num):
+    def __start_run(self, run_num, dom_mode):
         if self.__connections is None:
             print("Component %s has no connections" % str(self),
                   file=sys.stderr)

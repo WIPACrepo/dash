@@ -247,7 +247,7 @@ class MockComponent(Comparable):
     def set_last_good_time(self, pay_time):
         pass
 
-    def start_run(self, run_cfg):  # pylint: disable=unused-argument
+    def start_run(self, run_cfg, dom_mode):  # pylint: disable=unused-argument
         self.__state = "running"
 
     def stop_run(self):

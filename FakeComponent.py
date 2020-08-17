@@ -200,7 +200,7 @@ class StringHub(FakeClient):
                                       (self.fullname, filename))
         self.__tcal_file_name = filename
 
-    def start_run(self, run_num):
+    def start_run(self, run_num, dom_mode):
         for name in ("stringHit", "icetopHit", "snData", "moniData",
                      "tcalData"):
             engine = self.get_output_connector(name)

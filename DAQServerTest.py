@@ -12,7 +12,7 @@ from DAQMocks import MockClusterConfig, MockCnCLogger, \
     MockDefaultDomGeometryFile, MockLeapsecondFile, MockLogger, \
     MockRunConfigFile, SocketReaderFactory, SocketWriter
 from RunOption import RunOption
-from RunSet import RunSet
+from RunSet import RunData, RunSet
 from locate_pdaq import set_pdaq_config_dir
 from utils import ip
 
@@ -138,7 +138,7 @@ class TinyClient(object):
     def reset_logging(self):
         pass
 
-    def start_run(self, run_num):  # pylint: disable=unused-argument
+    def start_run(self, run_num, dom_mode):  # pylint: disable=unused-argument
         self.__state = 'running'
 
     @property
@@ -169,6 +169,10 @@ class FakeRunData(object):
 
     def connect_to_live(self):
         pass
+
+    @property
+    def dom_mode(self):
+        return RunData.DOMMODE_NORMAL
 
     def error(self, logmsg):
         if self.__logger is None:

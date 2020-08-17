@@ -151,7 +151,7 @@ class OpStartRun(VoidOperation):
     "Start the component"
     @classmethod
     def execute(cls, comp, data):
-        return comp.start_run(data[0])
+        return comp.start_run(data[0], data[1])
 
 
 class OpStartSubrun(ComponentOperation):

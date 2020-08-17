@@ -1522,6 +1522,7 @@ class MockComponent(Comparable):
         self.__cmd_order = None
 
         self.__run_number = None
+        self.__dom_mode = None
 
         self.__is_bldr = name.endswith("Builder") or name.endswith("Builders")
         self.___is_src = name.endswith("Hub") or name == "amandaTrigger"
@@ -1615,6 +1616,10 @@ class MockComponent(Comparable):
         if self.__mbean_client is None:
             self.__mbean_client = self._create_mbean_client()
         return self.__mbean_client
+
+    @property
+    def dom_mode(self):
+        return self.__dom_mode
 
     def forced_stop(self):
         if self.__stop_fail:
@@ -1769,11 +1774,12 @@ class MockComponent(Comparable):
     def set_monitor_state(self, new_state):
         self.__monitor_state = new_state
 
-    def start_run(self, run_num):
+    def start_run(self, run_num, dom_mode):
         if not self.__configured:
             raise Exception(self.__name + ' has not been configured')
 
         self.__run_number = run_num
+        self.__dom_mode = dom_mode
 
     def start_subrun(self, _):
         if self.__is_bad_hub:
@@ -1890,9 +1896,9 @@ class MockDAQClient(DAQClient):
         self.__state = 'idle'
         return super(MockDAQClient, self).reset()
 
-    def start_run(self, run_num):
+    def start_run(self, run_num, dom_mode):
         self.__state = 'running'
-        return super(MockDAQClient, self).start_run(run_num)
+        return super(MockDAQClient, self).start_run(run_num, dom_mode)
 
     @property
     def state(self):

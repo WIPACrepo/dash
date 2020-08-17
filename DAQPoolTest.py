@@ -8,7 +8,7 @@ from CnCServer import DAQPool
 from DAQClient import DAQClientState
 from DAQLog import LogSocketServer
 from RunOption import RunOption
-from RunSet import RunSet, ConnectionException
+from RunSet import RunData, RunSet, ConnectionException
 
 from DAQMocks import MockComponent, MockLeapsecondFile, MockLogger, \
     MockRunConfigFile
@@ -47,6 +47,10 @@ class MockRunData(object):
 
     def connect_to_live(self):
         pass
+
+    @property
+    def dom_mode(self):
+        return RunData.DOMMODE_NORMAL
 
     def error(self, logmsg):
         if self.__logger is None:

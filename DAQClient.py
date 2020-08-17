@@ -632,10 +632,10 @@ class DAQClient(ComponentName):
         except:  # pylint: disable=bare-except
             self.__log.error(exc_string())
 
-    def start_run(self, run_num):
+    def start_run(self, run_num, dom_mode):
         "Start component processing DAQ data"
         try:
-            return self.__client.xmlrpc.startRun(run_num)
+            return self.__client.xmlrpc.startRun(run_num, dom_mode)
         except:  # pylint: disable=bare-except
             self.__log.error(exc_string())
             return None

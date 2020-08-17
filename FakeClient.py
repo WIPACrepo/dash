@@ -720,10 +720,10 @@ class FakeClient(object):
             print("SetLastGoodTime %s -> %s" % (self, last_time))
         return "SetLastGoodTime"
 
-    def __start_run(self, run_num):
+    def __start_run(self, run_num, dom_mode):
         if not self.__quiet:
             print("StartRun %s" % self)
-        self.start_run(run_num)
+        self.start_run(run_num, dom_mode)
         self.__state = "running"
         self.__run_num = run_num
         return self.__state
@@ -854,8 +854,9 @@ class FakeClient(object):
         for conn in self.__connections:
             conn.start()
 
-    def start_run(self, run_num):
-        print("%s fake-starting run#%s" % (self, run_num), file=sys.stderr)
+    def start_run(self, run_num, dom_mode):
+        print("%s fake-starting run#%s dom mode#%d" %
+              (self, run_num, dom_mode), file=sys.stderr)
 
     def stop_run(self):
         print("%s fake-stopping run" % (self, ), file=sys.stderr)

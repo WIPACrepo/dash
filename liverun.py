@@ -891,7 +891,8 @@ class LiveRun(BaseRun):
         proc.wait()
 
     def start_run(self, run_cfg_name, duration, num_runs=1, ignore_db=False,
-                  run_mode=None, filter_mode=None, verbose=False):
+                  run_mode=None, filter_mode=None, extended_mode=False,
+                  verbose=False):
         """
         Tell I3Live to start a run
 
@@ -901,6 +902,7 @@ class LiveRun(BaseRun):
         ignore_db - tell I3Live to not check the database for this run config
         run_mode - Run mode for 'livecmd'
         filter_mode - Run mode for 'livecmd'
+        extended_mode - True if DOMs should be put into "extended" mode
         verbose - print more details of run transitions
 
         Return True if the run was started
@@ -915,6 +917,8 @@ class LiveRun(BaseRun):
             args += " -r %s" % run_mode
         if filter_mode is not None:
             args += " -p %s" % filter_mode
+        if extended_mode:
+            args += " -x"
 
         cmd = "%s start -c %s -n %d -l %ds %s daq" % \
             (self.__livecmd_path, run_cfg_name, num_runs, duration, args)
