@@ -428,12 +428,19 @@ class DAQLive(LiveComponent):
 
             key = "runNumber"
             run_num = stateArgs[key]
-
-            key = "extendedMode"
-            extended_mode = key in stateArgs and stateArgs[key]
         except KeyError:
             raise LiveException("State arguments do not contain key \"%s\"" %
                                 (key, ))
+
+        # check for new 'extendedMode' flag
+        # TODO: Make this a required argument after Basilisk is released
+        try:
+            key = "extendedMode"
+            extended_mode = stateArgs[key]
+        except KeyError:
+            # raise LiveException("State arguments do not contain key \"%s\"" %
+            #                     (key, ))
+            extended_mode = False
 
         # start thread now, subsequent calls will check the thread result
         self.__thread = StartThread(self, self.__log, run_cfg, run_num,
@@ -499,9 +506,6 @@ class DAQLive(LiveComponent):
         try:
             key = "runNumber"
             run_num = stateArgs[key]
-
-            key = "extendedMode"
-            extended = stateArgs[key]
         except KeyError:
             raise LiveException("State arguments do not contain key \"%s\"" %
                                 (key, ))
