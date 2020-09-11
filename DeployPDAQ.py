@@ -265,7 +265,7 @@ def collapse_user(path, home=None):
 def deploy(config, pdaq_dir, subdirs, delete, dry_run, deep_dry_run,
            trace_level, nice_level=NICE_LEVEL_DEFAULT, express=EXPRESS_DEFAULT,
            wait_seconds=WAIT_SECONDS_DEFAULT, home=None,
-           ignore_missing_deployed_rev=False, rsync_runner=None):
+           rsync_runner=None):
     """
     Deploy pDAQ software and configuration files to the cluster
     """
@@ -281,7 +281,7 @@ def deploy(config, pdaq_dir, subdirs, delete, dry_run, deep_dry_run,
 
     # record the release/revision info
     if not dry_run:
-        store_scmversion(pdaq_dir, ignore_missing=ignore_missing_deployed_rev)
+        store_scmversion(pdaq_dir)
 
     # record the configuration being deployed so
     # it gets copied along with everything else
