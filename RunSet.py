@@ -2889,6 +2889,7 @@ class RunSet(object):
         """
         if self.__state == RunSetState.RUNNING and self.__stopping is None:
             try:
+                self.__logger.error("Watchdog is forcing the run to stop")
                 self.stop_run(caller_name, had_error=True)
             except:  # pylint: disable=bare-except
                 pass
@@ -2976,6 +2977,10 @@ class RunSet(object):
             raise
         finally:
             if len(waitlist) > 0:  # pylint: disable=len-as-condition
+                self.__logger.error("Could not stop %d component%s: %s" %
+                                    (len(waitlist),
+                                     "" if len(waitlist) == 1 else "s",
+                                     ", ".join(str(obj) for obj in waitlist)))
                 had_error = True
             try:
                 self.__finish_stop(run_data, caller_name, had_error=had_error)
