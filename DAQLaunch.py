@@ -267,7 +267,12 @@ def livecmd_default_config():
     config = None
     for line in proc.stdout:
         if config is None:
+            try:
+                line = line.decode("utf-8")
+            except AttributeError:
+                pass
             config = line.rstrip()
+            break
 
     proc.stdout.close()
     proc.wait()

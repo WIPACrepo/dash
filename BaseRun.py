@@ -1081,7 +1081,12 @@ class BaseRun(object):
         proc.stdin.close()
 
         for line in proc.stdout:
+            try:
+                line = line.decode("utf-8")
+            except AttributeError:
+                pass
             line = line.rstrip()
+
             self.log_command_output(line)
 
             if line.find("Committing ") >= 0 and \
