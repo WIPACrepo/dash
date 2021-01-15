@@ -271,7 +271,10 @@ def livecmd_default_config():
                 line = line.decode("utf-8")
             except AttributeError:
                 pass
-            config = line.rstrip()
+            if line.find("Traceback ") >= 0:
+                raise SystemExit("Cannot get default run config file name"
+                                 " from \"livecmd\"")
+            config = line
             break
 
     proc.stdout.close()
