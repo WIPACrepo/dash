@@ -378,8 +378,8 @@ class LiveState(object):
                 return self.PARSE_NORMAL
 
             if front not in self.__complained:
-                self.__logger.error("Unknown livecmd pair: \"%s\"/\"%s\"" %
-                                    (front, back))
+                self.__logger.error("Unknown livecmd field: \"%s\""
+                                    " (set to /\"%s\")" % (front, back))
                 self.__complained[front] = 1
 
             return self.PARSE_NORMAL
@@ -687,10 +687,10 @@ class LiveRun(BaseRun):
                 line = line.decode("utf-8").rstrip()
                 self.log_command_output(line)
 
-                if line != "OK" and not line.startswith("Starting subrun"):
-                    problem = True
-                if problem:
+                if line != "OK" and not line.find("Starting subrun") >= 0:
                     self.log_error("Flasher: %s" % line)
+                    problem = True
+
             proc.stdout.close()
 
             proc.wait()
