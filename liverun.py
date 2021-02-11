@@ -202,7 +202,7 @@ class LiveState(object):
     def __init__(self,
                  liveCmd=os.path.join(os.environ["HOME"], "bin", "livecmd"),
                  show_check=False, show_check_output=False, logger=None,
-                 dry_run=False, old_commands=False):
+                 dry_run=False):
         """
         Create an I3Live service tracker
 
@@ -217,7 +217,6 @@ class LiveState(object):
         self.__show_check_output = show_check_output
         self.__logger = logger
         self.__dry_run = dry_run
-        self.__old_commands = old_commands
 
         self.__thread_state = None
         self.__run_state = LiveRunState.get(LiveRunState.UNKNOWN)
@@ -421,9 +420,7 @@ class LiveState(object):
     def check(self):
         "Check the current I3Live service states"
 
-        cmd = "livecmd check"
-        if not self.__old_commands:
-            cmd += " --nolog"
+        cmd = "livecmd check --nolog"
         if self.__show_check:
             self.log_command(cmd)
 
@@ -480,7 +477,7 @@ class LiveRun(BaseRun):
 
     def __init__(self, show_commands=False, show_command_output=False,
                  show_check=False, show_check_output=False, dry_run=False,
-                 logfile=None, old_commands=False):
+                 logfile=None):
         """
         show_commands - True if commands should be printed before being run
         show_command_output - True if command output should be printed
@@ -488,7 +485,6 @@ class LiveRun(BaseRun):
         show_check_output - True if 'livecmd check' output should be printed
         dry_run - True if commands should only be printed and not executed
         logfile - file where all log messages are saved
-        old_commands - use old-style arguments (delete after 2020)
         """
 
         super(LiveRun, self).__init__(show_commands=show_commands,
@@ -496,7 +492,6 @@ class LiveRun(BaseRun):
                                       dry_run=dry_run, logfile=logfile)
 
         self.__dry_run = dry_run
-        self.__old_commands = old_commands
 
         # used during dry runs to simulate the run number
         self.__fake_run_num = 12345
@@ -510,8 +505,7 @@ class LiveRun(BaseRun):
         #
         self.__state = LiveState(self.__livecmd_path, show_check=show_check,
                                  show_check_output=show_check_output,
-                                 logger=self.logger(), dry_run=self.__dry_run,
-                                 old_commands=self.__old_commands)
+                                 logger=self.logger(), dry_run=self.__dry_run)
 
     def __control_pdaq(self, wait_secs, attempts=3):
         """
@@ -749,11 +743,7 @@ class LiveRun(BaseRun):
     @property
     def runs_per_restart(self):
         """Get the number of continuous runs between restarts"""
-        if self.__old_commands:
-            subcmd = "runs per restart"
-        else:
-            subcmd = "runs-per-restart"
-        cmd = "livecmd %s" % subcmd
+        cmd = "livecmd runs-per-restart"
         self.log_command(cmd)
 
         if self.__dry_run:
@@ -867,11 +857,7 @@ class LiveRun(BaseRun):
         if cur_num == num:
             return
 
-        if self.__old_commands:
-            subcmd = "runs per restart"
-        else:
-            subcmd = "runs-per-restart"
-        cmd = "livecmd %s %d" % (subcmd, num)
+        cmd = "livecmd runs-per-restart %d" % (subcmd, num)
         self.log_command(cmd)
 
         if self.__dry_run:
