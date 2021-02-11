@@ -827,6 +827,37 @@ class CmdTest(CmdStdTest):
 
 
 @command
+class CmdUpdateLeapseconds(BaseCmd):
+    @classmethod
+    def add_arguments(cls, parser):
+        from leapsecond_fetch import add_arguments
+        add_arguments(parser)
+
+    @classmethod
+    def cmdtype(cls):
+        return cls.CMDTYPE_NONE
+
+    @classproperty
+    def description(cls):  # pylint: disable=no-self-argument
+        "One-line description of this subcommand"
+        return "Install the latest NIST leapseconds file"
+
+    @classmethod
+    def is_valid_host(cls, args):
+        "The leapseconds file should be updated on the build host"
+        return Machineid().is_build_host
+
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
+        return "update_leapseconds"
+
+    @classmethod
+    def run(cls, args):
+        from leapsecond_fetch import update_leapseconds_file
+        update_leapseconds_file(args)
+
+
+@command
 class CmdWorkspace(BaseCmd):
     @classmethod
     def add_arguments(cls, parser):

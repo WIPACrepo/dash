@@ -1482,7 +1482,8 @@ class RunSet(object):
                 # format an alert message
                 value = {
                     "condition": "nist leapsecond file is missing",
-                    "desc": "Run dash/leapsecond-fetch.py and deploy pdaq",
+                    "desc": "Run `pdaq leapsecond_update &&"
+                            " pdaq deploy <current run config>`",
                     "vars": {
                         "config_dir": config_dir,
                     }

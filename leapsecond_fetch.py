@@ -2,6 +2,7 @@
 
 from __future__ import print_function
 
+import argparse
 import socket
 import re
 import os
@@ -9,6 +10,14 @@ import shutil
 
 from ftplib import FTP
 from leapseconds import LeapSeconds
+
+
+def add_arguments(parser):
+    "Add command-line arguments"
+
+    parser.add_argument("-v", "--verbose", dest="verbose",
+                        action="store_true", default=False,
+                        help="Print progress messages during run")
 
 
 def compare_latestleap(latest, filename, verbose=False):
@@ -165,20 +174,23 @@ def install_latestleap(latest, filename, verbose=False):
                   (basename, ldir, os.path.basename(latest)))
 
 
-def main():
-    "Main program"
-
-    import sys
-
-    verbose = len(sys.argv) > 1 and sys.argv[1] == "-v"
-
+def update_leapseconds_file(args):
     latest = LeapSeconds.get_latest_path()
 
     newfile = fetch_latestleap(host='ftp.nist.gov',
-                               path='/pub/time/', verbose=verbose)
+                               path='/pub/time/', verbose=args.verbose)
 
     if compare_latestleap(latest, newfile, True):
         install_latestleap(latest, newfile, True)
+
+def main():
+    "Main program"
+
+    parser = argparse.ArgumentParser()
+    add_arguments(parser)
+    args = parser.parse_args()
+
+    update_leapseconds_file(args)
 
 
 if __name__ == "__main__":
