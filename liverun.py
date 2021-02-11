@@ -436,7 +436,7 @@ class LiveState(object):
 
         parse_state = self.PARSE_NORMAL
         for line in proc.stdout:
-            line = line.rstrip()
+            line = line.decode("utf-8").rstrip()
             if self.__show_check_output:
                 self.log_command_output(line)
 
@@ -530,7 +530,7 @@ class LiveRun(BaseRun):
 
         controlled = False
         for line in proc.stdout:
-            line = line.rstrip()
+            line = line.decode("utf-8").rstrip()
             self.log_command_output(line)
 
             if line == "Service pdaq is now being controlled" or \
@@ -584,7 +584,7 @@ class LiveRun(BaseRun):
 
         problem = False
         for line in proc.stdout:
-            line = line.rstrip()
+            line = line.decode("utf-8").rstrip()
             self.log_command_output(line)
 
             if line != "OK":
@@ -683,7 +683,7 @@ class LiveRun(BaseRun):
             proc.stdin.close()
 
             for line in proc.stdout:
-                line = line.rstrip()
+                line = line.decode("utf-8").rstrip()
                 self.log_command_output(line)
 
                 if line != "OK" and not line.startswith("Starting subrun"):
@@ -716,7 +716,7 @@ class LiveRun(BaseRun):
 
         num = None
         for line in proc.stdout:
-            line = line.rstrip()
+            line = line.decode("utf-8").rstrip()
             self.log_command_output(line)
 
             try:
@@ -758,7 +758,7 @@ class LiveRun(BaseRun):
 
         cur_num = None
         for line in proc.stdout:
-            line = line.rstrip()
+            line = line.decode("utf-8").rstrip()
             self.log_command_output(line)
             try:
                 cur_num = int(line)
@@ -871,7 +871,7 @@ class LiveRun(BaseRun):
                                 shell=True)
         proc.stdin.close()
         for line in proc.stdout:
-            line = line.rstrip()
+            line = line.decode("utf-8").rstrip()
             self.log_command_output(line)
         proc.stdout.close()
         proc.wait()
