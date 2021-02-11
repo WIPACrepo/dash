@@ -199,6 +199,27 @@ class LiveState(object):
     PARSE_ALERTS = 3
     PARSE_PAGES = 4
 
+    IGNORED_FIELDS = (
+        # start/stop times
+        "tstart", "t_valid_start", "t_valid_start_frac", "tstop", "tstop_frac",
+        "livestart",
+        # rates
+        "physicsEvents", "physicsEventsTime",
+        "walltimeEvents", "walltimeEventsTime",
+        "tcalEvents", "moniEvents", "snEvents", "runlength",
+        # run time info
+        "Target run stop time", "Currently", "Time since start",
+        "Time until stop", "Next run transition",
+        # DAQ release name
+        "daqrelease",
+        # run start/switch info
+        "Run starts",
+        # flashing state
+        "Flashing state",
+        # mode info
+        "Run mode", "Filter mode", "Extended mode",
+        )
+
     def __init__(self,
                  liveCmd=os.path.join(os.environ["HOME"], "bin", "livecmd"),
                  show_check=False, show_check_output=False, logger=None,
@@ -338,43 +359,13 @@ class LiveState(object):
                 self.__config = back
                 return self.PARSE_NORMAL
 
-            if front.startswith("tstart") or front.startswith("tstop") or \
-                 front.startswith("t_valid") or front == "livestart":
-                # ignore start/stop times
-                return self.PARSE_NORMAL
-
-            if front in ("physicsEvents", "physicsEventsTime",
-                         "walltimeEvents", "walltimeEventsTime",
-                         "tcalEvents", "moniEvents", "snEvents", "runlength"):
-                # ignore rates
-                return self.PARSE_NORMAL
-
-            if front in ("Target run stop time", "Currently",
-                         "Time since start", "Time until stop",
-                         "Next run transition"):
-                # ignore run time info
-                return self.PARSE_NORMAL
-
-            if front == "daqrelease":
-                # ignore DAQ release name
-                return self.PARSE_NORMAL
-
-            if front == "Run starts":
-                # ignore run start/switch info
-                return self.PARSE_NORMAL
-
-            if front == "Flashing state":
-                # ignore flashing state
-                return self.PARSE_NORMAL
-
             if front == "check failed" and back.find("timed out") >= 0:
                 self.__logger.error("I3Live may have died" +
                                     " (livecmd check returned '%s')" %
                                     line.rstrip())
                 return self.PARSE_NORMAL
 
-            if front in ("Run mode", "Filter mode"):
-                # ignore run/filter mode info
+            if front in self.IGNORED_FIELDS:
                 return self.PARSE_NORMAL
 
             if front not in self.__complained:
