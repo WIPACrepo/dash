@@ -381,7 +381,8 @@ class LiveState(object):
                 self.__logger.error("Unknown livecmd pair: \"%s\"/\"%s\"" %
                                     (front, back))
                 self.__complained[front] = 1
-                return self.PARSE_NORMAL
+
+            return self.PARSE_NORMAL
 
         mtch = self.SVC_PAT.match(line)
         if mtch is not None:
