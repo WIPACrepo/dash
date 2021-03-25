@@ -849,7 +849,7 @@ class LiveRun(BaseRun):
         if cur_num == num:
             return
 
-        cmd = "livecmd runs-per-restart %d" % (subcmd, num)
+        cmd = "livecmd runs-per-restart %d" % (num, )
         self.log_command(cmd)
 
         if self.__dry_run:
