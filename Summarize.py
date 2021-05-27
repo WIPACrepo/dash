@@ -1,5 +1,8 @@
 #!/usr/bin/env python
-"Summarize each run as a single line of text"
+"""
+`pdaq summarize` script which prints an I3Live-style summary of all
+runs found in /mnt/data/pdaq/logs
+"""
 
 from __future__ import print_function
 

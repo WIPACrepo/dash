@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-#
-# Classes used for pDAQ unit testing
+"""
+A collection of hand-coded mock objects used by unit tests
+"""
 
 from __future__ import print_function
 

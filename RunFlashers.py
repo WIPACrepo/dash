@@ -1,7 +1,9 @@
 #!/usr/bin/env python
-#
-# Read a list of flasher files and durations from a text file and
-# execute a flasher run
+"""
+`pdaq flash` script which reads a list of flasher files and durations from a
+text file and executes a flasher run
+"""
+
 
 import os
 import sys

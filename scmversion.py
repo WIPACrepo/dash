@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
-A module for identifying the pDAQ release name (defaults to
-'trunk') and extracting relevant source control details.
+A module for identifying the pDAQ release name (defaults to 'trunk') and
+extracting relevant source control details.
 """
 
 from __future__ import print_function

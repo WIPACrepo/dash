@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"Deal with the various run configuration name caches"
+"read or update a file holding a configuration name (e.g. ~/.active)"
 
 from __future__ import print_function
 

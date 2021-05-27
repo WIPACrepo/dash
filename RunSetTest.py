@@ -228,7 +228,7 @@ class MyRunSet(RunSet):
         return FakeLogger(port)
 
     def create_run_data(self, run_num, cluster_config, run_options,
-                        version_info, spade_dir, copy_dir=None, log_dir=None):
+                        version_info, jade_dir, copy_dir=None, log_dir=None):
         fake = FakeRunData(run_num, self.__run_config, cluster_config,
                            version_info, self.__moni_client)
         fake.set_mock_logger(self.__logger)
@@ -663,7 +663,7 @@ class TestRunSet(unittest.TestCase):
 
     def __start_run(self, runset, run_num, run_config, clu_cfg,
                     run_options=RunOption.MONI_TO_NONE, version_info=None,
-                    spade_dir="/tmp", copy_dir=None, log_dir=None,
+                    jade_dir="/tmp", copy_dir=None, log_dir=None,
                     components=None, logger=None):
         if not LIVE_IMPORT and not self.CAUGHT_WARNING:
             self.set_caught_warning()
@@ -712,7 +712,7 @@ class TestRunSet(unittest.TestCase):
 
         try:
             runset.start_run(run_num, clu_cfg, run_options, version_info,
-                             spade_dir, copy_dir, log_dir)
+                             jade_dir, copy_dir, log_dir)
             self.assertEqual(str(runset), 'RunSet #%d run#%d (%s)' %
                              (runset.id, run_num, exp_state))
         except ConnectionException as cex:
@@ -800,7 +800,7 @@ class TestRunSet(unittest.TestCase):
             logger.add_expected_exact("Run terminated SUCCESSFULLY.")
 
         logger.add_expected_exact("Not logging to file so cannot queue to"
-                                  " SPADE")
+                                  " JADE")
 
         self.__add_moni_run_update(runset, moni_client, run_num)
 
@@ -1153,7 +1153,7 @@ class TestRunSet(unittest.TestCase):
         logger.add_expected_exact("Run terminated SUCCESSFULLY.")
 
         logger.add_expected_exact("Not logging to file so cannot queue to"
-                                  " SPADE")
+                                  " JADE")
 
         logger.add_expected_exact("RunSet #1 run#%d (forcingStop):"
                                   " Forcing 6 components to stop: %s" %

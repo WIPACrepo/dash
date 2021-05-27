@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: iso-8859-1 -*-
 ############################################################################
-#
-# Utility functions for formatting exceptions and stack traces so that they are
-# guaranteed to fit in a single line and contain only chars in specified
-# encoding.  Very useful for logging and handling dead end exceptions.
-#
+
+"""
+Utility functions for formatting exceptions and stack traces so that they are
+guaranteed to fit in a single line and contain only chars in specified
+encoding.  Very useful for logging and handling dead end exceptions.
+"""
+
 # Written by Dmitry Dvoinikov <dmitry@targeted.org> (c) 2005
 # Distributed under MIT license.
 #

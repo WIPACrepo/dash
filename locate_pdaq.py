@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""
+utility functions which attempt to find pDAQ's configuration directory
+or the trunk of its software tree 
+"""
 
 import os
 

@@ -1,8 +1,12 @@
-"""A set of utilities that aims at making accessing xml files a little easier
+#!/usr/bin/env python
+
+"""
+A set of utilities that aims at making accessing xml files a little easier
 XMLDict will transform an xml file into a python dictionary.  See the
 associated doctests for xml_fmt or dict_xml_tree for examples of how this
 works.  The two functions contained here are for accessing attributes or
-values of the root element of the python dictionary passed to them."""
+values of the root element of the python dictionary passed to them.
+"""
 
 from __future__ import print_function
 

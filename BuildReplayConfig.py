@@ -1,9 +1,12 @@
 #!/usr/bin/env python
-#
-# Build a "replay" run configuration from a directory full of hitspool
-# files.  The top-level directory should contain a set of subdirectories
-# whose names include "ichub##" and/or "ithub##", and those subdirectories
-# should hold the actual HitSpool files.  An example might be:
+"""
+Utility script which builds a replay run configuration from a directory
+of hitspool files
+"""
+
+# The top-level directory should contain a set of subdirectories whose names
+# include "ichub##" and/or "ithub##", and those subdirectories should hold
+# the actual HitSpool files.  An example might be:
 #
 #    /net/data2/pdaq/testdaq/hitspool/from_sndaq_alerts/2013/0403/
 #        SNALERT_20130403_0611113_sps-ichub01.sps.icecube.southpole.usap.gov

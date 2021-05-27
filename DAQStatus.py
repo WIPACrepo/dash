@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+`pdaq status` script which prints the state of the detecto
+"""
 
 from __future__ import print_function
 

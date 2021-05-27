@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""
+CnCServer class which uses the run configuration and cluster configuration
+to determine the subset of the detector needed for a run 
+"""
 
 from __future__ import print_function
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
-Create a new run configuration without one or more hubs/racks
+`pdaq removehubs` script to create a new run configuration file by
+removing hubs or racks from the original configuration
 """
 
 from __future__ import print_function

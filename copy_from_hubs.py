@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""
+`pdaq copy_from_hubs` script which copies SuperSaver files from one or more
+hubs, pausing all copies during the first and last minutes of runs
+"""
 
 from __future__ import print_function
 

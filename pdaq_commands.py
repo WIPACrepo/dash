@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-#
-# Complete list of 'pdaq' subcommands
+"Wrappers for all `pdaq` subcommands"
 
 from __future__ import print_function
 

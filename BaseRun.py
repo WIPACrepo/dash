@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-#
-# Base class for managing pDAQ runs
+"""
+base class for driving a `pdaq stdtest` run
+"""
 
 from __future__ import print_function
 

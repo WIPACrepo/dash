@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""
+`pdaq deploy` script which updates all hosts with the latest version
+of all pDAQ software and data
+"""
 
 # DeployPDAQ.py
 # Jacobsen Feb. 2007

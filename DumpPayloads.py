@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-#
-# Dump all payloads in the data file
+"""
+`pdaq dumpdata` script which dumps a payload file
+"""
 
 from RunJava import run_java
 

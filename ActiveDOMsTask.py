@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+RunData task which reports the number of active DOMs and LBM overflows 
+"""
 
 import datetime
 

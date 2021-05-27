@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""
+script called from within `pdaq copy_from_hubs` to copy HitSpool or
+SuperSaver files from a single hub 
+"""
 
 from __future__ import print_function
 

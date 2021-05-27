@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
-Use default-dom-geometry.xml to create a nicknames.txt file and print the
-result to sys.stdout
+Translate default-dom-geometry.xml to the "nicknames.txt" format (still used
+by some low-level DOM operations) and print the result to sys.stdout
 """
 
 from __future__ import print_function

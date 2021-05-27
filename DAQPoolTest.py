@@ -102,7 +102,7 @@ class MyRunSet(RunSet):
         return FakeLogger(port)
 
     def create_run_data(self, run_num, cluster_config, run_options,
-                        version_info, spade_dir, copy_dir=None, log_dir=None):
+                        version_info, jade_dir, copy_dir=None, log_dir=None):
         return MockRunData(run_num, self.get_log("dashLog"))
 
     def final_report(self, comps, run_data, had_error=False, switching=False):
@@ -780,11 +780,11 @@ class TestDAQPool(unittest.TestCase):
             "repo_rev": "1repoRev",
         }
 
-        spade_dir = "/tmp"
+        jade_dir = "/tmp"
         copy_dir = None
 
         runset.start_run(run_num, cluster_cfg, moni_type, version_info,
-                         spade_dir, copy_dir)
+                         jade_dir, copy_dir)
 
         self.__check_runset_state(runset, 'running')
         dash_log.check_status(10)
@@ -807,7 +807,7 @@ class TestDAQPool(unittest.TestCase):
         self.assertEqual(mon_dict["physicsEvents"], num_evts)
 
         dash_log.add_expected_exact("Not logging to file so cannot queue to"
-                                    " SPADE")
+                                    " JADE")
 
         stop_name = "TestStartRun"
         dash_log.add_expected_exact("Stopping the run (%s)" % stop_name)

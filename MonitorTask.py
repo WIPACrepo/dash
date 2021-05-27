@@ -1,5 +1,8 @@
 #!/usr/bin/env python
-"Monitor pDAQ components"
+"""
+CnCServer run-specific task which writes gathers "MBean" data from a component
+and writes it to `runXXX/component-0.moni`
+"""
 
 from __future__ import print_function
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+"base class which emulates a DAQ Component for DAQFakeRun.py"
 
 from __future__ import print_function
 

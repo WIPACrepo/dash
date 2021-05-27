@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+Convert a cluster.cfg file into a Python object
+"""
 
 from __future__ import print_function
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"Text ActiveDOMTask"
+"ActiveDOMTask unit tests"
 
 import unittest
 

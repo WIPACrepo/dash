@@ -1,6 +1,8 @@
 #!/usr/bin/env python
-#
-# Sort all log files from a run, screen out some noise
+"""
+`pdaq sortlogs` script which merges together all log files for a run.
+This script is also used by CnCServer to create `runXXX/combined.log`
+"""
 
 from __future__ import print_function
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 """
+Turn the current process into a Unix daemon:
 Detach the current process from the terminal, close all file handles, and
 attach stdin/stdout/stderr to /dev/null
 """

@@ -1,16 +1,17 @@
 #!/usr/bin/env python
-#
-# Use doms.txt or nicknames.txt file to create a default-dom-geometry file and
-# print the result to sys.stdout
-#
-# URL: http://icecube.wisc.edu/~testdaq/database_files/nicknames.txt
-#
-# The latest geometry file can be used to update the x/y/z coordinates
-# for each DOM.  That information is linked to via the "Newest geometry"
-# entry at http://wiki.icecube.wisc.edu/index.php/Geometry_releases
-# and can be fetched with:
-#
-#    wget --user=icecube --ask-password <NEWEST_GEOMETRY_URL>
+"""
+Use doms.txt or nicknames.txt file to create a default-dom-geometry file and
+print the result to sys.stdout
+
+URL: http://icecube.wisc.edu/~testdaq/database_files/nicknames.txt
+
+The latest geometry file can be used to update the x/y/z coordinates
+for each DOM.  That information is linked to via the "Newest geometry"
+entry at http://wiki.icecube.wisc.edu/index.php/Geometry_releases
+and can be fetched with:
+
+    wget --user=icecube --ask-password <NEWEST_GEOMETRY_URL>
+"""
 
 
 def main():

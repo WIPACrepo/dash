@@ -1,7 +1,9 @@
 #!/usr/bin/env python
-#
-# Classes to support pDAQ's default-dom-geometry.xml file which is the
-# "database" of all static DOM information
+"""
+classes which convert pDAQ's "database" of static DOM info (found in
+`~pdaq/config/default-dom-geometry.xml`) into a set of Python objects, as
+well as functions to modify and write out a new XML file 
+"""
 
 from __future__ import print_function
 

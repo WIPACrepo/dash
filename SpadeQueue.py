@@ -1,16 +1,11 @@
 #!/usr/bin/env python
-
 """
-SpadeQueue.py
-John Jacobsen, NPX Designs, Inc., john@mail.npxdesigns.com
-Started: Tue Aug 11 17:25:20 2009
-
-Functions for putting SPADE data in queue, either 'by hand' (when
-run from command line) or programmatically (when imported from, e.g.,
-RunSet.py)
-
-If run from 'cron', run as "SpadeQueue.py -a -c"
+`pdaq queuelogs` script which is also used by CnCServer to queue the
+pDAQ run files (logs and moni files) for JADE
 """
+
+# John Jacobsen, NPX Designs, Inc., john@mail.npxdesigns.com
+# Started: Tue Aug 11 17:25:20 2009
 
 from __future__ import print_function
 

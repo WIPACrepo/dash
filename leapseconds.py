@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 A python set of leapsecond utilities
 Note that the doctests assume that the nist ntp tai offset file available from:

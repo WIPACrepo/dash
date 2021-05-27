@@ -1,7 +1,9 @@
 #!/usr/bin/env python
-#
-# Split a run configuration into detector quadrants
-#
+"""
+`pdaq generate-config-set` script which generates the alternate and
+"-no##" configs from a full detector run configuration
+"""
+
 # J. Kelley
 # 15 January 2013
 

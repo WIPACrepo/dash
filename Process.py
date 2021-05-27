@@ -1,5 +1,8 @@
 #!/usr/bin/env python
-#
+"""
+A few utilities for dealing with Unix processes 
+"""
+
 # Note that most of this functionality exists in the `psutil` package
 # so this code should be reexamined if we ever add it to pDAQ
 

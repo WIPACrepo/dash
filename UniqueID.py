@@ -1,5 +1,8 @@
 #!/usr/bin/env python
-"Generate a series of ID values"
+"""
+Thread-safe class which generates a monotonically increasing series of
+ID values
+"""
 
 import threading
 

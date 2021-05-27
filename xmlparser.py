@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+"Utility methods useful for parsing XML files"
 
 import os
 

@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""
+`pdaq switchenv` script which alters the ~/env link for all hosts in
+the cluster
+"""
 
 from __future__ import print_function
 

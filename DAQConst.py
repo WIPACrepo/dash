@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-
-#
-# DAQ Constant values
-
+"""
+"header" file which defines all important internally used socket ports
+"""
 
 class DAQPort(object):
     "DAQLive port"

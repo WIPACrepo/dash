@@ -236,7 +236,7 @@ class MockRunSet(RunSet):
         return self.__client_log
 
     def create_run_data(self, run_num, cluster_config, run_options,
-                        version_info, spade_dir, copy_dir=None, log_dir=None):
+                        version_info, jade_dir, copy_dir=None, log_dir=None):
         mrd = FakeRunData(run_num, self.__run_config, cluster_config)
         mrd.set_mock_logger(self.__dash_log)
         return mrd
@@ -268,7 +268,7 @@ class MockServer(CnCServer):
     APPENDER = MockLogger('server')
 
     def __init__(self, cluster_config_object=None, copy_dir=None,
-                 run_config_dir=None, daq_data_dir=None, spade_dir=None,
+                 run_config_dir=None, daq_data_dir=None, jade_dir=None,
                  log_port=None, live_port=None, force_restart=False,
                  client_log=None, log_factory=None):
         self.__cluster_config = cluster_config_object
@@ -278,7 +278,7 @@ class MockServer(CnCServer):
         super(MockServer, self).__init__(copy_dir=copy_dir,
                                          run_config_dir=run_config_dir,
                                          daq_data_dir=daq_data_dir,
-                                         spade_dir=spade_dir,
+                                         jade_dir=jade_dir,
                                          log_host='localhost',
                                          log_port=log_port,
                                          live_host='localhost',
@@ -494,7 +494,7 @@ class TestDAQServer(unittest.TestCase):
 
         cnc = MockServer(cluster_config_object=clu_cfg, copy_dir="copyDir",
                          run_config_dir=self.__run_config_dir,
-                         daq_data_dir=self.__daq_data_dir, spade_dir="/tmp",
+                         daq_data_dir=self.__daq_data_dir, jade_dir="/tmp",
                          log_port=log_port, client_log=client_logger,
                          log_factory=self.__log_factory)
 
@@ -591,7 +591,7 @@ class TestDAQServer(unittest.TestCase):
         logger.add_expected_text("Run terminated SUCCESSFULLY")
 
         logger.add_expected_text("Not logging to file so cannot queue to"
-                                 " SPADE")
+                                 " JADE")
 
         self.assertEqual(cnc.rpc_runset_stop_run(rsid), 'OK')
 

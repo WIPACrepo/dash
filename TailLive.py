@@ -1,6 +1,8 @@
 #!/usr/bin/env python
-#
-# Add color to `livecmd tail` output so it's more readable
+"""
+`pdaq taillive` script which prints a colorized and slightly reformatted
+version of `livecmd tail` output
+"""
 
 from __future__ import print_function
 

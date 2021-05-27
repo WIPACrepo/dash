@@ -1,7 +1,8 @@
 #!/usr/bin/env python
-#
-# Produce a report of the hourly and total data rates for all the components
-# in the IceCube DAQ, using data from the pDAQ .moni files.
+"""
+Produce a report of the hourly and total data rates for all the components
+in the IceCube DAQ, using data from the pDAQ .moni files.
+"""
 
 from __future__ import print_function
 

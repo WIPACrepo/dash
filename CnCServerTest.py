@@ -181,7 +181,7 @@ class MostlyRunSet(RunSet):
         return log
 
     def create_run_data(self, run_num, cluster_config, run_options,
-                        version_info, spade_dir, copy_dir=None, log_dir=None):
+                        version_info, jade_dir, copy_dir=None, log_dir=None):
         return FakeRunData(run_num, self.__run_config, cluster_config,
                            dashlog=self.__dashlog)
 
@@ -236,7 +236,7 @@ class MostlyCnCServer(CnCServer):
     APPENDERS = {}
 
     def __init__(self, cluster_config_object, copy_dir=None,
-                 run_config_dir=None, daq_data_dir=None, spade_dir=None,
+                 run_config_dir=None, daq_data_dir=None, jade_dir=None,
                  log_host='localhost', log_port=-1, log_factory=None,
                  dashlog=None, force_restart=False):
 
@@ -248,7 +248,7 @@ class MostlyCnCServer(CnCServer):
                                               copy_dir=copy_dir,
                                               run_config_dir=run_config_dir,
                                               daq_data_dir=daq_data_dir,
-                                              spade_dir=spade_dir,
+                                              jade_dir=jade_dir,
                                               log_host=log_host,
                                               log_port=log_port,
                                               force_restart=force_restart,
@@ -639,7 +639,7 @@ class CnCServerTest(unittest.TestCase):
         self.__copy_dir = tempfile.mkdtemp()
         self.__run_config_dir = tempfile.mkdtemp()
         self.__daq_data_dir = tempfile.mkdtemp()
-        self.__spade_dir = tempfile.mkdtemp()
+        self.__jade_dir = tempfile.mkdtemp()
 
         self.comps = []
         self.cnc = None
@@ -671,9 +671,9 @@ class CnCServerTest(unittest.TestCase):
         if self.__daq_data_dir is not None:
             shutil.rmtree(self.__daq_data_dir, ignore_errors=True)
             self.__daq_data_dir = None
-        if self.__spade_dir is not None:
-            shutil.rmtree(self.__spade_dir, ignore_errors=True)
-            self.__spade_dir = None
+        if self.__jade_dir is not None:
+            shutil.rmtree(self.__jade_dir, ignore_errors=True)
+            self.__jade_dir = None
 
         set_pdaq_config_dir(None, override=True)
 
@@ -748,7 +748,7 @@ class CnCServerTest(unittest.TestCase):
                                    copy_dir=self.__copy_dir,
                                    run_config_dir=self.__run_config_dir,
                                    daq_data_dir=self.__daq_data_dir,
-                                   spade_dir=self.__spade_dir,
+                                   jade_dir=self.__jade_dir,
                                    log_port=catchall.port,
                                    dashlog=dashlog,
                                    force_restart=force_restart)
@@ -950,7 +950,7 @@ class CnCServerTest(unittest.TestCase):
             dashlog.add_expected_exact("Run switched SUCCESSFULLY.")
 
             dashlog.add_expected_exact("Not logging to file so cannot queue"
-                                       " to SPADE")
+                                       " to JADE")
 
             self.cnc.rpc_runset_switch_run(set_id, new_num)
 
@@ -980,7 +980,7 @@ class CnCServerTest(unittest.TestCase):
         dashlog.add_expected_exact("Run terminated SUCCESSFULLY.")
 
         dashlog.add_expected_exact("Not logging to file so cannot queue to"
-                                   " SPADE")
+                                   " JADE")
         for comp in self.comps:
             if comp.name == "stringHub":
                 comp.set_bean_field_value("stringhub",

@@ -1,10 +1,11 @@
 #!/usr/bin/env python
+"""
+`pdaq run` script which can be used to drive CnCServer when I3Live is
+not available (e.g. pdaq2 split detector runs)
+"""
 
-"""
-Example use of DAQRunIface - starting and monitoring runs
-John Jacobsen, jacobsen@npxdesigns.com
-Started November, 2006
-"""
+# John Jacobsen, jacobsen@npxdesigns.com
+# Started November, 2006
 
 from __future__ import print_function
 
@@ -14,7 +15,7 @@ from BaseRun import FlasherScript
 from cncrun import CnCRun
 from utils.Machineid import Machineid
 
-SVN_ID = "$Id: ExpControlSkel.py 17720 2020-02-25 21:53:22Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 17936 2021-05-27 20:50:40Z dglo $"
 
 
 class DOMArgumentException(Exception):

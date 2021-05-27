@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+Main thread which manages all components during a detector "run"
+"""
 
 import datetime
 import os
@@ -568,7 +571,7 @@ class RunData(object):
     DOMMODE_EXTENDED = 2
 
     def __init__(self, run_set, run_number, cluster_config, run_config,
-                 run_options, version_info, spade_dir, copy_dir, log_dir):
+                 run_options, version_info, jade_dir, copy_dir, log_dir):
         """
         Constructor for object holding run-specific data
 
@@ -578,8 +581,8 @@ class RunData(object):
         run_config - current run configuration
         run_options - logging/monitoring options
         version_info - release and revision info
-        spade_dir - directory where SPADE files are written
-        copy_dir - directory where a copy of the SPADE files is kept
+        jade_dir - directory where JADE files are written
+        copy_dir - directory where a copy of the JADE files is kept
         log_dir - top-level logging directory
         """
         self.__run_number = run_number
@@ -588,7 +591,7 @@ class RunData(object):
         self.__run_config = run_config
         self.__run_options = run_options
         self.__version_info = version_info
-        self.__spade_dir = spade_dir
+        self.__jade_dir = jade_dir
         self.__copy_dir = copy_dir
         self.__finished = False
         self.__task_mgr = None
@@ -605,10 +608,10 @@ class RunData(object):
             self.__run_dir = run_set.create_run_dir(self.__log_dir,
                                                     self.__run_number)
 
-        if self.__spade_dir is not None and \
-           not os.path.exists(self.__spade_dir):
-            raise RunSetException("SPADE directory %s does not exist" %
-                                  (self.__spade_dir, ))
+        if self.__jade_dir is not None and \
+           not os.path.exists(self.__jade_dir):
+            raise RunSetException("JADE directory %s does not exist" %
+                                  (self.__jade_dir, ))
 
         self.__dashlog = self.create_dash_log()
 
@@ -667,7 +670,7 @@ class RunData(object):
     def clone(self, run_set, new_run):
         return RunData(run_set, new_run, self.__cluster_config,
                        self.__run_config, self.__run_options,
-                       self.__version_info, self.__spade_dir, self.__copy_dir,
+                       self.__version_info, self.__jade_dir, self.__copy_dir,
                        self.__log_dir)
 
     @property
@@ -777,7 +780,10 @@ class RunData(object):
             self.__add_rate(self.__first_pay_time, 1)
 
     def get_event_counts(self, run_num, run_set):
-        "Return monitoring data for the run"
+        """
+        Return the 'standard' monitoring data for the run, including
+        event counts and times for the 4 streams (physics, moni, SN, tcal)
+        """
         if self.run_number != run_num:
             self.error("Not getting event counts for run#%s"
                        ", current run is #%d" %
@@ -1098,7 +1104,7 @@ class RunData(object):
 
     @property
     def spade_directory(self):
-        return self.__spade_dir
+        return self.__jade_dir
 
     def start_tasks(self, runset):
         # start housekeeping threads
@@ -1351,7 +1357,7 @@ class RunSet(object):
         self.__stopping = None
         self.__stop_lock = threading.Lock()
 
-        self.__spade_thread = None
+        self.__jade_thread = None
 
         # make sure components are in a known order
         self.__set.sort()
@@ -1675,9 +1681,9 @@ class RunSet(object):
                     sent_error = exc_string()
 
             # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
-            # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
+            # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR JADE
             try:
-                self.__queue_for_spade(run_data)
+                self.__queue_for_jade(run_data)
             except:  # pylint: disable=bare-except
                 if sent_error is None:
                     sent_error = exc_string()
@@ -1841,21 +1847,20 @@ class RunSet(object):
                 self.__logger.error("%s :: %s: %s" %
                                     (text, comp.fullname, connstr))
 
-    def __queue_for_spade(self, run_data):
+    def __queue_for_jade(self, run_data):
         if run_data.log_directory is None:
-            run_data.error("Not logging to file so cannot queue to SPADE")
+            run_data.error("Not logging to file so cannot queue to JADE")
             return
 
         if run_data.spade_directory is not None:
-            if self.__spade_thread is not None:
-                if self.__spade_thread.is_alive():
+            if self.__jade_thread is not None:
+                if self.__jade_thread.is_alive():
                     try:
-                        self.__spade_thread.join(0.001)
+                        self.__jade_thread.join(0.001)
                     except:  # pylint: disable=bare-except
                         pass
-                if self.__spade_thread.is_alive():
-                    run_data.error("Previous SpadeQueue thread is still"
-                                   " running!!!")
+                if self.__jade_thread.is_alive():
+                    run_data.error("Previous JADE thread is still running!!!")
 
             args = (run_data, run_data.spade_directory,
                     run_data.copy_directory, run_data.log_directory,
@@ -1864,7 +1869,7 @@ class RunSet(object):
                                     args=args)
             thrd.start()
 
-            self.__spade_thread = thrd
+            self.__jade_thread = thrd
 
     @classmethod
     def __report_run_start(cls, moni_client, run_number, release, revision,
@@ -2350,9 +2355,9 @@ class RunSet(object):
         return sock
 
     def create_run_data(self, run_num, cluster_config, run_options,
-                        version_info, spade_dir, copy_dir, log_dir):
+                        version_info, jade_dir, copy_dir, log_dir):
         return RunData(self, run_num, cluster_config, self.__cfg,
-                       run_options, version_info, spade_dir, copy_dir, log_dir)
+                       run_options, version_info, jade_dir, copy_dir, log_dir)
 
     def create_run_dir(self, log_dir, run_num, backup_existing=True):
         if not os.path.exists(log_dir):
@@ -2899,7 +2904,7 @@ class RunSet(object):
         return len(self.__set)
 
     def start_run(self, run_num, cluster_config, run_options, version_info,
-                  spade_dir, copy_dir=None, log_dir=None, quiet=True):
+                  jade_dir, copy_dir=None, log_dir=None, quiet=True):
         "Start all components in the runset"
         self.__logger.error("Starting run #%d on \"%s\"" %
                             (run_num, cluster_config.description))
@@ -2911,7 +2916,7 @@ class RunSet(object):
 
         self.__run_data = self.create_run_data(run_num, cluster_config,
                                                run_options, version_info,
-                                               spade_dir, copy_dir, log_dir)
+                                               jade_dir, copy_dir, log_dir)
 
         # record the earliest possible start time
         #
@@ -3212,8 +3217,8 @@ class RunSet(object):
 
         try:
             # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
-            # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
-            self.__queue_for_spade(old_data)
+            # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR JADE
+            self.__queue_for_jade(old_data)
         except:  # pylint: disable=bare-except
             if not saved_exc:
                 saved_exc = sys.exc_info()

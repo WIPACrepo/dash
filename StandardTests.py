@@ -1,6 +1,8 @@
 #!/usr/bin/env python
-#
-# Run standard pDAQ tests
+"""
+`pdaq stdtest` script which drives the detector through a standard
+set of runs
+"""
 
 from __future__ import print_function
 

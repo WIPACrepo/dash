@@ -1,6 +1,8 @@
 #!/usr/bin/env python
-#
-# Code to manipulate I3Live's "last run number" file
+"""
+`pdaq runnumber` script which can be used to update I3Live's
+"next run number" file
+"""
 
 from __future__ import print_function
 

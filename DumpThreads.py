@@ -1,5 +1,9 @@
 #!/usr/bin/env python
-#
+"""
+utility code which simulates Java's ^\ (control-backslash) command to
+dump stack traces for all threads while the program is running
+"""
+
 # Add this hunk of code to a program:
 #
 #     if sys.version_info > (2, 3):

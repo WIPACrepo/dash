@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""
+Utility class which can return ANSI escape sequences to set foreground
+or background color, as well as bold, italic, underline, etc.
+"""
 
 from __future__ import print_function
 

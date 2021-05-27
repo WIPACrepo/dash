@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+Logging objects used by CnCServer
+"""
 
 # DAQLog.py
 # jaacobsen@npxdesigns.com

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+"MonitorTask unit tests"
 
 import os
 import tempfile

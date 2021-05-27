@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-#
-# Parse pDAQ color files (used to specify colors for `pdaq taillive`)
+"Parse pDAQ color files (used to specify colors for `pdaq taillive`)"
 
 from __future__ import print_function
 

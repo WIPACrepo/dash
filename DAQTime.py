@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""
+miscellaneous classes which convert DAQ ticks or a DAQ time string
+(with 0.1 ns precision) to an object which emulates Python's `datetime` 
+"""
 
 from __future__ import print_function
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
 DAQ component manager - handle launching and killing a set of components
+Used by CnCServer as well as `pdaq launch` and `pdaq kill`
 """
 
 import os

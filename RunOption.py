@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+Class which manages a bitmap of logging/monitoring/other options for a run
+"""
 
 
 class RunOption(object):

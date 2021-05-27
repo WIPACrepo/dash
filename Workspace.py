@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-#
-# Manage pdaq's `pDAQ_current` symlink
+"""
+`pdaq workspace` script which prints or modifies the ~/pDAQ_current symlink
+"""
 
 from __future__ import print_function
 

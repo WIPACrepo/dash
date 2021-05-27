@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+A set of "fake" components which can be used to simulate a cluster
+"""
 
 from __future__ import print_function
 

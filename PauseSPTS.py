@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+"Utility script which pauses runs when RestartSPTS.py is active"
 
 from __future__ import print_function
 

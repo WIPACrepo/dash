@@ -1,5 +1,8 @@
 #!/usr/bin/env python
-#
+"""
+Implementation of BaseRun.py which talks directly to CnCServer
+"""
+
 # Manage pDAQ runs via CnCServer
 #
 # Examples:

@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+utility which dumps a list of all open files using the `lsof` command
+"""
 
 from __future__ import print_function
 

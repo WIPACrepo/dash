@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
-Stop a run without going through 'livecmd'
+`pdaq stoprun` script which talks directly to CnCServer to stop a run
+NOTE: this is an emergency-only script used during rare I3Live failures
 """
 
 from __future__ import print_function

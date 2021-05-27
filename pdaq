@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-#
-# The pdaq ubercommand which invokes all valid subcommands
+"The pdaq ubercommand which invokes all valid subcommands"
 
 from __future__ import print_function
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
-IceCube payloads and associated classes
+IceCube payloads and associated classes, along with a PayloadReader
+class which can be used to read most pDAQ data files
 
 If you find/fix any bugs or add improvements, please also broadcast them
 on daq-dev@icecube.wisc.edu

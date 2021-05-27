@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+"Safe" interface for various RPC calls
+"""
 
 from DAQClient import BeanTimeoutException
 from ThreadGroup import GThread, ThreadGroup

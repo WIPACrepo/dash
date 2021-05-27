@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""
+Convert a run configuration file into a set of Python objects.
+Can also be run from the command line to validate a run configuration
+"""
 
 from __future__ import print_function
 

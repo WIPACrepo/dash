@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""
+`pdaq update_leapseconds` script which fetches and installs the
+latest NIST leapsecond file
+"""
 
 from __future__ import print_function
 

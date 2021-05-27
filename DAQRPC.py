@@ -1,8 +1,8 @@
 #!/usr/bin/env python
+"""
+RPCServer and RPCClient classes which use Python's XML-RPC code internally 
+"""
 
-#
-# DAQRPC - Python wrapper for pDAQ RPC calls
-#          Implemented with XML-RPC
 #
 # J. Jacobsen, for UW-IceCube 2006-2007
 #

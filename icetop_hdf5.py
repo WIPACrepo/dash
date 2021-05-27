@@ -1,7 +1,8 @@
 #!/usr/bin/env python
-#
-# Read in pDAQ monitoring files, extract IceTop data and write it to an HDF5
-# file, then create a JADE meta.xml file to transfer the HDF5 file North
+"""
+Read in pDAQ monitoring files, extract IceTop data and write it to an HDF5
+file, then create a JADE meta.xml file to transfer the HDF5 file North
+"""
 
 from __future__ import print_function
 

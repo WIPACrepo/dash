@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+Base CnCTask class for running a single thread once 
+"""
 
 import threading
 

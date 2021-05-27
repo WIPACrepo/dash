@@ -1,6 +1,8 @@
 #!/usr/bin/env python
-#
-# Create a new run configuration with only the specified hub(s)
+"""
+utility script which can be used to generate a new run configuration
+file by adding one or more hubs to a partial configuration 
+"""
 
 from __future__ import print_function
 

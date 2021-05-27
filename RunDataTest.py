@@ -165,7 +165,7 @@ class TinyRunSet(object):
 
 class MyRunData(RunData):
     def __init__(self, run_set, run_number, cluster_config, run_config,
-                 run_options, version_info, spade_dir, copy_dir, log_dir):
+                 run_options, version_info, jade_dir, copy_dir, log_dir):
         self.__dashlog = MockLogger("dash")
 
         self.__dashlog.add_expected_regexp(r"Version info: \S+ \S+ \S+ \S+")
@@ -178,7 +178,7 @@ class MyRunData(RunData):
 
         super(MyRunData, self).__init__(run_set, run_number, cluster_config,
                                         run_config, run_options, version_info,
-                                        spade_dir, copy_dir, log_dir)
+                                        jade_dir, copy_dir, log_dir)
 
     def create_dash_log(self):
         return self.__dashlog
@@ -239,14 +239,14 @@ class RunDataTest(unittest.TestCase):
         self.top_dir = tempfile.mkdtemp()
 
         # create JADE directory
-        spade_dir = os.path.join(self.top_dir, "spade")
-        os.mkdir(spade_dir)
+        jade_dir = os.path.join(self.top_dir, "jade")
+        os.mkdir(jade_dir)
 
         # create log directory
         log_dir = os.path.join(self.top_dir, "log")
         os.mkdir(log_dir)
 
-        return spade_dir, log_dir
+        return jade_dir, log_dir
 
     @classmethod
     def __fake_version(cls, release, repo_rev, repo_date, repo_time):
@@ -374,10 +374,10 @@ class RunDataTest(unittest.TestCase):
         run_cfg = TinyRunConfig("xxxRunCfg")
         run_options = RunOption.LOG_TO_FILE
         version_info = None
-        spade_dir, log_dir = self.__create_directories()
+        jade_dir, log_dir = self.__create_directories()
 
         _ = RunData(runset, run_num, clu_cfg, run_cfg, run_options,
-                    version_info, spade_dir, None, log_dir)
+                    version_info, jade_dir, None, log_dir)
 
         dash_path = os.path.join(runset.run_directory, "dash.log")
         if not os.path.exists(dash_path):
@@ -390,27 +390,27 @@ class RunDataTest(unittest.TestCase):
         run_cfg = TinyRunConfig("xxxRunCfg")
         run_options = RunOption.LOG_TO_LIVE
         version_info = None
-        spade_dir = None
+        jade_dir = None
         log_dir = None
 
         _ = RunData(runset, run_num, clu_cfg, run_cfg, run_options,
-                    version_info, spade_dir, None, log_dir)
+                    version_info, jade_dir, None, log_dir)
 
-    def test_init_live_append_bad_spade(self):  # pylint: disable=no-self-use
+    def test_init_live_append_bad_jade(self):  # pylint: disable=no-self-use
         runset = None
         run_num = None
         clu_cfg = TinyClusterConfig("xxxCluCfg")
         run_cfg = TinyRunConfig("xxxRunCfg")
         run_options = RunOption.LOG_TO_LIVE
         version_info = None
-        spade_dir = "/bad/spade/path"
+        jade_dir = "/bad/jade/path"
         log_dir = None
 
         try:
             RunData(runset, run_num, clu_cfg, run_cfg, run_options,
-                    version_info, spade_dir, None, log_dir)
+                    version_info, jade_dir, None, log_dir)
         except RunSetException as rse:
-            errmsg = "SPADE directory %s does not exist" % (spade_dir, )
+            errmsg = "JADE directory %s does not exist" % (jade_dir, )
             if str(rse).find(errmsg) < 0:
                 raise
 
@@ -421,11 +421,11 @@ class RunDataTest(unittest.TestCase):
         run_cfg = TinyRunConfig("xxxRunCfg")
         run_options = RunOption.LOG_TO_LIVE
         version_info = None
-        spade_dir = None
+        jade_dir = None
         log_dir = None
 
         rdata = MyRunData(runset, run_num, clu_cfg, run_cfg, run_options,
-                          version_info, spade_dir, None, log_dir)
+                          version_info, jade_dir, None, log_dir)
 
         rdata.destroy()
 
@@ -436,11 +436,11 @@ class RunDataTest(unittest.TestCase):
         run_cfg = TinyRunConfig("xxxRunCfg")
         run_options = RunOption.LOG_TO_LIVE
         version_info = None
-        spade_dir = None
+        jade_dir = None
         log_dir = None
 
         rdata = MyRunData(runset, run_num, clu_cfg, run_cfg, run_options,
-                          version_info, spade_dir, None, log_dir)
+                          version_info, jade_dir, None, log_dir)
 
         result = rdata.get_event_counts(run_num, runset)
 
@@ -464,11 +464,11 @@ class RunDataTest(unittest.TestCase):
         run_cfg = TinyRunConfig("xxxRunCfg")
         run_options = RunOption.LOG_TO_LIVE
         version_info = None
-        spade_dir = None
+        jade_dir = None
         log_dir = None
 
         rdata = MyRunData(runset, run_num, clu_cfg, run_cfg, run_options,
-                          version_info, spade_dir, None, log_dir)
+                          version_info, jade_dir, None, log_dir)
 
         runset.set_running(True)
 
@@ -509,11 +509,11 @@ class RunDataTest(unittest.TestCase):
         run_cfg = TinyRunConfig("xxxRunCfg")
         run_options = RunOption.LOG_TO_LIVE
         version_info = None
-        spade_dir = None
+        jade_dir = None
         log_dir = None
 
         rdata = MyRunData(None, run_num, clu_cfg, run_cfg, run_options,
-                          version_info, spade_dir, None, log_dir)
+                          version_info, jade_dir, None, log_dir)
 
         rate = rdata.rate
         self.assertEqual(rate, 0.0, "Expected rate %s not %s" % (0.0, rate))
@@ -554,11 +554,11 @@ class RunDataTest(unittest.TestCase):
         run_cfg = TinyRunConfig("xxxRunCfg")
         run_options = RunOption.LOG_TO_LIVE
         version_info = None
-        spade_dir = None
+        jade_dir = None
         log_dir = None
 
         rdata = MyRunData(runset, run_num, clu_cfg, run_cfg, run_options,
-                          version_info, spade_dir, None, log_dir)
+                          version_info, jade_dir, None, log_dir)
 
         # start without any components
         rdata.dashlog.add_expected_regexp(r"Cannot find eventBuilder in .*$")
@@ -581,11 +581,11 @@ class RunDataTest(unittest.TestCase):
         run_cfg = TinyRunConfig("xxxRunCfg")
         run_options = RunOption.LOG_TO_LIVE
         version_info = None
-        spade_dir = None
+        jade_dir = None
         log_dir = None
 
         rdata = MyRunData(runset, run_num, clu_cfg, run_cfg, run_options,
-                          version_info, spade_dir, None, log_dir)
+                          version_info, jade_dir, None, log_dir)
 
         num_evts = 123
         first_pay_time = 10 * self.TICKS_PER_SEC
@@ -617,11 +617,11 @@ class RunDataTest(unittest.TestCase):
         run_cfg = TinyRunConfig("xxxRunCfg")
         run_options = RunOption.LOG_TO_LIVE
         version_info = None
-        spade_dir = None
+        jade_dir = None
         log_dir = None
 
         rdata = MyRunData(runset, run_num, clu_cfg, run_cfg, run_options,
-                          version_info, spade_dir, None, log_dir)
+                          version_info, jade_dir, None, log_dir)
 
         num_evts = 123
         first_pay_time = 10 * self.TICKS_PER_SEC
@@ -642,11 +642,11 @@ class RunDataTest(unittest.TestCase):
         run_cfg = TinyRunConfig("xxxRunCfg")
         run_options = RunOption.LOG_TO_LIVE
         version_info = None
-        spade_dir = None
+        jade_dir = None
         log_dir = None
 
         rdata = MyRunData(runset, run_num, clu_cfg, run_cfg, run_options,
-                          version_info, spade_dir, None, log_dir)
+                          version_info, jade_dir, None, log_dir)
 
         num_evts = 123
         first_pay_time = 10 * self.TICKS_PER_SEC
@@ -667,11 +667,11 @@ class RunDataTest(unittest.TestCase):
         run_cfg = TinyRunConfig("xxxRunCfg")
         run_options = RunOption.LOG_TO_LIVE
         version_info = None
-        spade_dir = None
+        jade_dir = None
         log_dir = None
 
         rdata = MyRunData(runset, run_num, clu_cfg, run_cfg, run_options,
-                          version_info, spade_dir, None, log_dir)
+                          version_info, jade_dir, None, log_dir)
 
         moni_data = {}
         prio = None
@@ -685,11 +685,11 @@ class RunDataTest(unittest.TestCase):
         run_cfg = TinyRunConfig("xxxRunCfg")
         run_options = RunOption.LOG_TO_LIVE
         version_info = None
-        spade_dir = None
+        jade_dir = None
         log_dir = None
 
         rdata = MyRunData(runset, run_num, clu_cfg, run_cfg, run_options,
-                          version_info, spade_dir, None, log_dir)
+                          version_info, jade_dir, None, log_dir)
 
         moni_data = {
             "snEvents": 17,
@@ -707,11 +707,11 @@ class RunDataTest(unittest.TestCase):
         run_cfg = TinyRunConfig("xxxRunCfg")
         run_options = RunOption.LOG_TO_LIVE
         version_info = None
-        spade_dir = None
+        jade_dir = None
         log_dir = None
 
         rdata = MyRunData(runset, run_num, clu_cfg, run_cfg, run_options,
-                          version_info, spade_dir, None, log_dir)
+                          version_info, jade_dir, None, log_dir)
 
         num_evts = 100
         evt_time = 20 * self.TICKS_PER_SEC
@@ -764,11 +764,11 @@ class RunDataTest(unittest.TestCase):
         run_cfg = TinyRunConfig("xxxRunCfg")
         run_options = RunOption.LOG_TO_LIVE
         version_info = None
-        spade_dir = None
+        jade_dir = None
         log_dir = None
 
         rdata = MyRunData(runset, run_num, clu_cfg, run_cfg, run_options,
-                          version_info, spade_dir, None, log_dir)
+                          version_info, jade_dir, None, log_dir)
 
         # add monitoring client
         moni_client = TinyMoniClient(run_num)
@@ -786,11 +786,11 @@ class RunDataTest(unittest.TestCase):
         run_cfg = TinyRunConfig("xxxRunCfg")
         run_options = RunOption.LOG_TO_LIVE
         version_info = None
-        spade_dir = None
+        jade_dir = None
         log_dir = None
 
         rdata = MyRunData(runset, run_num, clu_cfg, run_cfg, run_options,
-                          version_info, spade_dir, None, log_dir)
+                          version_info, jade_dir, None, log_dir)
 
         num_evts = 777
 
@@ -815,11 +815,11 @@ class RunDataTest(unittest.TestCase):
         run_options = RunOption.LOG_TO_LIVE
         version_info = self.__fake_version("testWriteRunXML", "repo:rev",
                                            "repoDate", "repo_time")
-        spade_dir = None
+        jade_dir = None
         log_dir = None
 
         rdata = MyRunData(runset, run_num, clu_cfg, run_cfg, run_options,
-                          version_info, spade_dir, None, log_dir)
+                          version_info, jade_dir, None, log_dir)
 
         # set up some values
         num_evts = 111
@@ -869,11 +869,11 @@ class RunDataTest(unittest.TestCase):
         run_cfg = TinyRunConfig("xxxRunCfg")
         run_options = RunOption.LOG_TO_LIVE
         version_info = None
-        spade_dir = None
+        jade_dir = None
         log_dir = None
 
         rdata = MyRunData(runset, run_num, clu_cfg, run_cfg, run_options,
-                          version_info, spade_dir, None, log_dir)
+                          version_info, jade_dir, None, log_dir)
 
         num_evts = 100
         evt_time = 20 * self.TICKS_PER_SEC
@@ -900,11 +900,11 @@ class RunDataTest(unittest.TestCase):
         run_cfg = TinyRunConfig("xxxRunCfg")
         run_options = RunOption.LOG_TO_LIVE
         version_info = None
-        spade_dir = None
+        jade_dir = None
         log_dir = None
 
         rdata = MyRunData(runset, run_num, clu_cfg, run_cfg, run_options,
-                          version_info, spade_dir, None, log_dir)
+                          version_info, jade_dir, None, log_dir)
 
         num_evts = 100
         evt_time = 20 * self.TICKS_PER_SEC
@@ -932,11 +932,11 @@ class RunDataTest(unittest.TestCase):
         run_cfg = TinyRunConfig("xxxRunCfg")
         run_options = RunOption.LOG_TO_LIVE
         version_info = None
-        spade_dir = None
+        jade_dir = None
         log_dir = None
 
         rdata = MyRunData(runset, run_num, clu_cfg, run_cfg, run_options,
-                          version_info, spade_dir, None, log_dir)
+                          version_info, jade_dir, None, log_dir)
 
         for comp in runset.components:
             if comp.name == "eventBuilder":
@@ -962,11 +962,11 @@ class RunDataTest(unittest.TestCase):
         run_cfg = TinyRunConfig("xxxRunCfg")
         run_options = RunOption.LOG_TO_LIVE
         version_info = None
-        spade_dir = None
+        jade_dir = None
         log_dir = None
 
         rdata = MyRunData(runset, run_num, clu_cfg, run_cfg, run_options,
-                          version_info, spade_dir, None, log_dir)
+                          version_info, jade_dir, None, log_dir)
 
         for comp in runset.components:
             if comp.name == "eventBuilder":
@@ -990,11 +990,11 @@ class RunDataTest(unittest.TestCase):
         run_cfg = TinyRunConfig("xxxRunCfg")
         run_options = RunOption.LOG_TO_LIVE
         version_info = None
-        spade_dir = None
+        jade_dir = None
         log_dir = None
 
         rdata = MyRunData(runset, run_num, clu_cfg, run_cfg, run_options,
-                          version_info, spade_dir, None, log_dir)
+                          version_info, jade_dir, None, log_dir)
 
         for comp in runset.components:
             if comp.name == "eventBuilder":
@@ -1018,11 +1018,11 @@ class RunDataTest(unittest.TestCase):
         run_cfg = TinyRunConfig("xxxRunCfg")
         run_options = RunOption.LOG_TO_LIVE
         version_info = None
-        spade_dir = None
+        jade_dir = None
         log_dir = None
 
         rdata = MyRunData(runset, run_num, clu_cfg, run_cfg, run_options,
-                          version_info, spade_dir, None, log_dir)
+                          version_info, jade_dir, None, log_dir)
 
         num_evts = 100
         evt_time = 20 * self.TICKS_PER_SEC
@@ -1058,11 +1058,11 @@ class RunDataTest(unittest.TestCase):
         run_cfg = TinyRunConfig("xxxRunCfg")
         run_options = RunOption.LOG_TO_LIVE
         version_info = None
-        spade_dir = None
+        jade_dir = None
         log_dir = None
 
         rdata = MyRunData(runset, run_num, clu_cfg, run_cfg, run_options,
-                          version_info, spade_dir, None, log_dir)
+                          version_info, jade_dir, None, log_dir)
 
         num_evts = 123
         evt_time = 20 * self.TICKS_PER_SEC

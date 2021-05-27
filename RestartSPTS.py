@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-#
-# Keep SPTS busy
+"""
+Utility script which keeps SPTS busy
+"""
 
 from __future__ import print_function
 

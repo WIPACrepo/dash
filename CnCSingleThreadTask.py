@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-"A task which does one thing (or one set of things) on a regular basis"
+"""
+RunData task which does one thing (or one set of things) on a regular basis
+"""
 
 from CnCTask import CnCTask
 from decorators import classproperty

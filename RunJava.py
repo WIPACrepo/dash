@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-#
-# Run a DAQ Java program
-#
+"convenience code to run a pDAQ Java class from a Python script"
+
 # Example:
 #    ./RunJava.py \
 #        -d daq-common -d splicer -d payload -d daq-io \

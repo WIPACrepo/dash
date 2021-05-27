@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""
+simple command-line utility which queries CnCServer for info from
+active components 
+"""
 
 from __future__ import print_function
 

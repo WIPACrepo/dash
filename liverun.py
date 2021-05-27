@@ -1,5 +1,8 @@
 #!/usr/bin/env python
-#
+"""
+Implementation of BaseRun.py which uses I3Live to control CnCServer
+"""
+
 # Manage pDAQ runs via IceCube Live
 #
 # Examples:

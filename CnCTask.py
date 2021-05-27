@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"A task which is run at regular intervals"
+"base class for tasks which are run at regular intervals"
 
 
 class TaskException(Exception):

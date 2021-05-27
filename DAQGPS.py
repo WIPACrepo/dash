@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+"Read GPS on all hubs"
 
 # GPSCheck.py
 # John Jacobsen, NPX Designs, Inc., jacobsen\@npxdesigns.com

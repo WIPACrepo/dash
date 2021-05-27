@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""
+Utility classes which provide a uniform interface to I3Live's API
+They also provide stubs for developing/debugging without having Live installed
+"""
 
 # assume that the imports will succeed
 LIVE_IMPORT = True

@@ -209,7 +209,7 @@ class FakeMoniClient(object):
 
 class MostlyRunData(RunData):
     def __init__(self, run_set, run_number, cluster_config, run_config,
-                 run_options, version_info, spade_dir, copy_dir, log_dir,
+                 run_options, version_info, jade_dir, copy_dir, log_dir,
                  appender=None):
         self.__appender = appender
 
@@ -219,7 +219,7 @@ class MostlyRunData(RunData):
         super(MostlyRunData, self).__init__(run_set, run_number,
                                             cluster_config, run_config,
                                             run_options, version_info,
-                                            spade_dir, copy_dir, log_dir)
+                                            jade_dir, copy_dir, log_dir)
 
     def create_dash_log(self):
         self.__dashlog = MockCnCLogger("dash", appender=self.__appender,
@@ -333,10 +333,10 @@ class MostlyRunSet(RunSet):
         return log
 
     def create_run_data(self, run_num, cluster_config, run_options,
-                        version_info, spade_dir, copy_dir, log_dir):
+                        version_info, jade_dir, copy_dir, log_dir):
         self.__run_data = MostlyRunData(self, run_num, cluster_config,
                                         self.__run_config, run_options,
-                                        version_info, spade_dir, copy_dir,
+                                        version_info, jade_dir, copy_dir,
                                         log_dir, appender=self.__dash_appender)
         return self.__run_data
 
@@ -375,7 +375,7 @@ class MostlyCnCServer(CnCServer):
     APPENDERS = {}
 
     def __init__(self, cluster_config_object, log_port, live_port, copy_dir,
-                 default_log_dir, run_config_dir, daq_data_dir, spade_dir):
+                 default_log_dir, run_config_dir, daq_data_dir, jade_dir):
         self.__cluster_config = cluster_config_object
         self.__live_only = log_port is None and live_port is not None
         self.__log_server = None
@@ -396,7 +396,7 @@ class MostlyCnCServer(CnCServer):
                                               default_log_dir=default_log_dir,
                                               run_config_dir=run_config_dir,
                                               daq_data_dir=daq_data_dir,
-                                              spade_dir=spade_dir,
+                                              jade_dir=jade_dir,
                                               log_host=log_host,
                                               log_port=log_port,
                                               live_host=live_host,
@@ -915,7 +915,7 @@ class IntegrationTest(unittest.TestCase):
     CONFIG_NAME = 'simpleConfig'
     COPY_DIR = 'bogus'
     DATA_DIR = '/tmp'
-    SPADE_DIR = '/tmp'
+    JADE_DIR = '/tmp'
     CONFIG_DIR = None
     LOG_DIR = None
     LIVEMONI_ENABLED = False
@@ -1052,7 +1052,7 @@ class IntegrationTest(unittest.TestCase):
         self.__cnc = MostlyCnCServer(clu_cfg, log_port, live_port,
                                      self.COPY_DIR, self.LOG_DIR,
                                      self.CONFIG_DIR, self.DATA_DIR,
-                                     self.SPADE_DIR)
+                                     self.JADE_DIR)
         self.__cnc.set_dash_appender(dash_log)
 
         return (self.__cnc, appender, dash_log)
@@ -1673,7 +1673,7 @@ class IntegrationTest(unittest.TestCase):
             live_log.add_expected_text(msg)
 
         dash_log.add_expected_exact("Not logging to file so cannot queue to"
-                                    " SPADE")
+                                    " JADE")
 
         if live_log:
             live_log.add_expected_text_regexp(r"DAQ state is STOPPED after"

@@ -1,10 +1,11 @@
 #!/usr/bin/env python
-#
-# moni_stream() is a generator which reads a pDAQ .moni file and returns
-# tuples of (date_string, category, field, value)
-#
-# parse_date() is a method which can convert date strings into
-# 'datetime.datetime' values
+"""
+a generator which reads a pDAQ .moni file and returns a stream of tuples
+of (date_string, category, field, value)
+
+Also contains parse_date() which is a method to convert date strings into
+'datetime.datetime' values
+"""
 
 from __future__ import print_function
 

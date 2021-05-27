@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"Base class for pDAQ components"
+"Base class for tracking pDAQ components inside CnCServer"
 
 from i3helper import Comparable
 

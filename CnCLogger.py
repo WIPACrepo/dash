@@ -1,4 +1,9 @@
 #!/usr/bin/env python
+"""
+logging class which should probably be replaced by something like
+Python's `logging` package; it was originally useful for sending log
+messages to Live and also writing them to a local file
+"""
 
 from __future__ import print_function
 

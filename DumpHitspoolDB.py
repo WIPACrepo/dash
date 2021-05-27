@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""
+`pdaq dumphsdb` script which prints data about hitspool files found
+in the hitspool database
+"""
 
 from __future__ import print_function
 

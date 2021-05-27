@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
-A simplistic ThreadGroup implementation
+A ThreadGroup implementation used by CompOp.py to manage groups of threads
+(e.g. start, join, etc.) 
 """
 
 import threading

@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""
+CnCServer run-specific task which periodically checks all components
+for stagnant I/O and/or rapidly growing internal queues 
+"""
 
 import sys
 

@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+Main pDAQ daemon which manages pools of components and runsets
+"""
 
 from __future__ import print_function
 
@@ -595,7 +598,7 @@ class CnCServer(DAQPool):
 
     def __init__(self, name="GenericServer", cluster_desc=None, copy_dir=None,
                  dash_dir=None, default_log_dir=None, run_config_dir=None,
-                 daq_data_dir=None, spade_dir=None, log_host=None,
+                 daq_data_dir=None, jade_dir=None, log_host=None,
                  log_port=None, live_host=None, live_port=None,
                  restart_on_error=True, force_restart=True, test_only=False,
                  quiet=False):
@@ -611,7 +614,7 @@ class CnCServer(DAQPool):
           else os.path.join(PDAQ_HOME, "dash")
         self.__run_config_dir = run_config_dir
         self.__daq_data_dir = daq_data_dir
-        self.__spade_dir = spade_dir
+        self.__jade_dir = jade_dir
         self.__default_log_dir = default_log_dir
 
         self.__cluster_config = None
@@ -1098,7 +1101,7 @@ class CnCServer(DAQPool):
         raise CnCServerException("Unknown component #%d" % comp_id)
 
     def rpc_component_list_dicts(self, id_list=None, get_all=True):
-        "list unused components"
+        "list specific components"
         return self.__list_component_dicts(self.__get_components(id_list,
                                                                  get_all))
 
@@ -1183,6 +1186,8 @@ class CnCServer(DAQPool):
         "Restart DAQLive thread"
         self.__live.close()
         self.__live = self.start_live_thread()
+
+        return "OK"
 
     def rpc_end_all(self):
         "reset all clients"
@@ -1469,7 +1474,7 @@ class CnCServer(DAQPool):
         failed_trace = None
         try:
             runset.start_run(run_num, clu_cfg, run_options,
-                             self.__version_info, self.__spade_dir,
+                             self.__version_info, self.__jade_dir,
                              copy_dir=self.__copy_dir, log_dir=log_dir,
                              quiet=self.__quiet)
             success = True
@@ -1525,7 +1530,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-a", "--copy-dir", dest="copy_dir",
-                        help="Directory for copies of files sent to SPADE")
+                        help="Directory for copies of files sent to JADE")
     parser.add_argument("-C", "--cluster-desc", dest="cluster_desc",
                         help="Cluster description name")
     parser.add_argument("-c", "--config-dir", dest="config_dir",
@@ -1564,8 +1569,8 @@ def main():
                         action="store_false", default=True,
                         help=("Don't restart components if the run ends"
                               " in an error"))
-    parser.add_argument("-s", "--spade-dir", dest="spade_dir",
-                        help=("Directory where SPADE will pick up"
+    parser.add_argument("-s", "--jade-dir", dest="jade_dir",
+                        help=("Directory where JADE will pick up"
                               " logs/moni files"))
     parser.add_argument("-v", "--verbose", dest="quiet",
                         action="store_false", default=True,
@@ -1591,11 +1596,11 @@ def main():
         sys.exit(("DAQ data directory '%s' doesn't exist!" +
                   "  Use the -q option, or -h for help.") % args.daq_data_dir)
 
-    if args.spade_dir is not None:
-        args.spade_dir = os.path.abspath(args.spade_dir)
-        if not os.path.exists(args.spade_dir):
-            sys.exit(("Spade directory '%s' doesn't exist!" +
-                      "  Use the -s option, or -h for help.") % args.spade_dir)
+    if args.jade_dir is not None:
+        args.jade_dir = os.path.abspath(args.jade_dir)
+        if not os.path.exists(args.jade_dir):
+            sys.exit(("JADE directory '%s' doesn't exist!" +
+                      "  Use the -s option, or -h for help.") % args.jade_dir)
 
     if args.copy_dir is not None:
         args.copy_dir = os.path.abspath(args.copy_dir)
@@ -1641,7 +1646,7 @@ def main():
     cnc = CnCServer(cluster_desc=args.cluster_desc, name="CnCServer",
                     copy_dir=args.copy_dir, dash_dir=args.dash_dir,
                     run_config_dir=config_dir, daq_data_dir=args.daq_data_dir,
-                    spade_dir=args.spade_dir,
+                    jade_dir=args.jade_dir,
                     default_log_dir=args.default_log_dir,
                     log_host=log_host, log_port=log_port, live_host=live_host,
                     live_port=live_port, force_restart=args.force_restart,

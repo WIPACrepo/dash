@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""
+Thread which acts as an interface between I3Live and CnCServer.
+See LiveComponent for more details of that interface
+"""
 
 import threading
 import time
@@ -19,6 +23,10 @@ class LiveException(Exception):
 
 
 class ActionThread(threading.Thread):
+    """
+    A thread which performs a long-lived action like starting or stopping
+    all components
+    """
     def __init__(self, name=None, args=(), kwargs=None):
         if name is None:
             name = str(self)
@@ -437,13 +445,8 @@ class DAQLive(LiveComponent):
 
         # check for new 'extendedMode' flag
         # TODO: Make this a required argument after Basilisk is released
-        try:
-            key = "extendedMode"
-            extended_mode = stateArgs[key]
-        except KeyError:
-            # raise LiveException("State arguments do not contain key \"%s\"" %
-            #                     (key, ))
-            extended_mode = False
+        key = "extendedMode"
+        extended_mode = False if key not in stateArgs else stateArgs[key]
 
         # start thread now, subsequent calls will check the thread result
         self.__thread = StartThread(self, self.__log, run_cfg, run_num,
@@ -506,12 +509,17 @@ class DAQLive(LiveComponent):
         # reset recovery attempt counter
         self.__recover_attempts = 0
 
-        try:
-            key = "runNumber"
+        key = "runNumber"
+        if key in stateArgs:
             run_num = stateArgs[key]
-        except KeyError:
+        else:
             raise LiveException("State arguments do not contain key \"%s\"" %
                                 (key, ))
+
+        # check for new 'extendedMode' flag
+        # TODO: Make this a required argument after Basilisk is released
+        key = "extendedMode"
+        extended_mode = False if key not in stateArgs else stateArgs[key]
 
         # start thread now, subsequent calls will check the thread result
         self.__thread = SwitchThread(self, self.__log, run_num)

@@ -290,7 +290,7 @@ class FakeMoniClient(object):
 
 class MostlyRunData(RunData):
     def __init__(self, runSet, run_number, clusterConfig, run_config,
-                 runOptions, version_info, spade_dir, copy_dir, log_dir,
+                 runOptions, version_info, jade_dir, copy_dir, log_dir,
                  dashlog=None):
         self.__dashlog = dashlog
 
@@ -298,7 +298,7 @@ class MostlyRunData(RunData):
 
         super(MostlyRunData, self).__init__(runSet, run_number, clusterConfig,
                                             run_config, runOptions,
-                                            version_info, spade_dir, copy_dir,
+                                            version_info, jade_dir, copy_dir,
                                             log_dir)
 
     def create_dash_log(self):
@@ -340,9 +340,9 @@ class MyRunSet(RunSet):
         return MockComponentLogger(str(comp), port)
 
     def create_run_data(self, run_num, cluster_config, run_options,
-                        version_info, spade_dir, copy_dir=None, log_dir=None):
+                        version_info, jade_dir, copy_dir=None, log_dir=None):
         rdt = MostlyRunData(self, run_num, cluster_config, self.__run_config,
-                            run_options, version_info, spade_dir, copy_dir,
+                            run_options, version_info, jade_dir, copy_dir,
                             log_dir, dashlog=self.__dashlog)
         self.__rundata = rdt
         return rdt
@@ -377,7 +377,7 @@ class MyRunSet(RunSet):
 class MostlyCnCServer(CnCServer):
     def __init__(self, clusterConfigObject=None, copy_dir=None,
                  default_log_dir=None, run_config_dir=None, daq_data_dir=None,
-                 spade_dir=None):
+                 jade_dir=None):
         self.__cluster_config = clusterConfigObject
         self.__log_server = None
 
@@ -385,7 +385,7 @@ class MostlyCnCServer(CnCServer):
                                               default_log_dir=default_log_dir,
                                               run_config_dir=run_config_dir,
                                               daq_data_dir=daq_data_dir,
-                                              spade_dir=spade_dir,
+                                              jade_dir=jade_dir,
                                               force_restart=False,
                                               test_only=True)
 
@@ -686,7 +686,7 @@ class CnCRunSetTest(unittest.TestCase):
     def __run_direct(self, fail_reset):
         self.__copy_dir = tempfile.mkdtemp()
         self.__run_config_dir = tempfile.mkdtemp()
-        self.__spade_dir = tempfile.mkdtemp()
+        self.__jade_dir = tempfile.mkdtemp()
         self.__log_dir = tempfile.mkdtemp()
 
         set_pdaq_config_dir(self.__run_config_dir)
@@ -776,7 +776,7 @@ class CnCRunSetTest(unittest.TestCase):
         }
 
         runset.start_run(run_num, clu_cfg, RunOption.MONI_TO_NONE,
-                         version_info, spade_dir=self.__spade_dir,
+                         version_info, jade_dir=self.__jade_dir,
                          log_dir=self.__log_dir)
 
         logger.check_status(5)
@@ -812,7 +812,7 @@ class CnCRunSetTest(unittest.TestCase):
         dash_log.add_expected_exact("Run terminated SUCCESSFULLY.")
 
         dash_log.add_expected_exact("Not logging to file so cannot queue to"
-                                    " SPADE")
+                                    " JADE")
 
         self.__set_bean_data(comps, "stringHub", self.HUB_NUMBER,
                              "stringhub", "EarliestLastChannelHitTime", 20)
@@ -873,7 +873,7 @@ class CnCRunSetTest(unittest.TestCase):
         self.__copy_dir = None
         self.__run_config_dir = None
         self.__daq_data_dir = None
-        self.__spade_dir = None
+        self.__jade_dir = None
         self.__log_dir = None
 
         set_pdaq_config_dir(None, override=True)
@@ -892,8 +892,8 @@ class CnCRunSetTest(unittest.TestCase):
             shutil.rmtree(self.__run_config_dir, ignore_errors=True)
         if self.__daq_data_dir is not None:
             shutil.rmtree(self.__daq_data_dir, ignore_errors=True)
-        if self.__spade_dir is not None:
-            shutil.rmtree(self.__spade_dir, ignore_errors=True)
+        if self.__jade_dir is not None:
+            shutil.rmtree(self.__jade_dir, ignore_errors=True)
         if self.__log_dir is not None:
             shutil.rmtree(self.__log_dir, ignore_errors=True)
 
@@ -997,7 +997,7 @@ class CnCRunSetTest(unittest.TestCase):
     def test_run_indirect(self):
         self.__copy_dir = tempfile.mkdtemp()
         self.__run_config_dir = tempfile.mkdtemp()
-        self.__spade_dir = tempfile.mkdtemp()
+        self.__jade_dir = tempfile.mkdtemp()
         self.__log_dir = tempfile.mkdtemp()
 
         set_pdaq_config_dir(self.__run_config_dir)
@@ -1023,7 +1023,7 @@ class CnCRunSetTest(unittest.TestCase):
                                      default_log_dir=self.__log_dir,
                                      run_config_dir=self.__run_config_dir,
                                      daq_data_dir=self.__daq_data_dir,
-                                     spade_dir=self.__spade_dir)
+                                     jade_dir=self.__jade_dir)
 
         catchall = self.__cnc.get_log_server()
 
@@ -1151,7 +1151,7 @@ class CnCRunSetTest(unittest.TestCase):
         dash_log.add_expected_exact("Run terminated SUCCESSFULLY.")
 
         dash_log.add_expected_exact("Not logging to file so cannot queue to"
-                                    " SPADE")
+                                    " JADE")
 
         self.__add_run_stop_moni(live_moni, first_time, num_evts, run_num)
 
