@@ -129,6 +129,8 @@ class RSyncRunner(object):
         """
         if string is None:
             return None
+        elif isinstance(string, bytes):
+            string = string.decode()
 
         kept = []
         for line in string.split(os.linesep):
@@ -138,6 +140,10 @@ class RSyncRunner(object):
               len(kept) > 0:  # pylint: disable=len-as-condition
                 continue
             kept.append(line)
+
+        if len(kept) == 1 and len(kept[0]) == 0:
+            return None
+
         return kept
 
     def __run(self):
@@ -165,7 +171,7 @@ class RSyncRunner(object):
 
             if proc.returncode == 0:
                 # there shouldn't be any error messages if return code is 0
-                if errlines is not None:
+                if errlines is not None and len(errlines) > 0:
                     with self.__qlock:
                         print("Unexpected error(s) after rsyncing %s to %s" %
                               (description, cmdhost))
