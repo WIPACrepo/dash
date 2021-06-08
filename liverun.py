@@ -509,7 +509,7 @@ class LiveRun(BaseRun):
         Return True if I3Live controls pDAQ
         """
 
-        cmd = "%s control pdaq localhost:%s" % \
+        cmd = "%s control pdaq --host localhost --port %s" % \
             (self.__livecmd_path, DAQPort.DAQLIVE)
         self.log_command(cmd)
 
