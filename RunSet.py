@@ -1514,7 +1514,7 @@ class RunSet(object):
                 # format an alert message
                 value = {
                     "condition": "nist leapsecond file approaching expiration",
-                    "desc": "Run dash/leapsecond-fetch.py and deploy pdaq",
+                    "desc": "Run 'pdaq update_leapseconds' then redeploy pdaq",
                     "vars": {
                         "days_till_expiration": expire_delta,
                     }
