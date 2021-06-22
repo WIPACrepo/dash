@@ -15,46 +15,46 @@ from DAQMocks import MockComponent, MockIntervalTimer, MockLiveMoni, \
 
 
 class BadMBeanClient(MockMBeanClient):
-    def __init__(self, compName):
-        self.__raiseSocketError = False
-        self.__raiseException = False
+    def __init__(self, comp_name):
+        self.__raise_socket_error = False
+        self.__raise_exception = False
 
-        super(BadMBeanClient, self).__init__(compName)
+        super(BadMBeanClient, self).__init__(comp_name)
 
-    def clearConditions(self):
-        self.__raiseSocketError = False
-        self.__raiseException = False
+    def clear_conditions(self):
+        self.__raise_socket_error = False
+        self.__raise_exception = False
 
-    def get(self, beanName, fieldName):
-        if self.__raiseSocketError:
-            self.__raiseSocketError = False
+    def get(self, bean_name, field_name):
+        if self.__raise_socket_error:
+            self.__raise_socket_error = False
             raise BeanTimeoutException("Mock exception")
-        if self.__raiseException:
-            self.__raiseException = False
+        if self.__raise_exception:
+            self.__raise_exception = False
             raise Exception("Mock exception")
-        return super(BadMBeanClient, self).get(beanName, fieldName)
+        return super(BadMBeanClient, self).get(bean_name, field_name)
 
-    def getDictionary(self):
-        if self.__raiseSocketError:
-            self.__raiseSocketError = False
+    def get_dictionary(self):
+        if self.__raise_socket_error:
+            self.__raise_socket_error = False
             raise BeanTimeoutException("Mock exception")
-        if self.__raiseException:
-            self.__raiseException = False
+        if self.__raise_exception:
+            self.__raise_exception = False
             raise Exception("Mock exception")
-        return super(BadMBeanClient, self).getDictionary()
+        return super(BadMBeanClient, self).get_dictionary()
 
-    def raiseException(self):
-        self.__raiseException = True
+    def raise_exception(self):
+        self.__raise_exception = True
 
-    def raiseSocketError(self):
-        self.__raiseSocketError = True
+    def raise_socket_error(self):
+        self.__raise_socket_error = True
 
 
 class BadComponent(MockComponent):
     def __init__(self, name, num=0):
         super(BadComponent, self).__init__(name, num)
 
-    def _createMBeanClient(self):
+    def _create_mbean_client(self):
         return BadMBeanClient(self.fullname)
 
 
@@ -68,114 +68,118 @@ class BadCloseThread(object):
         self.__closed = True
         raise Exception("Forced exception")
 
-    def isAlive(self):
+    def is_alive(self):  # pylint: disable=no-self-use
         return True
 
     @property
-    def isClosed(self):
+    def is_closed(self):
         return self.__closed
 
 
 class BadMonitorTask(MonitorTask):
-    def __init__(self, taskMgr, runset, logger, live, rundir, runOpts):
-        super(BadMonitorTask, self).__init__(taskMgr, runset, logger, live,
-                                             rundir, runOpts)
+    def __init__(self, task_mgr, runset, logger, live, rundir, run_opts):
+        super(BadMonitorTask, self).__init__(task_mgr, runset, logger, live,
+                                             rundir, run_opts)
 
     @classmethod
-    def createThread(cls, comp, runDir, live, runOptions, dashlog):
+    def create_thread(cls, comp, run_dir, live_moni, run_options, dashlog):
         return BadCloseThread()
 
 
 class MonitorTaskTest(unittest.TestCase):
     __temp_dir = None
 
-    def __createStandardComponents(self):
-        foo = MockComponent("foo", 1)
-        foo.mbean.addData("fooB", "fooF", 12)
-        foo.mbean.addData("fooB", "fooG", "abc")
+    @classmethod
+    def __create_standard_components(cls):
+        foo_comp = MockComponent("foo", 1)
+        foo_comp.mbean.add_mock_data("fooB", "fooF", 12)
+        foo_comp.mbean.add_mock_data("fooB", "fooG", "abc")
 
-        bar = MockComponent("bar", 0)
-        bar.mbean.addData("barB", "barF", 7)
+        bar_comp = MockComponent("bar", 0)
+        bar_comp.mbean.add_mock_data("barB", "barF", 7)
 
-        return [foo, bar, ]
+        return [foo_comp, bar_comp, ]
 
-    def __createStandardObjects(self):
-        timer = MockIntervalTimer(MonitorTask.NAME)
-        taskMgr = MockTaskManager()
-        taskMgr.addIntervalTimer(timer)
+    @classmethod
+    def __create_standard_objects(cls):
+        timer = MockIntervalTimer(MonitorTask.name)
+        taskmgr = MockTaskManager()
+        taskmgr.add_interval_timer(timer)
 
         logger = MockLogger("logger")
         live = MockLiveMoni()
 
-        return (timer, taskMgr, logger, live)
+        return (timer, taskmgr, logger, live)
 
-    def __runTest(self, compList, timer, taskMgr, logger, live, runOpt,
-                  raiseSocketError=False, raiseException=False):
-        runset = MockRunSet(compList)
+    def __run_test(self, comp_list, timer, taskmgr, logger, live, run_opt,
+                   raise_socket_error=False, raise_exception=False):
+        runset = MockRunSet(comp_list)
 
-        tsk = MonitorTask(taskMgr, runset, logger, live, self.__temp_dir,
-                          runOpt)
+        tsk = MonitorTask(taskmgr, runset, logger, live, self.__temp_dir,
+                          run_opt)
 
         # from DAQMocks import LogChecker; LogChecker.DEBUG = True
 
-        for i in range(-1, 5):
-            if RunOption.isMoniToLive(runOpt):
-                for c in compList:
-                    if isinstance(c, BadComponent):
-                        c.mbean.clearConditions()
-                    for b in c.mbean.getBeanNames():
-                        for f in c.mbean.getBeanFields(b):
-                            live.addExpected(c.filename + "*" + b + "+" + f,
-                                             c.mbean.get(b, f),
-                                             Prio.ITS)
+        for idx in range(-1, 5):
+            if RunOption.is_moni_to_live(run_opt):
+                for comp in comp_list:
+                    if isinstance(comp, BadComponent):
+                        comp.mbean.clear_conditions()
+                    for bnm in comp.mbean.get_bean_names():
+                        for fld in comp.mbean.get_bean_fields(bnm):
+                            live.add_expected(comp.filename + "*" + bnm + "+" +
+                                              fld,
+                                              comp.mbean.get(bnm, fld),
+                                              Prio.ITS)
 
-            for c in compList:
-                if isinstance(c, BadComponent):
-                    if raiseSocketError:
-                        if i == 3:
-                            errMsg = ("ERROR: Not monitoring %s:" +
+            for comp in comp_list:
+                if isinstance(comp, BadComponent):
+                    if raise_socket_error:
+                        if idx == 3:
+                            errmsg = ("ERROR: Not monitoring %s:" +
                                       " Connect failed %d times") % \
-                                      (c.fullname, i)
-                            logger.addExpectedExact(errMsg)
-                        elif i >= 0 and i < 3:
-                            c.mbean.raiseSocketError()
-                    elif i > 0 and raiseException:
-                        errMsg = "Ignoring %s:(.*:)? Exception.*$" % c.fullname
-                        logger.addExpectedRegexp(errMsg)
-                        c.mbean.raiseException()
+                                      (comp.fullname, idx)
+                            logger.add_expected_exact(errmsg)
+                        elif 0 <= idx < 3:
+                            comp.mbean.raise_socket_error()
+                    elif idx > 0 and raise_exception:
+                        errmsg = "Ignoring %s:(.*:)? Exception.*$" % \
+                          comp.fullname
+                        logger.add_expected_regexp(errmsg)
+                        comp.mbean.raise_exception()
 
             timer.trigger()
             left = tsk.check()
-            self.assertEqual(timer.waitSecs(), left,
+            self.assertEqual(timer.wait_secs(), left,
                              "Expected %d seconds, not %d" %
-                             (timer.waitSecs(), left))
+                             (timer.wait_secs(), left))
 
-            tsk.waitUntilFinished()
+            tsk.wait_until_finished()
 
-            logger.checkStatus(4)
+            logger.check_status(4)
 
         tsk.close()
 
-        self.__validateFiles(runOpt, compList)
+        self.__validate_files(run_opt, comp_list)
 
-        logger.checkStatus(4)
+        logger.check_status(4)
 
-    def __validateFiles(self, runOpt, compList):
+    def __validate_files(self, run_opt, comp_list):
         files = os.listdir(self.__temp_dir)
-        if not RunOption.isMoniToFile(runOpt):
-            self.assertFalse(len(files) > 0,
-                             "Found unexpected monitoring files: " +
+        if not RunOption.is_moni_to_file(run_opt):
+            found = len(files) > 0  # pylint: disable=len-as-condition
+            self.assertFalse(found, "Found unexpected monitoring files: %s" %
                              str(files))
             return
 
-        expFiles = len(compList)
+        exp_files = len(comp_list)
         if MonitorTask.MONITOR_CNCSERVER:
             # if monitoring CnCServer, there should be a cncServer.moni file
-            expFiles += 1
+            exp_files += 1
 
-        self.assertTrue(len(files) == expFiles,
+        self.assertTrue(len(files) == exp_files,
                         "Expected %d files, not %d: %s" %
-                        (expFiles, len(files), files))
+                        (exp_files, len(files), files))
 
     def setUp(self):
         self.__temp_dir = tempfile.mkdtemp()
@@ -183,94 +187,94 @@ class MonitorTaskTest(unittest.TestCase):
     def tearDown(self):
         try:
             shutil.rmtree(self.__temp_dir)
-        except:
+        except:  # pylint: disable=bare-except
             pass  # ignore errors
 
-    def testBadRunOpt(self):
-        (timer, taskMgr, logger, live) = self.__createStandardObjects()
+    def test_bad_run_opt(self):
+        (timer, taskmgr, logger, live) = self.__create_standard_objects()
 
-        compList = self.__createStandardComponents()
+        comp_list = self.__create_standard_components()
 
-        self.__runTest(compList, timer, taskMgr, logger, live, 0)
+        self.__run_test(comp_list, timer, taskmgr, logger, live, 0)
 
-    def testGoodNone(self):
-        (timer, taskMgr, logger, live) = self.__createStandardObjects()
+    def test_good_none(self):
+        (timer, taskmgr, logger, live) = self.__create_standard_objects()
 
-        compList = self.__createStandardComponents()
+        comp_list = self.__create_standard_components()
 
-        self.__runTest(compList, timer, taskMgr, logger, live,
-                       RunOption.MONI_TO_NONE)
+        self.__run_test(comp_list, timer, taskmgr, logger, live,
+                        RunOption.MONI_TO_NONE)
 
-    def testGoodFile(self):
-        (timer, taskMgr, logger, live) = self.__createStandardObjects()
+    def test_good_file(self):
+        (timer, taskmgr, logger, live) = self.__create_standard_objects()
 
-        compList = self.__createStandardComponents()
+        comp_list = self.__create_standard_components()
 
-        self.__runTest(compList, timer, taskMgr, logger, live,
-                       RunOption.MONI_TO_FILE)
+        self.__run_test(comp_list, timer, taskmgr, logger, live,
+                        RunOption.MONI_TO_FILE)
 
-    def testGoodLive(self):
-        (timer, taskMgr, logger, live) = self.__createStandardObjects()
+    def test_good_live(self):
+        (timer, taskmgr, logger, live) = self.__create_standard_objects()
 
-        compList = self.__createStandardComponents()
+        comp_list = self.__create_standard_components()
 
-        self.__runTest(compList, timer, taskMgr, logger, live,
-                       RunOption.MONI_TO_LIVE)
+        self.__run_test(comp_list, timer, taskmgr, logger, live,
+                        RunOption.MONI_TO_LIVE)
 
-    def testGoodBoth(self):
-        (timer, taskMgr, logger, live) = self.__createStandardObjects()
+    def test_good_both(self):
+        (timer, taskmgr, logger, live) = self.__create_standard_objects()
 
-        compList = self.__createStandardComponents()
+        comp_list = self.__create_standard_components()
 
-        self.__runTest(compList, timer, taskMgr, logger, live,
-                       RunOption.MONI_TO_BOTH)
+        self.__run_test(comp_list, timer, taskmgr, logger, live,
+                        RunOption.MONI_TO_BOTH)
 
-    def testSocketError(self):
-        (timer, taskMgr, logger, live) = self.__createStandardObjects()
+    def test_socket_error(self):
+        (timer, taskmgr, logger, live) = self.__create_standard_objects()
 
-        foo = MockComponent("foo", 1)
-        foo.mbean.addData("fooB", "fooF", 12)
-        foo.mbean.addData("fooB", "fooG", "abc")
+        foo_comp = MockComponent("foo", 1)
+        foo_comp.mbean.add_mock_data("fooB", "fooF", 12)
+        foo_comp.mbean.add_mock_data("fooB", "fooG", "abc")
 
-        bar = BadComponent("bar", 0)
-        bar.mbean.addData("barB", "barF", 7)
+        bar_comp = BadComponent("bar", 0)
+        bar_comp.mbean.add_mock_data("barB", "barF", 7)
 
-        compList = [foo, bar, ]
-        self.__runTest(compList, timer, taskMgr, logger, live,
-                       RunOption.MONI_TO_BOTH, raiseSocketError=True)
+        comp_list = [foo_comp, bar_comp, ]
+        self.__run_test(comp_list, timer, taskmgr, logger, live,
+                        RunOption.MONI_TO_BOTH, raise_socket_error=True)
 
-    def testException(self):
-        (timer, taskMgr, logger, live) = self.__createStandardObjects()
+    def test_exception(self):
+        (timer, taskmgr, logger, live) = self.__create_standard_objects()
 
-        foo = MockComponent("foo", 1)
-        foo.mbean.addData("fooB", "fooF", 12)
-        foo.mbean.addData("fooB", "fooG", "abc")
+        foo_comp = MockComponent("foo", 1)
+        foo_comp.mbean.add_mock_data("fooB", "fooF", 12)
+        foo_comp.mbean.add_mock_data("fooB", "fooG", "abc")
 
-        bar = BadComponent("bar", 0)
-        bar.mbean.addData("barB", "barF", 7)
+        bar_comp = BadComponent("bar", 0)
+        bar_comp.mbean.add_mock_data("barB", "barF", 7)
 
-        compList = [foo, bar, ]
-        self.__runTest(compList, timer, taskMgr, logger, live,
-                       RunOption.MONI_TO_BOTH, raiseException=True)
+        comp_list = [foo_comp, bar_comp, ]
+        self.__run_test(comp_list, timer, taskmgr, logger, live,
+                        RunOption.MONI_TO_BOTH, raise_exception=True)
 
-    def testFailedClose(self):
-        (timer, taskMgr, logger, live) = self.__createStandardObjects()
+    def test_failed_close(self):
+        (timer, taskmgr, logger, live) = self.__create_standard_objects()
 
-        compList = self.__createStandardComponents()
-        runset = MockRunSet(compList)
+        comp_list = self.__create_standard_components()
+        runset = MockRunSet(comp_list)
 
-        tsk = BadMonitorTask(taskMgr, runset, logger, live, self.__temp_dir,
+        tsk = BadMonitorTask(taskmgr, runset, logger, live, self.__temp_dir,
                              RunOption.MONI_TO_LIVE)
         timer.trigger()
         tsk.check()
 
         try:
             tsk.close()
-        except Exception as ex:
-            if not str(ex).endswith("Forced exception"):
+        except Exception as exc:  # pylint: disable=broad-except
+            if not str(exc).endswith("Forced exception"):
                 raise
-        self.assertTrue(tsk.numOpen() == 0, "%d threads were not closed" %
-                        tsk.numOpen())
+        self.assertTrue(tsk.open_threads == 0,
+                        "%d threads were not closed" % (tsk.open_threads, ))
 
 
 if __name__ == '__main__':

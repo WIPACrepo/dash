@@ -1,38 +1,33 @@
 #!/usr/bin/env python
 
 from DAQClient import BeanTimeoutException
-from ThreadGroup import Thread, ThreadGroup
+from ThreadGroup import GThread, ThreadGroup
+from decorators import classproperty
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
 
 
 class ComponentOperationException(Exception):
-    pass
-
-
-class classproperty(object):
-    "Decorator for class properties"
-
-    def __init__(self, func):
-        "Save the class method"
-        self.func = func
-
-    def __get__(self, obj, owner):
-        "Execute the class method"
-        return self.func(owner)
+    "General ComponentOperation exception"
 
 
 class ComponentOperation(object):
     "Send a command or query to a component in a runset"
 
+    def __str__(self):
+        "Return the name of this operator"
+        return self.name
+
     @classproperty
-    def has_result(cls):
+    def has_result(cls):  # pylint: disable=no-self-use,no-self-argument
+        "Does this operator return a result?"
         return True
 
     @classproperty
-    def name(cls):
-        name = cls.__name__
+    def name(cls):  # pylint: disable=no-self-argument
+        "Return the name of this operator"
+        name = cls.__name__  # pylint: disable=no-member
         if name is not None and name.startswith("Op"):
             return name[2:]
         return name
@@ -40,7 +35,7 @@ class ComponentOperation(object):
 
 class VoidOperation(ComponentOperation):
     @classproperty
-    def has_result(self):
+    def has_result(self):  # pylint: disable=no-self-argument
         return False
 
 
@@ -62,7 +57,7 @@ class OpConfigureLogging(VoidOperation):
     "Configure logging for the component"
     @classmethod
     def execute(cls, comp, data):
-        return comp.logTo(data[0], data[1], data[2], data[3])
+        return comp.log_to(data[0], data[1], data[2], data[3])
 
 
 class OpConnect(VoidOperation):
@@ -79,42 +74,42 @@ class OpForcedStop(VoidOperation):
     "Force the running component to stop"
     @classmethod
     def execute(cls, comp, _):
-        return comp.forcedStop()
+        return comp.forced_stop()
 
 
 class OpGetConnectionInfo(ComponentOperation):
     "Get the component's connector information"
     @classmethod
     def execute(cls, comp, _):
-        return comp.listConnectorStates()
+        return comp.list_connector_states()
 
 
 class OpGetGoodTime(ComponentOperation):
     "Get the component's good hit time"
     @classmethod
     def execute(cls, comp, data):
-        return comp.mbean.getAttributes("stringhub", data)
+        return comp.mbean.get_attributes("stringhub", data)
 
 
 class OpGetMultiBeanFields(ComponentOperation):
     "Get the component's good hit time"
     @classmethod
     def execute(cls, comp, data):
-        return comp.mbean.getAttributes(data[0], data[1])
+        return comp.mbean.get_attributes(data[0], data[1])
 
 
 class OpGetReplayTime(ComponentOperation):
     "Get the replay hub's first hit time"
     @classmethod
     def execute(cls, comp, _):
-        return comp.getReplayStartTime()
+        return comp.get_replay_start_time()
 
 
 class OpGetRunData(ComponentOperation):
     "Get the builder's run data"
     @classmethod
     def execute(cls, comp, data):
-        return comp.getRunData(data[0])
+        return comp.get_run_data(data[0])
 
 
 class OpGetSingleBeanField(ComponentOperation):
@@ -142,28 +137,28 @@ class OpResetLogging(VoidOperation):
     "Reset the component's logging"
     @classmethod
     def execute(cls, comp, _):
-        return comp.resetLogging()
+        return comp.reset_logging()
 
 
 class OpSetReplayOffset(VoidOperation):
     "Set time offset for replay hubs"
     @classmethod
     def execute(cls, comp, data):
-        return comp.setReplayOffset(data[0])
+        return comp.set_replay_offset(data[0])
 
 
 class OpStartRun(VoidOperation):
     "Start the component"
     @classmethod
     def execute(cls, comp, data):
-        return comp.startRun(data[0])
+        return comp.start_run(data[0])
 
 
 class OpStartSubrun(ComponentOperation):
     "Start the component"
     @classmethod
     def execute(cls, comp, data):
-        return comp.startSubrun(data[0])
+        return comp.start_subrun(data[0])
 
 
 class OpStopLocalLogger(VoidOperation):
@@ -172,21 +167,21 @@ class OpStopLocalLogger(VoidOperation):
     def execute(cls, comp, data):
         if comp not in data:
             raise Exception("No log server found for %s" % (comp, ))
-        data[comp].stopServing()
+        data[comp].stop_serving()
 
 
 class OpStopRun(VoidOperation):
     "Stop running components"
     @classmethod
     def execute(cls, comp, _):
-        comp.stopRun()
+        comp.stop_run()
 
 
 class OpSwitchRun(VoidOperation):
     "Switch the component to a new run number"
     @classmethod
     def execute(cls, comp, data):
-        comp.switchToNewRun(data[0])
+        comp.switch_to_new_run(data[0])
 
 
 class OpTerminate(VoidOperation):
@@ -198,7 +193,7 @@ class OpTerminate(VoidOperation):
 
 class OperationResult(object):
     def __init__(self, name):
-        self.__name = name
+        self.__name = str(name)
 
     def __str__(self):
         return self.__name
@@ -213,19 +208,18 @@ class ComponentResult(OperationResult):
         self.__arguments = arguments
         self.__value = value
 
-        super(ComponentResult, self).__init__(str(operation))
+        super(ComponentResult, self).__init__(operation)
 
     def __str__(self):
         if self.__arguments is None:
             astr = "NONE"
-        elif isinstance(self.__arguments, list) or \
-             isinstance(self.__arguments, tuple):
-            astr = ",".join(self.__arguments)
+        elif isinstance(self.__arguments, (list, tuple)):
+            astr = ",".join(str(arg) for arg in self.__arguments)
         else:
             astr = str(self.__arguments)
 
         return "%s:%s(%s) => <%s>%s" % \
-            (self.__comp.fullname, self.__operation, astr,
+            (self.__comp.fullname, self.__operation.name, astr,
              type(self.__value).__name__, self.__value)
 
     @property
@@ -245,7 +239,7 @@ class ComponentResult(OperationResult):
         return self.__value
 
 
-class ComponentThread(Thread):
+class ComponentThread(GThread):
     def __init__(self, operation, comp, args, logger):
         self.__operation = operation
         self.__comp = comp
@@ -266,14 +260,15 @@ class ComponentThread(Thread):
     def report_exception(self, exception):
         if isinstance(exception, BeanTimeoutException):
             self.__logger.error("%s(%s): %s" %
-                                (self.__operation, self.__comp, exc_string()))
+                                (self.__operation.name, self.__comp.fullname,
+                                 exc_string()))
         else:
             if self.__args is None or len(self.__args) != 2:
                 name = self.__comp.name
             else:
                 name = ",".join(map(str, self.__args))
             self.__logger.error("%s(%s): %s" %
-                                (self.__operation, name, exc_string()))
+                                (self.__operation.name, name, exc_string()))
 
     @property
     def result(self):
@@ -314,7 +309,7 @@ class ComponentGroup(ThreadGroup):
 
         results = {}
         for thrd in self.threads:
-            if thrd.isAlive():
+            if thrd.is_alive():
                 result = ComponentGroup.RESULT_HANGING
             elif thrd.is_error:
                 result = ComponentGroup.RESULT_ERROR
@@ -329,7 +324,7 @@ class ComponentGroup(ThreadGroup):
                 results[thrd] = result
             elif thrd.component in results:
                 logger.error("Found multiple %s results for %s" %
-                             (self.__op, thrd.component))
+                             (self.__op.name, thrd.component))
             else:
                 results[thrd.component] = result
         return results
@@ -364,12 +359,8 @@ class ComponentGroup(ThreadGroup):
         for _ in range(reps):
             alive = False
             for thrd in self.threads:
-                if thrd.isAlive():
+                if thrd.is_alive():
                     thrd.join(part_secs)
-                    alive |= thrd.isAlive()
+                    alive |= thrd.is_alive()
             if not alive:
                 break
-
-
-if __name__ == "__main__":
-    pass

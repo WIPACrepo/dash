@@ -12,7 +12,7 @@ from RunCluster import RunCluster
 from config.validate_configs import validate_configs
 from locate_pdaq import find_pdaq_config
 from utils.Machineid import Machineid
-from xml_dict import get_attrib, get_value, xml_dict
+from xml_dict import get_attrib, get_value, XMLDict
 from xmlparser import XMLBadFileError, XMLFormatError
 
 # config exceptions
@@ -50,9 +50,9 @@ class HubIdUtils(object):
     def get_hub_name(num):
         """Get the standard representation for a hub number"""
         base_num = int(num) % 1000
-        if base_num > 0 and base_num < 100:
+        if 0 < base_num < 100:
             return "%02d" % base_num
-        if base_num > 200 and base_num < 220:
+        if 200 < base_num < 220:
             return "%02dt" % (base_num - 200)
         return "?%d?" % base_num
 
@@ -63,15 +63,15 @@ class HubComponent(Component):
         super(HubComponent, self).__init__(hub_type, hub_id, host=host)
 
     @property
-    def isDeepCore(self):
+    def is_deepcore(self):
         return HubIdUtils.is_deep_core(self.id)
 
     @property
-    def isIceTop(self):
+    def is_icetop(self):
         return HubIdUtils.is_icetop(self.id)
 
     @property
-    def isInIce(self):
+    def is_inice(self):
         return HubIdUtils.is_in_ice(self.id)
 
 
@@ -95,12 +95,12 @@ class ReplayHub(HubComponent):
         if not old_style:
             host = get_attrib(xdict, 'host')
             if hub_id < 200:
-                self.hitFile = "ichub%02d" % hub_id
+                self.hit_file = "ichub%02d" % hub_id
             else:
-                self.hitFile = "ithub%02d" % (hub_id - 200)
+                self.hit_file = "ithub%02d" % (hub_id - 200)
         else:
             host = None
-            self.hitFile = get_attrib(xdict, 'source')
+            self.hit_file = get_attrib(xdict, 'source')
 
         super(ReplayHub, self).__init__("replayHub", hub_id, host=host)
 
@@ -153,13 +153,13 @@ class ConfigObject(object):
         "Return the full path to this configuration object"
         return os.path.join(self.configdir, self.__filename)
 
-    def load(self):
+    def load(self, shallow=False):  # pylint: disable=unused-argument
         """
         Try to find and parse the file.
         If the file is not accessible raise XMLBadFileError
         """
         try:
-            self.xdict = xml_dict(self.fullpath).xml_dict
+            self.xdict = XMLDict(self.fullpath).xml_dict
         except IOError as ioe:
             raise XMLBadFileError("Cannot read xml file '%s': %s" %
                                   (self.__filename, ioe))
@@ -168,6 +168,8 @@ class ConfigObject(object):
 class TriggerConfig(ConfigObject):
     def __init__(self, cfgdir, fname, parse=False):
         super(TriggerConfig, self).__init__(cfgdir, fname)
+
+        self.initial_dict = None
 
         if parse:
             self.load()
@@ -179,10 +181,7 @@ class TriggerConfig(ConfigObject):
     def configdir(self):
         return os.path.join(super(TriggerConfig, self).configdir, 'trigger')
 
-    def load(self):
-        super(TriggerConfig, self).load()
-
-    def set_initial(self, trig_config_dict):
+    def set_trigger_config_dict(self, trig_config_dict):
         self.initial_dict = trig_config_dict
 
 
@@ -197,7 +196,7 @@ class RunDom(dict):
     def __init__(self, dom_dict, domConfigDir=None):
         self.dom_dict = dom_dict
 
-        self.__id = int(self['mbid'], 16)
+        self.__mbid = int(self['mbid'], 16)
         try:
             self.__name = self['name']
         except AttributeError:
@@ -209,8 +208,8 @@ class RunDom(dict):
         dom_id_to_dom = RunDom.__load_dom_id_map(parent)
         dom_geom = dom_id_to_dom[self['mbid']]
 
-        self.__string = dom_geom.string()
-        self.__pos = dom_geom.pos()
+        self.__string = dom_geom.string
+        self.__pos = dom_geom.pos
 
         dict.__init__(self)
 
@@ -218,17 +217,17 @@ class RunDom(dict):
         return "%s" % self['mbid']
 
     @classmethod
-    def __load_dom_id_map(cls, configDir):
+    def __load_dom_id_map(cls, config_dir):
         if cls.DEFAULT_DOM_GEOMETRY is None:
-            cls.__load_geometry(configDir)
+            cls.__load_geometry(config_dir)
 
-        return cls.DEFAULT_DOM_GEOMETRY.getDomIdToDomDict()
+        return cls.DEFAULT_DOM_GEOMETRY.get_dom_id_to_dom_dict()
 
     @classmethod
-    def __load_geometry(cls, configDir):
+    def __load_geometry(cls, config_dir):
         cls.DEFAULT_DOM_GEOMETRY = \
-                DefaultDomGeometryReader.parse(configDir=configDir,
-                                               translateDoms=True)
+                DefaultDomGeometryReader.parse(config_dir=config_dir,
+                                               translate_doms=True)
 
     def __getitem__(self, key):
         """Maybe an odd overloading of a python dictionary,
@@ -245,21 +244,23 @@ class RunDom(dict):
             raise attr_err
 
     @classmethod
-    def doms_on_string(cls, configDir, strnum):
+    def doms_on_string(cls, config_dir, strnum):
         if cls.DEFAULT_DOM_GEOMETRY is None:
-            cls.__load_geometry(configDir)
+            cls.__load_geometry(config_dir)
 
-        return cls.DEFAULT_DOM_GEOMETRY.getDomsOnString(strnum)
+        return cls.DEFAULT_DOM_GEOMETRY.doms_on_string(strnum)
 
-    # Technically not really required, but keep
+    # Technically not required, but keeps
     # the signature the same for these methods
     @property
-    def id(self):
-        return self.__id
+    def mbid(self):  # pylint: disable=invalid-name
+        return self.__mbid
 
+    @property
     def string(self):
         return self.__string
 
+    @property
     def pos(self):
         return self.__pos
 
@@ -287,7 +288,7 @@ class DomConfig(ConfigObject):
     def configdir(self):
         return os.path.join(super(DomConfig, self).configdir, 'domconfigs')
 
-    def load(self):
+    def load(self, shallow=False):  # pylint: disable=unused-argument
         super(DomConfig, self).load()
 
         self.string_map = {}
@@ -304,14 +305,14 @@ class DomConfig(ConfigObject):
                     self.xdict['domConfigList']['__children__']['domConfig']
 
                 for entry in dom_configs:
-                    rd = RunDom(entry, self.configdir)
-                    self.rundoms.append(rd)
+                    rundom = RunDom(entry, self.configdir)
+                    self.rundoms.append(rundom)
 
-                    string = rd.string()
-                    if string not in self.string_map:
-                        self.string_map[string] = []
-                        self.hub_id = string
-                    self.string_map[string].append(rd)
+                    domstr = rundom.string
+                    if domstr not in self.string_map:
+                        self.string_map[domstr] = []
+                        self.hub_id = domstr
+                    self.string_map[domstr].append(rundom)
 
             except KeyError:
                 import traceback
@@ -327,58 +328,60 @@ class DomConfig(ConfigObject):
 
 
 class RandomConfig(object):
-    def __init__(self, xdict, configDir=None):
+    def __init__(self, xdict, config_dir=None):
         self.string_map = {}
         self.hub_id = None
 
-        str_id, excluded = self.__parseRandomHub(xdict)
+        str_id, excluded = self.__parse_random_hub(xdict)
 
         # fetch the list of DOMs for this string
-        doms = RunDom.doms_on_string(configDir, str_id)
-        if doms is None or len(doms) == 0:
+        self.rundoms = RunDom.doms_on_string(config_dir, str_id)
+        if self.rundoms is None or \
+          len(self.rundoms) == 0:  # pylint: disable=len-as-condition
             msg = "Unknown random hub %d" % str_id
             raise DAQConfigException(msg)
 
         self.hub_id = str_id
 
-        for dom in doms:
-            if excluded is not None and dom.mbid() in excluded:
+        for dom in self.rundoms:
+            if excluded is not None and dom.mbid in excluded:
                 continue
 
             if str_id not in self.string_map:
                 self.string_map[str_id] = []
                 self.string_map[str_id].append(dom)
 
-    def __parseRandomHub(self, xdict):
+    @classmethod
+    def __parse_random_hub(cls, xdict):
         hub_id = None
         excluded = None
-        for skey, sval in list(xdict.items()):
+        for skey, sval in xdict.items():
             if skey == '__attribs__' and 'id' in sval:
                 hub_id = int(sval['id'])
             elif skey != '__children__' or not isinstance(sval, dict):
                 print("Ignoring randomHub entry %s" % skey)
             else:
-                for k3, v3 in list(sval.items()):
-                    if k3 != 'exclude':
-                        msg = "Unknown randomHub element %s" % k3
+                for key3, val3 in list(sval.items()):
+                    if key3 != 'exclude':
+                        msg = "Unknown randomHub element %s" % key3
                         raise DAQConfigException(msg)
 
-                    if not isinstance(v3, list) or len(v3) != 1 or \
-                       not isinstance(v3[0], dict) or len(v3[0]) != 1 or \
-                       '__attribs__' not in v3[0]:
-                        print("Ignoring bogus randomConfig element %s" \
-                            " subelement %s" % (skey, k3))
+                    if not isinstance(val3, list) or len(val3) != 1 or \
+                       not isinstance(val3[0], dict) or len(val3[0]) != 1 or \
+                       '__attribs__' not in val3[0]:
+                        print("Ignoring bogus randomConfig element %s"
+                              " subelement %s" % (skey, key3))
                         continue
 
-                    for k4, v4 in list(v3[0]['__attribs__'].items()):
-                        if k4 != 'dom':
+                    for key4, val4 in list(val3[0]['__attribs__'].items()):
+                        if key4 != 'dom':
                             msg = "Found bogus randomHub <%s> attribute %s" % \
-                                  (k3, k4)
+                                  (key3, key4)
                             raise DAQConfigException(msg)
 
                         if excluded is None:
                             excluded = []
-                            excluded.append(v4)
+                            excluded.append(val4)
 
         return (hub_id, excluded)
 
@@ -420,15 +423,54 @@ class DAQConfig(ConfigObject):
 
         self.load(shallow=shallow)
 
+    def __extract_random(self, xml_list):
+        "Handle the <randomConfig> section"
+        self.noise_rate = None
+
+        for vdict in xml_list:
+            # pylint: disable=len-as-condition
+            if not isinstance(vdict, dict) or len(vdict) == 0 or \
+              '__children__' not in vdict or \
+              not isinstance(vdict['__children__'], dict):
+                msg = "Bad randomConfig element %s<%s> in %s" % \
+                  (vdict, type(vdict), self.filename)
+                raise DAQConfigException(msg)
+            # pylint: enable=len-as-condition
+
+            for key2, val2 in list(vdict['__children__'].items()):
+                for entry in val2:
+                    if key2 == 'noiseRate':
+                        self.noise_rate = float(entry)
+                    elif key2 == 'string':
+                        if not isinstance(entry, dict):
+                            msg = "Found bogus randomConfig element %s %s" % \
+                              (key2, type(entry))
+                            raise DAQConfigException(msg)
+
+                        dom_config = RandomConfig(entry, self.configdir)
+                        self.dom_cfgs.append(dom_config)
+
+                        rnd_hub = RandomHub(dom_config.hub_id)
+                        self.stringhub_map[dom_config.hub_id] = rnd_hub
+                        self.__add_component(rnd_hub)
+                    else:
+                        print("Ignoring " + key2)
+
+        if self.noise_rate is None:
+            raise DAQConfigException("No noise rate in %s <randomConfig>" %
+                                     self.filename)
+
     def validate(self):
         """The syntax of a file is verified with the
         rng validation parser, but there are a few things
         not validated"""
 
+        # pylint: disable=len-as-condition
         if len(self.stringhub_map) == 0 and len(self.replay_hubs) == 0 and \
            self.excluded_doms is None:
             raise XMLFormatError("No doms, replayHubs, or excluded DOMs found"
                                  " in %s" % self.filename)
+        # pylint: enable=len-as-condition
 
         if not self.trig_cfg:
             raise XMLFormatError("No <triggerConfig> found in %s" %
@@ -437,14 +479,14 @@ class DAQConfig(ConfigObject):
         in_ice_hub, in_ice_trig, \
             ice_top_hub, ice_top_trig = (False, False, False, False)
 
-        for c in self.comps:
-            if c.isHub:
-                if c.isInIce:
+        for comp in self.comps:
+            if comp.is_hub:
+                if comp.is_inice:
                     in_ice_hub = True
                 else:
                     ice_top_hub = True
-            elif c.isTrigger:
-                lname = c.name.lower()
+            elif comp.is_trigger:
+                lname = comp.name.lower()
                 if lname.startswith("inice"):
                     in_ice_trig = True
                 elif lname.startswith("icetop"):
@@ -467,7 +509,7 @@ class DAQConfig(ConfigObject):
                                  " in %s" % self.filename)
 
     @classmethod
-    def showList(cls, config_dir=None, config_name=None):
+    def print_config_file_list(cls, config_dir=None, config_name=None):
         if config_dir is None:
             config_dir = find_pdaq_config()
 
@@ -476,7 +518,7 @@ class DAQConfig(ConfigObject):
                                      config_dir)
 
         if config_name is None:
-            config_name = CachedConfigName.getConfigToUse(None, False, True)
+            config_name = CachedConfigName.get_config_to_use(None, False, True)
 
         cfgs = []
 
@@ -488,8 +530,7 @@ class DAQConfig(ConfigObject):
             if ext == ".xml":
                 cfgs.append(cfg)
 
-        cfgs.sort()
-        for cname in cfgs:
+        for cname in sorted(cfgs):
             mark = "   "
             if not config_name:
                 mark = ""
@@ -501,90 +542,90 @@ class DAQConfig(ConfigObject):
             except IOError:
                 break
 
-    def __getBoolean(self, name, attr_name):
+    def __get_boolean(self, name, attr_name):
         """Extract a boolean specification from the configuration"""
-        value = self.__getString(name, attr_name)
+        value = self.__get_string(name, attr_name)
         if value is not None:
             value = value.lower()
-        return value == "true" or value == "yes"
+        return value in ("true", "yes")
 
-    def __getFloat(self, name, attr_name):
+    def __get_float(self, name, attr_name):
         """Extract a floating point specification from the configuration"""
-        value = self.__getString(name, attr_name)
+        value = self.__get_string(name, attr_name)
         if value is not None:
             try:
-                return float(self.__getString(name, attr_name))
+                return float(self.__get_string(name, attr_name))
             except (AttributeError, ValueError):
                 pass
 
         return None
 
-    def __getInteger(self, name, attr_name):
+    def __get_integer(self, name, attr_name):
         """Extract an integer specification from the configuration"""
-        value = self.__getString(name, attr_name)
+        value = self.__get_string(name, attr_name)
         if value is not None:
             try:
-                return int(self.__getString(name, attr_name))
+                return int(self.__get_string(name, attr_name))
             except (AttributeError, ValueError):
                 pass
 
         return None
 
-    def __getString(self, name, attr_name):
+    def __get_string(self, name, attr_name):
         """Extract a value from the configuration"""
-        for key, value in self.other_objs:
-            if key == name and isinstance(value, list):
-                for v in value:
+        for key, vlist in self.other_objs:
+            if key == name and isinstance(vlist, list):
+                for val in vlist:
                     try:
-                        return get_attrib(v, attr_name)
+                        return get_attrib(val, attr_name)
                     except (AttributeError, ValueError):
                         pass
 
         return None
 
     @property
-    def monitorPeriod(self):
+    def monitor_period(self):
         """Return the monitoring period (None if not specified)"""
-        return self.__getInteger("monitor", "period")
+        return self.__get_integer("monitor", "period")
 
     @property
-    def numReplayFilesToSkip(self):
+    def num_replay_files_to_skip(self):
         """Return the monitoring period (None if not specified)"""
-        return self.__getInteger("tweak", "skip")
+        return self.__get_integer("tweak", "skip")
 
     @property
-    def watchdogPeriod(self):
+    def watchdog_period(self):
         """return the watchdog period (None if not specified)"""
-        return self.__getInteger("watchdog", "period")
+        return self.__get_integer("watchdog", "period")
 
     @property
-    def updateHitSpoolTimes(self):
+    def update_hitspool_times(self):
         """Return the monitoring period (None if not specified)"""
-        return not self.__getBoolean("updateHitSpoolTimes", "disabled")
+        return not self.__get_boolean("updateHitSpoolTimes", "disabled")
 
-    def addComponent(self, comp, strict=False, host=None):
+    def __add_component(self, comp, strict=False, host=None):
         """Add a component name"""
         if not isinstance(comp, Component):
-            compName = comp
-            pound = compName.rfind("#")
+            comp_name = comp
+            pound = comp_name.rfind("#")
             if pound < 0:
-                comp = Component(compName, 0, host=host)
+                comp = Component(comp_name, 0, host=host)
             elif not strict:
-                comp = Component(compName[:pound], int(compName[pound + 1:]),
+                comp = Component(comp_name[:pound], int(comp_name[pound + 1:]),
                                  host=host)
             else:
                 raise BadComponentName("Found \"#\" in component name \"%s\"" %
-                                       compName)
+                                       comp_name)
         self.__comps.append(comp)
 
+    @property
     def components(self):
-        objs = sorted(self.__comps[:])
-        return objs
+        return sorted(self.__comps[:])
 
-    def omit(self, hubIdList, keepList=False):
+    def omit(self, hub_id_list, keep_list=False):
         """
         Create a new run configuration which omits the specified hubs.
-        If 'keepList' is True, omit all hubs which are NOT in the list
+        If 'keep_list' is True, omit all hubs which are NOT in the list
         """
 
         omit_dict = {
@@ -604,26 +645,30 @@ class DAQConfig(ConfigObject):
         omit_dict['runConfig']['__children__']['runComponent'] = \
             self.run_comps
 
-        for k, v in self.other_objs:
-            if k not in omit_dict['runConfig']['__children__']:
-                omit_dict['runConfig']['__children__'][k] = []
-            omit_dict['runConfig']['__children__'][k].extend(v)
+        for key, val in self.other_objs:
+            if key not in omit_dict['runConfig']['__children__']:
+                omit_dict['runConfig']['__children__'][key] = []
+            omit_dict['runConfig']['__children__'][key].extend(val)
 
         if self.is_old_runconfig():
             # backwards compatibility support
-            for dc in self.dom_cfgs:
-                if (keepList and dc.hub_id in hubIdList) or \
-                        (not keepList and dc.hub_id not in hubIdList):
+            for domcfg in self.dom_cfgs:
+                if (keep_list and domcfg.hub_id in hub_id_list) or \
+                        (not keep_list and domcfg.hub_id not in hub_id_list):
                     # copy
                     if 'domConfigList' \
                             not in omit_dict['runConfig']['__children__']:
                         omit_dict['runConfig'][
                             '__children__']['domConfigList'] = []
 
-                    base = os.path.basename(dc.filename)
+                    base = os.path.basename(domcfg.filename)
                     dc_fname = os.path.splitext(base)[0]
-                    tmp_cfg_list = {'__attribs__': {'hub': '%d' % dc.hub_id},
-                                    '__contents__': dc_fname}
+                    tmp_cfg_list = {
+                        '__attribs__': {
+                            'hub': '%d' % domcfg.hub_id
+                            },
+                        '__contents__': dc_fname,
+                        }
 
                     omit_dict['runConfig'][
                         '__children__']['domConfigList'].append(tmp_cfg_list)
@@ -636,53 +681,32 @@ class DAQConfig(ConfigObject):
                 # being referred to in an old runconfig
                 continue
 
-            if (keepList and shub.hub_id in hubIdList) or \
-                    (not keepList and shub.hub_id not in hubIdList):
+            if (keep_list and shub.hub_id in hub_id_list) or \
+                    (not keep_list and shub.hub_id not in hub_id_list):
                 # copy
                 if 'stringHub' not in omit_dict['runConfig']['__children__']:
                     omit_dict['runConfig']['__children__']['stringHub'] = []
                 omit_dict['runConfig']['__children__']['stringHub'].append(
                     shub.xdict)
 
-        if len(self.replay_hubs) > 0:
+        if len(self.replay_hubs) > 0:  # pylint: disable=len-as-condition
             # replay rewrite code was moved to dead_replay_rewrite_code()
             raise DAQConfigException("Cannot omit hubs/racks from replay"
                                      " configs")
 
-        return xml_dict.toString(omit_dict)
-
-    def dead_replay_rewrite_code(self):
-        # replay hubs
-        # rebin by basedir
-        replay_base_dir = {}
-        for rhub in self.replay_hubs:
-            if (keepList and rhub.hub_id in hubIdList) or \
-                    (not keepList and rhub.hub_id not in hubIdList):
-                if rhub.base_dir not in replay_base_dir:
-                    replay_base_dir[rhub.base_dir] = []
-                replay_base_dir[rhub.base_dir].append(rhub)
-
-        for bdir in replay_base_dir:
-            if 'hubFiles' not in omit_dict['runConfig']['__children__']:
-                omit_dict['runConfig'][
-                    '__children__']['hubFiles'][
-                        '__children__'].append(
-                            {
-                                '__children__': replay_base_dir[bdir],
-                                '__attribs__': {'baseDir': bdir},
-                            }
-                        )
+        return XMLDict.to_string(omit_dict)
 
     @staticmethod
-    def createOmitFileName(config_dir, file_name, hub_id_list, keepList=False):
+    def create_omit_file_name(config_dir, file_name, hub_id_list,
+                              keep_list=False):
         """
         Create a new file name from the original name and the list of hubs.
         """
-        baseName = os.path.basename(file_name)
-        if baseName.endswith(".xml"):
-            baseName = baseName[:-4]
+        base_name = os.path.basename(file_name)
+        if base_name.endswith(".xml"):
+            base_name = base_name[:-4]
 
-        if keepList:
+        if keep_list:
             xstr = "-only"
             join_str = "-"
         else:
@@ -693,7 +717,7 @@ class DAQConfig(ConfigObject):
         join_list = ["%s%s" % (join_str, hub_name) for hub_name in hub_names]
         xstr = "%s%s" % (xstr, ''.join(join_list))
 
-        return os.path.join(config_dir, baseName + xstr + ".xml")
+        return os.path.join(config_dir, base_name + xstr + ".xml")
 
     def is_old_runconfig(self):
         """Check to see if the currently loaded runconfig
@@ -742,13 +766,13 @@ class DAQConfig(ConfigObject):
                 tcname = get_value(val)
                 self.trig_cfg = TriggerConfig(self.configdir, tcname,
                                               parse=not shallow)
-                self.trig_cfg.set_initial(val)
+                self.trig_cfg.set_trigger_config_dict(val)
             elif 'runComponent' in key:
                 self.run_comps = val
                 self.comps = []
                 for run_comp in val:
                     name = get_attrib(run_comp, "name")
-                    self.addComponent(name)
+                    self.__add_component(name)
             elif key == 'domConfigList' and is_old_runconfig:
                 # required for backwards compatibility
                 self.dom_cfgs = []
@@ -769,7 +793,7 @@ class DAQConfig(ConfigObject):
 
                         str_hub = StringHub(strhub_dict, str_hub_id)
                         self.stringhub_map[str_hub_id] = str_hub
-                        self.addComponent(str_hub)
+                        self.__add_component(str_hub)
             elif key == 'replayFiles':
                 # found a replay hub
                 self.replay_hubs = []
@@ -783,17 +807,17 @@ class DAQConfig(ConfigObject):
                             # get old-style replay attributes
                             base_dir = get_attrib(replay_hub, 'baseDir')
                             old_style = True
-                        except:
+                        except:  # pylint: disable=bare-except
                             # must not be a replay entry
                             print("Ignoring " + str(replay_hub))
                             continue
-                    for key in ("data", "hits"):
+                    for key2 in ("data", "hits"):
                         try:
-                            for rhub_dict in replay_hub['__children__'][key]:
+                            for rhub_dict in replay_hub['__children__'][key2]:
                                 rh_obj = ReplayHub(rhub_dict, base_dir,
                                                    old_style)
                                 self.replay_hubs.append(rh_obj)
-                                self.addComponent(rh_obj)
+                                self.__add_component(rh_obj)
                         except KeyError:
                             # missing keys..
                             pass
@@ -802,38 +826,7 @@ class DAQConfig(ConfigObject):
                         self.other_objs.append(("tweak", val))
 
             elif key == 'randomConfig':
-                self.noise_rate = None
-                for v in val:
-                    if not isinstance(v, dict) or len(v) == 0 or \
-                       '__children__' not in v or \
-                       not isinstance(v['__children__'], dict):
-                        msg = "Bad randomConfig element %s<%s> in %s" % \
-                              (v, type(v), self.filename)
-                        raise DAQConfigException(msg)
-
-                    for k2, v2 in list(v['__children__'].items()):
-                        for v2val in v2:
-                            if k2 == 'noiseRate':
-                                self.noise_rate = float(v2val)
-                            elif k2 == 'string':
-                                if not isinstance(v2val, dict):
-                                    msg = "Found bogus randomConfig element" \
-                                        " %s %s" % (k2, type(v2val))
-                                    raise DAQConfigException(msg)
-
-                                dom_config = RandomConfig(v2val,
-                                                          self.configdir)
-                                self.dom_cfgs.append(dom_config)
-
-                                rnd_hub = RandomHub(dom_config.hub_id)
-                                self.stringhub_map[dom_config.hub_id] = rnd_hub
-                                self.addComponent(rnd_hub)
-                            else:
-                                print("Ignoring " + k2)
-
-                if self.noise_rate is None:
-                    raise DAQConfigException("No noise rate in %s"
-                                             " <randomConfig>" % self.filename)
+                self.__extract_random(val)
             elif key == 'supersaver':
                 self.is_supersaver = True
             else:
@@ -853,17 +846,17 @@ class DAQConfig(ConfigObject):
                     errmsg = "Only one string allowed per dom config: %s" % \
                              (dom_cfg.filename, )
                     raise DAQConfigException(errmsg)
-                for hId in hubs:
-                    if hId not in self.stringhub_map:
-                        strHub = StringHub(None, hId, inferred=True)
-                        self.stringhub_map[hId] = strHub
-                        self.addComponent(strHub)
+                for hub_id in hubs:
+                    if hub_id not in self.stringhub_map:
+                        strhub = StringHub(None, hub_id, inferred=True)
+                        self.stringhub_map[hub_id] = strhub
+                        self.__add_component(strhub)
 
         # if 'STRICT' is specified call the validation routine
         if self.strict:
             self.validate()
 
-    def hasDOM(self, domid):
+    def has_dom(self, dom_str):
         """Take a hex string and search for a dom
         with that id.
 
@@ -871,19 +864,19 @@ class DAQConfig(ConfigObject):
         Return true if the dom with the given id is found
         and false otherwise"""
         try:
-            val = int(domid, 16)
+            val = int(dom_str, 16)
             domid = val
         except ValueError:
-            raise BadDOMID("Invalid DOM ID \"%s\"" % domid)
+            raise BadDOMID("Invalid DOM ID \"%s\"" % dom_str)
 
         for dcfg in self.dom_cfgs:
             for entry in dcfg.rundoms:
-                if entry.id == domid:
+                if entry.mbid == domid or entry.mbid == dom_str:
                     return True
-
         return False
 
-    def getAllDOMs(self):
+    @property
+    def all_doms(self):
         """Get a list of all doms"""
 
         dlist = []
@@ -891,26 +884,26 @@ class DAQConfig(ConfigObject):
             dlist.extend(dcfg.rundoms)
         return dlist
 
-    def getIDbyName(self, name):
+    def get_id_by_name(self, name):
         """Search for a dom with the given name
         and return it's id.  If no match is found
         throw a DOMNotInConfigException"""
         for dcfg in self.dom_cfgs:
             for entry in dcfg.rundoms:
                 if entry.name == name:
-                    return "%012x" % entry.id
+                    return "%012x" % entry.mbid
 
         raise DOMNotInConfigException("Cannot find dom named \"%s\"" % name)
 
-    def getIDbyStringPos(self, string, pos):
+    def get_id_by_string_pos(self, string, pos):
         """Search for the id of a dom at a given string / position
         In case the dom is not found throw a DOMNotInConfigException"""
 
         for dcfg in self.dom_cfgs:
             try:
                 for entry in dcfg.string_map[string]:
-                    if entry.pos() == pos:
-                        return "%012x" % entry.id
+                    if entry.pos == pos:
+                        return "%012x" % entry.mbid
             except KeyError:
                 # ignore KeyError exceptions looking for our given string
                 pass
@@ -918,10 +911,12 @@ class DAQConfig(ConfigObject):
         raise DOMNotInConfigException("Cannot find sting %d pos %d" %
                                       (string, pos))
 
-    def getDomConfigs(self):
-        return self.dom_cfgs
+    @property
+    def dom_configs(self):
+        return self.dom_cfgs[:]
 
-    def getTriggerConfig(self):
+    @property
+    def trigger_config(self):
         return self.trig_cfg
 
 
@@ -936,75 +931,78 @@ class DAQConfigParser(object):
                          shallow=shallow)
 
     @classmethod
-    def getClusterConfiguration(cls, configName, useActiveConfig=False,
-                                clusterDesc=None, configDir=None, strict=False,
-                                validate=True):
+    def get_cluster_configuration(cls, config_name, use_active_config=False,
+                                  cluster_desc=None, config_dir=None,
+                                  strict=False, validate=True):
         """
         Find and parse the cluster configuration
         """
 
-        if configName is None:
-            configName = \
-                CachedConfigName.getConfigToUse(None, False, useActiveConfig)
-            if configName is None:
+        if config_name is None:
+            config_name = \
+                CachedConfigName.get_config_to_use(None, False,
+                                                   use_active_config)
+            if config_name is None:
                 raise ConfigNotSpecifiedException("No configuration specified")
 
-        sep_index = configName.find('@')
+        sep_index = config_name.find('@')
         if sep_index > 0:
-            clusterDesc = configName[sep_index + 1:]
-            configName = configName[:sep_index]
+            cluster_desc = config_name[sep_index + 1:]
+            config_name = config_name[:sep_index]
 
-        if configDir is None:
-            configDir = find_pdaq_config()
+        if config_dir is None:
+            config_dir = find_pdaq_config()
 
         if validate:
-            (valid, reason) = validate_configs(clusterDesc, configName)
+            (valid, reason) = validate_configs(cluster_desc, config_name)
 
             if not valid:
                 raise DAQConfigException(reason)
 
         # load the run configuration
-        runCfg = DAQConfigParser.parse(configDir, configName, strict=strict)
+        run_cfg = DAQConfigParser.parse(config_dir, config_name, strict=strict)
 
-        return RunCluster(runCfg, clusterDesc, configDir)
+        return RunCluster(run_cfg, cluster_desc, config_dir)
 
 
 def main():
+    "Main program"
+
     import argparse
     import datetime
     from exc_string import exc_string
 
-    parse = argparse.ArgumentParser()
-    parse.add_argument("-c", "--check-config", dest="toCheck",
-                       help="Check whether configuration is valid")
-    parse.add_argument("-S", "--not-strict", dest="strict",
-                       action="store_false", default=True,
-                       help="Do not perform strict checking")
-    parse.add_argument("-m", "--no-host-check", dest="nohostcheck",
-                       action="store_true", default=False,
-                       help="Disable checking the host type for run"
-                       " permission")
-    parse.add_argument("-q", "--quiet", dest="quiet",
-                       action="store_true", default=False,
-                       help="Don't print anything if config is OK")
-    parse.add_argument("-x", "--extended-tests", dest="extended",
-                       action="store_true", default=False,
-                       help="Do extended testing")
-    parse.add_argument("-z", "--no-schema-validation", dest="validation",
-                       action="store_false", default=True,
-                       help=("Disable schema validation of xml "
-                             "configuration files"))
-    parse.add_argument("xmlfile", nargs="*")
-    args = parse.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--check-config", dest="toCheck",
+                        help="Check whether configuration is valid")
+    parser.add_argument("-S", "--not-strict", dest="strict",
+                        action="store_false", default=True,
+                        help="Do not perform strict checking")
+    parser.add_argument("-m", "--no-host-check", dest="nohostcheck",
+                        action="store_true", default=False,
+                        help=("Disable checking the host type for run"
+                              " permission"))
+    parser.add_argument("-q", "--quiet", dest="quiet",
+                        action="store_true", default=False,
+                        help="Don't print anything if config is OK")
+    parser.add_argument("-x", "--extended-tests", dest="extended",
+                        action="store_true", default=False,
+                        help="Do extended testing")
+    parser.add_argument("-z", "--no-schema-validation", dest="validation",
+                        action="store_false", default=True,
+                        help=("Disable schema validation of xml "
+                              "configuration files"))
+    parser.add_argument("xmlfile", nargs="*")
+    args = parser.parse_args()
 
     if not args.nohostcheck:
         hostid = Machineid()
-        if (not (hostid.is_build_host() or hostid.is_control_host() or
-                 (hostid.is_unknown_host() and hostid.is_unknown_cluster()))):
+        if (not (hostid.is_build_host or hostid.is_control_host or
+                 (hostid.is_unknown_host and hostid.is_unknown_cluster))):
             # to run daq launch you should either be a control host or
             # a totally unknown host
-            print(("Are you sure you are running DAQConfig"
-                                  " on the correct host?"), file=sys.stderr)
+            print("Are you sure you are running DAQConfig"
+                  " on the correct host?", file=sys.stderr)
             raise SystemExit
 
     config_dir = find_pdaq_config()
@@ -1031,13 +1029,13 @@ def main():
     failed = False
     for config_name in args.xmlfile:
         if args.extended and not args.quiet:
-            print('-----------------------------------------------------------')
+            print('----------------------------------------------------------')
             print("Config %s" % config_name)
         start_time = datetime.datetime.now()
         try:
-            dc = DAQConfigParser.parse(config_dir, config_name,
-                                       strict=args.strict)
-        except Exception:
+            cfg = DAQConfigParser.parse(config_dir, config_name,
+                                        strict=args.strict)
+        except:  # pylint: disable=bare-except
             if args.quiet:
                 print("%s could not be parsed" % config_name)
             else:
@@ -1058,21 +1056,19 @@ def main():
             diff = datetime.datetime.now() - start_time
             init_time = float(diff.seconds) + \
                 (float(diff.microseconds) / 1000000.0)
-            comps = dc.components()
             if not args.quiet:
-                comps.sort()
-                for comp in comps:
-                    print('Comp %s log %s' % (str(comp), str(comp.logLevel)))
+                for comp in cfg.components:
+                    print('Comp %s log %s' % (str(comp), str(comp.log_level)))
 
             start_time = datetime.datetime.now()
-            dc = DAQConfigParser.parse(config_dir, config_name,
-                                       strict=args.strict)
+            _ = DAQConfigParser.parse(config_dir, config_name,
+                                      strict=args.strict)
             diff = datetime.datetime.now() - start_time
             next_time = float(diff.seconds) + \
                 (float(diff.microseconds) / 1000000.0)
             if not args.quiet:
-                print("Initial time %.03f, subsequent time: %.03f" % \
-                    (init_time, next_time))
+                print("Initial time %.03f, subsequent time: %.03f" %
+                      (init_time, next_time))
 
     if failed:
         raise SystemExit(1)

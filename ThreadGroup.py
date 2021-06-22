@@ -1,12 +1,15 @@
 #!/usr/bin/env python
+"""
+A simplistic ThreadGroup implementation
+"""
 
 import threading
 
 
-class Thread(threading.Thread):
+class GThread(threading.Thread):
     "Thread which is part of a group of threads"
 
-    def __init__(self, target=None, name=None, args=(), kwargs={},
+    def __init__(self, target=None, name=None, args=(), kwargs=None,
                  is_daemon=True):
         """
         Initialize a grouped thread
@@ -18,18 +21,18 @@ class Thread(threading.Thread):
         """
         self.__run_method = target
         self.__args = args
-        self.__kwargs = kwargs
+        self.__kwargs = kwargs if kwargs is not None else {}
 
         self.__result = None
         self.__error = None
 
-        super(Thread, self).__init__(name=name)
+        super(GThread, self).__init__(name=name)
         if is_daemon:
             self.setDaemon(True)
 
     def __str__(self):
         return "Thread[tgt %s super %s]" % \
-            (self.__run_method, str(super(Thread, self)))
+            (self.__run_method, str(super(GThread, self)))
 
     @property
     def error(self):
@@ -41,9 +44,10 @@ class Thread(threading.Thread):
         "Return True if this thread encountered an error"
         return self.__error is not None
 
-    def report_exception(self, exception):
+    def report_exception(self,        # pylint: disable=no-self-use
+                         exception):  # pylint: disable=unused-argument
         "Don't report exceptions"
-        pass
+        return
 
     def result(self):
         "Return cached result"
@@ -56,7 +60,7 @@ class Thread(threading.Thread):
         else:
             try:
                 self.__run_method(*self.__args, **self.__kwargs)
-            except Exception as exception:
+            except Exception as exception:  # pylint: disable=broad-except
                 self.report_exception(exception)
                 self.__error = exception
 
@@ -86,12 +90,12 @@ class ThreadGroup(object):
         num_errors = 0
 
         for thrd in self.__list:
-            if thrd.isAlive():
+            if thrd.is_alive():
                 num_alive += 1
             try:
                 if thrd.is_error:
                     num_errors += 1
-            except:
+            except AttributeError:  # thrown when 'thrd' is a plain Thread
                 num_errors += 1
 
         return (num_alive, num_errors)
@@ -112,7 +116,7 @@ class ThreadGroup(object):
         "Summarize errors to logger"
         if logger is None:
             # This can happen when multiple threads are trying to stop a run
-            return
+            return None
 
         (num_alive, num_errors) = self.__get_errors()
 
@@ -155,12 +159,8 @@ class ThreadGroup(object):
         for _ in range(reps):
             alive = False
             for thrd in self.__list:
-                if thrd.isAlive():
+                if thrd.is_alive():
                     thrd.join(part_secs)
-                    alive |= thrd.isAlive()
+                    alive |= thrd.is_alive()
             if not alive:
                 break
-
-
-if __name__ == "__main__":
-    pass

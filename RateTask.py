@@ -1,7 +1,9 @@
 #!/usr/bin/env python
+"Track and report the event rate"
 
 from CnCSingleThreadTask import CnCSingleThreadTask
 from CnCThread import CnCThread
+from decorators import classproperty
 
 
 class RateThread(CnCThread):
@@ -17,38 +19,52 @@ class RateThread(CnCThread):
             raise Exception("Runset has been destroyed")
         rates = self.__runset.update_rates()
         if rates is not None:
-            (numEvts, rate, numMoni, numSN, numTcal) = rates
-            if not self.isClosed:
-                rateStr = ""
+            (num_evts, rate, num_moni, num_sn, num_tcal) = rates
+            if not self.is_closed:
+                ratestr = ""
                 if rate == 0.0:
-                    rateStr = ""
+                    ratestr = ""
                 else:
-                    rateStr = " (%2.2f Hz)" % rate
+                    ratestr = " (%2.2f Hz)" % rate
 
                 self.__dashlog.error("\t%s physics events%s, %s moni events,"
                                      " %s SN events, %s tcals" %
-                                     (numEvts, rateStr, numMoni, numSN,
-                                      numTcal))
+                                     (num_evts, ratestr, num_moni, num_sn,
+                                      num_tcal))
 
-    def get_new_thread(self, ignored=True):
+    def get_new_thread(self,
+                       send_details=False):  # pylint: disable=unused-argument
+        "Create a new copy of this thread"
         thrd = RateThread(self.__runset, self.__dashlog)
         return thrd
 
 
 class RateTask(CnCSingleThreadTask):
-    NAME = "Rate"
-    PERIOD = 60
+    "Track and report the event rate"
 
-    def __init__(self, taskMgr, runset, dashlog, liveMoni=None, period=None,
-                 needLiveMoni=False):
-        super(RateTask, self).__init__(taskMgr, runset, dashlog,
-                                       liveMoni=liveMoni, period=period,
-                                       needLiveMoni=needLiveMoni)
+    __NAME = "Rate"
+    __PERIOD = 60
 
-    def initializeThread(self, runset, dashlog, liveMoni):
+    def __init__(self, task_mgr, runset, dashlog, live_moni=None, period=None,
+                 need_live_moni=False):
+        super(RateTask, self).__init__(task_mgr, runset, dashlog,
+                                       live_moni=live_moni, period=period,
+                                       need_live_moni=need_live_moni)
+
+    def initialize_thread(self, runset, dashlog, live_moni):
         return RateThread(runset, dashlog)
 
-    def taskFailed(self):
-        self.logError("ERROR: %s thread seems to be stuck,"
-                      " stopping run" % self.NAME)
-        self.stopRunset("RateTask")
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
+        "Name of this task"
+        return cls.__NAME
+
+    @classproperty
+    def period(cls):  # pylint: disable=no-self-argument
+        "Number of seconds between tasks"
+        return cls.__PERIOD
+
+    def task_failed(self):
+        self.log_error("ERROR: %s thread seems to be stuck,"
+                       " stopping run" % self.name)
+        self.stop_runset("RateTask")

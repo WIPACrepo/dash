@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+"Text ActiveDOMTask"
 
 import unittest
 
@@ -10,181 +11,208 @@ from DAQMocks import MockComponent, MockIntervalTimer, MockLiveMoni, \
 
 
 class ActiveDOMsTaskTest(unittest.TestCase):
+    "Test ActiveDOMsTask methods"
     def setUp(self):
         pass
 
     def tearDown(self):
         pass
 
-    def testGood(self):
-        rptTimer = MockIntervalTimer(ActiveDOMsTask.REPORT_NAME)
-        domTimer = MockIntervalTimer(ActiveDOMsTask.NAME)
+    def test_good(self):
+        "Test the basic functionality"
+        rpt_timer = MockIntervalTimer(ActiveDOMsTask.REPORT_NAME)
+        dom_timer = MockIntervalTimer(ActiveDOMsTask.name)
 
-        taskMgr = MockTaskManager()
-        taskMgr.addIntervalTimer(rptTimer)
-        taskMgr.addIntervalTimer(domTimer)
+        task_mgr = MockTaskManager()
+        task_mgr.add_interval_timer(rpt_timer)
+        task_mgr.add_interval_timer(dom_timer)
 
-        numActive = 12
-        numTotal = 20
-        numLBM = 2
+        num_active = 12
+        num_total = 20
+        num_lbm = 2
 
-        foo = MockComponent("fooHub", 1)
-        foo.mbean.addData("stringhub", "NumberOfActiveAndTotalChannels",
-                          (numActive, numTotal))
-        foo.mbean.addData("stringhub", "TotalLBMOverflows", numLBM)
+        hub = MockComponent("fooHub", 1)
+        hub.mbean.add_mock_data("stringhub", "NumberOfActiveAndTotalChannels",
+                                (num_active, num_total))
+        hub.mbean.add_mock_data("stringhub", "TotalLBMOverflows", num_lbm)
 
-        runset = MockRunSet([foo, ])
+        runset = MockRunSet([hub, ])
 
         logger = MockLogger("logger")
         live = MockLiveMoni()
 
-        tsk = ActiveDOMsTask(taskMgr, runset, logger, live)
+        tsk = ActiveDOMsTask(task_mgr, runset, logger, live)
 
         data = {
-            "activeDOMs": numActive,
-            "expectedDOMs": numTotal,
-            "missingDOMs": numTotal - numActive,
+            "activeDOMs": num_active,
+            "expectedDOMs": num_total,
+            "missingDOMs": num_total - num_active,
         }
 
         for key in data:
-            live.addExpected(key, data[key], Prio.EMAIL)
+            live.add_expected(key, data[key], Prio.EMAIL)
 
-        live.addExpected("dom_update", data, Prio.ITS)
+        live.add_expected("dom_update", data, Prio.ITS)
 
-        rptTimer.trigger()
+        rpt_timer.trigger()
         left = tsk.check()
-        self.assertEqual(rptTimer.waitSecs(), left,
+        self.assertEqual(rpt_timer.wait_secs(), left,
                          "Expected %d seconds, not %d" %
-                         (rptTimer.waitSecs(), left))
+                         (rpt_timer.wait_secs(), left))
 
-        tsk.waitUntilFinished()
+        tsk.wait_until_finished()
 
-        logger.checkStatus(4)
-        live.hasAllMoni()
+        logger.check_status(4)
+        self.assertFalse(live.sent_all_moni, "Monitoring data was not sent")
 
-        live.addExpected("stringRateInfo", {'1': 50}, Prio.EMAIL)
-        live.addExpected("stringRateLCInfo", {'1': 25}, Prio.EMAIL)
-        live.addExpected("missingDOMs", numTotal - numActive, Prio.ITS)
+        live.add_expected("stringRateInfo", {'1': 50}, Prio.EMAIL)
+        live.add_expected("stringRateLCInfo", {'1': 25}, Prio.EMAIL)
+        live.add_expected("missingDOMs", num_total - num_active, Prio.ITS)
 
         lbmo_dict = {
             "runNumber": runset.run_number(),
             "early_lbm": True,
             "count": 2,
         }
-        live.addExpected("LBMOcount", lbmo_dict, Prio.ITS)
+        live.add_expected("LBMOcount", lbmo_dict, Prio.ITS)
 
-        domTimer.trigger()
+        dom_timer.trigger()
         left = tsk.check()
-        self.assertEqual(rptTimer.waitSecs(), left,
+        self.assertEqual(rpt_timer.wait_secs(), left,
                          "Expected %d seconds, not %d" %
-                         (rptTimer.waitSecs(), left))
+                         (rpt_timer.wait_secs(), left))
 
-        tsk.waitUntilFinished()
+        tsk.wait_until_finished()
 
-        logger.checkStatus(4)
-        live.hasAllMoni()
+        logger.check_status(4)
+        self.assertFalse(live.sent_all_moni, "Monitoring data was not sent")
 
+        # things will be subtly different for the second report
+
+        live.add_expected("dom_update", data, Prio.EMAIL)
+
+        lbmo_dict = {
+            "runNumber": runset.run_number(),
+            "early_lbm": False,
+            "count": 0,
+            "recordingStartTime": "XXX",
+            "recordingStopTime": "XXX",
+        }
+        live.add_expected("LBMOcount", lbmo_dict, Prio.ITS,
+                          match_dict_values=False)
+
+        dom_timer.trigger()
+        left = tsk.check()
+        self.assertEqual(rpt_timer.wait_secs(), left,
+                         "Expected %d seconds, not %d" %
+                         (rpt_timer.wait_secs(), left))
+
+        tsk.wait_until_finished()
+
+        logger.check_status(4)
         tsk.close()
 
-    def testNoLive(self):
-        rptTimer = MockIntervalTimer(ActiveDOMsTask.REPORT_NAME)
-        domTimer = MockIntervalTimer(ActiveDOMsTask.NAME)
+    def test_no_live(self):
+        "Check that things work without I3Live"
+        rpt_timer = MockIntervalTimer(ActiveDOMsTask.REPORT_NAME)
+        dom_timer = MockIntervalTimer(ActiveDOMsTask.name)
 
-        taskMgr = MockTaskManager()
-        taskMgr.addIntervalTimer(rptTimer)
-        taskMgr.addIntervalTimer(domTimer)
+        task_mgr = MockTaskManager()
+        task_mgr.add_interval_timer(rpt_timer)
+        task_mgr.add_interval_timer(dom_timer)
 
-        numActive = 12
-        numTotal = 20
-        numLBM = 2
+        num_active = 12
+        num_total = 20
+        num_lbm = 2
 
-        foo = MockComponent("fooHub", 1)
-        foo.mbean.addData("stringhub", "NumberOfActiveAndTotalChannels",
-                          (numActive, numTotal))
-        foo.mbean.addData("stringhub", "TotalLBMOverflows", numLBM)
+        hub = MockComponent("fooHub", 1)
+        hub.mbean.add_mock_data("stringhub", "NumberOfActiveAndTotalChannels",
+                                (num_active, num_total))
+        hub.mbean.add_mock_data("stringhub", "TotalLBMOverflows", num_lbm)
 
-        runset = MockRunSet([foo, ])
+        runset = MockRunSet([hub, ])
 
         logger = MockLogger("logger")
         live = None
 
-        tsk = ActiveDOMsTask(taskMgr, runset, logger, live)
+        tsk = ActiveDOMsTask(task_mgr, runset, logger, live)
 
-        rptTimer.trigger()
+        rpt_timer.trigger()
         left = tsk.check()
         self.assertEqual(tsk.MAX_TASK_SECS, left,
                          "Expected %d seconds, not %d" %
                          (tsk.MAX_TASK_SECS, left))
 
-        tsk.waitUntilFinished()
+        tsk.wait_until_finished()
 
-        logger.checkStatus(4)
+        logger.check_status(4)
 
-        domTimer.trigger()
+        dom_timer.trigger()
         left = tsk.check()
         self.assertEqual(tsk.MAX_TASK_SECS, left,
                          "Expected %d seconds, not %d" %
                          (tsk.MAX_TASK_SECS, left))
 
-        tsk.waitUntilFinished()
+        tsk.wait_until_finished()
 
-        logger.checkStatus(4)
+        logger.check_status(4)
 
         tsk.reset()
 
         tsk.close()
 
-    def testFail(self):
-        rptTimer = MockIntervalTimer(ActiveDOMsTask.REPORT_NAME)
-        domTimer = MockIntervalTimer(ActiveDOMsTask.NAME)
+    def test_fail(self):
+        "Check that bad NumberOfActiveAndTotalChannels data is handled"
+        rpt_timer = MockIntervalTimer(ActiveDOMsTask.REPORT_NAME)
+        dom_timer = MockIntervalTimer(ActiveDOMsTask.name)
 
-        taskMgr = MockTaskManager()
-        taskMgr.addIntervalTimer(rptTimer)
-        taskMgr.addIntervalTimer(domTimer)
+        task_mgr = MockTaskManager()
+        task_mgr.add_interval_timer(rpt_timer)
+        task_mgr.add_interval_timer(dom_timer)
 
-        numActive = 12
-        numTotal = 20
-        numLBM = 2
+        num_active = 12
+        num_total = 20
+        num_lbm = 2
 
-        foo = MockComponent("fooHub", 1)
-        foo.mbean.addData("stringhub", "NumberOfActiveAndTotalChannels",
-                          (numActive, numTotal))
-        foo.mbean.addData("stringhub", "TotalLBMOverflows", numLBM)
+        hub = MockComponent("fooHub", 1)
+        hub.mbean.add_mock_data("stringhub", "NumberOfActiveAndTotalChannels",
+                                (num_active, num_total))
+        hub.mbean.add_mock_data("stringhub", "TotalLBMOverflows", num_lbm)
 
-        runset = MockRunSet([foo, ])
+        runset = MockRunSet([hub, ])
 
         logger = MockLogger("logger")
         live = MockLiveMoni()
 
-        tsk = ActiveDOMsTask(taskMgr, runset, logger, live)
+        tsk = ActiveDOMsTask(task_mgr, runset, logger, live)
 
-        live.addExpected("missingDOMs", numTotal - numActive, Prio.EMAIL)
+        live.add_expected("missingDOMs", num_total - num_active, Prio.EMAIL)
 
-        rptTimer.trigger()
+        rpt_timer.trigger()
         left = tsk.check()
-        self.assertEqual(rptTimer.waitSecs(), left,
+        self.assertEqual(rpt_timer.wait_secs(), left,
                          "Expected %d seconds, not %d" %
-                         (rptTimer.waitSecs(), left))
+                         (rpt_timer.wait_secs(), left))
 
-        tsk.waitUntilFinished()
+        tsk.wait_until_finished()
 
-        logger.checkStatus(4)
-        live.hasAllMoni()
+        logger.check_status(4)
+        self.assertFalse(live.sent_all_moni, "Monitoring data was not sent")
 
-        foo.mbean.setData("stringhub", "NumberOfActiveAndTotalChannels",
-                          Exception("Simulated error"))
-        logger.addExpectedRegexp(r".*Simulated error.*")
+        hub.mbean.set_data("stringhub", "NumberOfActiveAndTotalChannels",
+                           Exception("Simulated error"))
+        logger.add_expected_regexp(r".*Simulated error.*")
 
-        domTimer.trigger()
+        dom_timer.trigger()
         left = tsk.check()
-        self.assertEqual(rptTimer.waitSecs(), left,
+        self.assertEqual(rpt_timer.wait_secs(), left,
                          "Expected %d seconds, not %d" %
-                         (rptTimer.waitSecs(), left))
+                         (rpt_timer.wait_secs(), left))
 
-        tsk.waitUntilFinished()
+        tsk.wait_until_finished()
 
-        logger.checkStatus(4)
-        live.hasAllMoni()
+        logger.check_status(4)
+        self.assertFalse(live.sent_all_moni, "Monitoring data was not sent")
 
         tsk.close()
 

@@ -1,19 +1,26 @@
-from validate_configs import validate_trigger
+#!/usr/bin/env python
+
+from __future__ import print_function
+
+from .validate_configs import validate_trigger
 import glob
 import os
 import sys
 
-if __name__ == "__main__":
+
+def main():
+    "Main program"
+
     sys.path.append('..')
     from locate_pdaq import find_pdaq_config
     config_path = find_pdaq_config()
 
-    print "Validating all trigger configuration files"
-    print "Will only print a status when a corrupt file is found"
-    print "Note that there are some corrupt trigger files, " \
-        "someone put quotes in the wrong place."
-    print "-" * 60
-    print ""
+    print("Validating all trigger configuration files")
+    print("Will only print a status when a corrupt file is found")
+    print("Note that there are some corrupt trigger files, "
+          "someone put quotes in the wrong place.")
+    print("-" * 60)
+    print("")
 
     trigger_config_path = os.path.join(config_path, "trigger")
 
@@ -22,11 +29,15 @@ if __name__ == "__main__":
     for trigger_config in trigger_configs:
         valid, reason = validate_trigger(trigger_config)
         if not valid:
-            print "File is not valid! (%s)" % trigger_config
-            print "-" * 60
-            print ""
-            print reason
+            print("File is not valid! (%s)" % trigger_config)
+            print("-" * 60)
+            print("")
+            print(reason)
             invalid_found = True
 
     if not invalid_found:
-        print "No invalid trigger configuration files found"
+        print("No invalid trigger configuration files found")
+
+
+if __name__ == "__main__":
+    main()

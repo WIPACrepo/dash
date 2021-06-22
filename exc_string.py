@@ -50,7 +50,7 @@
 
 from __future__ import print_function
 
-from sys import exc_info
+from sys import exc_info, version_info
 from traceback import extract_stack, extract_tb
 from os import path
 
@@ -82,20 +82,24 @@ force_string_translate_map = " ????????\t ?? ??????????????????" + \
 
 def force_string(v):
     if isinstance(v, str):
+        if version_info >= (3, 0):
+            return v
         v = v.decode(exc_string_encoding,
                      "replace").encode(exc_string_encoding, "replace")
         return v.translate(force_string_translate_map)
-    elif isinstance(v, unicode):
-        v = v.encode(exc_string_encoding, "replace")
-        return v.translate(force_string_translate_map)
+
+    if version_info < (3, 0):
+        if isinstance(v, unicode):
+            v = v.encode(exc_string_encoding, "replace")
+            return v.translate(force_string_translate_map)
+
+    try:
+        v = str(v)
+    except:
+        return "unable to convert %s to string, str() failed" % \
+          v.__class__.__name__
     else:
-        try:
-            v = str(v)
-        except:
-            return "unable to convert %s to string, str() failed" % \
-                v.__class__.__name__
-        else:
-            return force_string(v)
+        return force_string(v)
 
 ###############################################################################
 

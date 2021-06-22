@@ -28,7 +28,7 @@ class CnCThread(threading.Thread):
         self.__log.error(msg)
 
     @property
-    def isClosed(self):
+    def is_closed(self):
         return self.__closed
 
     @property
@@ -38,5 +38,5 @@ class CnCThread(threading.Thread):
     def run(self):
         try:
             self._run()
-        except:
+        except:  # pylint: disable=bare-except
             self.__log.error(self.__name + ": " + exc_string())

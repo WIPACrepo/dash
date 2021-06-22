@@ -6,11 +6,10 @@
 import os
 import re
 import subprocess
-import time
 
 
 class ProcessException(Exception):
-    pass
+    "General Process exception"
 
 
 def find_python_process(target):
@@ -31,7 +30,7 @@ def list_processes():
         raise ProcessException("Failed to list processes")
 
     for line in lines:
-        yield line.rstrip()
+        yield line.decode("utf-8").rstrip()
 
 
 def process_exists(filename):
@@ -61,29 +60,20 @@ def process_exists(filename):
     if pid is None:
         raise ProcessException("File \"%s\" seems to be empty" % (filename, ))
 
-    if False:
-        # "kill -0" was broken on my Ubuntu laptop when I tried testing this
-        # i.e. "kill -0 <pid>" didn't return an error for nonexistent processes
-        try:
-            # this does nothing if the process exists
-            os.kill(pid, 0)
-        except OSError:
-            return False
-    else:
-        proc = subprocess.Popen(("ps", "h", str(pid)), close_fds=True,
-                                stdout=subprocess.PIPE)
-        exists = False
-        for line in proc.stdout:
-            # assume that any output means the process exists
-            exists = True
+    proc = subprocess.Popen(("ps", "h", str(pid)), close_fds=True,
+                            stdout=subprocess.PIPE)
+    exists = False
+    for line in proc.stdout:
+        # assume that any output means the process exists
+        exists = True
 
-        proc.stdout.close()
-        proc.wait()
+    proc.stdout.close()
+    proc.wait()
 
-        if not exists:
-            # process is dead, remove the irrelevant file and return
-            os.unlink(filename)
-            return False
+    if not exists:
+        # process is dead, remove the irrelevant file and return
+        os.unlink(filename)
+        return False
 
     return True
 
@@ -101,15 +91,22 @@ def write_pid_file(filename):
             out.write(str(os.getpid()))
 
 
-class exclusive_process(object):
+class exclusive_process(object):  # pylint: disable=invalid-name
     "context manager guaranteeing only one process at a time can run"
     def __init__(self, filename):
         self.__filename = filename
+        self.__created = False
 
     def __enter__(self):
         if process_exists(self.__filename):
             raise ProcessException("Process is running")
         write_pid_file(self.__filename)
+        self.__created = True
 
     def __exit__(self, exc_type, exc_value, traceback):
-        os.unlink(self.__filename)
+        if self.__created:
+            if os.path.exists(self.__filename):
+                os.unlink(self.__filename)
+            else:
+                raise ProcessException("Process ID file \"%s\" is gone!" %
+                                       str(self.__filename))

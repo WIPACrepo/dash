@@ -1,79 +1,97 @@
 #!/usr/bin/env python
 
+# assume that the imports will succeed
+LIVE_IMPORT = True
+
+# pylint: disable=ungrouped-imports,unused-import
+# The point of this module is to provide a consistent interface to Live
+#  so it CANNOT group imports or use everything that's been imported
+
+# attempt to import MoniClient
 try:
+    from livecore.messaging.moniclient import DefaultMoniClient as MoniClient
+except ImportError:
     try:
         from live.transport.moniclient import DefaultMoniClient as MoniClient
+    except ImportError:
+        LIVE_IMPORT = False
+
+        class MoniClient(object):
+            def __init__(self, service, host, port, logger=None):
+                pass
+
+            def __str__(self):
+                """
+                The returned string should start with "BOGUS"
+                so DAQRun can detect problems
+                """
+                return "BOGUS"
+
+            def close(self):
+                pass
+
+            def sendMoni(self, name, data,  # pylint: disable=invalid-name
+                         prio=None, time=None):
+                pass
+
+# attempt to import MoniPort
+try:
+    from livecore.messaging.moniclient import default_moni_port as MoniPort
+except ImportError:
+    try:
         from live.transport.moniclient import default_moni_port as MoniPort
     except ImportError:
-        from live.control.LiveMoni import MoniClient
+        LIVE_IMPORT = False
         MoniPort = 6666
 
-    from live.control.component import Component as LiveComponent
+# attempt to import LiveComponent
+try:
+    from livecore.control.component import Component as LiveComponent
+except ImportError:
+    try:
+        from live.control.component import Component as LiveComponent
+    except ImportError:
+        LIVE_IMPORT = False
+
+        class LiveComponent(object):
+            def __init__(self, compName, rpcPort=None, moniHost=None,
+                         moniPort=None, synchronous=None, lightSensitive=None,
+                         makesLight=None, logger=None):
+                pass
+
+            def close(self):
+                pass
+
+            def run(self):
+                pass
+
+# attempt to import INCOMPLETE_STATE_CHANGE
+try:
+    from livecore.control.component import INCOMPLETE_STATE_CHANGE
+except ImportError:
     try:
         from live.control.component import INCOMPLETE_STATE_CHANGE
     except ImportError:
+        LIVE_IMPORT = False
         INCOMPLETE_STATE_CHANGE = None
 
-    try:
-        from live.transport.priorities import Prio
-    except ImportError:
-        try:
-            from live.transport.prioqueue import Prio
-        except ImportError:
-            from live.transport.Queue import Prio
-
-    # set pDAQ's I3Live service name
-    SERVICE_NAME = "pdaq"
-
-    # indicate that import succeeded
-    LIVE_IMPORT = True
+# attempt to import Prio
+try:
+    from livecore.messaging.priorities import Prio
 except ImportError:
-    # create bogus placeholder classes
-    class LiveComponent(object):
-        def __init__(self, compName, rpcPort=None, moniHost=None,
-                     moniPort=None, synchronous=None, lightSensitive=None,
-                     makesLight=None, logger=None):
-            pass
+    try:
+        from live.transport.prioqueue import Prio
+    except ImportError:
+        LIVE_IMPORT = False
 
-        def close(self):
-            pass
+        class Prio(object):
+            ITS = 123
+            EMAIL = 444
+            SCP = 555
+            DEBUG = 666
 
-        def run(self):
-            pass
-
-    class Prio(object):
-        ITS = 123
-        EMAIL = 444
-        SCP = 555
-        DEBUG = 666
-
-    class MoniClient(object):
-        def __init__(self, service, host, port, logger=None):
-            pass
-
-        def __str__(self):
-            """
-            The returned string should start with "BOGUS"
-            so DAQRun can detect problems
-            """
-            return "BOGUS"
-
-        def close(self):
-            pass
-
-        def sendMoni(self, name, data, prio=None, time=None):
-            pass
-
-    MoniPort = 6666
-
-    # set bogus service name
+# set pDAQ's I3Live service name
+if LIVE_IMPORT:
+    SERVICE_NAME = "pdaq"
+else:
     SERVICE_NAME = "pdaqFake"
-
-    # Sginal that we're using the old API
-    INCOMPLETE_STATE_CHANGE = None
-
-    # indicate that import failed
-    LIVE_IMPORT = False
-
-if __name__ == "__main__":
-    pass

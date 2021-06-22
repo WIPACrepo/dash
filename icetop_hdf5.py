@@ -34,6 +34,8 @@ H5_TYPES = [
 
 
 def add_arguments(parser):
+    "Add command-line arguments"
+
     parser.add_argument("-D", "--data-directory", dest="data_directory",
                         default=".",
                         help="Directory where HDF5 files are written")
@@ -50,7 +52,7 @@ def convert_pairs_to_xml(root, pairs):
     """
     for key, val in pairs:
         node = etree.SubElement(root, key)
-        if isinstance(val, tuple) or isinstance(val, list):
+        if isinstance(val, (tuple, list)):
             convert_pairs_to_xml(node, val)
         else:
             node.text = str(val)
@@ -189,9 +191,9 @@ def process_moni(dom_dict, moniname):
             if len(flds) != 4:
                 logging.error("Too many fields in FAST data \"%s\"", pay.text)
                 continue
-
+            # pylint: disable=unbalanced-tuple-unpacking
             (spe_count, mpe_count, launches, deadtime) = flds
-            data.append((dom.originalString(), dom.pos(), spe_count, mpe_count,
+            data.append((dom.original_string, dom.pos, spe_count, mpe_count,
                          launches, deadtime, pay.utime))
 
     return data
@@ -308,7 +310,7 @@ def write_data(run, data, data_dir=None, verbose=False, dry_run=False,
     "Write IceTop monitoring data to an HDF5 file"
 
     # ignore empty arrays
-    if data is None or len(data) == 0:
+    if data is None or len(data) == 0:  # pylint: disable=len-as-condition
         return
 
     # if no destination directory was specified, write to current directory
@@ -349,7 +351,9 @@ def write_data(run, data, data_dir=None, verbose=False, dry_run=False,
                         dry_run=dry_run)
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     # pylint: disable=invalid-name,wrong-import-position
     import argparse
 
@@ -358,10 +362,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # read in default-dom-geometry.xml
-    ddg = DefaultDomGeometryReader.parse(translateDoms=True)
+    ddg = DefaultDomGeometryReader.parse(translate_doms=True)
 
     # cache the DOM ID -> DOM dictionary
-    ddict = ddg.getDomIdToDomDict()
+    ddict = ddg.get_dom_id_to_dom_dict()
 
     count = 0
     total = len(args.files)
@@ -371,3 +375,7 @@ if __name__ == "__main__":
             print("** Processing %d of %d files" % (count, total))
         process_tar_file(fname, ddict, data_dir=args.data_directory,
                          verbose=args.verbose)
+
+
+if __name__ == "__main__":
+    main()

@@ -4,7 +4,7 @@
 #
 #     if sys.version_info > (2, 3):
 #         from DumpThreads import DumpThreadsOnSignal
-#         DumpThreadsOnSignal(fd=sys.stderr, logger=self.__log)
+#         DumpThreadsOnSignal(file_handle=sys.stderr, logger=self.__log)
 #
 # then type ^\ (control-backslash) to dump all threads while running
 
@@ -17,54 +17,58 @@ import traceback
 
 
 class DumpThreadsOnSignal(object):
-    def __init__(self, fd=None, logger=None, signum=signal.SIGQUIT):
-        if fd is None and logger is None:
-            self.__fd = sys.stderr
+    def __init__(self, file_handle=None, logger=None, signum=signal.SIGQUIT):
+        if file_handle is None and logger is None:
+            self.__file_handle = sys.stderr
         else:
-            self.__fd = fd
+            self.__file_handle = file_handle
         self.__logger = logger
 
-        signal.signal(signum, self.__handleSignal)
+        signal.signal(signum, self.__handle_signal)
 
     @staticmethod
-    def __findThread(tId):
-        for t in threading.enumerate():
-            if t.ident == tId:
-                return t
+    def __find_thread(tid):
+        for thrd in threading.enumerate():
+            if thrd.ident == tid:
+                return thrd
 
         return None
 
-    def __handleSignal(self, signum, frame):
-        self.dumpThreads(self.__fd, self.__logger)
+    def __handle_signal(self,
+                        signum, frame):  # pylint: disable=unused-argument
+        self.dump_threads(self.__file_handle, self.__logger)
 
     @classmethod
-    def dumpThreads(cls, fd=None, logger=None):
+    def dump_threads(cls, file_handle=None, logger=None):
+        frames = sys._current_frames()  # pylint: disable=protected-access
+
         first = True
-        for tId, stack in list(sys._current_frames().items()):
-            thrd = cls.__findThread(tId)
+        for tid, stack in frames.items():
+            thrd = cls.__find_thread(tid)
             if thrd is None:
-                tStr = "Thread #%d" % tId
+                tstr = "Thread #%d" % tid
             else:
                 # changed to get the string representation
                 # of the thread as it has state, name, and
                 # such embedded in it
-                tStr = "Thread %s" % thrd
+                tstr = "Thread %s" % thrd
 
             if first:
                 first = False
-            elif fd is not None:
-                print(file=fd)
+            elif file_handle is not None:
+                print(file=file_handle)
 
             for filename, lineno, name, line in traceback.extract_stack(stack):
-                tStr += "\n  File \"%s\", line %d, in %s" % \
+                tstr += "\n  File \"%s\", line %d, in %s" % \
                     (filename, lineno, name)
                 if line is not None:
-                    tStr += "\n    %s" % line.strip()
+                    tstr += "\n    %s" % line.strip()
 
-            if fd is not None:
-                print(tStr, file=fd)
+            if file_handle is not None:
+                print(tstr, file=file_handle)
             if logger is not None:
-                logger.error(tStr)
+                logger.error(tstr)
 
-        if fd is not None:
-            print("---------------------------------------------", file=fd)
+        if file_handle is not None:
+            print("---------------------------------------------",
+                  file=file_handle)

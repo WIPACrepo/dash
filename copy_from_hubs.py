@@ -1,13 +1,9 @@
 #!/usr/bin/env python
-"""
-Copy HitSpool data from a list of hubs to a local directory
-"""
 
 from __future__ import print_function
 
 import argparse
 import os
-import re
 import select
 import signal
 import socket
@@ -19,7 +15,6 @@ import time
 
 class HSCopyException(Exception):
     "Hub copy exceptions"
-    pass
 
 
 class DAQState(object):
@@ -27,20 +22,15 @@ class DAQState(object):
 
     def __init__(self):
         "Get current run state from 'livecmd check' on expcont"
-        self.__runnum = None
+        self.__run_num = None
         self.__time_since_start = None
         self.__time_left = None
 
-        # get this host's name
-        fullname = socket.gethostname()
-        pieces = fullname.split('.', 1)
-        self.__hostname = pieces[0]
-
     def __str__(self):
-        if self.__runnum is None:
+        if self.__run_num is None:
             rstr = "**NO ACTIVE RUN**"
         else:
-            rstr = "Run %s" % self.__runnum
+            rstr = "Run %s" % self.__run_num
         if self.__time_left is not None:
             rstr += ": %ds left" % self.__time_left
         return rstr
@@ -87,7 +77,7 @@ class DAQState(object):
     @property
     def running(self):
         "Return True if a run is active"
-        return self.__runnum is not None
+        return self.__run_num is not None
 
     @property
     def time_left(self):
@@ -99,23 +89,15 @@ class DAQState(object):
         "Return the time since the run started"
         return self.__time_since_start
 
-    def update(self, dry_run=False, debug=False):
+    def update(self, dry_run=False):
         "Fetch the latest run data"
-        if self.__hostname == "expcont":
-            cmd_args = []
-        else:
-            cmd_args = ["ssh", "expcont", "-l", "pdaq"]
-        cmd_args += ("livecmd", "check")
+        cmd_args = ["ssh", "expcont", "-l", "pdaq", "livecmd", "check"]
 
         if dry_run:
             print(" ".join(cmd_args))
-            if self.__time_left is None:
-                self.__runnum = 123456
-                self.__time_left = 44
-                self.__time_since_start = 9999
-            else:
-                self.__time_left -= 10
-                self.__time_since_start += 10
+            self.__run_num = 123456
+            self.__time_left = 9999
+            self.__time_since_start = 9999
             return
 
         proc = subprocess.Popen(cmd_args,
@@ -123,14 +105,7 @@ class DAQState(object):
                                 stderr=subprocess.STDOUT,
                                 close_fds=True)
 
-        runnum = None
-        time_left = None
-        time_since_start = None
-        debug_lines = []
         for line in proc.stdout:
-            if debug:
-                debug_lines.append(line)
-
             if line.find(": ") > 0:
                 (front, back) = line.split(": ", 1)
 
@@ -138,43 +113,32 @@ class DAQState(object):
                 back = back.rstrip()
                 if front == "run":
                     try:
-                        runnum = int(back)
-                    except:
-                        runnum = back
+                        self.__run_num = int(back)
+                    except ValueError:
+                        self.__run_num = back
                 elif front == "Time until stop":
-                    time_left = self.__parse_time("time left", back)
+                    self.__time_left \
+                      = self.__parse_time("time left", back)
                 elif front == "Time since start":
-                    time_since_start = self.__parse_time("time since start",
-                                                         back)
-
-        self.__runnum = runnum
-        self.__time_left = time_left
-        self.__time_since_start = time_since_start
+                    self.__time_since_start \
+                      = self.__parse_time("time since start", back)
 
         # clean up after subprocess exits
         proc.wait()
 
         if proc.returncode != 0:
             print("WARNING: 'livecmd check' failed", file=sys.stderr)
-            if debug:
-                for line in debug_lines:
-                    print(">> %s" % line.rstrip())
 
 
-class HubWorker(object):
-    """
-    Copy (or get sizes for) HitSpool files from a hub
-    """
+class HubCopy(object):
+    "Copy HitSpool files from a hub"
 
     # prefix used for all HitSpool files
     HITSPOOL_FILENAME = "HitSpool-"
 
-    # regular expression used to extract total size from all hubs
-    SIZE_PAT = re.compile(r"Found (\d+) bytes in (\d+) files")
-
     def __init__(self, hostname, hub, destination, start_ticks, stop_ticks,
                  bwlimit=None, chunk_size=None, dry_run=False,
-                 hub_command=None, size_only=False, verbose=False):
+                 hub_command=None, verbose=False):
         self.__hub = hub
         self.__destination = destination
         self.__start_ticks = start_ticks
@@ -182,7 +146,6 @@ class HubWorker(object):
         self.__bwlimit = bwlimit
         self.__chunk_size = chunk_size
         self.__dry_run = dry_run
-        self.__size_only = size_only
         self.__verbose = verbose
 
         if self.__hub.startswith("ichub"):
@@ -199,10 +162,8 @@ class HubWorker(object):
 
         self.__thread = None
         self.__proc = None
-        self.__finished = False
 
-        self.__file_count = 0
-        self.__total_size = 0
+        self.__copy_count = 0
 
     def __run_command(self):
         "Start rsync process for this hub"
@@ -214,10 +175,7 @@ class HubWorker(object):
 
         cmd_args = ["ssh", self.__hub]
         cmd_args += self.__hub_command
-        if not self.__size_only:
-            cmd_args += ("-d", rmtpath)
-        else:
-            cmd_args.append("-s")
+        cmd_args += ("-d", rmtpath)
         cmd_args += (str(self.__start_ticks), str(self.__stop_ticks))
 
         # add optional arguments, if present
@@ -251,12 +209,11 @@ class HubWorker(object):
                 if fno == self.__proc.stderr.fileno():
                     line = self.__proc.stderr.readline().rstrip()
                     if line != "":
-                        print("%s: %s" % (self.__hub, line), file=sys.stderr)
+                        print("ERROR: %s" % line, file=sys.stderr)
                     continue
 
                 if fno != self.__proc.stdout.fileno():
-                    print("%s: Bad file number %s" % (self.__hub, fno),
-                          file=sys.stderr)
+                    print("Bad file number %s" % str(fno), file=sys.stderr)
                     continue
 
                 line = self.__proc.stdout.readline().rstrip()
@@ -271,7 +228,7 @@ class HubWorker(object):
                 if line.startswith("total: "):
                     continue
                 if line.find(self.HITSPOOL_FILENAME) >= 0:
-                    self.__file_count += 1
+                    self.__copy_count += 1
                     if self.__verbose:
                         print("%s: %s" % (self.__hub, line))
                         sys.stdout.flush()
@@ -279,16 +236,8 @@ class HubWorker(object):
                 if line.startswith("sent ") or \
                   line.startswith("total size is ") or \
                   line.startswith("created directory "):
-                    if self.__verbose:
-                        print("%s: %s" % (self.__hub, line))
-                        sys.stdout.flush()
-                    continue
-
-                if self.__size_only and line.startswith("Found "):
-                    mtch = self.SIZE_PAT.match(line)
-                    if mtch is not None:
-                        self.__total_size += int(mtch.group(1))
-                        self.__file_count += int(mtch.group(2))
+                    print("%s: %s" % (self.__hub, line))
+                    sys.stdout.flush()
                     continue
 
                 print("%s: ?? \"%s\" ??" % (self.__hub, line), file=sys.stderr)
@@ -301,20 +250,15 @@ class HubWorker(object):
 
         self.__proc.wait()
 
-        if not self.__size_only:
-            print("** %s copied %d files" % (self.__hub, self.__file_count))
-        elif self.__verbose:
-            print("** %s DONE" % (self.__hub, ))
-
-        self.__finished = True
-
-    @property
-    def file_count(self):
-        return self.__file_count
+        if self.__verbose:
+            print("%s DONE (rtncode %s)" %
+                  (self.__hub, self.__proc.returncode))
+        else:
+            print("** %s copied %d files" % (self.__hub, self.__copy_count))
 
     @property
-    def is_finished(self):
-        return self.__finished
+    def count(self):
+        return self.__copy_count
 
     def kill(self):
         "Kill the copy process on the hub"
@@ -331,11 +275,6 @@ class HubWorker(object):
             except subprocess.CalledProcessError as cpe:
                 print("Could not kill \"%s\" on %s: %s" %
                       (" ".join(self.__hub_command), self.__hub, cpe))
-
-    @property
-    def name(self):
-        "Return the name of this hub"
-        return self.__hub
 
     def poll(self):
         "Return None if the process is still running, return code otherwise"
@@ -371,9 +310,6 @@ class HubWorker(object):
 
     @property
     def short_name(self):
-        """
-        Return the short name of this hub (e.g. "01" or "t01")
-        """
         return self.__short_name
 
     def start(self):
@@ -381,10 +317,6 @@ class HubWorker(object):
         self.__thread = threading.Thread(target=self.__run_command,
                                          name="%sCopy" % self.__hub)
         self.__thread.start()
-
-    @property
-    def total_size(self):
-        return self.__total_size
 
 
 class CopyManager(object):
@@ -401,17 +333,14 @@ class CopyManager(object):
     def __init__(self, args):
         # load all arguments
         (hub_list, destination, start_ticks, stop_ticks, bwlimit, chunk_size,
-         debug, dry_run, hub_command, size_only, verbose) \
-         = process_args(args)
+         dry_run, hub_command, verbose) = process_args(args)
 
-        self.__debug = debug
         self.__dry_run = dry_run
-        self.__size_only = size_only
         self.__verbose = verbose
 
         # create DAQ run state monitor and initialize it
         self.__state = DAQState()
-        self.__state.update(dry_run, self.__debug)
+        self.__state.update(dry_run)
 
         # get this host's name
         fullname = socket.gethostname()
@@ -422,59 +351,27 @@ class CopyManager(object):
         if not dry_run and not os.path.exists(destination):
             os.makedirs(destination)
 
-        self.__workers = []
+        self.__hub_procs = []
         for hub in hub_list:
-            wrkr = HubWorker(hostname, hub, destination, start_ticks,
-                             stop_ticks, bwlimit=bwlimit,
-                             chunk_size=chunk_size, dry_run=dry_run,
-                             hub_command=hub_command, size_only=size_only,
-                             verbose=verbose)
-            self.__workers.append(wrkr)
+            proc = HubCopy(hostname, hub, destination, start_ticks, stop_ticks,
+                           bwlimit=bwlimit, chunk_size=chunk_size,
+                           dry_run=dry_run, hub_command=hub_command,
+                           verbose=verbose)
+            self.__hub_procs.append(proc)
 
-        # if the process is killed, kill hub workers before quitting
+        # if the process is killed, kill hub copies before quitting
         signal.signal(signal.SIGINT, self.kill_with_signal)
 
-    @classmethod
-    def __sizefmt(cls, size):
-        for suffix in ('bytes', 'KB', 'MB', 'GB'):
-            if size < 1024.0:
-                return "%3.1f %s" % (size, suffix)
-            size /= 1024.0
-        return "%3.1f TB" % size
-
-    def __print_copy_progress(self):
-        "Print short hub names and number of files copied"
+    def __print_summary(self):
         summary = ""
-        for wrkr in self.__workers:
-            if wrkr.is_finished:
-                continue
-
+        for proc in self.__hub_procs:
             if summary == "":
                 prefix = ""
             else:
                 prefix = " "
 
-            summary += "%s%s*%d" % (prefix, wrkr.short_name, wrkr.file_count)
+            summary += "%s%s*%d" % (prefix, proc.short_name, proc.count)
         print("%s" % summary)
-
-    @classmethod
-    def __print_sizes(cls, workers):
-        "Print the sorted list of sizes for all hubs in <workers>"
-        total_count = 0
-        total_size = 0
-        for wrkr in sorted(workers, key=lambda x: x.total_size):
-            if wrkr.total_size is None or wrkr.file_count is None:
-                print("WARNING: No file sizes found for %s" % (wrkr.name, ),
-                      file=sys.stderr)
-            else:
-                total_count += wrkr.file_count
-                total_size += wrkr.total_size
-                print("%s: %d bytes (%s) in %d files" %
-                      (wrkr.name, wrkr.total_size,
-                       cls.__sizefmt(wrkr.total_size), wrkr.file_count))
-
-        print("Total size: %d bytes (%s) in %d files" %
-              (total_size, cls.__sizefmt(total_size), total_count))
 
     @property
     def is_stable(self):
@@ -494,14 +391,14 @@ class CopyManager(object):
             self.pause_when_not_running()
 
         if self.__verbose:
-            print("Starting hub workers")
+            print("Starting hub copies")
         self.start_processes()
 
         while True:
             self.__state.update(dry_run=self.__dry_run)
             if not self.is_stable:
                 if self.__verbose:
-                    print("Killing hub workers")
+                    print("Killing hub copies")
                 self.kill_processes()
 
                 if self.__verbose:
@@ -509,28 +406,24 @@ class CopyManager(object):
                 self.pause_when_not_running()
 
                 if self.__verbose:
-                    print("Restarting hub workers")
+                    print("Restarting hub copies")
                 self.start_processes()
 
             if self.check_done():
                 if self.__verbose:
-                    print("All workers have finished")
+                    print("All copies have finished")
                 break
 
-            if not self.__size_only:
-                self.__print_copy_progress()
+            self.__print_summary()
 
             if self.__verbose:
                 print("Sleeping...")
             time.sleep(self.UNSTABLE_SLEEP)
 
-        if self.__size_only:
-            self.__print_sizes()
-
     def check_done(self):
         "Return True if all processes have finished"
-        for wrkr in self.__workers:
-            if wrkr.poll() is None:
+        for proc in self.__hub_procs:
+            if proc.poll() is None:
                 return False
         return True
 
@@ -547,22 +440,23 @@ class CopyManager(object):
 
     def start_processes(self):
         "Start copy processes on hubs"
-        for wrkr in self.__workers:
-            wrkr.start()
-
+        for proc in self.__hub_procs:
+            proc.start()
 
     def kill_processes(self):
         "Kill copy processes on hubs"
-        for wrkr in self.__workers:
-            wrkr.kill()
+        for proc in self.__hub_procs:
+            proc.kill()
 
-    def kill_with_signal(self, signum, frame):
+    def kill_with_signal(self,
+                         signum, frame):  # pylint: disable=unused-argument
         self.kill_processes()
         sys.exit(0)
 
 
 def add_arguments(parser):
-    "Add all arguments"
+    "Add command-line arguments"
+
     parser.add_argument("-C", "--hub-command", dest="hub_command",
                         default="pdaq copy_hs_files",
                         help="Hub command to run")
@@ -578,18 +472,12 @@ def add_arguments(parser):
     parser.add_argument("-n", "--dry-run", dest="dry_run",
                         action="store_true", default=False,
                         help="Dry run (do not actually change anything)")
-    parser.add_argument("-s", "--size-only", dest="size_only",
-                        action="store_true", default=False,
-                        help="Only gather total file size, don't copy anything")
     parser.add_argument("-v", "--verbose", dest="verbose",
                         action="store_true", default=False,
                         help="Print details")
-    parser.add_argument("-x", "--debug", dest="debug",
-                        action="store_true", default=False,
-                        help="Print debugging information")
     parser.add_argument(dest="positional", nargs="*",
-                        help="Positional arguments"
-                        " (start/stop times, list of hubs)")
+                        help=("Positional arguments"
+                              " (start/stop times, list of hubs)"))
 
 
 def process_args(args):
@@ -601,19 +489,15 @@ def process_args(args):
     stop_ticks - ending DAQ tick (integer value)
     bwlimit - 'rsync' bandwidth limit (if None, default will be used)
     chunk_size - number of files to copy at a time (if None, uses default)
-    debug - if True, print debugging information to STDERR
     dry_run - if True, print what would be done but run anything
     hub_command - alternative command to run on hubs (used for debugging)
-    size_only - if True, report the total size to be copied but don't copy
     verbose - if True, print status messages
     """
     bwlimit = args.bwlimit
     chunk_size = args.chunk_size
     dry_run = args.dry_run
-    debug = args.debug
     destination = args.destination
     hub_command = args.hub_command
-    size_only = args.size_only
     verbose = args.verbose
 
     start_ticks = None
@@ -621,8 +505,8 @@ def process_args(args):
 
     hub_list = []
 
-    if len(args.positional) == 0:
-        raise SystemExit("Please specify start and end times")
+    if len(args.positional) == 0:  # pylint: disable=len-as-condition
+        raise HSCopyException("Please specify start and end times")
 
     for arg in args.positional:
         # is this a hub name?
@@ -638,8 +522,8 @@ def process_args(args):
                 start_ticks = int(start_str)
                 stop_ticks = int(stop_str)
             except:
-                raise SystemExit("Cannot extract start/stop times"
-                                 " from \"%s\"" % str(arg))
+                raise HSCopyException("Cannot extract start/stop times"
+                                      " from \"%s\"" % str(arg))
             continue
 
         # is this a single time?
@@ -654,35 +538,38 @@ def process_args(args):
         except ValueError:
             pass
 
+        # if we don't have a destination, this must be it
+        if destination is None:
+            destination = arg
+            continue
+
         # WTF?
-        raise SystemExit("Unrecognized argument \"%s\"" % arg)
+        raise HSCopyException("Unrecognized argument \"%s\"" % arg)
 
     if start_ticks is None or stop_ticks is None:
-        raise SystemExit("Please specify start/stop times")
-    elif len(hub_list) == 0:
-        raise SystemExit("Please specify one or more hubs")
-    elif not size_only:
-        if destination is None:
-            raise SystemExit("Please specify destination")
-        elif not os.path.exists(destination):
-            raise SystemExit("Destination \"%s\" does not exist" %
-                             str(destination))
-
-    if start_ticks > stop_ticks:
-        print("WARNING: Start and stop times were reversed")
-        tmp_ticks = start_ticks
-        start_ticks = stop_ticks
-        stop_ticks = tmp_ticks
+        raise HSCopyException("Please specify start/stop times")
+    elif start_ticks >= stop_ticks:
+        raise HSCopyException("Start %d is past stop %d (%d ticks)" %
+                              (start_ticks, stop_ticks,
+                               start_ticks - stop_ticks))
+    elif destination is None:
+        raise HSCopyException("Please specify destination")
+    elif not os.path.exists(destination):
+        raise HSCopyException("Destination \"%s\" does not exist" %
+                              str(destination))
+    elif len(hub_list) == 0:  # pylint: disable=len-as-condition
+        raise HSCopyException("Please specify one or more hubs")
 
     return (hub_list, destination, start_ticks, stop_ticks, bwlimit,
-            chunk_size, debug, dry_run, hub_command, size_only, verbose)
+            chunk_size, dry_run, hub_command, verbose)
 
 
 def main():
-    "Main method"
-    argp = argparse.ArgumentParser()
-    add_arguments(argp)
-    args = argp.parse_args()
+    "Main program"
+
+    parser = argparse.ArgumentParser()
+    add_arguments(parser)
+    args = parser.parse_args()
 
     mgr = CopyManager(args)
     mgr.run()

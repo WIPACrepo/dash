@@ -9,6 +9,7 @@ from IntervalTimer import IntervalTimer
 from MonitorTask import MonitorTask
 from RateTask import RateTask
 from WatchdogTask import WatchdogTask
+from i3helper import reraise_excinfo
 
 from exc_string import exc_string, set_exc_string_encoding
 set_exc_string_encoding("ascii")
@@ -17,7 +18,8 @@ set_exc_string_encoding("ascii")
 class TaskManager(threading.Thread):
     "Manage RunSet tasks"
 
-    def __init__(self, runset, dashlog, liveMoni, runDir, runCfg, runOptions):
+    def __init__(self, runset, dashlog, live_moni, rundir, run_cfg,
+                 run_options):
         if dashlog is None:
             raise TaskException("Dash logfile cannot be None")
 
@@ -31,128 +33,123 @@ class TaskManager(threading.Thread):
         super(TaskManager, self).__init__(name="TaskManager")
         self.setDaemon(True)
 
-        self.__tasks = self.__createAllTasks(liveMoni, runDir, runCfg,
-                                             runOptions)
+        self.__tasks = self.__create_all_tasks(live_moni, rundir, run_cfg,
+                                               run_options)
 
-    def __createAllTasks(self, liveMoni, runDir, runCfg, runOptions):
+    def __create_all_tasks(self, live_moni, rundir, run_cfg, run_options):
         """
         This method exists solely to make it easy to detect
         errors in the task constructors.
         """
-        taskList = []
+        task_list = []
 
-        taskNum = 0
+        task_num = 0
         while True:
             try:
-                task = self.__createTask(taskNum, liveMoni, runDir,
-                                         runCfg, runOptions)
+                task = self.__create_task(task_num, live_moni, rundir,
+                                          run_cfg, run_options)
                 if task is None:
                     break
-                taskList.append(task)
-            except:
+                task_list.append(task)
+            except:  # pylint: disable=bare-except
                 self.__dashlog.error("Cannot create task#%d: %s" %
-                                     (taskNum, exc_string()))
-            taskNum += 1
+                                     (task_num, exc_string()))
+            task_num += 1
 
-        return taskList
+        return task_list
 
-    def __createTask(self, taskNum, liveMoni, runDir, runCfg, runOptions):
+    def __create_task(self, task_num, live_moni, rundir, run_cfg, run_options):
         """
-        Create a single task.  There's nothing magic about 'taskNum',
+        Create a single task.  There's nothing magic about 'task_num',
         it's just a convenient way to iterate through all the task
         constructors.
         """
-        if taskNum == 0:
-            return MonitorTask(self, self.__runset, self.__dashlog, liveMoni,
-                               runDir, runOptions,
-                               period=runCfg.monitorPeriod)
-        elif taskNum == 1:
+        if task_num == 0:
+            return MonitorTask(self, self.__runset, self.__dashlog, live_moni,
+                               rundir, run_options,
+                               period=run_cfg.monitor_period)
+        if task_num == 1:
             return RateTask(self, self.__runset, self.__dashlog)
-        elif taskNum == 2:
+        if task_num == 2:
             return ActiveDOMsTask(self, self.__runset, self.__dashlog,
-                                  liveMoni)
-        elif taskNum == 3:
+                                  live_moni)
+        if task_num == 3:
             return WatchdogTask(self, self.__runset, self.__dashlog,
-                                initial_health=12, period=runCfg.watchdogPeriod)
+                                initial_health=12,
+                                period=run_cfg.watchdog_period)
 
         return None
 
     def __run(self):
         self.__running = True
         while not self.__stopping:
-            waitSecs = CnCTask.MAX_TASK_SECS
-            for t in self.__tasks:
+            wait_secs = CnCTask.MAX_TASK_SECS
+            for tsk in self.__tasks:
                 # don't do remaining tasks if stop() has been called
                 if self.__stopping:
                     break
 
                 try:
-                    taskSecs = t.check()
-                except:
+                    task_secs = tsk.check()
+                except:  # pylint: disable=bare-except
                     if self.__dashlog is not None:
                         self.__dashlog.error("%s exception: %s" %
-                                             (str(t), exc_string()))
-                    taskSecs = CnCTask.MAX_TASK_SECS
-                if waitSecs > taskSecs:
-                    waitSecs = taskSecs
+                                             (str(tsk), exc_string()))
+                    task_secs = CnCTask.MAX_TASK_SECS
+                if wait_secs > task_secs:
+                    wait_secs = task_secs
 
             if not self.__stopping:
-                self.__flag.acquire()
-                try:
-                    self.__flag.wait(waitSecs)
-                finally:
-                    self.__flag.release()
+                with self.__flag:
+                    self.__flag.wait(wait_secs)
 
         self.__running = False
 
-        savedEx = None
-        for t in self.__tasks:
+        saved_exc = None
+        for tsk in self.__tasks:
             try:
-                t.close()
-            except:
-                if not savedEx:
-                    savedEx = sys.exc_info()
+                tsk.close()
+            except:  # pylint: disable=bare-except
+                if not saved_exc:
+                    saved_exc = sys.exc_info()
 
         self.__stopping = False
 
-        if savedEx:
-            raise savedEx[0], savedEx[1], savedEx[2]
+        if saved_exc:
+            reraise_excinfo(saved_exc)
 
     @classmethod
-    def createIntervalTimer(cls, name, period):
-        return IntervalTimer(name, period, startTriggered=True)
+    def create_interval_timer(cls, name, period):
+        return IntervalTimer(name, period, start_triggered=True)
 
     @property
-    def isRunning(self):
+    def is_running(self):
         return self.__running
 
     @property
-    def isStopped(self):
+    def is_stopped(self):
         return not self.__running and not self.__stopping
 
     def reset(self):
-        for t in self.__tasks:
-            t.reset()
+        for tsk in self.__tasks:
+            tsk.reset()
 
     def run(self):
         try:
             self.__run()
-        except:
+        except:  # pylint: disable=bare-except
             if self.__dashlog is not None:
                 self.__dashlog.error(exc_string())
 
-    def setError(self, callerName):
-        self.__runset.set_run_error(callerName)
+    def set_error(self, caller_name):
+        self.__runset.set_run_error(caller_name)
 
     def stop(self):
         if self.__running and not self.__stopping:
-            self.__flag.acquire()
-            try:
+            with self.__flag:
                 self.__stopping = True
                 self.__flag.notify()
-            finally:
-                self.__flag.release()
 
-    def waitForTasks(self):
-        for t in self.__tasks:
-            t.waitUntilFinished()
+    def wait_for_tasks(self):
+        for tsk in self.__tasks:
+            tsk.wait_until_finished()

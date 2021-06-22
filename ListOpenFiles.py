@@ -7,580 +7,625 @@ import sys
 
 
 class ListOpenFileException(Exception):
-    pass
+    "General ListOpenFiles exception"
 
 
 class UserInfo(object):
     def __init__(self):
-        self.__fileList = None
+        self.__file_list = None
         self.__pid = None
         self.__pgid = None
         self.__ppid = None
         self.__command = None
         self.__uid = None
-        self.__secContext = None
+        self.__sec_context = None
         self.__user = None
 
     def __str__(self):
-        s = ""
+        rtnstr = ""
         if self.__user is not None:
             if self.__uid is not None:
-                s = "%s(#%d)" % (self.__user, self.__uid)
+                rtnstr = "%s(#%d)" % (self.__user, self.__uid)
             else:
-                s = self.__user
+                rtnstr = self.__user
         elif self.__uid is not None:
-            s = "U#%d" % self.__uid
+            rtnstr = "U#%d" % self.__uid
         else:
-            s = "<UnknownUser>"
+            rtnstr = "<UnknownUser>"
 
         if self.__pid is not None:
-            s += " PID %d" % self.__pid
+            rtnstr += " PID %d" % self.__pid
 
         if self.__ppid is not None:
-            s += " PARENT %d" % self.__ppid
+            rtnstr += " PARENT %d" % self.__ppid
 
         if self.__pgid is not None:
-            s += " PGRP %d" % self.__pgid
+            rtnstr += " PGRP %d" % self.__pgid
 
         if self.__command is not None:
-            s += ": " + self.__command
+            rtnstr += ": " + self.__command
 
-        return s
+        return rtnstr
 
-    def addFile(self, f):
-        if self.__fileList is None:
-            self.__fileList = []
-        self.__fileList.append(f)
+    def add_file(self, fnm):
+        if self.__file_list is None:
+            self.__file_list = []
+        self.__file_list.append(fnm)
 
-    def files(self):
-        if self.__fileList is None:
-            raise ListOpenFileException("No files available")
-        for f in self.__fileList:
-            yield f
-
-    def setCommand(self, val):
-        self.__command = val
-
-    def setParentProcessID(self, val):
-        self.__ppid = val
-
-    def setProcessGroupID(self, val):
-        self.__pgid = val
-
-    def setProcessID(self, val):
-        self.__pid = val
-
-    def setSecurityContext(self, val):
-        self.__secContext = val
-
-    def setUserID(self, val):
-        self.__uid = val
-
-    def setUserName(self, val):
-        self.__user = val
-
+    @property
     def command(self):
         if self.__command is None:
             return ""
         return self.__command.split()[0]
 
+    @command.setter
+    def command(self, val):
+        self.__command = val
+
+    @property
+    def files(self):
+        if self.__file_list is None:
+            raise ListOpenFileException("No files available")
+        for entry in self.__file_list:
+            yield entry
+
+    @property
     def pid(self):
         return self.__pid
 
+    @pid.setter
+    def pid(self, val):
+        self.__pid = val
+
+    def set_parent_process_id(self, val):
+        self.__ppid = val
+
+    def set_process_group_id(self, val):
+        self.__pgid = val
+
+    def set_security_context(self, val):
+        self.__sec_context = val
+
+    @property
     def uid(self):
         return self.__uid
 
+    @uid.setter
+    def uid(self, val):
+        self.__uid = val
+
+    @property
     def user(self):
         return self.__user
 
+    @user.setter
+    def user(self, val):
+        self.__user = val
+
 
 class BaseFile(object):
-    def __init__(self, fileType, fileDesc, accessMode, lockStatus):
-        self.__fileType = fileType
-        self.__fileDesc = fileDesc
-        self.__accessMode = accessMode
-        self.__lockStatus = lockStatus
+    def __init__(self, file_type, file_desc, access_mode, lock_status):
+        self.__file_type = file_type
+        self.__file_desc = file_desc
+        self.__access_mode = access_mode
+        self.__lock_status = lock_status
         self.__name = None
         self.__inode = None
-        self.__linkCnt = None
+        self.__link_count = None
         self.__flags = None
         self.__offset = None
-        self.__devCharCode = None
+        self.__dev_char_code = None
 
     def __str__(self):
-        s = "%s#%s" % (type(self).__name__, self.__fileDesc)
+        rtnstr = "%s#%s" % (type(self).__name__, self.__file_desc)
 
-        if self.__accessMode is not None and len(self.__accessMode) > 0:
-            s += "(%s)" % self.__accessMode
+        if self.__access_mode is not None and self.__access_mode != "":
+            rtnstr += "(%s)" % self.__access_mode
 
         if self.__name is not None:
-            s += " " + self.__name
+            rtnstr += " " + self.__name
 
-        if self.__lockStatus is not None and len(self.__lockStatus) > 0:
-            s += " LCK %s" % self.__lockStatus
+        if self.__lock_status is not None and self.__lock_status != "":
+            rtnstr += " LCK %s" % self.__lock_status
 
-        return s
+        return rtnstr
 
-    def accessMode(self):
-        return self.__accessMode
+    @property
+    def access_mode(self):
+        return self.__access_mode
 
-    def devCharCode(self):
-        return self.__devCharCode
-
+    @property
     def device(self):
-        if self.__devCharCode is None:
+        if self.__dev_char_code is None:
             return ""
-        return self.__devCharCode
+        return self.__dev_char_code
 
-    def fileDesc(self):
-        return self.__fileDesc
+    @device.setter
+    def device(self, val):
+        self.__dev_char_code = val
 
-    def fileType(self):
-        return self.__fileType
+    @property
+    def file_desc(self):
+        return self.__file_desc
 
+    @property
+    def file_type(self):
+        return self.__file_type
+
+    @property
     def flags(self):
         return self.__flags
 
+    @flags.setter
+    def flags(self, val):
+        self.__flags = val
+
+    @property
     def inode(self):
         if self.__inode is None:
             return ""
         return self.__inode
 
-    def lockStatus(self):
-        return self.__lockStatus
+    @inode.setter
+    def inode(self, val):
+        self.__inode = val
+
+    @property
+    def link_count(self, val):
+        self.__link_count = val
+
+    @link_count.setter
+    def link_count(self, val):
+        self.__link_count = val
+
+    @property
+    def lock_status(self):
+        return self.__lock_status
 
     @property
     def name(self):
         return self.__name
 
+    @name.setter
+    def name(self, val):
+        self.__name = val
+
+    @property
     def offset(self):
         return self.__offset
 
+    @offset.setter
+    def offset(self, val):
+        self.__offset = val
+
+    @property
     def protocol(self):
         return None
 
-    def sizeOffset(self):
+    @property
+    def size_offset(self):
         if self.__offset is None:
             return ""
         return self.__offset
 
-    def setDeviceCharacterCode(self, val):
-        self.__devCharCode = val
-
-    def setFlags(self, val):
-        self.__flags = val
-
-    def setInode(self, val):
-        self.__inode = val
-
-    def setLinkCount(self, val):
-        self.__linkCnt = val
-
-    def setName(self, val):
-        self.__name = val
-
-    def setOffset(self, val):
-        self.__offset = val
-
 
 class StandardFile(BaseFile):
-    def __init__(self, fileType, fileDesc, accessMode, lockStatus):
-        super(StandardFile, self).__init__(fileType, fileDesc, accessMode,
-                                           lockStatus)
-        self.__majorMinorDev = None
+    def __init__(self, file_type, file_desc, access_mode, lock_status):
+        super(StandardFile, self).__init__(file_type, file_desc, access_mode,
+                                           lock_status)
+        self.__major_minor_dev = None
         self.__size = None
 
+    @property
     def device(self):
-        if self.__majorMinorDev is None:
+        if self.__major_minor_dev is None:
             return ""
-        return "%d,%d" % (self.__majorMinorDev >> 24,
-                          self.__majorMinorDev & 0xffffff)
+        return "%d,%d" % (self.__major_minor_dev >> 24,
+                          self.__major_minor_dev & 0xffffff)
 
-    def majorMinorDevice(self):
-        return self.__majorMinorDev
+    @property
+    def major_minor_device(self):
+        return self.__major_minor_dev
 
-    def setMajorMinorDevice(self, val):
-        self.__majorMinorDev = int(val, 16)
+    @major_minor_device.setter
+    def major_minor_device(self, val):
+        self.__major_minor_dev = int(val, 16)
 
-    def setSize(self, val):
-        self.__size = val
-
-    def sizeOffset(self):
+    @property
+    def size_offset(self):
         if self.__size is None:
             return ""
         return str(self.__size)
 
+    @size_offset.setter
+    def size_offset(self, val):
+        self.__size = val
+
 
 class CharacterFile(StandardFile):
-    def __init__(self, fileType, fileDesc, accessMode, lockStatus):
-        super(CharacterFile, self).__init__(fileType, fileDesc, accessMode,
-                                            lockStatus)
-
+    @property
     def device(self):
-        return self.flags()
+        return self.flags
 
-    def sizeOffset(self):
-        return super(CharacterFile, self).offset()
+    @property
+    def size_offset(self):
+        return super(CharacterFile, self).offset
 
 
 class NoFile(BaseFile):
-    def __init__(self, fileType, fileDesc, accessMode, lockStatus):
-        super(NoFile, self).__init__(fileType, fileDesc, accessMode,
-                                     lockStatus)
+    "Base class for non-file entries"
 
 
 class Directory(StandardFile):
-    def __init__(self, fileType, fileDesc, accessMode, lockStatus):
-        super(Directory, self).__init__(fileType, fileDesc, accessMode,
-                                        lockStatus)
+    "Directory"
 
 
 class FIFO(BaseFile):
-    def __init__(self, fileType, fileDesc, accessMode, lockStatus):
-        super(FIFO, self).__init__(fileType, fileDesc, accessMode, lockStatus)
-        self.__majorMinorDev = None
+    def __init__(self, file_type, file_desc, access_mode, lock_status):
+        super(FIFO, self).__init__(file_type, file_desc, access_mode,
+                                   lock_status)
+        self.__major_minor_dev = None
 
-    def setMajorMinorDevice(self, val):
-        self.__majorMinorDev = val
+    @property
+    def major_minor_device(self):
+        return self.__major_minor_dev
+
+    @major_minor_device.setter
+    def major_minor_device(self, val):
+        self.__major_minor_dev = val
 
 
 class BaseIP(BaseFile):
-    def __init__(self, fileType, fileDesc, accessMode, lockStatus):
-        super(BaseIP, self).__init__(fileType, fileDesc, accessMode,
-                                     lockStatus)
+    def __init__(self, file_type, file_desc, access_mode, lock_status):
+        super(BaseIP, self).__init__(file_type, file_desc, access_mode,
+                                     lock_status)
         self.__proto = None
         self.__info = None
 
-    def addInfo(self, val):
+    def add_info(self, val):
         if self.__info is None:
             self.__info = []
         self.__info.append(val)
 
+    @property
     def inode(self):
         return self.__proto
 
     @property
     def name(self):
-        nm = super(BaseIP, self).name
+        name = super(BaseIP, self).name
         if self.__info is None:
-            return nm
-        for i in self.__info:
-            if i.startswith("ST="):
-                nm += " (%s)" % i[3:]
-        return nm
+            return name
+        for info in self.__info:
+            if info.startswith("ST="):
+                name += " (%s)" % info[3:]
+        return name
 
+    @property
     def protocol(self):
         return self.__proto
 
-    def setProtocol(self, val):
+    @protocol.setter
+    def protocol(self, val):
         self.__proto = val
 
 
 class IPv4(BaseIP):
-    def __init__(self, fileType, fileDesc, accessMode, lockStatus):
-        super(IPv4, self).__init__(fileType, fileDesc, accessMode, lockStatus)
+    "IPv4 entry"
 
 
 class IPv6(BaseIP):
-    def __init__(self, fileType, fileDesc, accessMode, lockStatus):
-        super(IPv6, self).__init__(fileType, fileDesc, accessMode, lockStatus)
+    "IPv6 entry"
 
 
 class KQueue(BaseFile):
-    def __init__(self, fileType, fileDesc, accessMode, lockStatus):
-        super(KQueue, self).__init__(fileType, fileDesc, accessMode,
-                                     lockStatus)
+    "kqueue entry"
 
 
 class Pipe(BaseFile):
-    def __init__(self, fileType, fileDesc, accessMode, lockStatus):
-        super(Pipe, self).__init__(fileType, fileDesc, accessMode, lockStatus)
+    def __init__(self, file_type, file_desc, access_mode, lock_status):
+        super(Pipe, self).__init__(file_type, file_desc, access_mode,
+                                   lock_status)
         self.__size = None
 
-    def setSize(self, val):
-        self.__size = val
-
-    def sizeOffset(self):
+    @property
+    def size_offset(self):
         return self.__size
+
+    @size_offset.setter
+    def size_offset(self, val):
+        self.__size = val
 
 
 class RegularFile(StandardFile):
-    def __init__(self, fileType, fileDesc, accessMode, lockStatus):
-        super(RegularFile, self).__init__(fileType, fileDesc, accessMode,
-                                          lockStatus)
+    "Regular file"
 
 
 class EventPoll(StandardFile):
-    def __init__(self, fileType, fileDesc, accessMode, lockStatus):
-        super(EventPoll, self).__init__(fileType, fileDesc, accessMode,
-                                        lockStatus)
+    "Event poll entry"
 
 
 class SystemFile(BaseFile):
-    def __init__(self, fileType, fileDesc, accessMode, lockStatus):
-        super(SystemFile, self).__init__(fileType, fileDesc, accessMode,
-                                         lockStatus)
+    "System file"
 
 
 class UnixSocket(BaseFile):
-    def __init__(self, fileType, fileDesc, accessMode, lockStatus):
-        super(UnixSocket, self).__init__(fileType, fileDesc, accessMode,
-                                         lockStatus)
+    "Unix socket"
 
 
 class UnknownSocket(BaseFile):
-    def __init__(self, fileType, fileDesc, accessMode, lockStatus):
-        super(UnknownSocket, self).__init__(fileType, fileDesc, accessMode,
-                                            lockStatus)
-        self.__majorMinorDev = None
+    def __init__(self, file_type, file_desc, access_mode, lock_status):
+        super(UnknownSocket, self).__init__(file_type, file_desc, access_mode,
+                                            lock_status)
+        self.__major_minor_dev = None
 
-    def setMajorMinorDevice(self, val):
-        self.__majorMinorDev = val
+    @property
+    def major_minor_device(self):
+        return self.__major_minor_dev
+
+    @major_minor_device.setter
+    def major_minor_device(self, val):
+        self.__major_minor_dev = val
 
 
 class UnknownEntry(BaseFile):
-    def __init__(self, fileType, fileDesc, accessMode, lockStatus):
-        super(UnknownEntry, self).__init__(fileType, fileDesc, accessMode,
-                                           lockStatus)
+    "Stand-in for unknown entry"
+    def __init__(self, file_type, file_desc, access_mode, lock_status):
+        super(UnknownEntry, self).__init__(file_type, file_desc, access_mode,
+                                           lock_status)
+        self.__size = None
 
-    def setSize(self, val):
-        pass
+    @property
+    def size_offset(self):
+        return self.__size
+
+    @size_offset.setter
+    def size_offset(self, val):
+        self.__size = val
 
 
 class ListOpenFiles(object):
-    @classmethod
-    def __create(cls, fileDesc, accessMode, lockStatus, fileType=None):
-        if fileType is None:
-            return NoFile(fileType, fileDesc, accessMode, lockStatus)
-        elif fileType == "CHR":
-            return CharacterFile(fileType, fileDesc, accessMode, lockStatus)
-        elif fileType == "DIR":
-            return Directory(fileType, fileDesc, accessMode, lockStatus)
-        elif fileType == "FIFO":
-            return FIFO(fileType, fileDesc, accessMode, lockStatus)
-        elif fileType == "IPv4":
-            return IPv4(fileType, fileDesc, accessMode, lockStatus)
-        elif fileType == "IPv6":
-            return IPv6(fileType, fileDesc, accessMode, lockStatus)
-        elif fileType == "KQUEUE":
-            return KQueue(fileType, fileDesc, accessMode, lockStatus)
-        elif fileType == "PIPE":
-            return Pipe(fileType, fileDesc, accessMode, lockStatus)
-        elif fileType == "REG":
-            return RegularFile(fileType, fileDesc, accessMode, lockStatus)
-        elif fileType == "sock":
-            return UnknownSocket(fileType, fileDesc, accessMode, lockStatus)
-        elif fileType == "systm":
-            return SystemFile(fileType, fileDesc, accessMode, lockStatus)
-        elif fileType == "unix":
-            return UnixSocket(fileType, fileDesc, accessMode, lockStatus)
-        elif fileType == "unknown":
-            return NoFile(fileType, fileDesc, accessMode, lockStatus)
-        elif fileType == "0000":
-            return EventPoll(fileType, fileDesc, accessMode, lockStatus)
-
-        return UnknownEntry(fileType, fileDesc, accessMode, lockStatus)
+    "Get he list of open files using 'lsof'"
 
     @classmethod
-    def __parseOutput(cls, fd):
-        tmpInfo = None
-        curFile = None
+    def __create(cls, file_desc, access_mode, lock_status, file_type=None):
+        obj = None
+        if file_type is None:
+            obj = NoFile(file_type, file_desc, access_mode, lock_status)
+        elif file_type == "CHR":
+            obj = CharacterFile(file_type, file_desc, access_mode,
+                                lock_status)
+        elif file_type == "DIR":
+            obj = Directory(file_type, file_desc, access_mode, lock_status)
+        elif file_type == "FIFO":
+            obj = FIFO(file_type, file_desc, access_mode, lock_status)
+        elif file_type == "IPv4":
+            obj = IPv4(file_type, file_desc, access_mode, lock_status)
+        elif file_type == "IPv6":
+            obj = IPv6(file_type, file_desc, access_mode, lock_status)
+        elif file_type == "KQUEUE":
+            obj = KQueue(file_type, file_desc, access_mode, lock_status)
+        elif file_type == "PIPE":
+            obj = Pipe(file_type, file_desc, access_mode, lock_status)
+        elif file_type == "REG":
+            obj = RegularFile(file_type, file_desc, access_mode, lock_status)
+        elif file_type == "sock":
+            obj = UnknownSocket(file_type, file_desc, access_mode,
+                                lock_status)
+        elif file_type == "systm":
+            obj = SystemFile(file_type, file_desc, access_mode, lock_status)
+        elif file_type == "unix":
+            obj = UnixSocket(file_type, file_desc, access_mode, lock_status)
+        elif file_type == "unknown":
+            obj = NoFile(file_type, file_desc, access_mode, lock_status)
+        elif file_type == "0000":
+            obj = EventPoll(file_type, file_desc, access_mode, lock_status)
+        else:
+            obj = UnknownEntry(file_type, file_desc, access_mode, lock_status)
 
-        curUser = None
-        userList = []
+        return obj
 
-        for line in fd:
+    @classmethod
+    def __parse_output(cls, fin):
+        tmp_info = []
+        cur_file = None
+
+        cur_user = None
+        user_list = []
+
+        for line in fin:
             line = line.rstrip()
-            if len(line) == 0:
+            if line == "":
                 continue
 
             if line.startswith("f"):
                 # file descriptor
-                if tmpInfo is not None:
-                    errmsg = "Parse error for file descriptor (%s)" % tmpInfo
+                if len(tmp_info) > 0:  # pylint: disable=len-as-condition
+                    errmsg = "Parse error for file descriptor (%s)" % tmp_info
                     raise ListOpenFileException(errmsg)
 
-                if curFile is not None:
-                    curFile = None
+                if cur_file is not None:
+                    cur_file = None
 
                 try:
                     val = int(line[1:])
                 except ValueError:
                     val = line[1:]
-                tmpInfo = [val, ]
+                tmp_info = [val, ]
             elif line.startswith("a"):
                 # file access mode
-                if tmpInfo is None or len(tmpInfo) != 1:
-                    errmsg = "Parse error for access mode (%s)" % tmpInfo
+                if len(tmp_info) != 1:
+                    errmsg = "Parse error for access mode (%s)" % tmp_info
                     raise ListOpenFileException(errmsg)
-                tmpInfo.append(line[1:])
+                tmp_info.append(line[1:])
             elif line.startswith("l"):
                 # file lock status
-                if tmpInfo is None or len(tmpInfo) != 2:
-                    errmsg = "Parse error for lock status (%s)" % tmpInfo
+                if len(tmp_info) != 2:
+                    errmsg = "Parse error for lock status (%s)" % tmp_info
                     raise ListOpenFileException(errmsg)
-                tmpInfo.append(line[1:])
-                if tmpInfo[0] == "NOFD":
-                    if curUser is None:
+                tmp_info.append(line[1:])
+                if tmp_info[0] == "NOFD":
+                    if cur_user is None:
                         errmsg = "No user specified for current file %s" % \
-                                 curFile
+                                 cur_file
                         raise ListOpenFileException(errmsg)
 
-                    curFile = cls.__create(tmpInfo[0], tmpInfo[1], tmpInfo[2])
-                    curUser.addFile(curFile)
-                    tmpInfo = None
+                    cur_file = cls.__create(tmp_info[0], tmp_info[1],
+                                            tmp_info[2])
+                    cur_user.add_file(cur_file)
+                    tmp_info = []
             elif line.startswith("t"):
                 # file type
-                if tmpInfo is None or len(tmpInfo) != 3:
-                    errmsg = "Parse error for file type (%s)" % tmpInfo
+                if len(tmp_info) != 3:
+                    errmsg = "Parse error for file type (%s)" % tmp_info
                     raise ListOpenFileException(errmsg)
 
-                if curUser is None:
-                    errmsg = "No user specified for current file %s" % curFile
+                if cur_user is None:
+                    errmsg = "No user specified for current file %s" % cur_file
                     raise ListOpenFileException(errmsg)
 
-                curFile = cls.__create(tmpInfo[0], tmpInfo[1], tmpInfo[2],
-                                       line[1:])
-                curUser.addFile(curFile)
-                tmpInfo = None
+                cur_file = cls.__create(tmp_info[0], tmp_info[1], tmp_info[2],
+                                        line[1:])
+                cur_user.add_file(cur_file)
+                tmp_info = []
             elif line.startswith("D"):
-                if curFile is None:
-                    errmsg = "Parse error for major/minor (no curFile)"
+                if cur_file is None:
+                    errmsg = "Parse error for major/minor (no cur_file)"
                     raise ListOpenFileException(errmsg)
 
-                curFile.setMajorMinorDevice(line[1:])
+                cur_file.major_minor_device = line[1:]
             elif line.startswith("G"):
-                if curFile is None:
-                    errmsg = "Parse error for file flags (no curFile)"
+                if cur_file is None:
+                    errmsg = "Parse error for file flags (no cur_file)"
                     raise ListOpenFileException(errmsg)
 
-                curFile.setFlags(line[1:])
+                cur_file.flags = line[1:]
             elif line.startswith("L"):
-                if curUser is None:
-                    errmsg = "Parse error for user name (no curUser)"
+                if cur_user is None:
+                    errmsg = "Parse error for user name (no cur_user)"
                     raise ListOpenFileException(errmsg)
 
-                curUser.setUserName(line[1:])
+                cur_user.user = line[1:]
             elif line.startswith("P"):
-                if curFile is None:
-                    errmsg = "Parse error for protocol (no curFile)"
+                if cur_file is None:
+                    errmsg = "Parse error for protocol (no cur_file)"
                     raise ListOpenFileException(errmsg)
 
-                curFile.setProtocol(line[1:])
+                cur_file.protocol = line[1:]
             elif line.startswith("R"):
-                if curUser is None:
-                    errmsg = "Parse error for parent process ID (no curUser)"
+                if cur_user is None:
+                    errmsg = "Parse error for parent process ID (no cur_user)"
                     raise ListOpenFileException(errmsg)
 
-                curUser.setParentProcessID(int(line[1:]))
+                cur_user.set_parent_process_id(int(line[1:]))
             elif line.startswith("T"):
-                if curFile is None:
-                    errmsg = "Parse error for TCP info (no curFile)"
+                if cur_file is None:
+                    errmsg = "Parse error for TCP info (no cur_file)"
                     raise ListOpenFileException(errmsg)
 
-                curFile.addInfo(line[1:])
+                cur_file.add_info(line[1:])
             elif line.startswith("Z"):
-                if curUser is None:
-                    errmsg = "Parse error for parent process ID (no curUser)"
+                if cur_user is None:
+                    errmsg = "Parse error for parent process ID (no cur_user)"
                     raise ListOpenFileException(errmsg)
 
-                curUser.setSecurityContext(line[1:])
+                cur_user.setSecurityContext(line[1:])
             elif line.startswith("c"):
-                if curUser is None:
-                    errmsg = "Parse error for command name (no curUser)"
+                if cur_user is None:
+                    errmsg = "Parse error for command name (no cur_user)"
                     raise ListOpenFileException(errmsg)
 
-                curUser.setCommand(line[1:])
+                cur_user.command = line[1:]
             elif line.startswith("d"):
-                if curFile is None:
+                if cur_file is None:
                     errmsg = "Parse error for device character code" + \
-                             " (no curFile)"
+                             " (no cur_file)"
                     raise ListOpenFileException(errmsg)
 
-                curFile.setDeviceCharacterCode(line[1:])
+                cur_file.device = line[1:]
             elif line.startswith("g"):
-                if curUser is None:
-                    errmsg = "Parse error for process group ID (no curUser)"
+                if cur_user is None:
+                    errmsg = "Parse error for process group ID (no cur_user)"
                     raise ListOpenFileException(errmsg)
 
-                curUser.setProcessGroupID(int(line[1:]))
+                cur_user.set_process_group_id(int(line[1:]))
             elif line.startswith("i"):
-                if curFile is None:
-                    errmsg = "Parse error for inode (no curFile)"
+                if cur_file is None:
+                    errmsg = "Parse error for inode (no cur_file)"
                     raise ListOpenFileException(errmsg)
 
-                curFile.setInode(long(line[1:]))
+                cur_file.inode = int(line[1:])
             elif line.startswith("k"):
-                if curFile is None:
-                    errmsg = "Parse error for link count (no curFile)"
+                if cur_file is None:
+                    errmsg = "Parse error for link count (no cur_file)"
                     raise ListOpenFileException(errmsg)
 
-                curFile.setLinkCount(int(line[1:]))
+                cur_file.link_count = int(line[1:])
             elif line.startswith("n"):
-                if curFile is None:
-                    errmsg = "Parse error for file name (no curFile)"
+                if cur_file is None:
+                    errmsg = "Parse error for file name (no cur_file)"
                     raise ListOpenFileException(errmsg)
 
-                curFile.setName(line[1:])
+                cur_file.name = line[1:]
             elif line.startswith("o"):
-                if curFile is None:
-                    errmsg = "Parse error for file offset (no curFile)"
+                if cur_file is None:
+                    errmsg = "Parse error for file offset (no cur_file)"
                     raise ListOpenFileException(errmsg)
 
-                curFile.setOffset(line[1:])
+                cur_file.offset = line[1:]
             elif line.startswith("p"):
-                curUser = UserInfo()
-                userList.append(curUser)
+                cur_user = UserInfo()
+                user_list.append(cur_user)
 
-                curUser.setProcessID(int(line[1:]))
+                cur_user.pid = int(line[1:])
             elif line.startswith("s"):
-                if curFile is None:
-                    errmsg = "Parse error for file size (no curFile)"
+                if cur_file is None:
+                    errmsg = "Parse error for file size (no cur_file)"
                     raise ListOpenFileException(errmsg)
 
-                curFile.setSize(long(line[1:]))
+                cur_file.size_offset = int(line[1:])
             elif line.startswith("u"):
-                if curUser is None:
-                    errmsg = "Parse error for user ID (no curUser)"
+                if cur_user is None:
+                    errmsg = "Parse error for user ID (no cur_user)"
                     raise ListOpenFileException(errmsg)
 
-                curUser.setUserID(int(line[1:]))
+                cur_user.uid = int(line[1:])
             else:
-                print("Unknown field \"%s\", value \"%s\"" % \
+                print("Unknown field \"%s\", value \"%s\"" %
                       (line[0], line[1:]))
                 break
 
-        return userList
+        return user_list
 
     @classmethod
     def dump(cls):
-        cls.dumpList(cls.run())
+        cls.print_list(cls.run())
 
     @classmethod
-    def dumpList(cls, userList):
-        print("%-9.9s %4s %4s %4.4s%1.1s%1.1s %6.6s %10.10s %9.9s %8.8s %s" % \
+    def print_list(cls, user_list):
+        print("%-9.9s %4s %4s %4.4s%1.1s%1.1s %6.6s %10.10s %9.9s %8.8s %s" %
               ("COMMAND", "PID", "USER", "FD", "", "", "TYPE", "DEVICE",
                "SIZE/OFF", "NODE", "NAME"))
-        for u in userList:
-            cmd = u.command()
-            pid = u.pid()
-            user = u.user()
+        for usr in user_list:
+            cmd = usr.command
+            pid = usr.pid
+            user = usr.user
             if user is None:
-                uid = u.uid()
+                uid = usr.uid
                 if uid is not None:
                     user = "#%d" % uid
 
-            for f in u.files():
-                print("%-9.9s %4d %4s %4.4s%1.1s%1.1s %6.6s %10.10s %9.9s" \
-                    " %8.8s %s" % \
-                    (cmd, pid, user, f.fileDesc(), f.accessMode(),
-                     f.lockStatus(), f.fileType(), f.device(), f.sizeOffset(),
-                     f.inode(), f.name))
+            for fdata in usr.files:
+                print("%-9.9s %4d %4s %4.4s%1.1s%1.1s %6.6s %10.10s %9.9s"
+                      " %8.8s %s" %
+                      (cmd, pid, user, fdata.file_desc, fdata.access_mode,
+                       fdata.lock_status, fdata.file_type, fdata.device,
+                       fdata.size_offset, fdata.inode, fdata.name))
 
     @classmethod
-    def readOutput(cls, filename):
-        with open(filename, "r") as fd:
-            return cls.__parseOutput(fd)
+    def read_file(cls, filename):
+        with open(filename, "r") as fin:
+            return cls.__parse_output(fin)
 
     @classmethod
     def run(cls, pid=None):
@@ -594,18 +639,24 @@ class ListOpenFiles(object):
         proc.stdin.close()
 
         try:
-            userList = cls.__parseOutput(proc.stdout)
+            user_list = cls.__parse_output(proc.stdout)
         finally:
             proc.stdout.close()
         proc.wait()
 
-        return userList
+        return user_list
+
+
+def main():
+    "Main program"
+
+    if len(sys.argv) == 1:
+        user_list = ListOpenFiles.run()
+    else:
+        user_list = ListOpenFiles.read_file(sys.argv[1])
+
+    ListOpenFiles.print_list(user_list)
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 1:
-        userList = ListOpenFiles.run()
-    else:
-        userList = ListOpenFiles.readOutput(sys.argv[1])
-
-    ListOpenFiles.dumpList(userList)
+    main()

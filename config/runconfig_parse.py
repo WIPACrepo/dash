@@ -1,26 +1,33 @@
-from validate_configs import validate_runconfig
+#!/usr/bin/env python
+
+from __future__ import print_function
+
+import argparse
 import glob
 import os
 import sys
-import optparse
 
-if __name__ == "__main__":
-    parse = optparse.OptionParser()
-    parse.add_option("-d", "--config_dir", type="string",
-                     dest="config_dir", action="store",
-                     default=None,
-                     help="Run Config Directory")
-    opt, args = parse.parse_args()
+from validate_configs import validate_runconfig
 
-    if opt.config_dir is not None:
-        config_path = opt.config_dir
+
+def main():
+    "Main program"
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--config_dir", dest="config_dir",
+                        action="store", default=None,
+                        help="Run Config Directory")
+    args = parser.parse_args()
+
+    if args.config_dir is not None:
+        config_path = args.config_dir
     else:
         sys.path.append('..')
         from locate_pdaq import find_pdaq_config
         config_path = find_pdaq_config()
 
-    print "Validating all runconfig files in %s" % config_path
-    print ""
+    print("Validating all runconfig files in %s" % config_path)
+    print("")
 
     invalid_found = False
     run_configs = glob.glob(os.path.join(config_path, '*.xml'))
@@ -38,11 +45,15 @@ if __name__ == "__main__":
         valid, reason = validate_runconfig(run_config)
 
         if not valid:
-            print "File is not valid! (%s)" % run_config
-            print "-" * 60
-            print ""
-            print reason
+            print("File is not valid! (%s)" % run_config)
+            print("-" * 60)
+            print("")
+            print(reason)
             invalid_found = True
 
     if not invalid_found:
-        print "No invalid run configuration files found (of %d)" % num
+        print("No invalid run configuration files found (of %d)" % num)
+
+
+if __name__ == "__main__":
+    main()

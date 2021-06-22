@@ -11,13 +11,18 @@ import re
 import subprocess
 import sys
 import threading
-import Queue
+try:
+    import queue
+except:  # ModuleNotFoundError only works under 2.7/3.0
+    import Queue as queue
 
 from ANSIEscapeCode import ANSIEscapeCode, background_color, foreground_color
 from ColorFileParser import ColorException, ColorFileParser
 
 
 def add_arguments(parser):
+    "Add command-line arguments"
+
     parser.add_argument("-A", "--all-logs", dest="all_logs",
                         action="store_true", default=False,
                         help=("Read all log files instead of 'tail'ing"
@@ -57,7 +62,7 @@ def tail_logs(args):
         return
 
     # get list of files to watch
-    if len(args.files) > 0:
+    if len(args.files) > 0:  # pylint: disable=len-as-condition
         if len(args.files) == 1:
             log = Tail(args.files[0], num_lines=args.tail_lines)
         else:
@@ -74,7 +79,7 @@ def tail_logs(args):
 
 
 class LiveLogException(Exception):
-    pass
+    "Live logging exception"
 
 
 class LiveData(object):
@@ -112,21 +117,24 @@ class LiveData(object):
 
     @property
     def typestring(self):
+        tstr = None
         if self.__datatype == self.TYPE_LOG:
-            return "LOG"
-        if self.__datatype == self.TYPE_MONI:
-            return "MONI"
-        if self.__datatype == self.TYPE_MSGDICT:
-            return "MSGDICT"
-        if self.__datatype == self.TYPE_ALERT:
-            return "ALERT"
-        if self.__datatype == self.TYPE_MSGERR:
-            return "MSGERR"
-        if self.__datatype == self.TYPE_WARN:
-            return "WARN"
-        if self.__datatype == self.TYPE_UNKNOWN:
-            return "UNKNOWN"
-        return "??%d??" % (self.__datatype, )
+            tstr = "LOG"
+        elif self.__datatype == self.TYPE_MONI:
+            tstr = "MONI"
+        elif self.__datatype == self.TYPE_MSGDICT:
+            tstr = "MSGDICT"
+        elif self.__datatype == self.TYPE_ALERT:
+            tstr = "ALERT"
+        elif self.__datatype == self.TYPE_MSGERR:
+            tstr = "MSGERR"
+        elif self.__datatype == self.TYPE_WARN:
+            tstr = "WARN"
+        elif self.__datatype == self.TYPE_UNKNOWN:
+            tstr = "UNKNOWN"
+        else:
+            tstr = "??%d??" % (self.__datatype, )
+        return tstr
 
 
 class TextData(LiveData):
@@ -184,7 +192,7 @@ class ListData(LiveData):
 
 
 class LiveLine(object):
-    PREFIX_PAT = re.compile(r"^\s+livecontrol\((\S+)\)" +
+    PREFIX_PAT = re.compile(r"^\s+live(?:control|cmd)\((\S+)\)" +
                             r"\s+(\d+-\d+-\d+ \d+:\d+:\d+,\d+)\s+(.*)$",
                             re.DOTALL)
     TIME_FMT = "%Y-%m-%d %H:%M:%S,%f"
@@ -206,6 +214,40 @@ class LiveLine(object):
         return "[%s]%s %s" % (self.__msgtype, self.__timestamp, self.__data)
 
     @classmethod
+    def __format_oldlog(cls, line, match):
+        prio = int(match.group(4))
+        dtstr = match.group(5)
+        if match.group(6) is not None:
+            dtstr += match.group(6)
+
+        endidx = match.end() + 4
+        if endidx >= len(line):
+            value = match.group(7)
+        else:
+            value = match.group(7) + line[endidx:]
+
+        payload = {
+            "service": match.group(1),
+            "varname": match.group(2),
+            "prio": prio,
+            "time": dtstr,
+            "value": value,
+            }
+        return DictData(LiveData.TYPE_LOG, cls.__wrap_payload(payload))
+
+    @classmethod
+    def __format_text(cls, line):
+        data_obj = None
+        if line.startswith("Message error: "):
+            data_obj = TextData(TextData.TYPE_MSGERR, line[15:])
+        elif line.startswith("Warning: "):
+            data_obj = TextData(TextData.TYPE_WARN, line[9:])
+        else:
+            data_obj = TextData(TextData.TYPE_UNKNOWN, line)
+
+        return data_obj
+
+    @classmethod
     def __parse_datetime_dict(cls, astr, debug=False):
         try:
             tree = ast.parse(astr)
@@ -225,36 +267,18 @@ class LiveLine(object):
                          if not attr.startswith('__')]
                 print(node, file=sys.stderr)
                 for attrname in attrs:
-                    print('    %s ==> %s' % \
-                        (attrname, getattr(node, attrname)), file=sys.stderr)
+                    print('    %s ==> %s' %
+                          (attrname, getattr(node, attrname)), file=sys.stderr)
             raise ValueError(astr)
 
-        return eval(astr)
+        return eval(astr)  # pylint: disable=eval-used
 
     @classmethod
     def __parse_data(cls, line, debug=False):
         if line.startswith("--- ") or line.startswith("... "):
             match = cls.OLDLOG_PAT.match(line[4:])
             if match is not None:
-                prio = int(match.group(4))
-                dtstr = match.group(5)
-                if match.group(6) is not None:
-                    dtstr += match.group(6)
-
-                endidx = match.end() + 4
-                if endidx >= len(line):
-                    value = match.group(7)
-                else:
-                    value = match.group(7) + line[endidx:]
-
-                payload = {
-                    "service": match.group(1),
-                    "varname": match.group(2),
-                    "prio": prio,
-                    "time": dtstr,
-                    "value": value,
-                }
-                return DictData(LiveData.TYPE_LOG, cls.__wrap_payload(payload))
+                return cls.__format_oldlog(line, match)
 
         if line.startswith("Got user-generated alert message: \"") and \
           line.endswith("\""):
@@ -263,38 +287,31 @@ class LiveLine(object):
                 if "varname" in ddict:
                     ddict = cls.__wrap_payload(ddict)
                 return DictData(LiveData.TYPE_ALERT, ddict)
-            except:
-                import traceback; traceback.print_exc()
+            except:  # pylint: disable=bare-except
                 pass
 
         if line.startswith("WARN_MONI_SEND: "):
             try:
                 ddict = cls.__parse_datetime_dict(line[16:], debug=debug)
                 return DictData(LiveData.TYPE_MONI, ddict)
-            except:
+            except:  # pylint: disable=bare-except
                 pass
 
         if line.startswith("{") and line.endswith("}"):
             try:
                 ddict = cls.__parse_datetime_dict(line, debug=debug)
                 return DictData(LiveData.TYPE_MSGDICT, ddict)
-            except:
+            except:  # pylint: disable=bare-except
                 pass
 
         if line.startswith("[") and line.endswith("]"):
             try:
                 dlist = cls.__parse_datetime_dict(line, debug=debug)
                 return ListData(LiveData.TYPE_MSGLIST, dlist)
-            except:
+            except:  # pylint: disable=bare-except
                 pass
 
-        if line.startswith("Message error: "):
-            return TextData(TextData.TYPE_MSGERR, line[15:])
-
-        if line.startswith("Warning: "):
-            return TextData(TextData.TYPE_WARN, line[9:])
-
-        return TextData(TextData.TYPE_UNKNOWN, line)
+        return cls.__format_text(line)
 
     @classmethod
     def __wrap_payload(cls, payload):
@@ -322,11 +339,11 @@ class LiveLine(object):
             try:
                 ptime = datetime.datetime.strptime(dtstr,
                                                    "%Y-%m-%d %H:%M:%S.%f")
-            except:
+            except ValueError:
                 try:
                     ptime = datetime.datetime.strptime(dtstr,
                                                        "%Y-%m-%d %H:%M:%S")
-                except:
+                except ValueError:
                     ptime = None
         if ptime is None:
             ptime = datetime.datetime(2000, 1, 1, 0, 0, 0, 0)
@@ -373,7 +390,7 @@ class Tail(LiveFile):
             raise ValueError("File \"%s\" does not exist" % filename)
 
         self.__num_lines = num_lines
-        self.__queue = Queue.Queue(maxsize=100)
+        self.__queue = queue.Queue(maxsize=100)
         self.__thread = threading.Thread(target=self.__run, args=(filename, ))
         self.start()
 
@@ -401,7 +418,7 @@ class Tail(LiveFile):
     def close(self):
         self.__proc.kill()
 
-    next = __next__ # XXX backward compatibility for Python 2
+    next = __next__  # XXX backward compatibility for Python 2
 
     def readline_nb(self):
         """Non-blocking read"""
@@ -419,7 +436,7 @@ class Tail(LiveFile):
 class MultiFile(LiveFile):
     def __init__(self):
         self.__logname = None
-        self.__fd = None
+        self.__file_handle = None
 
         super(MultiFile, self).__init__()
 
@@ -433,24 +450,24 @@ class MultiFile(LiveFile):
         raise NotImplementedError()
 
     def close(self):
-        self.__fd.close()
+        self.__file_handle.close()
 
-    next = __next__ # XXX backward compatibility for Python 2
+    next = __next__  # XXX backward compatibility for Python 2
 
     def readline(self):
         while True:
-            if self.__fd is None:
+            if self.__file_handle is None:
                 self.__logname = self.next_file()
                 if self.__logname is None:
                     break
-                self.__fd = open(self.__logname, "r")
+                self.__file_handle = open(self.__logname, "r")
 
-            line = self.__fd.readline()
+            line = self.__file_handle.readline()
             if line != "":
                 return line
 
-            self.__fd.close()
-            self.__fd = None
+            self.__file_handle.close()
+            self.__file_handle = None
 
 
 class AllFiles(MultiFile):
@@ -460,7 +477,7 @@ class AllFiles(MultiFile):
         super(AllFiles, self).__init__()
 
     def next_file(self):
-        while len(self.__file_list) > 0:
+        while len(self.__file_list) > 0:  # pylint: disable=len-as-condition
             path = self.__file_list.pop(0)
             if os.path.exists(path):
                 return path
@@ -531,9 +548,9 @@ class LiveLog(object):
                         ANSIEscapeCode.BOLD_ON),
     }
 
-    def __init__(self, fd, show_all=False, pdaq_only=False, non_log=False,
-                 quiet=False, color_file=None):
-        self.__fd = fd
+    def __init__(self, file_handle, show_all=False, pdaq_only=False,
+                 non_log=False, quiet=False, color_file=None):
+        self.__file_handle = file_handle
         self.__show_all = show_all
         self.__pdaq_only = pdaq_only
         self.__non_log = non_log
@@ -551,55 +568,56 @@ class LiveLog(object):
         if msg.find("ShutdownHook") > 0:
             return None
 
+        fld_type = self.FIELD_PDAQ_OTHER
         if msg.find(" physics events") > 0 and \
                 msg.find(" moni events") > 0:
             # rate line
-            return self.string(self.FIELD_PDAQ_RATE, date, msg)
+            fld_type = self.FIELD_PDAQ_RATE
 
-        if msg.startswith("Registered "):
+        elif msg.startswith("Registered "):
             # registered
             if self.__quiet:
                 return None
-            return self.string(self.FIELD_PDAQ_REGISTERED, date, msg)
+            fld_type = self.FIELD_PDAQ_REGISTERED
 
-        if msg.startswith("Waiting for ") or \
+        elif msg.startswith("Waiting for ") or \
                 (msg.startswith("RunSet #") and
                  msg.find("Waiting for ")):
             # waiting for
-            return self.string(self.FIELD_PDAQ_WAIT, date, msg)
+            fld_type = self.FIELD_PDAQ_WAIT
 
-        if msg.startswith("Loading run configuration ") or \
+        elif msg.startswith("Loading run configuration ") or \
                 msg.startswith("Loaded run configuration "):
             # run config
-            return self.string(self.FIELD_PDAQ_LOAD, date, msg)
+            fld_type = self.FIELD_PDAQ_LOAD
 
-        if msg.startswith("Starting run ") or \
+        elif msg.startswith("Starting run ") or \
                 msg.startswith("Version info: ") or \
                 msg.startswith("Run configuration: ") or \
                 msg.startswith("Cluster: "):
             # run start
-            return self.string(self.FIELD_PDAQ_INFO, date, msg)
+            fld_type = self.FIELD_PDAQ_INFO
 
-        if msg.find(" physics events collected in ") > 0 or \
+        elif msg.find(" physics events collected in ") > 0 or \
                 msg.find(" moni events, ") > 0 or \
                 msg.startswith("Run terminated "):
             # run end
-            return self.string(self.FIELD_PDAQ_INFO, date, msg)
+            fld_type = self.FIELD_PDAQ_INFO
 
-        if msg.startswith("Cycling components") or \
+        elif msg.startswith("Cycling components") or \
                 msg.startswith("Built runset #"):
             # cycle components
-            return self.string(self.FIELD_PDAQ_MISC, date, msg)
+            fld_type = self.FIELD_PDAQ_MISC
 
-        if msg.startswith("Run is healthy again"):
+        elif msg.startswith("Run is healthy again"):
             # whew
-            return self.string(self.FIELD_PDAQ_HEALTH, date, msg)
+            fld_type = self.FIELD_PDAQ_HEALTH
 
-        if msg.startswith("Watchdog reports"):
+        elif msg.startswith("Watchdog reports"):
             # whew
-            return self.string(self.FIELD_PDAQ_WATCHDOG, date, msg)
+            fld_type = self.FIELD_PDAQ_WATCHDOG
 
-        return self.string(self.FIELD_PDAQ_OTHER, date, msg)
+        return self.string(fld_type, date, msg)
 
     def __process_control(self, line):
         "Handle a (possibly incomplete) Live log message"
@@ -651,13 +669,15 @@ class LiveLog(object):
                     offset = svcidx + len(no_svc_str)
                     final = msg.find(":", offset)
                     if final > 0:
-                        msg = "Cannot retrieve status from " + msg[offset:final]
+                        msg = "Cannot retrieve status from " + \
+                          msg[offset:final]
                         field = self.FIELD_LIVECONTROL
 
         if field is not None:
             line = self.string(field, timestamp, msg)
             print(line)
 
+    # pylint: disable=too-many-branches,too-many-return-statements
     def __process_message(self, ddict, default_time=None):
         "Process a Live JSON message"
         if "service" not in ddict:
@@ -718,14 +738,19 @@ class LiveLog(object):
         print(line)
         line = self.string(self.FIELD_LIVE_MISC, "\t", str(payload))
         print(line)
+    # pylint: enable=too-many-branches,too-many-return-statements
 
     def read_file(self):
         prevline = None
-        for line in self.__fd:
+        for line in self.__file_handle:
             if line is None:
                 break
 
-            if line.startswith("    livecontrol"):
+            line = line.decode("utf-8")
+
+            stripped = line.strip()
+            if stripped.startswith("livecontrol") or \
+              stripped.startswith("livecmd"):
                 if prevline is not None:
                     self.__process_control(prevline.rstrip())
                 is_rate = line.find(" physics events") >= 0 and \
@@ -766,7 +791,8 @@ class LiveLog(object):
         else:
             dstr = "%s " % (date, )
 
-        if not cls.TTYOUT or colors is None or len(colors) == 0:
+        if not cls.TTYOUT or colors is None or \
+          len(colors) == 0:  # pylint: disable=len-as-condition
             cstr = ""
         else:
             cstr = foreground_color(colors[0])
@@ -777,7 +803,9 @@ class LiveLog(object):
         return dstr + cstr + msg + off
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     import argparse
     from DumpThreads import DumpThreadsOnSignal
 
@@ -785,6 +813,10 @@ if __name__ == "__main__":
     add_arguments(parser)
     args = parser.parse_args()
 
-    DumpThreadsOnSignal(fd=sys.stderr)
+    DumpThreadsOnSignal(file_handle=sys.stderr)
 
     tail_logs(args)
+
+
+if __name__ == "__main__":
+    main()

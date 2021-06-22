@@ -1,10 +1,20 @@
 #!/usr/bin/env python
+"""
+Manage a 'fake' run (which can include 'real' Java components)
+
+To test CnCServer, start it with:
+    python CnCServer.py -c "/tmp/pdaq/config" -j "/tmp/pdaq/jade" \
+        -o "/tmp/pdaq/log" -q "/tmp/pdaq/pdaqlocal" -v
+
+then run this program to simulate a pDAQ run:
+    PYTHONPATH=~/prj/livecore python DAQFakeRun.py
+"""
 
 from __future__ import print_function
 
 import datetime
-import numbers
 import os
+import random
 import select
 import shutil
 import socket
@@ -14,24 +24,27 @@ import time
 import traceback
 
 from CnCServer import Connector
-from DAQConfig import DAQConfigParser
+from DAQConfig import ConfigNotSpecifiedException, DAQConfig, DAQConfigParser
 from DAQConst import DAQPort
-from DAQMocks import MockLeapsecondFile, MockRunConfigFile, MockTriggerConfig
+from DAQMocks import MockLeapsecondFile
 from DAQRPC import RPCClient
-from DefaultDomGeometry import DefaultDomGeometryReader
+from DefaultDomGeometry import DefaultDomGeometry, DefaultDomGeometryReader
 from FakeClient import FakeClient, FakeClientException, PortNumber
 from FakeComponent import StringHub
 from RunOption import RunOption
+from locate_pdaq import find_pdaq_config
 from utils import ip
+from xmlparser import XMLBadFileError
 
 LOUD = False
 
 
 class DAQFakeRunException(Exception):
-    pass
+    "Base exception"
 
 
 class HubType(object):
+    "Hub type definitions"
     ALL = 0
     PHYSICS_ONLY = 1
     SECONDARY_ONLY = 2
@@ -73,7 +86,8 @@ class LogThread(threading.Thread):
         self.__sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
         if LOUD:
-            print("Create log server localhost#%d" % self.__port, file=sys.stderr)
+            print("Create log server localhost#%d" % self.__port,
+                  file=sys.stderr)
         try:
             self.__sock.bind(("", self.__port))
         except socket.error:
@@ -97,18 +111,19 @@ class LogThread(threading.Thread):
                     break
                 raise
 
-            if len(ersock) != 0:
+            if len(ersock) != 0:  # pylint: disable=len-as-condition
                 print("Error on select", file=sys.stderr)
 
-            if len(rdsock) == 0:
+            if len(rdsock) == 0:  # pylint: disable=len-as-condition
                 continue
 
             while True:
                 try:
                     data = self.__sock.recv(8192, socket.MSG_DONTWAIT)
                     if LOUD:
-                        print("%s: %s" % (self.__comp_name, data), file=sys.stderr)
-                except:
+                        print("%s: %s" % (self.__comp_name, data),
+                              file=sys.stderr)
+                except:  # pylint: disable=bare-except
                     break  # Go back to select so we don't busy-wait
 
 
@@ -136,10 +151,16 @@ class ComponentData(object):
 
     @property
     def connections(self):
+        "Return list of connections"
         return self.__conn_list
 
+    @connections.setter
+    def connections(self, connlist):
+        "Set the connections for this component"
+        self.__conn_list = connlist
+
     @classmethod
-    def create_all_data(cls, num_hubs, def_dom_geom, numeric_prefix=False,
+    def create_all_data(cls, num_hubs, numeric_prefix=False,
                         include_icetop=False):
         "Create initial component data list"
         comps = cls.create_hubs(num_hubs, 1, numeric_prefix=numeric_prefix,
@@ -202,7 +223,7 @@ class ComponentData(object):
                 break
 
             comp = ComponentData(name, 0)
-            comp.set_connections(connlist)
+            comp.connections = connlist
             comps.append(comp)
 
         return comps
@@ -222,18 +243,19 @@ class ComponentData(object):
                 break
 
             comp = ComponentData(name, 0)
-            comp.set_connections(connlist)
+            comp.connections = connlist
             comps.append(comp)
 
         return comps
 
     @property
     def fullname(self):
+        "Full component name, omitting the instance number if it's zero"
         if self.__num == 0:
             return self.__name
         return "%s#%d" % (self.__name, self.__num)
 
-    def get_fake_client(self, def_dom_geom, quiet=False):
+    def get_fake_client(self, _, quiet=False):
         "Create a FakeClient object using this component data"
         if not self.__is_fake:
             return None
@@ -247,21 +269,22 @@ class ComponentData(object):
 
     @property
     def is_fake(self):
+        "Return True if this is a FakeClient"
         return self.__is_fake
 
     @property
     def name(self):
+        "Return the component name"
         return self.__name
 
     @property
     def num(self):
+        "Return the component instance number"
         return self.__num
-
-    def set_connections(self, connlist):
-        self.__conn_list = connlist
 
     @property
     def use_numeric_prefix(self):
+        "Return True if this component should prepend a numeric value"
         return self.__numeric_prefix
 
     def use_real_component(self):
@@ -270,13 +293,15 @@ class ComponentData(object):
 
 
 class HubDescription(ComponentData):
+    "StringHub data"
+
     def __init__(self, num, numeric_prefix=False, is_icetop=False,
                  hub_type=HubType.ALL):
         super(HubDescription, self).__init__("stringHub", num,
                                              numeric_prefix=numeric_prefix)
 
         connlist = []
-        if hub_type == HubType.ALL or hub_type == HubType.PHYSICS_ONLY:
+        if hub_type in (HubType.ALL, HubType.PHYSICS_ONLY):
             connlist += [
                 ("rdoutReq", Connector.INPUT),
                 ("rdoutData", Connector.OUTPUT),
@@ -285,13 +310,13 @@ class HubDescription(ComponentData):
                 connlist.append(("icetopHit", Connector.OUTPUT))
             else:
                 connlist.append(("stringHit", Connector.OUTPUT))
-        if hub_type == HubType.ALL or hub_type == HubType.SECONDARY_ONLY:
+        if hub_type in (HubType.ALL, HubType.SECONDARY_ONLY):
             connlist += [
                 ("moniData", Connector.OUTPUT),
                 ("snData", Connector.OUTPUT),
                 ("tcalData", Connector.OUTPUT),
             ]
-        self.set_connections(connlist)
+        self.connections = connlist
 
     def get_fake_client(self, def_dom_geom, quiet=False):
         "Create a FakeClient object using this component data"
@@ -303,6 +328,8 @@ class HubDescription(ComponentData):
 
 
 class TriggerDescription(ComponentData):
+    "Trigger data"
+
     def __init__(self, name, num, numeric_prefix=False):
         super(TriggerDescription, self).__init__(name, num,
                                                  numeric_prefix=numeric_prefix)
@@ -326,10 +353,12 @@ class TriggerDescription(ComponentData):
             raise FakeClientException("Unknown trigger handler \"%s\"" %
                                       (name, ))
 
-        self.set_connections(connlist)
+        self.connections = connlist
 
 
 class BuilderDescription(ComponentData):
+    "EventBuilder/SecondaryBuilders data"
+
     def __init__(self, name, num, numeric_prefix=False):
         super(BuilderDescription, self).__init__(name, num,
                                                  numeric_prefix=numeric_prefix)
@@ -349,28 +378,33 @@ class BuilderDescription(ComponentData):
         else:
             raise FakeClientException("Unknown builder \"%s\"" % (name, ))
 
-        self.set_connections(connlist)
+        self.connections = connlist
 
 
 class DAQFakeRun(object):
     "Fake DAQRun"
 
-    LOCAL_ADDR = ip.getLocalIpAddr()
+    LOCAL_ADDR = ip.get_local_address()
     CNCSERVER_HOST = LOCAL_ADDR
 
-    def __init__(self, cnc_host=CNCSERVER_HOST, cnc_port=DAQPort.CNCSERVER,
-                 dump_rpc=False):
+    def __init__(self, cnc_host=CNCSERVER_HOST, cnc_port=DAQPort.CNCSERVER):
         """
         Create a fake DAQRun
 
         cnc_host - CnCServer host name/address
         cnc_port - CnCServer port number
-        dump_rpc - if XML-RPC server should print connection info
         """
 
         self.__log_threads = []
 
         self.__client = RPCClient(cnc_host, cnc_port)
+
+    def __check_finished_run(self, run_num):
+        summary = self.__client.rpc_run_summary(run_num)
+        if "result" not in summary:
+            raise FakeException("No result field found in run #%d summary" %
+                                (run_num, ))
+        print("Run #%d: %s" % (run_num, summary["result"]))
 
     @staticmethod
     def __create_cluster_desc_file(run_cfg_dir):
@@ -400,23 +434,32 @@ class DAQFakeRun(object):
         diff = datetime.datetime.now() - start_time
         return float(diff.seconds) + (float(diff.microseconds) / 1000000.0)
 
-    def __open_log(self, host, port):
-        """
-        Open a connection to the log server
+    def __monitor_run(self, runset_id, run_num, start_time, duration,
+                      num_checks):
+        wait_secs = duration / float(num_checks)
 
-        host - log host name/address
-        port - log port number
+        reps = 0
+        run_secs = 0
+        while run_secs <= duration and reps < num_checks:
+            time.sleep(wait_secs)
 
-        Returns the new socket
-        """
+            try:
+                num_evts = self.__client.rpc_runset_events(runset_id, -1)
+            except:  # pylint: disable=bare-except
+                num_evts = None
 
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.settimeout(2)
-        sock.connect((host, port))
-        return sock
+            run_secs = self.__get_run_time(start_time)
+            if num_evts is not None:
+                print("RunSet %d had %d event%s after %.2f secs" %
+                      (runset_id, num_evts, "s" if num_evts != 1 else "",
+                       run_secs))
+            else:
+                print("RunSet %d could not get event count after %.2f secs" %
+                      (runset_id, run_secs))
 
-    def __run_internal(self, runset_id, run_num, duration, test_subrun=True,
+            reps += 1
+
+    def __run_internal(self, runset_id, run_num, duration, subrun_doms=None,
                        verbose=False):
         """
         Take all components through a simulated run
@@ -444,6 +487,7 @@ class DAQFakeRun(object):
 
         run_options = RunOption.LOG_TO_FILE | RunOption.MONI_TO_FILE
 
+        stopped = False
         try:
             self.__client.rpc_runset_start_run(runset_id, run_num, run_options)
 
@@ -455,65 +499,45 @@ class DAQFakeRun(object):
 
             time.sleep(1)
 
-            if test_subrun:
-                self.__client.rpc_runset_subrun(runset_id, -1,
-                                                [("0123456789abcdef",
-                                                  0, 1, 2, 3, 4), ])
+            if subrun_doms is not None:
+                data = []
+                for mbid in subrun_doms:
+                    data.append((mbid, 0, 1, 2, 3, 4))
 
-            do_switch = True
+                print("Subrun data %s" % str(data), file=sys.stderr)
+                self.__client.rpc_runset_subrun(runset_id, -1, data)
+                self.__client.rpc_runset_subrun(runset_id, 1, data)
+                self.__client.rpc_runset_subrun(runset_id, -2, data)
+                self.__client.rpc_runset_subrun(runset_id, 2, data)
 
-            runtime = self.__get_run_time(start_time)
-            wait_secs = duration - runtime
-            if wait_secs <= 0.0:
-                wait_slice = 0.0
-            else:
-                if do_switch:
-                    slices = 6
-                else:
-                    slices = 3
-                wait_slice = wait_secs / float(slices)
+            self.__monitor_run(runset_id, run_num, start_time, duration, 6)
 
-            for switch in (False, True):
-                if switch and do_switch:
-                    self.__client.rpc_runset_switch_run(runset_id, run_num + 1)
+            self.__client.rpc_runset_switch_run(runset_id, run_num + 1)
+            switch_time = datetime.datetime.now()
+            self.__check_finished_run(run_num)
 
-                reps = 0
-                while wait_secs > 0:
-                    time.sleep(wait_slice)
-                    try:
-                        num_evts = self.__client.rpc_runset_events(runset_id,
-                                                                   -1)
-                    except:
-                        num_evts = None
+            self.__monitor_run(runset_id, run_num + 1, switch_time, duration,
+                               3)
 
-                    run_secs = self.__get_run_time(start_time)
-                    if num_evts is not None:
-                        print("RunSet %d had %d event%s after %.2f secs" % \
-                            (runset_id, num_evts, "s" if num_evts != 1 else "",
-                             run_secs))
-                    else:
-                        print("RunSet %d could not get event count after" \
-                            " %.2f secs" % (runset_id, run_secs))
+            self.__client.rpc_runset_stop_run(runset_id)
+            stopped = True
+            self.__check_finished_run(run_num + 1)
 
-                    wait_secs = duration - run_secs
-
-                    reps += 1
-                    if do_switch and not switch and reps == 3:
-                        break
         finally:
-            try:
-                self.__client.rpc_runset_stop_run(runset_id)
-            except:
-                print("Cannot stop run for runset #%d" % runset_id, file=sys.stderr)
-                traceback.print_exc()
+            if not stopped:
+                try:
+                    self.__client.rpc_runset_stop_run(runset_id)
+                except:  # pylint: disable=bare-except
+                    print("Cannot stop run for runset #%d\n%s" %
+                          (runset_id, traceback.format_exc()), file=sys.stderr)
 
-    def __run_one(self, comp_list, run_cfg_dir, mock_run_cfg, run_num,
-                  duration, verbose=False, test_subrun=False):
+    def __run_one(self, comp_list, run_cfg, run_num, duration, verbose=False,
+                  subrun_doms=None):
         """
         Simulate a run
 
         comp_list - list of components
-        run_cfg - run configuration name
+        run_cfg - run configuration object
         run_num - run number
         duration - length of run in seconds
         """
@@ -525,21 +549,17 @@ class DAQFakeRun(object):
                 print(str(cdict), file=sys.stderr)
             print("---", file=sys.stderr)
 
-        leapfile = MockLeapsecondFile(run_cfg_dir)
-        leapfile.create()
-
-        self.hack_active_config(mock_run_cfg)
-
-        runset_id = self.make_runset(comp_list, mock_run_cfg, run_num)
+        runset_id = self.make_runset(comp_list, run_cfg.basename, run_num)
 
         if num_sets != self.__client.rpc_runset_count() - 1:
             print("Expected %d run sets" % (num_sets + 1), file=sys.stderr)
 
         try:
             self.__run_internal(runset_id, run_num, duration, verbose=verbose,
-                                test_subrun=test_subrun)
+                                subrun_doms=subrun_doms)
+        except:
+            print("Run #%s FAILED:\n%s" % (run_num, traceback.format_exc()))
         finally:
-            traceback.print_exc()
             self.close_all(runset_id)
 
     def __wait_for_components(self, num_comps):
@@ -556,13 +576,14 @@ class DAQFakeRun(object):
 
         num = self.__client.rpc_component_count()
         if num > num_comps:
-            print("CnCServer still has %d components (expect %d)" % \
-                (num, num_comps), file=sys.stderr)
+            print("CnCServer still has %d components (expect %d)" %
+                  (num, num_comps), file=sys.stderr)
 
     def close_all(self, runset_id):
+        "Kill the runset and stop any threads"
         try:
             self.__client.rpc_runset_break(runset_id)
-        except:
+        except:  # pylint: disable=bare-except
             pass
 
         for thrd in self.__log_threads:
@@ -572,7 +593,7 @@ class DAQFakeRun(object):
     @staticmethod
     def create_comps(comp_data, def_dom_geom, fork_clients=False,
                      quiet=False):
-        "create and start components"
+        "Create and start components"
         comps = []
         for cdt in comp_data:
             client = cdt.get_fake_client(def_dom_geom, quiet=quiet)
@@ -582,7 +603,7 @@ class DAQFakeRun(object):
             if cdt.is_fake:
                 if fork_clients:
                     if client.fork() == 0:
-                        return
+                        return None
 
                 client.start()
                 client.register()
@@ -590,23 +611,9 @@ class DAQFakeRun(object):
             comps.append(client)
         return comps
 
-    @classmethod
-    def create_mock_run_config(cls, run_cfg_dir, comp_list):
-        trig_cfg = MockTriggerConfig("global-only")
-        trig_cfg.add(6000, "ThroughputTrigger", 3, -1)
-
-        cfg_file = MockRunConfigFile(run_cfg_dir)
-
-        name_list = []
-        for comp in comp_list:
-            name_list.append(comp.fullname)
-
-        cls.__create_cluster_desc_file(run_cfg_dir)
-
-        return cfg_file.create(name_list, {}, trigCfg=trig_cfg)
-
     @staticmethod
     def hack_active_config(cluster_cfg):
+        "Update pDAQ's active configuration file"
         path = os.path.join(os.environ["HOME"], ".active")
         if not os.path.exists(path):
             print("Setting ~/.active to \"%s\"" % cluster_cfg, file=sys.stderr)
@@ -616,41 +623,45 @@ class DAQFakeRun(object):
                 cur_cfg = fin.read().split("\n")[0]
 
         if cur_cfg != cluster_cfg:
-            print("Changing ~/.active from \"%s\" to \"%s\"" % \
-                (cur_cfg, cluster_cfg), file=sys.stderr)
+            print("Changing ~/.active from \"%s\" to \"%s\"" %
+                  (cur_cfg, cluster_cfg), file=sys.stderr)
             with open(path, 'w') as fin:
                 print(cluster_cfg, file=fin)
 
     @classmethod
     def make_mock_cluster_config(cls, run_cfg_dir, comps, num_hubs):
+        "Write the cluster configuration to an XML file"
         mock_name = "localhost-cluster.cfg"
         path = os.path.join(run_cfg_dir, mock_name)
-        if os.path.exists(path):
-            return
+        if not os.path.exists(path):
+            with open(path, 'w') as out:
+                print("<cluster name=\"localhost\">", file=out)
+                print("  <host name=\"localhost\">", file=out)
 
-        with open(path, 'w') as out:
-            print("<cluster name=\"localhost\">", file=out)
-            print("  <host name=\"localhost\">", file=out)
+                for comp in comps:
+                    if comp.name == "stringHub":
+                        continue
 
-            for comp in comps:
-                if comp.name == "stringHub":
-                    continue
+                    if comp.name == "globalTrigger" or \
+                      comp.name == "eventBuilder" or \
+                      comp.name == "secondaryBuilders":
+                        req = " required=\"true\""
+                    else:
+                        req = ""
 
-                if comp.name == "globalTrigger" or comp.name == "eventBuilder" or \
-                   comp.name == "secondaryBuilders":
-                    req = " required=\"true\""
-                else:
-                    req = ""
+                    print("    <component name=\"%s\"%s/>" % (comp.name, req),
+                          file=out)
 
-                print("    <component name=\"%s\"%s/>" % (comp.name, req), file=out)
+                print("    <simulatedHub number=\"%d\" priority=\"1\"/>" %
+                      (num_hubs, ), file=out)
+                print("  </host>", file=out)
+                print("</cluster>", file=out)
 
-            print("    <simulatedHub number=\"%d\" priority=\"1\"/>" % \
-                (num_hubs, ), file=out)
-            print("  </host>", file=out)
-            print("</cluster>", file=out)
+        return path
 
     @classmethod
     def make_mock_run_config(cls, run_cfg_dir, comp_data, moni_period=None):
+        "Write the run configuration to an XML file"
         mock_name = "fake-localhost"
         trig_cfg_name = "spts-IT-stdtest-01"
 
@@ -668,12 +679,14 @@ class DAQFakeRun(object):
                 print("  <string id=\"%d\"/>" % comp.num, file=out)
             print("  </randomConfig>", file=out)
 
-            print("  <triggerConfig>%s</triggerConfig>" % trig_cfg_name, file=out)
+            print("  <triggerConfig>%s</triggerConfig>" % trig_cfg_name,
+                  file=out)
             for comp in comp_data:
                 if comp.name == "stringHub":
                     continue
 
-                print("  <runComponent name=\"%s\"/>" % (comp.name, ), file=out)
+                print("  <runComponent name=\"%s\"/>" % (comp.name, ),
+                      file=out)
 
             print("</runConfig>", file=out)
 
@@ -683,11 +696,13 @@ class DAQFakeRun(object):
 
     @classmethod
     def write_tag_and_value(cls, out, indent, name, value):
+        "Write a single XML name/value pair"
         print("%s<%s>%s</%s>" % (indent, name, value, name), file=out)
 
     @classmethod
     def write_trigger_config(cls, out, indent, trig_type, trig_cfg_id, src_id,
                              name, parameter_dict, readout_dict):
+        "Write the trigger configuration to an XML file"
         indent2 = indent + "  "
         indent3 = indent2 + "  "
         readout_defaults = {
@@ -705,10 +720,10 @@ class DAQFakeRun(object):
         cls.write_tag_and_value(out, indent2, "sourceId", str(src_id))
         cls.write_tag_and_value(out, indent2, "triggerName", name)
         if parameter_dict is not None:
-            for name, value in list(parameter_dict.items()):
+            for pname, value in parameter_dict.items():
                 print("%s<parameterConfig>" % indent2, file=out)
                 cls.write_tag_and_value(out, indent3, "parameterName",
-                                        str(name))
+                                        str(pname))
                 cls.write_tag_and_value(out, indent3, "parameterValueName",
                                         str(value))
                 print("%s</parameterConfig>" % indent2, file=out)
@@ -726,6 +741,7 @@ class DAQFakeRun(object):
 
     @classmethod
     def make_mock_trigger_config(cls, run_cfg_dir, trig_cfg_name):
+        "Create a mock trigger configuration"
         inice_id = 4000
         icetop_id = 5000
         global_id = 6000
@@ -771,6 +787,7 @@ class DAQFakeRun(object):
                 print("</activeTriggers>", file=out)
 
     def make_runset(self, comp_list, run_cfg, run_num):
+        "Build a runset"
         name_list = []
         for comp in comp_list:
             name_list.append(comp.fullname)
@@ -783,13 +800,36 @@ class DAQFakeRun(object):
 
         return runset_id
 
-    def run_all(self, comps, start_num, num_runs, duration, run_cfg_dir,
-                mock_run_cfg, verbose=False, test_subrun=False):
+    def run_all(self, comps, start_num, num_runs, duration, run_cfg,
+                verbose=False, test_subrun=False):
+        "Shepherd a set of components through the specified runs"
         run_num = start_num
 
         # grab the number of components before we add ours
         #
         num_comps = self.__client.rpc_component_count()
+
+        if not test_subrun:
+            subrun_doms = None
+        else:
+            # build a list of all DOMs in the run configuration
+            doms = []
+            for dom_cfg in run_cfg.dom_cfgs:
+                for entry in dom_cfg.rundoms:
+                    doms.append(entry)
+
+            # randomly choose a couple of DOMs to be used in the subrun
+            subrun_doms = []
+            for idx in range(2):
+                entry = random.choice(doms)
+                if isinstance(entry.mbid, int):
+                    mbid = "%x" % entry.mbid
+                else:
+                    mbid = entry.mbid
+                subrun_doms.append(mbid)
+
+        # set the active configuration to our run configuration name
+        self.hack_active_config(run_cfg.basename)
 
         # do all the runs
         #
@@ -805,10 +845,9 @@ class DAQFakeRun(object):
             # simulate a run
             #
             try:
-                self.__run_one(comps, run_cfg_dir, mock_run_cfg, run_num,
-                               duration, verbose=verbose,
-                               test_subrun=test_subrun)
-            except:
+                self.__run_one(comps, run_cfg, run_num, duration,
+                               verbose=verbose, subrun_doms=subrun_doms)
+            except:  # pylint: disable=bare-except
                 traceback.print_exc()
             run_num += 1
 
@@ -822,7 +861,35 @@ class DAQFakeRun(object):
             self.__wait_for_components(num_new)
 
 
+def clear_directory(subdir, dirname):
+    if not subdir.startswith("/tmp"):
+        print("Not destroying %s directory \"%s\"" % (dirname, subdir, ))
+    elif os.path.exists(subdir):
+        # destroy old data
+        if not os.path.isdir(subdir):
+            os.unlink(subdir)
+        else:
+            for entry in os.listdir(subdir):
+                path = os.path.join(subdir, entry)
+                if os.path.isdir(path):
+                    shutil.rmtree(path)
+
+
+def copy_default_dom_geometry_file(target):
+    "Copy the standard default DOM geometry file to another location"
+    cfg_path = find_pdaq_config()
+    ddg_path = os.path.join(cfg_path, DefaultDomGeometry.FILENAME)
+    if not os.path.exists(ddg_path):
+        raise DAQFakeRunException("Cannot copy nonexistent \"%s\" to \"%s\"" %
+                                  (ddg_path, cfg_path))
+
+    new_path = os.path.join(target, DefaultDomGeometry.FILENAME)
+    shutil.copyfile(ddg_path, new_path)
+
+
 def main():
+    "Main program"
+
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-c", "--config", dest="run_cfg_dir",
@@ -849,23 +916,33 @@ def main():
     parser.add_argument("-i", "--inice-trigger", dest="inice_trig",
                         action="store_true", default=False,
                         help="Use existing in-ice trigger")
+    parser.add_argument("-j", "--jade-dir", dest="jade_dir",
+                        default="/tmp/pdaq/spade",
+                        help="Directory holding files queued for JADE/SPADE")
     parser.add_argument("-K", "--keep-old-files", dest="keep_old_files",
                         action="store_true", default=False,
-                        help="Keep old runs from /tmp/pdaq/log and"
-                        " /tmp/pdaq/pdaqlocal")
+                        help=("Keep old runs from /tmp/pdaq/log and"
+                              " /tmp/pdaq/pdaqlocal"))
     parser.add_argument("-n", "--num-of-runs", type=int, dest="num_runs",
                         default=1,
                         help="Number of runs")
     parser.add_argument("-M", "--moni-period", type=int, dest="moni_period",
                         default=None,
                         help="Number of seconds between monitoring requests")
+    parser.add_argument("-o", "--log-dir", dest="log_dir",
+                        default="/tmp/pdaq/log",
+                        help=("Directory holding pDAQ log/monitoring"
+                              " subdirectories"))
     parser.add_argument("-p", "--first-port-number", type=int,
                         dest="first_port", default=None,
                         help="First port number used for fake components")
+    parser.add_argument("-Q", "--data-dir", dest="daq_data_dir",
+                        default="/tmp/pdaq/pdaqlocal",
+                        help="Directory holding physics/tcal/moni/sn files")
     parser.add_argument("-q", "--quiet", dest="quiet",
                         action="store_true", default=False,
-                        help="Fake components don't announce what they're"
-                        " doing")
+                        help=("Fake components don't announce what they're"
+                              " doing"))
     parser.add_argument("-r", "--run-number", type=int, dest="run_num",
                         default=1234,
                         help="Run number")
@@ -895,26 +972,32 @@ def main():
 
     if sys.version_info > (2, 3):
         from DumpThreads import DumpThreadsOnSignal
-        DumpThreadsOnSignal(fd=sys.stderr)
+        DumpThreadsOnSignal(file_handle=sys.stderr)
 
     if args.first_port is not None:
-        PortNumber.set_first(args.first_port)
+        PortNumber.set_next_number(args.first_port)
 
-    if not args.keep_old_files:
-        logname = "/tmp/pdaq/log"
-        for entry in os.listdir(logname):
-            path = os.path.join(logname, entry)
-            if os.path.isdir(path):
-                shutil.rmtree(path)
+    log_path = args.log_dir
+    data_path = args.daq_data_dir
+    cfg_path = args.run_cfg_dir
+    jade_path = args.jade_dir
 
-        datname = "/tmp/pdaq/pdaqlocal"
-        for entry in os.listdir(datname):
-            path = os.path.join(datname, entry)
-            if os.path.isfile(path):
-                os.unlink(path)
+    for subdir, dirname in ((log_path, "log"), (data_path, "data"),
+                            (cfg_path, "run configuration"),
+                            (jade_path, "JADE")):
+        if not args.keep_old_files:
+            clear_directory(subdir, dirname)
+
+        if not os.path.exists(subdir):
+            os.makedirs(subdir)
 
     # get string/dom info
-    def_dom_geom = DefaultDomGeometryReader.parse()
+    try:
+        def_dom_geom = DefaultDomGeometryReader.parse(config_dir=cfg_path)
+    except XMLBadFileError:
+        # copy from the default location and try again
+        copy_default_dom_geometry_file(cfg_path)
+        def_dom_geom = DefaultDomGeometryReader.parse(config_dir=cfg_path)
 
     # get list of components
     #
@@ -923,7 +1006,7 @@ def main():
     elif args.use_small:
         comp_data = ComponentData.create_small_data()
     else:
-        comp_data = ComponentData.create_all_data(args.num_hubs, def_dom_geom,
+        comp_data = ComponentData.create_all_data(args.num_hubs,
                                                   args.fake_names)
         for cdt in comp_data:
             if args.evt_bldr and cdt.is_component("eventBuilder"):
@@ -944,11 +1027,21 @@ def main():
     if not os.path.exists(trig_subdir):
         os.makedirs(trig_subdir)
 
-    DAQFakeRun.make_mock_cluster_config(run_cfg_dir, comp_data, args.num_hubs)
+    cc_path = DAQFakeRun.make_mock_cluster_config(run_cfg_dir, comp_data,
+                                                  args.num_hubs)
+    if args.verbose:
+        print("Created cluster configuration \"%s\"" % (cc_path, ))
 
-    mock_run_cfg, _ = DAQFakeRun.make_mock_run_config(run_cfg_dir,
+    run_cfg_name, _ = DAQFakeRun.make_mock_run_config(run_cfg_dir,
                                                       comp_data,
                                                       args.moni_period)
+
+    # load the (newly created?) run configuration
+    run_cfg = DAQConfig(run_cfg_dir, run_cfg_name)
+
+    if args.verbose:
+        rc_path = os.path.join(run_cfg_dir, run_cfg_name + ".xml")
+        print("Created run configuration \"%s\"" % (rc_path, ))
 
     if args.extra_hubs <= 0:
         extra_data = None
@@ -956,6 +1049,10 @@ def main():
         extra_data = ComponentData.create_hubs(args.extra_hubs,
                                                args.num_hubs + 1,
                                                args.fake_names, False)
+
+    # create a fake leapseconds file
+    leapfile = MockLeapsecondFile(run_cfg_dir)
+    leapfile.create()
 
     # create components
     #
@@ -966,7 +1063,10 @@ def main():
     except socket.error as serr:
         if serr.errno != 111:
             raise
-        raise SystemExit("Please start CnCServer before faking a run")
+        errmsg = "Please start CnCServer before faking a run\n\n" \
+          "python CnCServer.py -c \"%s\" -o \"%s\" -q \"%s\" -s \"%s\" -v" % \
+          (args.run_cfg_dir, args.log_dir, args.daq_data_dir, args.jade_dir)
+        raise SystemExit(errmsg)
 
     if extra_data is not None:
         _ = DAQFakeRun.create_comps(extra_data, def_dom_geom,
@@ -974,10 +1074,10 @@ def main():
                                     quiet=args.quiet)
 
     try:
-        DAQConfigParser.getClusterConfiguration(None, useActiveConfig=True,
-                                                configDir=run_cfg_dir,
-                                                validate=False)
-    except:
+        DAQConfigParser.get_cluster_configuration(None, use_active_config=True,
+                                                  config_dir=run_cfg_dir,
+                                                  validate=False)
+    except ConfigNotSpecifiedException:
         DAQFakeRun.hack_active_config("sim-localhost")
 
     # create run object and initial run number
@@ -985,8 +1085,7 @@ def main():
     runner = DAQFakeRun()
 
     runner.run_all(comps, args.run_num, args.num_runs, args.duration,
-                   run_cfg_dir, mock_run_cfg, verbose=args.verbose,
-                   test_subrun=args.test_subrun)
+                   run_cfg, verbose=args.verbose, test_subrun=args.test_subrun)
 
 
 if __name__ == "__main__":

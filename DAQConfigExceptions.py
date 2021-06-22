@@ -1,22 +1,24 @@
-"""Exceptions used in DAQConfig AND in some cluster configuration parsing code
+#!/usr/bin/env python
+"""
+Exceptions used in DAQConfig AND in some cluster configuration parsing code
 """
 
 
 class DAQConfigException(Exception):
-    pass
+    "Base DAQ configuration exception"
 
 
 class BadComponentName(DAQConfigException):
-    pass
+    "Invalid name for component"
 
 
 class BadDOMID(DAQConfigException):
-    pass
+    "Invalid ID for DOM"
 
 
 class ConfigNotSpecifiedException(DAQConfigException):
-    pass
+    "No configuration was specified"
 
 
 class DOMNotInConfigException(DAQConfigException):
-    pass
+    "A DOM is missing from the configuration"

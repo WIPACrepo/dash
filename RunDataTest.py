@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import os
 import shutil
 import tempfile
@@ -35,7 +37,8 @@ class TinyMoniClient(object):
                         if had_error else "SUCCESS"
         self.__exception = None
 
-    def __check_count(self, name, moni_dict, expected, none_is_zero=False):
+    @classmethod
+    def __check_count(cls, name, moni_dict, expected, none_is_zero=False):
         if expected is None:
             if not none_is_zero:
                 raise Exception("Count for %s not set" % (name, ))
@@ -58,7 +61,8 @@ class TinyMoniClient(object):
             raise Exception("Expected #%s %s, not %s" %
                             (name, expected, actual))
 
-    def sendMoni(self, name, value, prio=None, time=None):
+    def sendMoni(self, name, value,      # pylint: disable=invalid-name
+                 prio=None, time=None):  # pylint: disable=unused-argument
         if self.__exception is not None:
             raise self.__exception
 
@@ -77,22 +81,10 @@ class TinyMoniClient(object):
                 raise Exception("Expected dict value, not %s" %
                                 (type(value).__name__, ))
 
-        elif name == "run_update":
-            if self.__run_number is None:
-                raise Exception("Run number not set for \"%s\"" % (name, ))
-            self.__check_count("events", value, self.__num_events,
-                               none_is_zero=True)
-            self.__check_count("moni", value, self.__num_moni,
-                               none_is_zero=True)
-            self.__check_count("sn", value, self.__num_sn,
-                               none_is_zero=True)
-            self.__check_count("tcal", value, self.__num_tcal,
-                               none_is_zero=True)
         elif name == "runstop":
             if self.__run_number is None:
                 raise Exception("Run number not set for \"%s\"" % (name, ))
-            elif self.__num_events is None or \
-               self.__status is None:
+            elif self.__num_events is None or self.__status is None:
                 raise Exception("Quantities not set for \"%s\"" % (name, ))
 
             if value["runnum"] != self.__run_number:
@@ -135,6 +127,7 @@ class TinyRunSet(object):
     def add(self, name, num):
         self.__comps.append(MockComponent(name, num))
 
+    @property
     def components(self):
         for comp in self.__comps:
             yield comp
@@ -145,14 +138,15 @@ class TinyRunSet(object):
         self.__run_dir = tmp_dir
         return self.__run_dir
 
-    def get_first_event_time(self, evt_bldr, run_data):
+    def get_first_event_time(self, _, run_data):  # pylint: disable=no-self-use
         return run_data.first_physics_time
 
     @property
-    def isRunning(self):
+    def is_running(self):
         return self.__running
 
-    def report_good_time(self, run_data, name, ticks):
+    def report_good_time(self, run_data, name,  # pylint: disable=no-self-use
+                         ticks):
         if name != "firstGoodTime":
             raise Exception("Unexpected good-time name \"%s\"" % (name, ))
         if run_data.first_physics_time != ticks:
@@ -166,7 +160,7 @@ class TinyRunSet(object):
         return self.__run_dir
 
     def set_running(self, val):
-        self.__running = val == True
+        self.__running = val is True
 
 
 class MyRunData(RunData):
@@ -174,11 +168,13 @@ class MyRunData(RunData):
                  run_options, version_info, spade_dir, copy_dir, log_dir):
         self.__dashlog = MockLogger("dash")
 
-        self.__dashlog.addExpectedRegexp(r"Version info: \S+ \S+ \S+ \S+")
-        self.__dashlog.addExpectedExact("Run configuration: %s" %
-                                        (run_config.basename, ))
-        self.__dashlog.addExpectedExact("Cluster: %s" %
-                                        (cluster_config.description, ))
+        self.__dashlog.add_expected_regexp(r"Version info: \S+ \S+ \S+ \S+")
+        self.__dashlog.add_expected_exact("Run configuration: %s" %
+                                          (run_config.basename, ))
+        self.__dashlog.add_expected_exact("Cluster: %s" %
+                                          (cluster_config.description, ))
+
+        self.__moni_client = None
 
         super(MyRunData, self).__init__(run_set, run_number, cluster_config,
                                         run_config, run_options, version_info,
@@ -188,11 +184,11 @@ class MyRunData(RunData):
         return self.__dashlog
 
     def create_moni_client(self, port):
-        if self.__moni_client is not None:
-            return self.__moni_client
+        if self.__moni_client is None:
+            raise Exception("Please add a monitoring client"
+                            " with set_moni_client()")
 
-        print "Creating real MoniClient"
-        return super(MyRunData, self).create_moni_client()
+        return self.__moni_client
 
     @property
     def dashlog(self):
@@ -203,11 +199,12 @@ class MyRunData(RunData):
 
 
 class RunDataTest(unittest.TestCase):
-    TOP_DIR = None
+    top_dir = None
 
     TICKS_PER_SEC = 10000000000
 
-    def __add_components(self, runset, comp_names=None):
+    @classmethod
+    def __add_components(cls, runset, comp_names=None):
         if comp_names is None:
             comp_names = ("fooHub", "fooTrigger", "eventBuilder",
                           "secondaryBuilders")
@@ -223,7 +220,8 @@ class RunDataTest(unittest.TestCase):
         self.__add_components(runset)
         return runset
 
-    def __calculate_rate(self, first_evts, last_evts, first_tick, last_tick):
+    @classmethod
+    def __calculate_rate(cls, first_evts, last_evts, first_tick, last_tick):
         if first_tick is None or last_tick is None:
             raise Exception("First/last time is None")
 
@@ -238,19 +236,20 @@ class RunDataTest(unittest.TestCase):
         return num_evts / tick_seconds
 
     def __create_directories(self):
-        self.TOP_DIR = tempfile.mkdtemp()
+        self.top_dir = tempfile.mkdtemp()
 
         # create JADE directory
-        spade_dir = os.path.join(self.TOP_DIR, "spade")
+        spade_dir = os.path.join(self.top_dir, "spade")
         os.mkdir(spade_dir)
 
         # create log directory
-        log_dir = os.path.join(self.TOP_DIR, "log")
+        log_dir = os.path.join(self.top_dir, "log")
         os.mkdir(log_dir)
 
         return spade_dir, log_dir
 
-    def __fake_version(self, release, repo_rev, repo_date, repo_time):
+    @classmethod
+    def __fake_version(cls, release, repo_rev, repo_date, repo_time):
         return {
             "release": release,
             "repo_rev": repo_rev,
@@ -258,30 +257,32 @@ class RunDataTest(unittest.TestCase):
             "time": repo_time,
         }
 
-    def __format_xml_time(self, daq_tick):
-        return str(PayloadTime.toDateTime(daq_tick))
+    @classmethod
+    def __format_xml_time(cls, daq_tick):
+        return str(PayloadTime.to_date_time(daq_tick))
 
-    def __set_mbean_values(self, runset, run_number, num_evts, evt_time,
+    @classmethod
+    def __set_mbean_values(cls, runset, run_number, num_evts, evt_time,
                            num_moni, moni_time, num_sn, sn_time, num_tcal,
-                           tcal_time, bad_data=False):
-        for comp in runset.components():
+                           tcal_time):
+        for comp in runset.components:
             if comp.name == "eventBuilder":
-                comp.mbean.addData("backEnd","EventData",
-                                   [run_number, num_evts, evt_time])
+                comp.mbean.add_mock_data("backEnd", "EventData",
+                                         [run_number, num_evts, evt_time])
             elif comp.name == "secondaryBuilders":
-                comp.mbean.addData("moniBuilder","EventData",
-                                   [run_number, num_moni, moni_time])
-                comp.mbean.addData("snBuilder","EventData",
-                                   [run_number, num_sn, sn_time])
-                comp.mbean.addData("tcalBuilder","EventData",
-                                   [run_number, num_tcal, tcal_time])
+                comp.mbean.add_mock_data("moniBuilder", "EventData",
+                                         [run_number, num_moni, moni_time])
+                comp.mbean.add_mock_data("snBuilder", "EventData",
+                                         [run_number, num_sn, sn_time])
+                comp.mbean.add_mock_data("tcalBuilder", "EventData",
+                                         [run_number, num_tcal, tcal_time])
 
     def __validate_dict(self, result, valid, skip_wall_time=False):
         self.assertTrue(isinstance(result, dict),
                         "Result should be a dict, not %s" %
                         type(result).__name__)
 
-        for key, val in valid.items():
+        for key, val in list(valid.items()):
             self.assertTrue(key in result, "No entry for \"%s\" in %s" %
                             (key, result))
 
@@ -292,10 +293,9 @@ class RunDataTest(unittest.TestCase):
                              "Expected \"%s\" value %s, not %s" %
                              (key, val, result[key]))
 
-    def __validate_result(self, result, num_evts, first_time, evt_time,
-                          num_moni, moni_time, num_sn, sn_time, num_tcal,
-                          tcal_time):
-        self.assertTrue(isinstance(result, list) or isinstance(result, tuple),
+    def __validate_result(self, result, num_evts, evt_time, num_moni,
+                          moni_time, num_sn, sn_time, num_tcal, tcal_time):
+        self.assertTrue(isinstance(result, (list, tuple)),
                         "Result should be a list/tuple, not %s" %
                         type(result).__name__)
 
@@ -340,12 +340,12 @@ class RunDataTest(unittest.TestCase):
             raise Exception("Found existing run.xml file; aborting")
 
     def tearDown(self):
-        if self.TOP_DIR is not None:
-            shutil.rmtree(self.TOP_DIR)
+        if self.top_dir is not None:
+            shutil.rmtree(self.top_dir)
         if os.path.exists("run.xml"):
             raise Exception("Test created a run.xml file; aborting")
 
-    def testInitNoAppender(self):
+    def test_init_no_appender(self):  # pylint: disable=no-self-use
         try:
             RunData(None, None, None, None, 0x0, None, None, None, None)
         except RunSetException as rse:
@@ -359,7 +359,7 @@ class RunDataTest(unittest.TestCase):
             if str(rse).find("No appenders") < 0:
                 raise
 
-    def testInitFileAppenderNoLogDir(self):
+    def test_init_file_appender_no_logdir(self):  # pylint: disable=no-self-use
         try:
             RunData(None, None, None, None, RunOption.LOG_TO_FILE, None, None,
                     None, None)
@@ -367,7 +367,7 @@ class RunDataTest(unittest.TestCase):
             if str(rse).find("Log directory not specified for") < 0:
                 raise
 
-    def testInitFileAppender(self):
+    def test_init_file_appender(self):
         runset = TinyRunSet()
         run_num = 666
         clu_cfg = TinyClusterConfig("xxxCluCfg")
@@ -376,14 +376,14 @@ class RunDataTest(unittest.TestCase):
         version_info = None
         spade_dir, log_dir = self.__create_directories()
 
-        rd = RunData(runset, run_num, clu_cfg, run_cfg, run_options,
-                     version_info, spade_dir, None, log_dir)
+        _ = RunData(runset, run_num, clu_cfg, run_cfg, run_options,
+                    version_info, spade_dir, None, log_dir)
 
         dash_path = os.path.join(runset.run_directory, "dash.log")
         if not os.path.exists(dash_path):
             self.fail("dash.log was not created")
 
-    def testInitLiveAppender(self):
+    def test_init_live_appender(self):  # pylint: disable=no-self-use
         runset = None
         run_num = None
         clu_cfg = TinyClusterConfig("xxxCluCfg")
@@ -396,7 +396,7 @@ class RunDataTest(unittest.TestCase):
         _ = RunData(runset, run_num, clu_cfg, run_cfg, run_options,
                     version_info, spade_dir, None, log_dir)
 
-    def testInitLiveAppenderBadSpadeDir(self):
+    def test_init_live_append_bad_spade(self):  # pylint: disable=no-self-use
         runset = None
         run_num = None
         clu_cfg = TinyClusterConfig("xxxCluCfg")
@@ -414,7 +414,7 @@ class RunDataTest(unittest.TestCase):
             if str(rse).find(errmsg) < 0:
                 raise
 
-    def testDestroy(self):
+    def test_destroy(self):  # pylint: disable=no-self-use
         runset = None
         run_num = None
         clu_cfg = TinyClusterConfig("xxxCluCfg")
@@ -429,7 +429,7 @@ class RunDataTest(unittest.TestCase):
 
         rdata.destroy()
 
-    def testGetEventCountsNoData(self):
+    def test_get_event_counts_no_data(self):
         runset = self.__build_standard_runset()
         run_num = None
         clu_cfg = TinyClusterConfig("xxxCluCfg")
@@ -457,7 +457,7 @@ class RunDataTest(unittest.TestCase):
         }
         self.__validate_dict(result, valid)
 
-    def testGetEventCountsRunning(self):
+    def test_get_event_counts_running(self):
         runset = self.__build_standard_runset()
         run_num = 123456
         clu_cfg = TinyClusterConfig("xxxCluCfg")
@@ -482,7 +482,7 @@ class RunDataTest(unittest.TestCase):
         tcal_time = 70 * self.TICKS_PER_SEC
 
         # we'll need the first time to be set
-        rdata.set_first_physics_time(10 * self.TICKS_PER_SEC)
+        rdata.first_physics_time = 10 * self.TICKS_PER_SEC
 
         self.__set_mbean_values(runset, run_num, num_evts, evt_time, num_moni,
                                 moni_time, num_sn, sn_time, num_tcal,
@@ -503,7 +503,7 @@ class RunDataTest(unittest.TestCase):
         }
         self.__validate_dict(result, valid, skip_wall_time=True)
 
-    def testRate(self):
+    def test_rate(self):
         run_num = None
         clu_cfg = TinyClusterConfig("xxxCluCfg")
         run_cfg = TinyRunConfig("xxxRunCfg")
@@ -521,10 +521,9 @@ class RunDataTest(unittest.TestCase):
         first_evts = 1
         first_pay_time = 9 * self.TICKS_PER_SEC
 
-        last_saved = None
         for idx in (1, 2):
             num_evts = 123 * idx
-            evt_time = 20 * self.TICKS_PER_SEC * idx
+            # evt_time = 20 * self.TICKS_PER_SEC * idx
             num_moni = 234 * idx
             moni_time = 10 * self.TICKS_PER_SEC * idx
             num_sn = 345 * idx
@@ -535,11 +534,10 @@ class RunDataTest(unittest.TestCase):
             wall_time = 50 * self.TICKS_PER_SEC * idx
             last_pay_time = first_pay_time + (99 * self.TICKS_PER_SEC * idx)
 
-            result = rdata.update_event_counts(num_evts, wall_time,
-                                               first_pay_time, last_pay_time,
-                                               num_moni, moni_time,
-                                               num_sn, sn_time, num_tcal,
-                                               tcal_time, add_rate=True)
+            _ = rdata.update_event_counts(num_evts, wall_time, first_pay_time,
+                                          last_pay_time, num_moni, moni_time,
+                                          num_sn, sn_time, num_tcal, tcal_time,
+                                          add_rate=True)
 
             exp_rate = self.__calculate_rate(first_evts, num_evts,
                                              first_pay_time, last_pay_time)
@@ -549,7 +547,7 @@ class RunDataTest(unittest.TestCase):
                                    msg="Expected rate#%d %s, not %s" %
                                    (idx, exp_rate, rate))
 
-    def testReportFirstGoodTime(self):
+    def test_report_first_good_time(self):
         runset = TinyRunSet()
         run_num = None
         clu_cfg = TinyClusterConfig("xxxCluCfg")
@@ -563,20 +561,20 @@ class RunDataTest(unittest.TestCase):
                           version_info, spade_dir, None, log_dir)
 
         # start without any components
-        rdata.dashlog.addExpectedRegexp(r"Cannot find eventBuilder in .*$")
+        rdata.dashlog.add_expected_regexp(r"Cannot find eventBuilder in .*$")
         rdata.report_first_good_time(runset)
 
         # another attempt without a known first time
         self.__add_components(runset)
-        rdata.dashlog.addExpectedRegexp(r"Couldn't find first good time for ")
+        rdata.dashlog.add_expected_regexp(r"Couldn't find first good time ")
         rdata.report_first_good_time(runset)
 
         # this should finally succeed
         first_tick = 100 * self.TICKS_PER_SEC
-        rdata.set_first_physics_time(first_tick)
+        rdata.first_physics_time = first_tick
         rdata.report_first_good_time(runset)
 
-    def testReportRunStopBad(self):
+    def test_report_run_stop_bad(self):
         runset = TinyRunSet()
         run_num = 98765
         clu_cfg = TinyClusterConfig("xxxCluCfg")
@@ -595,8 +593,8 @@ class RunDataTest(unittest.TestCase):
         had_error = False
 
         # start without monitoring client
-        rdata.dashlog.addExpectedExact("Cannot report run stop,"
-                                       " no moni client!")
+        rdata.dashlog.add_expected_exact("Cannot report run stop,"
+                                         " no moni client!")
         rdata.report_run_stop(num_evts, first_pay_time, last_pay_time,
                               had_error)
 
@@ -608,11 +606,11 @@ class RunDataTest(unittest.TestCase):
         # set sendMoni() exception
         moni_client.set_exception(Exception("Expected"))
 
-        rdata.dashlog.addExpectedRegexp(r"Failed to send .*: .* in .*$")
+        rdata.dashlog.add_expected_regexp(r"Failed to send .*: .* in .*$")
         rdata.report_run_stop(num_evts, first_pay_time, last_pay_time,
                               had_error)
 
-    def testReportRunStopHadError(self):
+    def test_report_run_stop_had_error(self):
         runset = TinyRunSet()
         run_num = 98765
         clu_cfg = TinyClusterConfig("xxxCluCfg")
@@ -637,7 +635,7 @@ class RunDataTest(unittest.TestCase):
         rdata.report_run_stop(num_evts, first_pay_time, last_pay_time,
                               had_error)
 
-    def testReportRunStopUnsetError(self):
+    def test_report_run_stop_unset_error(self):
         runset = TinyRunSet()
         run_num = 98765
         clu_cfg = TinyClusterConfig("xxxCluCfg")
@@ -662,7 +660,7 @@ class RunDataTest(unittest.TestCase):
         rdata.report_run_stop(num_evts, first_pay_time, last_pay_time,
                               had_error)
 
-    def testSendCountUpdatesEmpty(self):
+    def test_send_count_updates_empty(self):  # pylint: disable=no-self-use
         runset = TinyRunSet()
         run_num = 98765
         clu_cfg = TinyClusterConfig("xxxCluCfg")
@@ -680,7 +678,7 @@ class RunDataTest(unittest.TestCase):
 
         rdata.send_count_updates(moni_data, prio)
 
-    def testSendCountUpdatesBadData(self):
+    def test_send_count_updates_bad_data(self):  # pylint: disable=no-self-use
         runset = TinyRunSet()
         run_num = 98765
         clu_cfg = TinyClusterConfig("xxxCluCfg")
@@ -699,10 +697,10 @@ class RunDataTest(unittest.TestCase):
         }
         prio = None
 
-        rdata.dashlog.addExpectedRegexp(r"Bad sn data provided by .*$")
+        rdata.dashlog.add_expected_regexp(r"Bad sn data provided by .*$")
         rdata.send_count_updates(moni_data, prio)
 
-    def testSendCountUpdates(self):
+    def test_send_count_updates(self):
         runset = TinyRunSet()
         run_num = 98765
         clu_cfg = TinyClusterConfig("xxxCluCfg")
@@ -739,7 +737,7 @@ class RunDataTest(unittest.TestCase):
         # first update does nothing (not enough history)
         rdata.send_count_updates(moni_data, prio)
 
-        for key, val in moni_data.items():
+        for key, val in list(moni_data.items()):
             if key.endswith("Events"):
                 moni_data[key] = val + int(val / 2)
             elif key.endswith("Time") or key.endswith("Ticks"):
@@ -759,7 +757,7 @@ class RunDataTest(unittest.TestCase):
 
         rdata.send_count_updates(moni_data, prio)
 
-    def testSendEventCounts(self):
+    def test_send_event_counts(self):  # pylint: disable=no-self-use
         runset = TinyRunSet()
         run_num = 98765
         clu_cfg = TinyClusterConfig("xxxCluCfg")
@@ -777,12 +775,11 @@ class RunDataTest(unittest.TestCase):
         rdata.set_moni_client(moni_client)
         rdata.connect_to_live()
 
-        rdata.dashlog.addExpectedExact("Using system time for initial event"
-                                       " counts (no event times available)")
+        rdata.dashlog.add_expected_exact("Using system time for initial event"
+                                         " counts (no event times available)")
         rdata.send_event_counts(runset)
 
-
-    def testSendMoni(self):
+    def test_send_moni(self):  # pylint: disable=no-self-use
         runset = TinyRunSet()
         run_num = 98765
         clu_cfg = TinyClusterConfig("xxxCluCfg")
@@ -810,7 +807,7 @@ class RunDataTest(unittest.TestCase):
 
         rdata.send_moni("runstop", moni_dict)
 
-    def testWriteRunXML(self):
+    def test_write_run_xml(self):
         runset = None
         run_num = 123456
         clu_cfg = TinyClusterConfig("xxxCluCfg")
@@ -853,6 +850,7 @@ class RunDataTest(unittest.TestCase):
             "run": str(run_num),
         }
 
+        path = None
         try:
             path = rdata.write_run_xml(num_evts, num_moni, num_sn, num_tcal,
                                        first_time, last_time, first_good,
@@ -864,7 +862,7 @@ class RunDataTest(unittest.TestCase):
             elif os.path.exists("run.xml"):
                 os.unlink("run.xml")
 
-    def testUpdateCountsAndRate(self):
+    def test_update_counts_and_rate(self):
         runset = self.__build_standard_runset()
         run_num = 666777
         clu_cfg = TinyClusterConfig("xxxCluCfg")
@@ -887,7 +885,7 @@ class RunDataTest(unittest.TestCase):
         tcal_time = 70 * self.TICKS_PER_SEC
 
         # we'll need the first time to be set
-        rdata.set_first_physics_time(10 * self.TICKS_PER_SEC)
+        rdata.first_physics_time = 10 * self.TICKS_PER_SEC
 
         self.__set_mbean_values(runset, run_num, num_evts, evt_time, num_moni,
                                 moni_time, num_sn, sn_time, num_tcal,
@@ -895,7 +893,7 @@ class RunDataTest(unittest.TestCase):
 
         rdata.update_counts_and_rate(runset)
 
-    def testUpdateCountsAndRateNoFirstTime(self):
+    def test_update_counts_and_rate_no_first_time(self):
         runset = self.__build_standard_runset()
         run_num = 666777
         clu_cfg = TinyClusterConfig("xxxCluCfg")
@@ -921,14 +919,13 @@ class RunDataTest(unittest.TestCase):
                                 moni_time, num_sn, sn_time, num_tcal,
                                 tcal_time)
 
-        rdata.dashlog.addExpectedExact("Cannot get first event time (None)")
+        rdata.dashlog.add_expected_exact("Cannot get first event time (None)")
 
         result = rdata.update_counts_and_rate(runset)
-        self.__validate_result(result, num_evts, None, evt_time,
-                               num_moni, moni_time, num_sn, sn_time, num_tcal,
-                               tcal_time)
+        self.__validate_result(result, num_evts, evt_time, num_moni, moni_time,
+                               num_sn, sn_time, num_tcal, tcal_time)
 
-    def testUpdateCountsAndRateNoData(self):
+    def test_update_counts_and_rate_no_data(self):
         runset = self.__build_standard_runset()
         run_num = 666777
         clu_cfg = TinyClusterConfig("xxxCluCfg")
@@ -941,23 +938,24 @@ class RunDataTest(unittest.TestCase):
         rdata = MyRunData(runset, run_num, clu_cfg, run_cfg, run_options,
                           version_info, spade_dir, None, log_dir)
 
-        for comp in runset.components():
+        for comp in runset.components:
             if comp.name == "eventBuilder":
-                comp.mbean.addData("backEnd","EventData", None)
+                comp.mbean.add_mock_data("backEnd", "EventData", None)
             elif comp.name == "secondaryBuilders":
                 for stream in ("moni", "sn", "tcal"):
-                    comp.mbean.addData(stream + "Builder","EventData", None)
+                    comp.mbean.add_mock_data(stream + "Builder", "EventData",
+                                             None)
 
         err_comps = ("eventBuilder", "secondaryBuilders", "secondaryBuilders",
                      "secondaryBuilders", )
         for cname in err_comps:
-            rdata.dashlog.addExpectedRegexp(r"Cannot get event data for %s.*" %
-                                            (cname, ))
+            rdata.dashlog.add_expected_regexp(r"Cannot get event data for"
+                                              r" %s.*" % (cname, ))
 
         result = rdata.update_counts_and_rate(runset)
-        self.__validate_result(result, 0, None, None, 0, None, 0, None, 0, None)
+        self.__validate_result(result, 0, None, 0, None, 0, None, 0, None)
 
-    def testUpdateCountsAndRateWrongData(self):
+    def test_update_counts_and_rate_wrong_data(self):
         runset = self.__build_standard_runset()
         run_num = 666777
         clu_cfg = TinyClusterConfig("xxxCluCfg")
@@ -970,21 +968,22 @@ class RunDataTest(unittest.TestCase):
         rdata = MyRunData(runset, run_num, clu_cfg, run_cfg, run_options,
                           version_info, spade_dir, None, log_dir)
 
-        for comp in runset.components():
+        for comp in runset.components:
             if comp.name == "eventBuilder":
-                comp.mbean.addData("backEnd","EventData", 17)
+                comp.mbean.add_mock_data("backEnd", "EventData", 17)
             elif comp.name == "secondaryBuilders":
                 for stream in ("moni", "sn", "tcal"):
-                    comp.mbean.addData(stream + "Builder","EventData", 34)
+                    comp.mbean.add_mock_data(stream + "Builder", "EventData",
+                                             34)
 
         err_comps = ("eventBuilder", "secondaryBuilders", "secondaryBuilders",
                      "secondaryBuilders", )
-        for cname in err_comps:
-            rdata.dashlog.addExpectedRegexp(r"Got bad event data .*")
+        for _ in err_comps:
+            rdata.dashlog.add_expected_regexp(r"Got bad event data .*")
 
-        result = rdata.update_counts_and_rate(runset)
+        _ = rdata.update_counts_and_rate(runset)
 
-    def testUpdateCountsAndRateShortData(self):
+    def test_update_counts_and_rate_short_data(self):
         runset = self.__build_standard_runset()
         run_num = 666777
         clu_cfg = TinyClusterConfig("xxxCluCfg")
@@ -997,21 +996,22 @@ class RunDataTest(unittest.TestCase):
         rdata = MyRunData(runset, run_num, clu_cfg, run_cfg, run_options,
                           version_info, spade_dir, None, log_dir)
 
-        for comp in runset.components():
+        for comp in runset.components:
             if comp.name == "eventBuilder":
-                comp.mbean.addData("backEnd","EventData", [1, 2])
+                comp.mbean.add_mock_data("backEnd", "EventData", [1, 2])
             elif comp.name == "secondaryBuilders":
                 for stream in ("moni", "sn", "tcal"):
-                    comp.mbean.addData(stream + "Builder","EventData", [3, 4])
+                    comp.mbean.add_mock_data(stream + "Builder", "EventData",
+                                             [3, 4])
 
         err_comps = ("eventBuilder", "secondaryBuilders", "secondaryBuilders",
                      "secondaryBuilders", )
-        for cname in err_comps:
-            rdata.dashlog.addExpectedRegexp(r"Got bad event data .*")
+        for _ in err_comps:
+            rdata.dashlog.add_expected_regexp(r"Got bad event data .*")
 
-        result = rdata.update_counts_and_rate(runset)
+        _ = rdata.update_counts_and_rate(runset)
 
-    def testUpdateCountsAndRateWrongRun(self):
+    def test_update_counts_and_rate_wrong_run(self):
         runset = self.__build_standard_runset()
         run_num = 666777
         clu_cfg = TinyClusterConfig("xxxCluCfg")
@@ -1033,7 +1033,7 @@ class RunDataTest(unittest.TestCase):
         num_tcal = 67
         tcal_time = 70 * self.TICKS_PER_SEC
 
-        rdata.set_first_physics_time(10 * self.TICKS_PER_SEC)
+        rdata.first_physics_time = 10 * self.TICKS_PER_SEC
 
         # bad run number
         bad_num = run_num + 3
@@ -1042,16 +1042,16 @@ class RunDataTest(unittest.TestCase):
                                 num_moni, moni_time, num_sn, sn_time,
                                 num_tcal, tcal_time)
 
-        rdata.dashlog.addExpectedExact("Ignoring secondaryBuilders counts"
-                                       " (run#%d != run#%d)" %
-                                       (bad_num, run_num))
-        rdata.dashlog.addExpectedExact("Ignoring eventBuilder counts"
-                                       " (run#%d != run#%d)" %
-                                       (bad_num, run_num))
+        rdata.dashlog.add_expected_exact("Ignoring secondaryBuilders counts"
+                                         " (run#%d != run#%d)" %
+                                         (bad_num, run_num))
+        rdata.dashlog.add_expected_exact("Ignoring eventBuilder counts"
+                                         " (run#%d != run#%d)" %
+                                         (bad_num, run_num))
 
-        result = rdata.update_counts_and_rate(runset)
+        _ = rdata.update_counts_and_rate(runset)
 
-    def testUpdateEventCounts(self):
+    def test_update_event_counts(self):
         runset = None
         run_num = None
         clu_cfg = TinyClusterConfig("xxxCluCfg")
@@ -1097,8 +1097,8 @@ class RunDataTest(unittest.TestCase):
         self.assertEqual(len(result), len(good_pair),
                          "Bad number of returned values")
 
-        for idx in range(len(result)):
-            self.assertEqual(result[idx], good_pair[idx][0],
+        for idx, val in enumerate(result):
+            self.assertEqual(val, good_pair[idx][0],
                              "Bad %s (expected %s, got %s)" %
                              (good_pair[idx][1], good_pair[idx][0],
                               result[idx]))

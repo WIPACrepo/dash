@@ -12,7 +12,7 @@ class CommonCode(unittest.TestCase):
     NEWFMT = None
 
     @classmethod
-    def __checkSubdir(cls, topdir, subname):
+    def __check_subdir(cls, topdir, subname):
         subdir = os.path.join(topdir, subname)
         if not os.path.exists(subdir):
             cls.fail('No "%s" subdirectory for "%s"' % (subdir, topdir))
@@ -20,134 +20,136 @@ class CommonCode(unittest.TestCase):
         return subdir
 
     @classmethod
-    def getConfigDir(cls, newFormat=None):
+    def config_dir(cls, new_format=None):
         if cls.TSTRSRC is None:
-            curDir = os.getcwd()
-            tstRsrc = os.path.join(curDir, 'src', 'test',
-                                   'resources', 'config')
-            if not os.path.exists(tstRsrc):
+            cur_dir = os.getcwd()
+            tst_rsrc = os.path.join(cur_dir, 'src', 'test', 'resources',
+                                    'config')
+            if not os.path.exists(tst_rsrc):
                 cls.fail('Cannot find test resources')
-            os.environ["PDAQ_HOME"] = tstRsrc
-            cls.TSTRSRC = tstRsrc
+            os.environ["PDAQ_HOME"] = tst_rsrc
+            cls.TSTRSRC = tst_rsrc
 
-        # if 'newFormat' is None, return the base config directory
-        if newFormat is None:
+        # if 'new_format' is None, return the base config directory
+        if new_format is None:
             return cls.TSTRSRC
 
         # look for the appropriate subdirectory
-        if newFormat:
+        if new_format:
             if cls.NEWFMT is None:
-                cls.NEWFMT = cls.__checkSubdir(cls.TSTRSRC, 'new_format')
+                cls.NEWFMT = cls.__check_subdir(cls.TSTRSRC, 'new_format')
             subdir = cls.NEWFMT
         else:
             if cls.OLDFMT is None:
-                cls.OLDFMT = cls.__checkSubdir(cls.TSTRSRC, 'old_format')
+                cls.OLDFMT = cls.__check_subdir(cls.TSTRSRC, 'old_format')
             subdir = cls.OLDFMT
 
         # return the subdirectory
         return subdir
 
-    def lookup(self, cfg, dataList):
-        for data in dataList:
-            self.assertTrue(cfg.hasDOM(data[0]),
+    def lookup(self, cfg, data_list):
+        for data in data_list:
+            self.assertTrue(cfg.has_dom(data[0]),
                             "Didn't find mbid " + data[0])
 
-        for data in dataList:
+        for data in data_list:
             try:
-                dom = cfg.getIDbyName(data[1])
+                dom = cfg.get_id_by_name(data[1])
             except ValueError:
                 self.fail("Didn't find name " + data[1])
             self.assertEqual(dom, data[0],
                              'For name %s, expected %s, not %s' %
                              (data[1], data[0], dom))
 
-        for data in dataList:
+        for data in data_list:
             try:
-                dom = cfg.getIDbyStringPos(data[2], data[3])
+                dom = cfg.get_id_by_string_pos(data[2], data[3])
             except ValueError:
                 self.fail("Didn't find string %d pos %d" % (data[2], data[3]))
             self.assertEqual(dom, data[0],
                              'For string %d pos %d, expected %s, not %s' %
                              (data[2], data[3], data[0], dom))
 
-    def runNamesTest(self, newFormat):
-        cfgDir = self.getConfigDir(newFormat=newFormat)
+    def run_names_test(self, new_format):
+        cfg_dir = self.config_dir(new_format=new_format)
 
         simpledata = ("simpleConfig", 5, "IniceGlobalTest")
         sps40data = ("sps-IC40-IT6-AM-Revert-IceTop-V029", 41,
                      "sps-icecube-amanda-008")
         for data in (simpledata, sps40data):
-            n = data[0]
+            cfgname = data[0]
 
-            cfg = DAQConfigParser.parse(cfgDir, n)
-            self.assertEqual(n, cfg.basename,
-                             "Expected %s, not %s" % (n, cfg.basename))
-            fullname = os.path.join(cfgDir, n + ".xml")
+            cfg = DAQConfigParser.parse(cfg_dir, cfgname)
+            self.assertEqual(cfgname, cfg.basename,
+                             "Expected %s, not %s" % (cfgname, cfg.basename))
+            fullname = os.path.join(cfg_dir, cfgname + ".xml")
             self.assertEqual(fullname, cfg.fullpath,
                              "Expected %s, not %s" %
                              (fullname, cfg.fullpath))
 
-            domnames = cfg.getDomConfigs()
+            domnames = cfg.dom_configs
             self.assertEqual(data[1], len(domnames),
-                              "Expected %s dom names in %s, not %s" %
-                              (data[1], n, len(domnames)))
+                             "Expected %s dom names in %s, not %s" %
+                             (data[1], cfgname, len(domnames)))
 
-            trigcfg = cfg.getTriggerConfig()
+            trigcfg = cfg.trigger_config
             self.assertEqual(data[2], trigcfg.basename,
-                              "Expected trigger config %s in %s, not %s" %
-                              (data[2], n, trigcfg.basename))
+                             "Expected trigger config %s in %s, not %s" %
+                             (data[2], cfgname, trigcfg.basename))
 
-    def runListsSim5Test(self, newFormat):
-        cfgDir = self.getConfigDir(newFormat=newFormat)
-        cfg = DAQConfigParser.parse(cfgDir, "simpleConfig")
+    def run_lists_sim5_test(self, new_format):
+        cfg_dir = self.config_dir(new_format=new_format)
+        cfg = DAQConfigParser.parse(cfg_dir, "simpleConfig")
 
         expected = ['eventBuilder', 'globalTrigger', 'inIceTrigger',
                     'secondaryBuilders', 'stringHub#1001', 'stringHub#1002',
                     'stringHub#1003', 'stringHub#1004', 'stringHub#1005']
 
-        comps = cfg.components()
+        comps = cfg.components
 
         self.assertEqual(len(expected), len(comps),
                          "Expected %d components (%s), not %d (%s)" %
                          (len(expected), str(expected), len(comps),
                           str(comps)))
 
-        for c in comps:
+        for comp in comps:
             try:
-                expected.index(c.fullname)
-            except:
-                self.fail('Unexpected component "%s"' % c)
+                expected.index(comp.fullname)
+            except ValueError:
+                self.fail('Unexpected component "%s"' % comp)
 
-    def runLookupSim5Test(self, newFormat):
-        cfgDir = self.getConfigDir(newFormat=newFormat)
-        cfg = DAQConfigParser.parse(cfgDir, "simpleConfig")
+    def run_lookup_sim5_test(self, new_format):
+        cfg_dir = self.config_dir(new_format=new_format)
+        cfg = DAQConfigParser.parse(cfg_dir, "simpleConfig")
 
-        dataList = (('53494d550101', 'Nicholson_Baker', 1001, 1),
-                    ('53494d550120', 'SIM0020', 1001, 20),
-                    ('53494d550140', 'SIM0040', 1001, 40),
-                    ('53494d550160', 'SIM0060', 1001, 60),
-                    ('53494d550201', 'SIM0065', 1002, 1),
-                    ('53494d550220', 'SIM0084', 1002, 20),
-                    ('53494d550240', 'SIM0104', 1002, 40),
-                    ('53494d550260', 'SIM0124', 1002, 60),
-                    ('53494d550301', 'SIM0129', 1003, 1),
-                    ('53494d550320', 'SIM0148', 1003, 20),
-                    ('53494d550340', 'SIM0168', 1003, 40),
-                    ('53494d550360', 'SIM0188', 1003, 60),
-                    ('53494d550401', 'SIM0193', 1004, 1),
-                    ('53494d550420', 'SIM0212', 1004, 20),
-                    ('53494d550440', 'SIM0232', 1004, 40),
-                    ('53494d550460', 'SIM0252', 1004, 60),
-                    ('53494d550501', 'SIM0257', 1005, 1),
-                    ('53494d550520', 'SIM0276', 1005, 20),
-                    ('53494d550540', 'SIM0296', 1005, 40),
-                    ('53494d550560', 'SIM0316', 1005, 60))
+        data_list = (
+            ('53494d550101', 'Nicholson_Baker', 1001, 1),
+            ('53494d550120', 'SIM0020', 1001, 20),
+            ('53494d550140', 'SIM0040', 1001, 40),
+            ('53494d550160', 'SIM0060', 1001, 60),
+            ('53494d550201', 'SIM0065', 1002, 1),
+            ('53494d550220', 'SIM0084', 1002, 20),
+            ('53494d550240', 'SIM0104', 1002, 40),
+            ('53494d550260', 'SIM0124', 1002, 60),
+            ('53494d550301', 'SIM0129', 1003, 1),
+            ('53494d550320', 'SIM0148', 1003, 20),
+            ('53494d550340', 'SIM0168', 1003, 40),
+            ('53494d550360', 'SIM0188', 1003, 60),
+            ('53494d550401', 'SIM0193', 1004, 1),
+            ('53494d550420', 'SIM0212', 1004, 20),
+            ('53494d550440', 'SIM0232', 1004, 40),
+            ('53494d550460', 'SIM0252', 1004, 60),
+            ('53494d550501', 'SIM0257', 1005, 1),
+            ('53494d550520', 'SIM0276', 1005, 20),
+            ('53494d550540', 'SIM0296', 1005, 40),
+            ('53494d550560', 'SIM0316', 1005, 60),
+            )
 
-        self.lookup(cfg, dataList)
+        self.lookup(cfg, data_list)
 
-    def runListsSpsIC40IT6Test(self, newFormat):
-        cfgDir = self.getConfigDir(newFormat=newFormat)
-        cfg = DAQConfigParser.parse(cfgDir,
+    def run_lists_sps_ic40_it6_test(self, new_format):
+        cfg_dir = self.config_dir(new_format=new_format)
+        cfg = DAQConfigParser.parse(cfg_dir,
                                     "sps-IC40-IT6-AM-Revert-IceTop-V029")
 
         expected = ['amandaTrigger', 'eventBuilder', 'globalTrigger',
@@ -167,25 +169,25 @@ class CommonCode(unittest.TestCase):
                     'stringHub#74', 'stringHub#75', 'stringHub#76',
                     'stringHub#77', 'stringHub#78']
 
-        comps = cfg.components()
+        comps = cfg.components
 
         self.assertEqual(len(expected), len(comps),
                          "Expected %d components (%s), not %d (%s)" %
                          (len(expected), str(expected), len(comps),
                           str(comps)))
 
-        for c in comps:
+        for comp in comps:
             try:
-                expected.index(c.fullname)
-            except:
-                self.fail('Unexpected component "%s"' % c)
+                expected.index(comp.fullname)
+            except ValueError:
+                self.fail('Unexpected component "%s"' % comp)
 
-    def runLookupSpsIC40IT6Test(self, newFormat):
-        cfgDir = self.getConfigDir(newFormat=newFormat)
-        cfg = DAQConfigParser.parse(cfgDir,
+    def run_lookup_sps_ic40_it6_test(self, new_format):
+        cfg_dir = self.config_dir(new_format=new_format)
+        cfg = DAQConfigParser.parse(cfg_dir,
                                     "sps-IC40-IT6-AM-Revert-IceTop-V029")
 
-        dataList = (
+        data_list = (
             ('737d355af587', 'Bat', 21, 1),
             ('499ccc773077', 'Werewolf', 66, 6),
             ('efc9607742b9', 'Big_Two_Card', 78, 60),
@@ -193,33 +195,33 @@ class CommonCode(unittest.TestCase):
             ('1d165fc478ca', 'AMANDA_TRIG_DOM', 0, 92),
         )
 
-        self.lookup(cfg, dataList)
+        self.lookup(cfg, data_list)
 
-    def runDumpDOMsTest(self, newFormat):
-        cfgDir = self.getConfigDir(newFormat=newFormat)
-        cfg = DAQConfigParser.parse(cfgDir,
+    def run_dump_doms_test(self, new_format):
+        cfg_dir = self.config_dir(new_format=new_format)
+        cfg = DAQConfigParser.parse(cfg_dir,
                                     "sps-IC40-IT6-AM-Revert-IceTop-V029")
 
-        for d in cfg.getAllDOMs():
-            mbid = str(d)
+        for dom in cfg.all_doms:
+            mbid = str(dom)
             if len(mbid) != 12 or mbid.startswith(" "):
-                self.fail("DOM %s(%s) has bad MBID" % (mbid, d.name))
-            n = 0
-            if str(d).startswith("0"):
-                n += 1
-                nmid = cfg.getIDbyName(d.name)
+                self.fail("DOM %s(%s) has bad MBID" % (mbid, dom.name))
+            num = 0
+            if str(dom).startswith("0"):
+                num += 1
+                nmid = cfg.get_id_by_name(dom.name)
                 if nmid != mbid:
                     self.fail("Bad IDbyName value \"%s\" for \"%s\"" %
                               (nmid, mbid))
 
-                newid = cfg.getIDbyStringPos(d.string(), d.pos())
+                newid = cfg.get_id_by_string_pos(dom.string, dom.pos)
                 if newid.startswith(" ") or len(newid) != 12:
                     self.fail("Bad IDbyStringPos value \"%s\" for \"%s\" %d" %
-                              (newid, mbid, n))
+                              (newid, mbid, num))
 
-    def runReplayTest(self, newFormat):
-        cfgDir = self.getConfigDir(newFormat=newFormat)
-        cfg = DAQConfigParser.parse(cfgDir, "replay-ic22-it4")
+    def run_replay_test(self, new_format):
+        cfg_dir = self.config_dir(new_format=new_format)
+        cfg = DAQConfigParser.parse(cfg_dir, "replay-ic22-it4")
 
         expected = ['eventBuilder', 'globalTrigger', 'iceTopTrigger',
                     'inIceTrigger',
@@ -233,81 +235,81 @@ class CommonCode(unittest.TestCase):
                     'replayHub#78', 'replayHub#201', 'replayHub#202',
                     'replayHub#203', 'replayHub#204']
 
-        comps = cfg.components()
+        comps = cfg.components
 
         self.assertEqual(len(expected), len(comps),
                          "Expected %d components (%s), not %d (%s)" %
                          (len(expected), str(expected), len(comps),
                           str(comps)))
 
-        for c in comps:
+        for comp in comps:
             try:
-                expected.index(c.fullname)
-            except:
-                self.fail('Unexpected component "%s"' % c)
+                expected.index(comp.fullname)
+            except ValueError:
+                self.fail('Unexpected component "%s"' % comp)
 
 
 class DAQNewConfigTest(CommonCode):
-    def testNames(self):
-        self.runNamesTest(True)
+    def test_names(self):
+        self.run_names_test(True)
 
-    def testListsSim5(self):
-        self.runListsSim5Test(True)
+    def test_lists_sim5(self):
+        self.run_lists_sim5_test(True)
 
-    def testLookupSim5(self):
-        self.runLookupSim5Test(True)
+    def test_lookup_sim5(self):
+        self.run_lookup_sim5_test(True)
 
-    def testListsSpsIC40IT6(self):
-        self.runListsSpsIC40IT6Test(True)
+    def test_lists_sps_ic40_it6(self):
+        self.run_lists_sps_ic40_it6_test(True)
 
-    def testLookupSpsIC40IT6(self):
-        self.runLookupSpsIC40IT6Test(True)
+    def test_lookup_sps_ic40_it6(self):
+        self.run_lookup_sps_ic40_it6_test(True)
 
-    def testDumpDOMs(self):
-        self.runDumpDOMsTest(True)
+    def test_dump_doms(self):
+        self.run_dump_doms_test(True)
 
-    def testReplay(self):
-        self.runReplayTest(True)
+    def test_replay(self):
+        self.run_replay_test(True)
 
 
 class DAQOldConfigTest(CommonCode):
-    def testNames(self):
-        self.runNamesTest(False)
+    def test_names(self):
+        self.run_names_test(False)
 
-    def testListsSim5(self):
-        self.runListsSim5Test(False)
+    def test_lists_sim5(self):
+        self.run_lists_sim5_test(False)
 
-    def testLookupSim5(self):
-        self.runLookupSim5Test(False)
+    def test_lookup_sim5(self):
+        self.run_lookup_sim5_test(False)
 
-    def testListsSpsIC40IT6(self):
-        self.runListsSpsIC40IT6Test(False)
+    def test_lists_sps_ic40_it6(self):
+        self.run_lists_sps_ic40_it6_test(False)
 
-    def testLookupSpsIC40IT6(self):
-        self.runLookupSpsIC40IT6Test(False)
+    def test_lookup_sps_ic40_it6(self):
+        self.run_lookup_sps_ic40_it6_test(False)
 
-    def testDumpDOMs(self):
-        self.runDumpDOMsTest(False)
+    def test_dump_doms(self):
+        self.run_dump_doms_test(False)
 
-    def testReplay(self):
-        self.runReplayTest(False)
+    def test_replay(self):
+        self.run_replay_test(False)
 
 
 class DAQConfigTest(CommonCode):
-    def testCheckPeriod(self):
-        cfgDir = self.getConfigDir()
+    def test_check_period(self):
+        cfg_dir = self.config_dir()
 
-        cfg = DAQConfigParser.parse(cfgDir, "sps-IC40-hitspool")
+        cfg = DAQConfigParser.parse(cfg_dir, "sps-IC40-hitspool")
 
-        expVal = 10
-        self.assertEqual(expVal, cfg.monitorPeriod,
+        exp_val = 10
+        self.assertEqual(exp_val, cfg.monitor_period,
                          "Expected monitor period for %s to be %d, not %s" %
-                         (cfg.basename, expVal, cfg.monitorPeriod))
+                         (cfg.basename, exp_val, cfg.monitor_period))
 
-        expVal = 25
-        self.assertEqual(expVal, cfg.watchdogPeriod,
+        exp_val = 25
+        self.assertEqual(exp_val, cfg.watchdog_period,
                          "Expected watchdog period for %s to be %d, not %s" %
-                         (cfg.basename, expVal, cfg.watchdogPeriod))
+                         (cfg.basename, exp_val, cfg.watchdog_period))
 
 
 if __name__ == '__main__':

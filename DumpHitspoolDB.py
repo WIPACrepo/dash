@@ -13,6 +13,8 @@ HSDB_PATH = os.path.join(HITSPOOL_DIR, "hitspool.db")
 
 
 def add_arguments(parser):
+    "Add command-line arguments"
+
     parser.add_argument("-r", "--raw", dest="rawtimes",
                         action="store_true", default=False,
                         help="Dump times as DAQ ticks (0.1ns)")
@@ -41,25 +43,29 @@ def dump_db(args):
                 start_val = start_tick
                 stop_val = stop_tick
             else:
-                start_val = PayloadTime.toDateTime(start_tick)
-                stop_val = PayloadTime.toDateTime(stop_tick)
+                start_val = PayloadTime.to_date_time(start_tick)
+                stop_val = PayloadTime.to_date_time(stop_tick)
             if os.path.exists(os.path.join(HITSPOOL_DIR, filename)):
                 rmstr = ""
             else:
                 rmstr = " [NO FILE]"
-            print("%s [%s-%s] (%.02fs)%s" % \
-                (filename, start_val, stop_val, secs, rmstr))
+            print("%s [%s-%s] (%.02fs)%s" %
+                  (filename, start_val, stop_val, secs, rmstr))
     finally:
         conn.close()
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     import argparse
 
-    p = argparse.ArgumentParser()
-
-    add_arguments(p)
-
-    args = p.parse_args()
+    parser = argparse.ArgumentParser()
+    add_arguments(parser)
+    args = parser.parse_args()
 
     dump_db(args)
+
+
+if __name__ == "__main__":
+    main()

@@ -6,6 +6,7 @@ from CnCSingleThreadTask import CnCSingleThreadTask
 from CnCThread import CnCThread
 from CompOp import ComponentGroup, OpGetMultiBeanFields
 from LiveImports import Prio
+from decorators import classproperty
 
 
 from exc_string import exc_string, set_exc_string_encoding
@@ -16,6 +17,7 @@ class ActiveDOMThread(CnCThread):
     "A thread which reports the active DOM counts"
 
     PREV_ACTIVE = {}
+    PREV_COUNT = None
 
     KEY_ACT_TOT = "NumberOfActiveAndTotalChannels"
     KEY_LBM_OVER = "TotalLBMOverflows"
@@ -23,11 +25,11 @@ class ActiveDOMThread(CnCThread):
     KEY_ACTIVE = "active_doms"
     KEY_TOTAL = "total_doms"
 
-    def __init__(self, runset, dashlog, liveMoni, lbm_start_time=None,
+    def __init__(self, runset, dashlog, live_moni, lbm_start_time=None,
                  send_details=False):
         self.__runset = runset
         self.__dashlog = dashlog
-        self.__live_moni_client = liveMoni
+        self.__live_moni_client = live_moni
         self.__lbm_start_time = lbm_start_time
         self.__send_details = send_details
 
@@ -45,7 +47,7 @@ class ActiveDOMThread(CnCThread):
                 try:
                     tmp_active = int(prevpair[0])
                     tmp_total = int(prevpair[1])
-                except:
+                except ValueError:
                     tmp_active = 0
                     tmp_total = 0
         return (tmp_active, tmp_total)
@@ -65,7 +67,7 @@ class ActiveDOMThread(CnCThread):
         return None
 
     def __got_data(self, totals):
-        if len(totals) == 0:
+        if len(totals) == 0:  # pylint: disable=len-as-condition
             return False
         if self.KEY_ACTIVE not in totals or self.KEY_TOTAL not in totals:
             return False
@@ -77,7 +79,7 @@ class ActiveDOMThread(CnCThread):
         try:
             hub_active_doms = int(result[self.KEY_ACT_TOT][0])
             hub_total_doms = int(result[self.KEY_ACT_TOT][1])
-        except:
+        except ValueError:
             self.__dashlog.error("Cannot get # active DOMS from %s string:"
                                  " %s" % (comp.fullname, exc_string()))
             (hub_active_doms, hub_total_doms) \
@@ -89,7 +91,7 @@ class ActiveDOMThread(CnCThread):
         if self.KEY_LBM_OVER in result:
             hub_lbm_overflows = result[self.KEY_LBM_OVER]
         else:
-            hum_lbm_overflows = self.__get_previous_lbm(comp.num)
+            hub_lbm_overflows = self.__get_previous_lbm(comp.num)
             if hub_lbm_overflows is None:
                 self.__dashlog.error("No LBM overflows in result %s<%s>" %
                                      (result, type(result)))
@@ -101,11 +103,12 @@ class ActiveDOMThread(CnCThread):
         #
         self.__set_previous(comp.num, hub_active_doms, hub_total_doms,
                             hub_lbm_overflows)
+
     def _run(self):
         # build a list of hubs
         src_set = []
-        for comp in self.__runset.components():
-            if comp.isSource:
+        for comp in self.__runset.components:
+            if comp.is_source:
                 src_set.append(comp)
 
         # save the current time
@@ -148,13 +151,13 @@ class ActiveDOMThread(CnCThread):
             self.__process_result(comp, result, totals, lbm_overflows)
 
         # report hanging components
-        if len(hanging) > 0:
+        if len(hanging) > 0:  # pylint: disable=len-as-condition
             errmsg = "Cannot get %s bean data from hanging components (%s)" % \
-                     (ActiveDOMsTask.NAME, hanging)
+                     (ActiveDOMsTask.name, hanging)
             self.__dashlog.error(errmsg)
 
         # if the run isn't stopped and we have data from one or more hubs...
-        if not self.isClosed and self.__got_data(totals) > 0:
+        if not self.is_closed and self.__got_data(totals) > 0:
 
             # active doms should be reported over ITS once every ten minutes
             # and over email once a minute.  The two should not overlap
@@ -187,12 +190,21 @@ class ActiveDOMThread(CnCThread):
                 # important messages that go out every ten minutes
                 pass
 
-
     def __send_lbm_overflow(self, lbmo_dict, start_time, run_number):
         # get the total LBM overflow count
         count = 0
-        for hub_count in lbmo_dict.values():
+        for hub_count in list(lbmo_dict.values()):
             count += hub_count
+
+        # replace the previous LBM count with the new count
+        prev_count = self.__update_lbm_count(count)
+
+        # sanity-check the LBM count
+        if prev_count is None:
+            prev_count = 0
+        if prev_count > count:
+            self.__dashlog.error("WARNING: Total LBM count decreased from"
+                                 " %s to %s" % (prev_count, count))
 
         msg_dict = {}
         if self.__lbm_start_time is None:
@@ -203,7 +215,7 @@ class ActiveDOMThread(CnCThread):
             msg_dict["recordingStopTime"] = str(start_time)
 
         msg_dict["runNumber"] = run_number
-        msg_dict["count"] = count
+        msg_dict["count"] = count - prev_count
 
         self.__send_moni("LBMOcount", msg_dict, Prio.ITS)
 
@@ -221,11 +233,24 @@ class ActiveDOMThread(CnCThread):
             cls.KEY_LBM_OVER: hub_lbm_overflows,
         }
 
+    @classmethod
+    def __update_lbm_count(cls, new_count):
+        prev_count = cls.PREV_COUNT
+        cls.PREV_COUNT = new_count
+        return prev_count
+
     def get_new_thread(self, send_details=False):
+        "Create a new copy of this thread"
         thrd = ActiveDOMThread(self.__runset, self.__dashlog,
                                self.__live_moni_client, self.__lbm_start_time,
                                send_details)
         return thrd
+
+    @classmethod
+    def reset(cls):
+        "This is used by unit tests to reset the cached values"
+        cls.PREV_ACTIVE.clear()
+        cls.PREV_COUNT = None
 
 
 class ActiveDOMsTask(CnCSingleThreadTask):
@@ -239,25 +264,30 @@ class ActiveDOMsTask(CnCSingleThreadTask):
     'LBMOverflows' which is a dictionary relating string number to the total
     number of lbm overflows for a given string
     """
-    NAME = "ActiveDOMs"
-    PERIOD = 60
+    __NAME = "ActiveDOMs"
+    __PERIOD = 60
 
     # active DOM periodic report timer
     REPORT_NAME = "ActiveReport"
     REPORT_PERIOD = 600
 
-    def __init__(self, taskMgr, runset, dashlog, liveMoni=None, period=None,
-                 needLiveMoni=True):
-        super(ActiveDOMsTask, self).__init__(taskMgr, runset, dashlog,
-                                             liveMoni, period, needLiveMoni)
+    def create_detail_timer(self, task_mgr):
+        return task_mgr.create_interval_timer(self.REPORT_NAME,
+                                              self.REPORT_PERIOD)
 
-    def createDetailTimer(self, taskMgr):
-        return taskMgr.createIntervalTimer(self.REPORT_NAME,
-                                           self.REPORT_PERIOD)
+    def initialize_thread(self, runset, dashlog, live_moni):
+        return ActiveDOMThread(runset, dashlog, live_moni)
 
-    def initializeThread(self, runset, dashlog, liveMoni):
-        return ActiveDOMThread(runset, dashlog, liveMoni)
+    @classproperty
+    def name(cls):  # pylint: disable=no-self-argument
+        "Name of this task"
+        return cls.__NAME
 
-    def taskFailed(self):
-        self.logError("ERROR: %s thread seems to be stuck,"
-                      " monitoring will not be done" % self.NAME)
+    @classproperty
+    def period(cls):  # pylint: disable=no-self-argument
+        "Number of seconds between tasks"
+        return cls.__PERIOD
+
+    def task_failed(self):
+        self.log_error("ERROR: %s thread seems to be stuck,"
+                       " monitoring will not be done" % self.name)

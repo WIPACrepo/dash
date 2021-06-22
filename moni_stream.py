@@ -37,7 +37,7 @@ def moni_stream(filename, fix_values=True, fix_profile=False,
     for line in open(filename, "r"):
         line = line.rstrip()
 
-        if len(line) == 0:
+        if line == "":
             continue
 
         mtch = CATTIME_PAT.match(line)
@@ -119,25 +119,27 @@ def compute_delta(delta_values, category, field, value):
 
 
 def main():
-    "Sample method using moni_stream()"
-    parg = argparse.ArgumentParser()
-    parg.add_argument("-d", "--delta", dest="delta_fields", action="append",
-                      help="Names of fields which should be 'deltafied'")
-    parg.add_argument("-s", "--standard-fixes", dest="standard_fixes",
-                      action="store_true", default=False,
-                      help="Use the standard settings")
-    parg.add_argument("-p", "--fix-profile-times", dest="fix_profile",
-                      action="store_true", default=False,
-                      help="Only include the count field from ProfileTimes")
-    parg.add_argument("-t", "--total", dest="total_fields", action="append",
-                      help="Names of fields whose dictionary values should"
-                      " include a 'Total' field")
-    parg.add_argument("-x", "--debug", dest="debug",
-                      action="store_true", default=False,
-                      help="Enable debugging")
-    parg.add_argument(dest="files", nargs="+")
+    "Main program"
 
-    args = parg.parse_args()
+    # Sample method using moni_stream()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--delta", dest="delta_fields", action="append",
+                        help="Names of fields which should be 'deltafied'")
+    parser.add_argument("-s", "--standard-fixes", dest="standard_fixes",
+                        action="store_true", default=False,
+                        help="Use the standard settings")
+    parser.add_argument("-p", "--fix-profile-times", dest="fix_profile",
+                        action="store_true", default=False,
+                        help="Only include the count field from ProfileTimes")
+    parser.add_argument("-t", "--total", dest="total_fields", action="append",
+                        help=("Names of fields whose dictionary values should"
+                              " include a 'Total' field"))
+    parser.add_argument("-x", "--debug", dest="debug",
+                        action="store_true", default=False,
+                        help="Enable debugging")
+    parser.add_argument(dest="files", nargs="+")
+
+    args = parser.parse_args()
 
     # initialize delta and total field lists
     if not args.standard_fixes:

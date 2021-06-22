@@ -14,21 +14,34 @@ import time
 
 
 from DAQConfig import DAQConfigParser
+from decorators import classproperty
+from i3helper import Comparable
 from locate_pdaq import find_pdaq_config
 from utils.Machineid import Machineid
 
 
-class Ancient(object):
+class Ancient(Comparable):
+    """
+    Object representing an "ancient" file (older than one year)
+    """
+
     def __init__(self, filename, mtime):
         self.__filename = filename
         self.__mtime = mtime
 
-    def __cmp__(self, other):
-        return self.__mtime - other.__mtime
+    @property
+    def compare_key(self):
+        "Return the keys to be used by the Comparable methods"
+        return self.__mtime
 
     def __str__(self):
         return "%s (%d days)" % \
             (self.__filename, self.__mtime / (60 * 60 * 24))
+
+    @property
+    def mtime(self):
+        "Return the modification time for this file"
+        return self.__mtime
 
 
 class ConfigDirChecker(object):
@@ -37,9 +50,8 @@ class ConfigDirChecker(object):
     """
     INDENT = "    "
 
-    PATH = None
-    MYSQL_BIN = None
-    SVN_BIN = None
+    # cached list of shell PATH elements
+    PATH_LIST = None
 
     def __init__(self, cfgdir=None):
         """
@@ -54,10 +66,9 @@ class ConfigDirChecker(object):
         if not os.path.isdir(self.__cfgdir):
             raise Exception("No current pDAQ directory \"%s\"" % self.__cfgdir)
 
-        if self.MYSQL_BIN is None:
-            self.MYSQL_BIN = self.find_executable("mysql")
-        if self.SVN_BIN is None:
-            self.SVN_BIN = self.find_executable("svn")
+        self.__path = None
+        self.__mysql_bin = None
+        self.__svn_bin = None
 
         self.__processlist = []
 
@@ -66,49 +77,49 @@ class ConfigDirChecker(object):
         self.__unknown = []
         self.__ancient = []
 
-    def __addMissingToSVN(self, dryrun=False):
+    def __add_missing_to_svn(self, dryrun=False):
         """
         'svn add' uncommitted files
         """
-        for f in self.__processlist:
-            rtnval = self.__svn_add(self.__cfgdir, f, dryrun=dryrun)
+        for fnm in self.__processlist:
+            rtnval = self.__svn_add(self.__cfgdir, fnm, dryrun=dryrun)
             if rtnval:
-                self.__added.append(f)
+                self.__added.append(fnm)
 
-    def __checkUsedConfigs(self, used, svnmap):
+    def __check_used_configs(self, used, svnmap):
         """
         Check that all used configuration files (and included files)
         have been added to the SVN repository
         """
-        for u in used:
-            if u.endswith(".xml"):
-                full = u
+        for name in used:
+            if name.endswith(".xml"):
+                full = name
             else:
-                full = u + ".xml"
-            self.__checkSVNStatus(full, svnmap)
+                full = name + ".xml"
+            self.__check_svn_status(full, svnmap)
 
         # if we found run configuration files to be added...
-        if len(self.__processlist) > 0:
-            for f in self.__processlist[:]:
+        if len(self.__processlist) > 0:  # pylint: disable=len-as-condition
+            for fnm in self.__processlist[:]:
                 # load run configuration file
-                print("!!! Loading %s" % f)
+                print("!!! Loading %s" % fnm)
                 try:
-                    cfg = DAQConfigParser.parse(self.__cfgdir, f, strict=False)
-                except:
+                    cfg = DAQConfigParser.parse(self.__cfgdir, fnm,
+                                                strict=False)
+                except:  # pylint: disable=bare-except
                     import traceback
-                    print("!!! Ignoring bad %s" % f, file=sys.stderr)
+                    print("!!! Ignoring bad %s" % fnm, file=sys.stderr)
                     traceback.print_exc()
                     continue
 
                 # check that all dom config files have been added
-                for dc in cfg.getDomConfigs():
-                    full = os.path.join("domconfigs", dc.filename)
-                    self.__checkSVNStatus(full, svnmap)
+                for domcfg in cfg.dom_configs:
+                    full = os.path.join("domconfigs", domcfg.filename)
+                    self.__check_svn_status(full, svnmap)
 
                 # check that trigger config file has been added
-                full = os.path.join("trigger",
-                                    cfg.getTriggerConfig().filename)
-                self.__checkSVNStatus(full, svnmap)
+                full = os.path.join("trigger", cfg.trigger_config.filename)
+                self.__check_svn_status(full, svnmap)
 
         # add remaining uncommitted files to the list of unknown files
         for key in svnmap:
@@ -121,7 +132,7 @@ class ConfigDirChecker(object):
             if not os.path.isdir(full):
                 self.__unknown.append(key)
 
-    def __checkSVNStatus(self, path, svnmap):
+    def __check_svn_status(self, path, svnmap):
         """
         Check the SVN status for 'path'
         """
@@ -140,14 +151,14 @@ class ConfigDirChecker(object):
                 del svnmap[path]
             else:
                 # complain about all others
-                print("Not handling SVN status type %s for %s" % \
-                    (svnmap[path], path), file=sys.stderr)
+                print("Not handling SVN status type %s for %s" %
+                      (svnmap[path], path), file=sys.stderr)
 
     def __send_email(self, dryrun=False):
         intro = ("Subject: Modified run configuration(s) on SPS\n\n" +
                  "Hello daq-dev,\n")
 
-        if len(self.__modified) == 0:
+        if len(self.__modified) == 0:  # pylint: disable=len-as-condition
             modstr = ""
         else:
             modstr = "There are modified run configuration files in" \
@@ -155,7 +166,7 @@ class ConfigDirChecker(object):
                      " changes and/or revert modified files.\n\n\t" + \
                      "\n\t".join(self.__modified)
 
-        if len(self.__ancient) == 0:
+        if len(self.__ancient) == 0:  # pylint: disable=len-as-condition
             oldstr = ""
         else:
             self.__ancient.sort()
@@ -178,52 +189,33 @@ class ConfigDirChecker(object):
             print(body)
             return
 
-        s = smtplib.SMTP("mail.southpole.usap.gov")
-        s.sendmail(fromaddr, (toaddr, ), body)
-        s.quit()
+        session = smtplib.SMTP("mail.southpole.usap.gov")
+        session.sendmail(fromaddr, (toaddr, ), body)
+        session.quit()
 
-    def __findAncientUnknown(self):
+    def __find_ancient_unknown(self):
         now = time.time()
-        oneYearAgo = now - 60 * 60 * 24 * 365
+        one_year_ago = now - 60 * 60 * 24 * 365
 
         viable = []
-        for f in self.__unknown:
-            if f.find("/") >= 0 or not f.endswith(".xml"):
+        for fnm in self.__unknown:
+            if fnm.find("/") >= 0 or not fnm.endswith(".xml"):
                 continue
 
-            st = os.stat(os.path.join(self.__cfgdir, f))
-            if st.st_mtime < oneYearAgo:
-                self.__ancient.append(Ancient(f, st.st_mtime))
+            stat = os.stat(os.path.join(self.__cfgdir, fnm))
+            if stat.st_mtime < one_year_ago:
+                self.__ancient.append(Ancient(fnm, stat.st_mtime))
             else:
-                viable.append(f)
+                viable.append(fnm)
 
         if len(viable) < len(self.__unknown):
             self.__unknown = viable
 
-    @classmethod
-    def find_executable(cls, cmd, helptext=None, dryrun=False):
-        "Find 'cmd' in the user's PATH"
-        if cls.PATH is None:
-            cls.PATH = os.environ["PATH"].split(":")
-        for pdir in cls.PATH:
-            pcmd = os.path.join(pdir, cmd)
-            if os.path.exists(pcmd):
-                return pcmd
-        if dryrun:
-            return cmd
-
-        if helptext is None:
-            helptext = ""
-        else:
-            helptext = "; %s" % helptext
-
-        raise SystemExit("'%s' does not exist%s" % (cmd, helptext))
-
-    def __getDirectorySVNStatus(self, dirname):
+    def __get_directory_svn_status(self, dirname):
         """
         Get the SVN status for all files in the current directory
         """
-        proc = subprocess.Popen((self.SVN_BIN, "status"),
+        proc = subprocess.Popen((self.svn_bin, "status"),
                                 stdout=subprocess.PIPE, cwd=dirname)
 
         pat = re.compile(r"^(.)\s+(.*)$")
@@ -232,30 +224,30 @@ class ConfigDirChecker(object):
         for line in proc.stdout:
             line = line.rstrip()
 
-            m = pat.match(line)
-            if not m:
-                print("Bad SVN line in %s: \"%s\"" % \
-                    (self.__cfgdir, line), file=sys.stderr)
+            mtch = pat.match(line)
+            if mtch is not None:
+                svnmap[mtch.group(2)] = mtch.group(1)
                 continue
 
-            svnmap[m.group(2)] = m.group(1)
+            print("Bad SVN line in %s: \"%s\"" % (self.__cfgdir, line),
+                  file=sys.stderr)
 
         proc.stdout.close()
         proc.wait()
 
         return svnmap
 
-    def __getUsedConfigs(self, dbName):
+    def __get_used_configs(self, db_name):
         """
         Return a list of configurations which have been used in a run
         """
         # NOTE: query must end with a semicolon
         query = "select daq_label from run_summary group by daq_label;"
 
-        cmd_args = (self.MYSQL_BIN,
+        cmd_args = (self.mysql_bin,
                     "-h", "dbs",
                     "-u", "i3omdbro",
-                    "-D", dbName,
+                    "-D", db_name,
                     "-e", query)
 
         proc = subprocess.Popen(cmd_args, stdout=subprocess.PIPE)
@@ -270,22 +262,22 @@ class ConfigDirChecker(object):
         proc.stdout.close()
         proc.wait()
 
-        if len(configs) == 0:
+        if len(configs) == 0:  # pylint: disable=len-as-condition
             raise Exception("Couldn't find any configuration names in" +
                             " the database")
 
         return configs
 
-    def __report(self, verbose=False, showUnknown=False):
+    def __report(self, verbose=False, show_unknown=False):
         """
         Report the results
 
         verbose - if False, print a one-line summary
                   if True, print the names of added, modified, and
                            unknown files
-        showUnknown - if True, don't report unknown files
+        show_unknown - if True, don't report unknown files
         """
-        needSpaces = False
+        need_spaces = False
 
         if not verbose:
             outstr = ""
@@ -293,47 +285,49 @@ class ConfigDirChecker(object):
                          (len(self.__modified), "modified"),
                          (len(self.__unknown), "unknown")):
                 if pair[0] > 0:
-                    if len(outstr) > 0:
+                    if outstr != "":
                         outstr += ", "
                     outstr += "%d %s" % pair
-            if len(outstr) > 0:
+            if outstr != "":
                 print(outstr)
             return
 
-        if len(self.__added) > 0:
+        if len(self.__added) > 0:  # pylint: disable=len-as-condition
             print("Added %d configuration files:" % len(self.__added))
-            for f in self.__added:
-                print(self.INDENT + f)
-            needSpaces = True
+            for fnm in self.__added:
+                print(self.INDENT + fnm)
+            need_spaces = True
 
-        if len(self.__modified) > 0:
-            if needSpaces:
+        if len(self.__modified) > 0:  # pylint: disable=len-as-condition
+            if need_spaces:
                 print()
                 print()
-            print("Found %d modified configuration files:" % \
-                len(self.__modified))
-            for f in self.__modified:
-                print(self.INDENT + f)
-            needSpaces = True
+            print("Found %d modified configuration files:" %
+                  len(self.__modified))
+            for fnm in self.__modified:
+                print(self.INDENT + fnm)
+            need_spaces = True
 
-        if showUnknown and len(self.__unknown) > 0:
-            if needSpaces:
+        if show_unknown and \
+          len(self.__unknown) > 0:  # pylint: disable=len-as-condition
+            if need_spaces:
                 print()
                 print()
-            print("Found %d unknown configuration files:" % len(self.__unknown))
-            for f in self.__unknown:
-                print(self.INDENT + f)
-            needSpaces = True
+            print("Found %d unknown configuration files:" %
+                  len(self.__unknown))
+            for fnm in self.__unknown:
+                print(self.INDENT + fnm)
+            need_spaces = True
 
     def __svn_add(self, svndir, name, dryrun=False):
         """
         Add a file to the local SVN repository
         """
         if dryrun:
-            print("%s add %s" % (self.SVN_BIN, name))
+            print("%s add %s" % (self.svn_bin, name))
             return True
 
-        proc = subprocess.Popen((self.SVN_BIN, "add", name),
+        proc = subprocess.Popen((self.svn_bin, "add", name),
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT,
                                 cwd=svndir)
@@ -353,11 +347,11 @@ class ConfigDirChecker(object):
         Commit all added/modified files to the master SVN repository
         """
         if dryrun:
-            print("%s commit -m\"%s\" %s" % \
-                (self.SVN_BIN, commit_msg, " ".join(filelist)))
+            print("%s commit -m\"%s\" %s" %
+                  (self.svn_bin, commit_msg, " ".join(filelist)))
             return True
 
-        proc = subprocess.Popen([self.SVN_BIN, "commit", "-m",
+        proc = subprocess.Popen([self.svn_bin, "commit", "-m",
                                  commit_msg] + filelist,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT,
@@ -367,23 +361,59 @@ class ConfigDirChecker(object):
         proc.stdout.close()
         proc.wait()
         if proc.returncode != 0:
-            print("Failed to SVN COMMIT %s:" % " ".join(filelist), file=sys.stderr)
+            print("Failed to SVN COMMIT %s:" % " ".join(filelist),
+                  file=sys.stderr)
             for line in outlines:
                 print(self.INDENT + line, file=sys.stderr)
 
         return proc.returncode == 0
 
-    def run(self, dbName, dryrun=False, verbose=False, showUnknown=False,
+    @classmethod
+    def find_executable(cls, cmd, helptext=None, dryrun=False):
+        "Find 'cmd' in the user's PATH"
+        for pdir in cls.path_elements:  # pylint: disable=not-an-iterable
+            pcmd = os.path.join(pdir, cmd)
+            if os.path.exists(pcmd):
+                return pcmd
+        if dryrun:
+            return cmd
+
+        if helptext is None:
+            helptext = ""
+        else:
+            helptext = "; %s" % helptext
+
+        raise SystemExit("'%s' does not exist%s" % (cmd, helptext))
+
+    @property
+    def mysql_bin(self):
+        "Return the full path for the MySQL executable"
+        if self.__mysql_bin is None:
+            self.__mysql_bin = self.find_executable("mysql")
+        return self.__mysql_bin
+
+    @classproperty
+    def path_elements(cls):  # pylint: disable=no-self-argument
+        "Yield each entry in the user's $PATH environment variable"
+
+        if cls.PATH_LIST is None:
+            # pylint: disable=invalid-name
+            cls.PATH_LIST = os.environ["PATH"].split(":")
+        for elem in cls.PATH_LIST:
+            yield elem
+
+    def run(self, db_name, dryrun=False, verbose=False, show_unknown=False,
             commit=False):
         """
         Check pDAQ config directory and report results
         """
-        used = self.__getUsedConfigs(dbName)
-        svnmap = self.__getDirectorySVNStatus(self.__cfgdir)
-        self.__checkUsedConfigs(used, svnmap)
-        self.__addMissingToSVN(dryrun)
-        self.__findAncientUnknown()
+        used = self.__get_used_configs(db_name)
+        svnmap = self.__get_directory_svn_status(self.__cfgdir)
+        self.__check_used_configs(used, svnmap)
+        self.__add_missing_to_svn(dryrun)
+        self.__find_ancient_unknown()
         if commit:
+            # pylint: disable=len-as-condition
             if len(self.__added) > 0:
                 self.__svn_commit(self.__cfgdir, "Check in uncommitted" +
                                   " run configuration files", self.__added,
@@ -391,37 +421,50 @@ class ConfigDirChecker(object):
             if len(self.__modified) > 0 or len(self.__ancient) > 0:
                 self.__send_email(dryrun=dryrun)
         else:
-            self.__report(verbose=verbose, showUnknown=showUnknown)
+            self.__report(verbose=verbose, show_unknown=show_unknown)
+
+    @property
+    def svn_bin(self):
+        "Return the full path for the Subversion executable"
+        if self.__svn_bin is None:
+            self.__svn_bin = self.find_executable("svn")
+        return self.__svn_bin
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
     import argparse
 
-    p = argparse.ArgumentParser()
-    p.add_argument("-c", "--commit", dest="commit",
-                   action="store_true", default=False,
-                   help="Commit changes to SVN repo in the North")
-    p.add_argument("-d", "--config-dir", dest="configdir",
-                   help="Location of configuration directory being checked")
-    p.add_argument("-D", "--dbname", dest="dbName",
-                   default="I3OmDb",
-                   help="Name of database to check")
-    p.add_argument("-n", "--dry-run", dest="dryrun",
-                   action="store_true", default=False,
-                   help="Don't add files to SVN")
-    p.add_argument("-u", "--show-unknown", dest="showUnknown",
-                   action="store_true", default=False,
-                   help="Print list of all unknown files found"
-                   " in $PDAQ_CONFIG")
-    p.add_argument("-v", "--verbose", dest="verbose",
-                   action="store_true", default=False,
-                   help="Print details of operation")
-    args = p.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--commit", dest="commit",
+                        action="store_true", default=False,
+                        help="Commit changes to SVN repo in the North")
+    parser.add_argument("-d", "--config-dir", dest="configdir",
+                        help=("Location of configuration directory"
+                              " being checked"))
+    parser.add_argument("-D", "--dbname", dest="db_name",
+                        default="I3OmDb",
+                        help="Name of database to check")
+    parser.add_argument("-n", "--dry-run", dest="dryrun",
+                        action="store_true", default=False,
+                        help="Don't add files to SVN")
+    parser.add_argument("-u", "--show-unknown", dest="show_unknown",
+                        action="store_true", default=False,
+                        help=("Print list of all unknown files found"
+                              " in $PDAQ_CONFIG"))
+    parser.add_argument("-v", "--verbose", dest="verbose",
+                        action="store_true", default=False,
+                        help="Print details of operation")
+    args = parser.parse_args()
 
     hostid = Machineid()
-    if not hostid.is_sps_cluster():
+    if not hostid.is_sps_cluster:
         raise SystemExit("This script should only be run on SPS")
 
     chk = ConfigDirChecker(args.configdir)
-    chk.run(args.dbName, dryrun=args.dryrun, verbose=args.verbose,
-            showUnknown=args.showUnknown, commit=args.commit)
+    chk.run(args.db_name, dryrun=args.dryrun, verbose=args.verbose,
+            show_unknown=args.show_unknown, commit=args.commit)
+
+
+if __name__ == "__main__":
+    main()

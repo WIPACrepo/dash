@@ -8,13 +8,13 @@
 #     run = CnCRun()
 #
 #     clusterConfig = "spts64-real-21-29"
-#     runConfig = "spts64-dirtydozen-hlc-006"
+#     run_config = "spts64-dirtydozen-hlc-006"
 #     numSecs = 60                             # number of seconds
 #
 #     # an ordinary run
-#     run.run(clusterConfig, runConfig, numSecs)
+#     run.run(clusterConfig, run_config, numSecs)
 #
-#     flasherData = \
+#     flasher_data = \
 #         (("flash-21.xml", 30),               # flash string 21 for 30 seconds
 #          (None, 15),                         # wait 15 seconds
 #          ("flash-26-27.xml", 120),           # flash 26 & 27 for 2 minutes
@@ -22,60 +22,60 @@
 #          ("flash-21.xml", 30))               # flash string 21 for 30 seconds
 #
 #     # a flasher run
-#     run.run(clusterConfig, runConfig, numSecs, flasherData)
+#     run.run(clusterConfig, run_config, numSecs, flasher_data)
 
 from __future__ import print_function
 
-import os
-import re
 import socket
 import subprocess
 import time
+
+from xml.dom import minidom, Node
 
 from BaseRun import BaseRun, RunException, StateException
 from RunNumber import RunNumber
 from RunOption import RunOption
 from RunSetState import RunSetState
 from exc_string import exc_string
-from xml.dom import minidom, Node
 from xmlparser import XMLParser
 
 
 class FlasherDataException(Exception):
-    pass
+    "General FlasherData exception"
 
 
 class FlasherDataParser(XMLParser):
     @classmethod
-    def __loadFlasherData(cls, dataFile):
+    def __load_flasher_data(cls, data_file):
         """Parse and return data from flasher file"""
         try:
-            dom = minidom.parse(dataFile)
-        except Exception:
+            dom = minidom.parse(data_file)
+        except:  # pylint: disable=bare-except
             raise FlasherDataException("Cannot parse \"%s\": %s" %
-                                       (dataFile, exc_string()))
+                                       (data_file, exc_string()))
 
         fmain = dom.getElementsByTagName("flashers")
-        if len(fmain) == 0:
+        if len(fmain) == 0:  # pylint: disable=len-as-condition
             raise FlasherDataException("File \"%s\" has no <flashers>" %
-                                       dataFile)
+                                       data_file)
         elif len(fmain) > 1:
             raise FlasherDataException("File \"%s\" has too many <flashers>" %
-                                       dataFile)
+                                       data_file)
 
         nodes = fmain[0].getElementsByTagName("flasher")
 
-        flashList = []
-        for n in nodes:
+        flash_list = []
+        for node in nodes:
             try:
-                flashList.append(cls.__parseFlasherNode(n))
-            except FlasherDataException as fe:
-                raise FlasherDataException("File \"%s\": %s" % (dataFile, fe))
+                flash_list.append(cls.__parse_flasher_node(node))
+            except FlasherDataException as fex:
+                raise FlasherDataException("File \"%s\": %s" %
+                                           (data_file, fex))
 
-        return flashList
+        return flash_list
 
     @classmethod
-    def __parseFlasherNode(cls, node):
+    def __parse_flasher_node(cls, node):
         """Parse a single flasher entry"""
         hub = None
         pos = None
@@ -94,19 +94,19 @@ class FlasherDataParser(XMLParser):
 
             if kid.nodeType == Node.ELEMENT_NODE:
                 if kid.nodeName == "stringHub":
-                    hub = int(cls.getChildText(kid))
+                    hub = int(cls.get_child_text(kid))
                 elif kid.nodeName == "domPosition":
-                    pos = int(cls.getChildText(kid))
+                    pos = int(cls.get_child_text(kid))
                 elif kid.nodeName == "brightness":
-                    bright = int(cls.getChildText(kid))
+                    bright = int(cls.get_child_text(kid))
                 elif kid.nodeName == "window":
-                    window = int(cls.getChildText(kid))
+                    window = int(cls.get_child_text(kid))
                 elif kid.nodeName == "delay":
-                    delay = int(cls.getChildText(kid))
+                    delay = int(cls.get_child_text(kid))
                 elif kid.nodeName == "mask":
-                    mask = int(cls.getChildText(kid))
+                    mask = int(cls.get_child_text(kid))
                 elif kid.nodeName == "rate":
-                    rate = int(cls.getChildText(kid))
+                    rate = int(cls.get_child_text(kid))
 
         if hub is None or \
            pos is None:
@@ -122,42 +122,42 @@ class FlasherDataParser(XMLParser):
         return (hub, pos, bright, window, delay, mask, rate)
 
     @classmethod
-    def load(cls, dataFile):
-        return cls.__loadFlasherData(dataFile)
+    def load(cls, data_file):
+        return cls.__load_flasher_data(data_file)
 
 
 class CnCRun(BaseRun):
-    def __init__(self, showCmd=False, showCmdOutput=False, dryRun=False,
-                 logfile=None):
+    def __init__(self, show_commands=False, show_command_output=False,
+                 dry_run=False, logfile=None):
         """
-        showCmd - True if commands should be printed before being run
-        showCmdOutput - True if command output should be printed
-        dryRun - True if commands should only be printed and not executed
+        show_commands - True if commands should be printed before being run
+        show_command_output - True if command output should be printed
+        dry_run - True if commands should only be printed and not executed
         logfile - file where all log messages are saved
         """
 
-        super(CnCRun, self).__init__(showCmd=showCmd,
-                                     showCmdOutput=showCmdOutput,
-                                     dryRun=dryRun, logfile=logfile)
+        super(CnCRun, self).__init__(show_commands=show_commands,
+                                     show_command_output=show_command_output,
+                                     dry_run=dry_run, logfile=logfile)
 
-        self.__showCmdOutput = showCmdOutput
-        self.__dryRun = dryRun
+        self.__show_command_output = show_command_output
+        self.__dry_run = dry_run
 
         # used during dry runs to simulate the runset id
-        self.__fakeRunSet = 1
+        self.__fake_runset = 1
 
-        self.__runSetId = None
-        self.__runCfg = None
-        self.__runNum = None
+        self.__runset_id = None
+        self.__runcfg = None
+        self.__run_number = None
 
     def __status(self):
         "Print the current DAQ status"
 
-        if not self.__showCmdOutput or self.__dryRun:
+        if not self.__show_command_output or self.__dry_run:
             return
 
         cmd = "DAQStatus.py"
-        self.logCmd(cmd)
+        self.log_command(cmd)
 
         proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
@@ -167,317 +167,332 @@ class CnCRun(BaseRun):
 
         for line in proc.stdout:
             line = line.rstrip()
-            self.logCmdOutput(line)
+            self.log_command_output(line)
         proc.stdout.close()
 
         proc.wait()
 
-    def __waitForState(self, expState, numTries, numErrors=0, waitSecs=10,
-                       verbose=False):
+    def __wait_for_state(self, exp_state, num_tries, num_errors=0,
+                         wait_secs=10, verbose=False):
         """
         Wait for the specified state
 
-        expState - expected final state
-        numTries - number of tries before ceasing to wait
-        numErrors - number of ERROR states allowed before assuming
+        exp_state - expected final state
+        num_tries - number of tries before ceasing to wait
+        num_errors - number of ERROR states allowed before assuming
                     there is a problem
-        waitSecs - number of seconds to wait on each "try"
+        wait_secs - number of seconds to wait on each "try"
         """
-        if self.__runSetId is None:
+        if self.__runset_id is None:
             return False
 
-        if self.__dryRun:
+        if self.__dry_run:
             return True
 
         self.__status()
 
-        cnc = self.cncConnection()
+        cnc = self.cnc_connection()
 
-        prevState = cnc.rpc_runset_state(self.__runSetId)
-        curState = prevState
+        prev_state = cnc.rpc_runset_state(self.__runset_id)
+        cur_state = prev_state
 
-        if verbose and prevState != expState:
-            self.logInfo("Changing from %s to %s" % (prevState, expState))
+        if verbose and prev_state != exp_state:
+            self.log_info("Changing from %s to %s" % (prev_state, exp_state))
 
-        startTime = time.time()
-        for _ in range(numTries):
-            if curState == RunSetState.UNKNOWN:
+        start_time = time.time()
+        for _ in range(num_tries):
+            if cur_state == RunSetState.UNKNOWN:
                 break
 
-            curState = cnc.rpc_runset_state(self.__runSetId)
-            if curState != prevState:
+            cur_state = cnc.rpc_runset_state(self.__runset_id)
+            if cur_state != prev_state:
                 if verbose:
-                    swTime = int(time.time() - startTime)
-                    self.logInfo("Changed from %s to %s in %s secs" %
-                                 (prevState, curState, swTime))
+                    sw_time = int(time.time() - start_time)
+                    self.log_info("Changed from %s to %s in %s secs" %
+                                  (prev_state, cur_state, sw_time))
 
-                prevState = curState
-                startTime = time.time()
+                prev_state = cur_state
+                start_time = time.time()
 
-            if curState == expState:
+            if cur_state == exp_state:
                 break
 
-            if numErrors > 0 and curState == RunSetState.ERROR:
+            if num_errors > 0 and cur_state == RunSetState.ERROR:
                 time.sleep(5)
-                numErrors -= 1
+                num_errors -= 1
                 continue
 
-            if curState != RunSetState.RESETTING:
+            if cur_state != RunSetState.RESETTING:
                 raise StateException("DAQ state should be RESETTING, not %s" %
-                                     curState)
+                                     cur_state)
 
-            time.sleep(waitSecs)
+            time.sleep(wait_secs)
 
-        if curState != expState:
-            totTime = int(time.time() - startTime)
+        if cur_state != exp_state:
+            tot_time = int(time.time() - start_time)
             raise StateException(("DAQ state should be %s, not %s" +
                                   " (waited %d secs)") %
-                                 (expState, curState, totTime))
+                                 (exp_state, cur_state, tot_time))
 
         return True
 
-    def cleanUp(self):
+    def final_cleanup(self):
         """Do final cleanup before exiting"""
-        if self.__runSetId is not None:
-            if not self.__dryRun:
-                cnc = self.cncConnection()
+        if self.__runset_id is not None:
+            if not self.__dry_run:
+                cnc = self.cnc_connection()
 
-            if self.__dryRun:
-                print("Break runset#%s" % self.__runSetId)
+            if self.__dry_run:
+                print("Break runset#%s" % self.__runset_id)
             else:
-                cnc.rpc_runset_break(self.__runSetId)
-            self.__runSetId = None
+                cnc.rpc_runset_break(self.__runset_id)
+            self.__runset_id = None
 
-    def flash(self, dataPath, secs):
+    def flash(self, filename, secs):
         """
         Start flashers for the specified duration with the specified data file
+        Return True if there was a problem
         """
-        if self.__runSetId is None:
-            self.logError("No active runset!")
+        if self.__runset_id is None:
+            self.log_error("No active runset!")
             return True
 
-        if not self.__dryRun:
-            cnc = self.cncConnection()
+        if not self.__dry_run:
+            cnc = self.cnc_connection()
 
-        if dataPath is not None:
+        if filename is not None:
             try:
-                data = FlasherDataParser.load(dataPath)
-            except:
-                self.logError("Cannot flash: " + exc_string())
+                data = FlasherDataParser.load(filename)
+            except:  # pylint: disable=bare-except
+                self.log_error("Cannot flash: " + exc_string())
                 return True
 
-            (run, subrun) = self.getLastRunNumber()
-            RunNumber.setLast(run, subrun + 1)
+            (run_num, subrun) = RunNumber.get_last()
+            RunNumber.set_last(run_num, subrun + 1)
 
-            if self.__dryRun:
-                print("Flash subrun#%d - %s for %s second" % \
-                    (subrun, data[0], data[1]))
+            if self.__dry_run:
+                print("Flash subrun#%d - %s for %s second" %
+                      (subrun, data[0], data[1]))
             else:
-                cnc.rpc_runset_subrun(self.__runSetId, subrun, data)
+                cnc.rpc_runset_subrun(self.__runset_id, subrun, data)
 
         # XXX should be monitoring run state during this time
-        if not self.__dryRun:
+        if not self.__dry_run:
             time.sleep(secs)
 
-        if dataPath is not None:
+        if filename is not None:
             subrun += 1
-            RunNumber.setLast(runData[0], subrun)
-            if self.__dryRun:
+            RunNumber.set_last(data[0], subrun)
+            if self.__dry_run:
                 print("Flash subrun#%d - turn off flashers" % subrun)
             else:
-                cnc.rpc_runset_subrun(self.__runSetId, subrun, [])
+                cnc.rpc_runset_subrun(self.__runset_id, subrun, [])
 
-    def getLastRunNumber(self):
-        "Return the last used run and subrun numbers as a tuple"
-        return RunNumber.getLast()
-
-    def getRunNumber(self):
-        "Return the current run number"
-        if self.__runSetId is None:
-            return None
-        return self.__runNum
-
-    def isDead(self, refreshState=False):
-        cnc = self.cncConnection(False)
-        return cnc is None
-
-    def isRecovering(self, refreshState=False):
         return False
 
-    def isRunning(self, refreshState=False):
-        cnc = self.cncConnection(False)
-        if self.__runSetId is None:
+    @property
+    def last_run_numbers(self):
+        "Return the last used run and subrun numbers as a tuple"
+        return RunNumber.get_last()
+
+    @property
+    def run_number(self):
+        "Return the current run number"
+        if self.__runset_id is None:
+            return None
+        return self.__run_number
+
+    def is_dead(self, refresh=False):
+        cnc = self.cnc_connection(False)
+        return cnc is None
+
+    def is_recovering(self, refresh=False):
+        return False
+
+    def is_running(self, refresh=False):
+        cnc = self.cnc_connection(False)
+        if self.__runset_id is None:
             return False
         try:
-            state = cnc.rpc_runset_state(self.__runSetId)
+            state = cnc.rpc_runset_state(self.__runset_id)
             return state == RunSetState.RUNNING
         except socket.error:
             return False
 
-    def isStopped(self, refreshState=False):
-        cnc = self.cncConnection(False)
-        if cnc is None or self.__runSetId is None:
+    def is_stopped(self, refresh=False):
+        cnc = self.cnc_connection(False)
+        if cnc is None or self.__runset_id is None:
             return True
         try:
-            state = cnc.rpc_runset_state(self.__runSetId)
+            state = cnc.rpc_runset_state(self.__runset_id)
             return state == RunSetState.READY
         except socket.error:
             return False
 
-    def isSwitching(self, refreshState=False):
-        return False
-
-    def isStopping(self, refreshState=False):
-        cnc = self.cncConnection(False)
-        if cnc is None or self.__runSetId is None:
+    def is_stopping(self, refresh=False):
+        cnc = self.cnc_connection(False)
+        if cnc is None or self.__runset_id is None:
             return False
         try:
-            state = cnc.rpc_runset_state(self.__runSetId)
+            state = cnc.rpc_runset_state(self.__runset_id)
             return state == RunSetState.STOPPING
         except socket.error:
             return False
 
-    def setLightMode(self, isLID):
+    def is_switching(self, refresh=False):
+        return False
+
+    def set_light_mode(self, is_lid):
         """
         Set the Light-In-Detector mode
 
-        isLID - True for light-in-detector mode, False for dark mode
+        is_lid - True for light-in-detector mode, False for dark mode
 
         Return True if the light mode was set successfully
         """
-        if isLID:
-            self.logError("Not setting light mode!!!")
+        if is_lid:
+            self.log_error("Not setting light mode!!!")
         return True
 
-    def setRunsPerRestart(self, num):
+    def set_runs_per_restart(self, num):
         """Set the number of continuous runs between restarts"""
-        pass  # for non-Live runs, this is driven by BaseRun.waitForRun()
+        return  # for non-Live runs, this is driven by BaseRun.waitForRun()
 
-    def startRun(self, runCfg, duration, numRuns=1, ignoreDB=False,
-                 runMode=None, filterMode=None, verbose=False):
+    def start_run(self, run_cfg_name, duration, num_runs=1, ignore_db=False,
+                  run_mode=None, filter_mode=None, verbose=False):
         """
         Start a run
 
-        runCfg - run configuration file name
+        run_cfg_name - run configuration file name
         duration - number of seconds for run
-        numRuns - number of runs (default=1)
-        ignoreDB - don't check the database for this run config
-        runMode - Run mode for 'livecmd'
-        filterMode - Run mode for 'livecmd'
+        num_runs - number of runs (default=1)
+        ignore_db - don't check the database for this run config
+        run_mode - Run mode for 'livecmd'
+        filter_mode - Run mode for 'livecmd'
         verbose - print more details of run transitions
 
         Return True if the run was started
         """
-        if not self.__dryRun:
-            cnc = self.cncConnection()
+        if not self.__dry_run:
+            cnc = self.cnc_connection()
 
-        if self.__runSetId is not None and self.__runCfg is not None and \
-                self.__runCfg != runCfg:
-            self.__runCfg = None
-            if self.__dryRun:
-                print("Break runset #%s" % self.__runSetId)
+        if self.__runset_id is not None and self.__runcfg is not None and \
+                self.__runcfg != run_cfg_name:
+            self.__runcfg = None
+            if self.__dry_run:
+                print("Break runset #%s" % self.__runset_id)
             else:
-                cnc.rpc_runset_break(self.__runSetId)
-            self.__runSetId = None
+                cnc.rpc_runset_break(self.__runset_id)
+            self.__runset_id = None
 
-        if self.__runSetId is None:
-            if self.__dryRun:
-                runSetId = self.__fakeRunSet
-                self.__fakeRunSet += 1
-                print("Make runset #%d" % runSetId)
+        if self.__runset_id is None:
+            if self.__dry_run:
+                runset_id = self.__fake_runset
+                self.__fake_runset += 1
+                print("Make runset #%d" % runset_id)
             else:
-                runSetId = cnc.rpc_runset_make(runCfg)
-            if runSetId < 0:
+                runset_id = cnc.rpc_runset_make(run_cfg_name)
+            if runset_id < 0:
                 raise RunException("Could not create runset for \"%s\"" %
-                                   runCfg)
+                                   run_cfg_name)
 
-            self.__runSetId = runSetId
-            self.__runCfg = runCfg
+            self.__runset_id = runset_id
+            self.__runcfg = run_cfg_name
 
-        (runNum, subrun) = self.getLastRunNumber()
-        self.__runNum = runNum + 1
-        RunNumber.setLast(self.__runNum, 0)
+        (run_number, _) = RunNumber.get_last()
+        self.__run_number = run_number + 1
+        RunNumber.set_last(self.__run_number, 0)
 
-        if runMode is not None:
-            if filterMode is not None:
-                self.logError("Ignoring run mode %s, filter mode %s" %
-                              (runMode, filterMode))
+        if run_mode is not None:
+            if filter_mode is not None:
+                self.log_error("Ignoring run mode %s, filter mode %s" %
+                               (run_mode, filter_mode))
             else:
-                self.logError("Ignoring run mode %s" % runMode)
-        elif filterMode is not None:
-            self.logError("Ignoring filter mode %s" % filterMode)
+                self.log_error("Ignoring run mode %s" % run_mode)
+        elif filter_mode is not None:
+            self.log_error("Ignoring filter mode %s" % filter_mode)
 
-        runOptions = RunOption.LOG_TO_FILE | RunOption.MONI_TO_FILE
+        run_options = RunOption.LOG_TO_FILE | RunOption.MONI_TO_FILE
 
-        if self.__dryRun:
-            print("Start run#%d with runset#%d" % \
-                (self.__runNum, self.__runSetId))
+        if self.__dry_run:
+            print("Start run#%d with runset#%d" %
+                  (self.__run_number, self.__runset_id))
         else:
-            cnc.rpc_runset_start_run(self.__runSetId, self.__runNum,
-                                     runOptions)
+            cnc.rpc_runset_start_run(self.__runset_id, self.__run_number,
+                                     run_options)
 
         return True
 
     @property
     def state(self):
-        cnc = self.cncConnection(False)
+        cnc = self.cnc_connection(False)
         if cnc is None:
             return "DEAD"
-        if self.__runSetId is None:
+
+        if self.__runset_id is None:
             return "STOPPED"
+
         try:
-            state = cnc.rpc_runset_state(self.__runSetId)
-            return str(state).upper()
-        except:
+            state = cnc.rpc_runset_state(self.__runset_id)
+        except:  # pylint: disable=bare-except
             return "ERROR"
 
-    def stopRun(self):
+        return str(state).upper()
+
+    def stop_run(self):
         """Stop the run"""
-        if self.__runSetId is None:
+        if self.__runset_id is None:
             raise RunException("No active run")
 
-        if not self.__dryRun:
-            cnc = self.cncConnection()
+        if not self.__dry_run:
+            cnc = self.cnc_connection()
 
-        if self.__dryRun:
-            print("Stop runset#%s" % self.__runSetId)
+        if self.__dry_run:
+            print("Stop runset#%s" % self.__runset_id)
         else:
-            cnc.rpc_runset_stop_run(self.__runSetId)
+            cnc.rpc_runset_stop_run(self.__runset_id)
 
-    def switchRun(self, runNum):
+    def switch_run(self, run_number):
         """Switch to a new run number without stopping any components"""
-        if self.__runSetId is None:
+        if self.__runset_id is None:
             raise RunException("No active run")
 
-        if not self.__dryRun:
-            cnc = self.cncConnection()
+        if not self.__dry_run:
+            cnc = self.cnc_connection()
 
-        if self.__dryRun:
-            print("Switch runset#%s to run#%d" % (self.__runSetId, runNum))
+        if self.__dry_run:
+            print("Switch runset#%s to run#%d" %
+                  (self.__runset_id, run_number))
         else:
-            cnc.rpc_runset_switch_run(self.__runSetId, runNum)
-        self.__runNum = runNum
+            cnc.rpc_runset_switch_run(self.__runset_id, run_number)
+        self.__run_number = run_number
 
         return True
 
-    def waitForStopped(self, verbose=False):
+    def wait_for_stopped(self, verbose=False):
         """Wait for the current run to be stopped"""
-        cnc = self.cncConnection()
+        cnc = self.cnc_connection()
 
         try:
-            state = cnc.rpc_runset_state(self.__runSetId)
-        except:
+            state = cnc.rpc_runset_state(self.__runset_id)
+        except:  # pylint: disable=bare-except
             state = RunSetState.ERROR
 
         if state == RunSetState.UNKNOWN:
-            self.__runSetId = None
+            self.__runset_id = None
             return True
 
-        return self.__waitForState(RunSetState.READY, 10, verbose=verbose)
+        return self.__wait_for_state(RunSetState.READY, 10, verbose=verbose)
 
 
-if __name__ == "__main__":
-    run = CnCRun(showCmd=True, showCmdOutput=True, dryRun=False)
+def main():
+    "Main program"
+
+    run = CnCRun(show_commands=True, show_command_output=True, dry_run=False)
     run.run("spts64-dirtydozen-hlc-006", "spts64-dirtydozen-hlc-006", 30,
             (("flash-21.xml", 5), (None, 10), ("flash-21.xml", 5)),
             verbose=True)
+
+
+if __name__ == "__main__":
+    main()

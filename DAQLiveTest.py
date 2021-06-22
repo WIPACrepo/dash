@@ -9,11 +9,9 @@ import unittest
 
 from CnCExceptions import MissingComponentException
 from DAQLive import DAQLive, INCOMPLETE_STATE_CHANGE, LIVE_IMPORT, \
-    LiveException
+    LiveException, StartThread, StopThread
 from DAQMocks import MockLogger
-
-
-WARNED = False
+from decorators import classproperty
 
 
 class MockRunSet(object):
@@ -25,11 +23,11 @@ class MockRunSet(object):
 
     NORMAL_STOP = "normal_stop"
 
-    def __init__(self, runCfg):
+    def __init__(self, run_cfg):
         self.__state = self.STATE_UNKNOWN
-        self.__runCfg = runCfg
-        self.__expStopErr = False
-        self.__stopReturn = False
+        self.__run_cfg = run_cfg
+        self.__exp_stop_err = False
+        self.__stop_return = False
 
     def __str__(self):
         return "MockRunSet"
@@ -38,62 +36,65 @@ class MockRunSet(object):
         self.__state = self.STATE_DESTROYED
 
     @property
-    def isDestroyed(self):
+    def is_destroyed(self):
         return self.__state == self.STATE_DESTROYED
 
     @property
-    def isIdle(self):
+    def is_idle(self):
         return self.__state == self.STATE_IDLE
 
     @property
-    def isReady(self):
+    def is_ready(self):
         return self.__state == self.STATE_READY
 
     @property
-    def isRunning(self):
+    def is_running(self):
         return self.__state == self.STATE_RUNNING
 
-    def runConfig(self):
-        if self.isDestroyed:
+    def run_config(self):
+        if self.is_destroyed:
             raise Exception("Runset destroyed")
 
-        return self.__runCfg
+        return self.__run_cfg
 
-    def sendEventCounts(self):
-        if self.isDestroyed:
+    def send_event_counts(self):
+        if self.is_destroyed:
             raise Exception("Runset destroyed")
 
-    def setExpectedStopError(self):
-        self.__expStopErr = True
+    def set_expected_stop_error(self):
+        self.__exp_stop_err = True
 
-    def setState(self, newState):
-        self.__state = newState
+    def set_running(self):
+        self.__state = MockRunSet.STATE_RUNNING
 
-    def setStopReturnError(self):
-        if self.isDestroyed:
+    def set_stop_return_error(self):
+        if self.is_destroyed:
             raise Exception("Runset destroyed")
 
-        self.__stopReturn = True
+        self.__stop_return = True
 
     @property
     def state(self):
         return self.__state
 
     def stop_run(self, caller_name, had_error=False):
-        if self.isDestroyed:
+        if self.is_destroyed:
             raise Exception("Runset destroyed")
 
-        if had_error != self.__expStopErr:
-            raise Exception("Expected 'had_error' to be %s" %
-                            (self.__expStopErr, ))
+        if had_error != self.__exp_stop_err:
+            raise Exception("Expected 'had_error' (from %s) to be %s" %
+                            (caller_name, self.__exp_stop_err, ))
 
         self.__state = self.STATE_READY
-        return self.__stopReturn
+        return self.__stop_return
 
-    def stopping(self):
+    def stopping(self):  # pylint: disable=no-self-use
         return False
 
-    def subrun(self, id, domList):
+    def subrun(self, subrun_id, dom_list):
+        pass
+
+    def switch_run(self, state_args):
         pass
 
 
@@ -102,95 +103,127 @@ class MockCnC(object):
     REPO_REV = "repoRev"
 
     def __init__(self):
-        self.__expRunCfg = None
-        self.__expRunNum = None
-        self.__missingComps = None
-        self.__runSet = None
+        self.__exp_run_cfg = None
+        self.__exp_run_num = None
+        self.__missing_comps = None
+        self.__runset = None
 
-    def breakRunset(self, rs):
-        rs.destroy()
+    def break_runset(self, runset):  # pylint: disable=no-self-use
+        runset.destroy()
 
-    def makeRunsetFromRunConfig(self, runCfg, runNum):
-        if self.__expRunCfg is None:
+    @property
+    def is_starting(self):
+        return False
+
+    def make_runset_from_run_config(self, run_cfg, run_num):
+        if self.__exp_run_cfg is None:
             raise Exception("Expected run configuration has not been set")
-        if self.__expRunCfg != runCfg:
-            raise Exception("Expected run config \"%s\", not \"%s\"",
-                            self.__expRunCfg, runCfg)
-        if self.__expRunNum != runNum:
-            raise Exception("Expected run number %s, not %s",
-                            self.__expRunNum, runNum)
-        if self.__missingComps is not None:
-            tmpList = self.__missingComps
-            self.__missingComps = None
-            raise MissingComponentException(tmpList)
+        if self.__exp_run_cfg != run_cfg:
+            raise Exception("Expected run config \"%s\", not \"%s\"" %
+                            (self.__exp_run_cfg, run_cfg))
+        if self.__exp_run_num != run_num:
+            raise Exception("Expected run number %s, not %s" %
+                            (self.__exp_run_num, run_num))
+        if self.__missing_comps is not None:
+            tmp_list = self.__missing_comps
+            self.__missing_comps = None
+            raise MissingComponentException(tmp_list)
 
-        if self.__runSet is not None:
-            self.__runSet.setState(MockRunSet.STATE_RUNNING)
+        if self.__runset is not None:
+            self.__runset.set_running()
 
-        return self.__runSet
+        return self.__runset
 
-    def setExpectedRunConfig(self, runCfg):
-        self.__expRunCfg = runCfg
+    def set_expected_run_config(self, run_cfg):
+        self.__exp_run_cfg = run_cfg
 
-    def setExpectedRunNumber(self, runNum):
-        self.__expRunNum = runNum
+    def set_expected_run_number(self, run_num):
+        self.__exp_run_num = run_num
 
-    def setRunSet(self, runSet):
-        self.__runSet = runSet
+    def set_runset(self, runset):
+        self.__runset = runset
 
-    def setMissingComponents(self, compList):
-        self.__missingComps = compList
+    def set_missing_components(self, comp_list):
+        self.__missing_comps = comp_list
 
-    def startRun(self, rs, runNum, runOpts):
-        if self.__expRunCfg is None:
+    def start_run(self, runset, run_num,
+                  run_opts):  # pylint: disable=unused-argument
+        if self.__exp_run_cfg is None:
             raise Exception("Expected run configuration has not been set")
-        if self.__expRunCfg != rs.runConfig():
-            raise Exception("Expected run config \"%s\", not \"%s\"",
-                            self.__expRunCfg, rs.runConfig())
+        if self.__exp_run_cfg != runset.run_config():
+            raise Exception("Expected run config \"%s\", not \"%s\"" %
+                            (self.__exp_run_cfg, runset.run_config()))
 
-        if self.__expRunNum is None:
+        if self.__exp_run_num is None:
             raise Exception("Expected run number has not been set")
-        if self.__expRunNum != runNum:
-            raise Exception("Expected run Number %s, not %s",
-                            self.__expRunNum, runNum)
+        if self.__exp_run_num != run_num:
+            raise Exception("Expected run Number %s, not %s" %
+                            (self.__exp_run_num, run_num))
 
-    def versionInfo(self):
+    def stop_collecting(self):
+        pass
+
+    def version_info(self):
         return {"release": self.RELEASE, "repo_rev": self.REPO_REV}
 
 
 class DAQLiveTest(unittest.TestCase):
-    def __createLive(self, cnc, log):
-        self.__live = DAQLive(cnc, log)
+    __warned = False
+
+    def __create_live(self, cnc, log):
+        self.__live = DAQLive(cnc, log, timeout=1)
         return self.__live
 
-    def __waitForStart(self, live, state, expectedException=None):
-        if expectedException is None:
-            extra = ""
+    @property
+    def __imported_live(self):
+        if LIVE_IMPORT:
+            return True
+
+        if not self.was_warned:
+            self.set_warned()
+            print("No I3Live Python code found, cannot run tests",
+                  file=sys.stderr)
+
+        return False
+
+    @classmethod
+    def set_warned(cls):
+        cls.__warned = True
+
+    @classproperty
+    def was_warned(cls):  # pylint: disable=no-self-argument
+        return cls.__warned
+
+    @classmethod
+    def __wait_for_complete(cls, func, *args, **kwargs):
+        if "expected_exception" not in kwargs:
+            expected_exception = None
         else:
-            extra = " <%s>%s" % (type(expectedException).__name__,
-                                 expectedException)
-        for idx in range(10):
+            expected_exception = kwargs["expected_exception"]
+
+        for _ in range(10):
             try:
-                val = live.starting(state)
+                val = func(*args)
             except LiveException as lex:
-                if expectedException is None or \
-                   str(expectedException) != str(lex):
+                if expected_exception is None or \
+                   str(expected_exception) != str(lex):
                     raise
-                expectedException = None
+                expected_exception = None
                 break
 
             if val != INCOMPLETE_STATE_CHANGE:
-                self.assertTrue(val, "starting failed")
-                break
+                return val
 
             time.sleep(0.1)
 
-        if expectedException is not None:
+        if expected_exception is not None:
             raise Exception("Did not received expected %s: %s" %
-                            (type(expectedException).__name__,
-                             expectedException))
+                            (type(expected_exception).__name__,
+                             expected_exception))
 
-    def assertRaisesMsg(self, exc, func, *args, **kwargs):
+        return None
+
+    def assert_raises_msg(self, exc, func, *args, **kwargs):
         try:
             func(*args, **kwargs)
         except type(exc) as ex2:
@@ -204,546 +237,493 @@ class DAQLiveTest(unittest.TestCase):
             # handle exceptions in python 2.3
             if exc is None:
                 return
-            (excType, excVal, excTB) = sys.exc_info()
-            if isinstance(excVal, type(exc)) and str(excVal) == str(exc):
+            (exc_type, exc_val, exc_tb) = sys.exc_info()
+            if isinstance(exc_val, type(exc)) and str(exc_val) == str(exc):
                 return
             raise self.failureException("Expected %s(%s), not %s(%s)" %
-                                        (type(exc), exc, type(excVal), excVal))
+                                        (type(exc), exc, type(exc_val),
+                                         exc_val))
         raise self.failureException("%s(%s) not raised" % (type(exc), exc))
 
     def setUp(self):
         self.__live = None
+        self.__log = MockLogger("liveLog")
 
     def tearDown(self):
         if self.__live is not None:
             try:
                 self.__live.close()
-            except:
+            except:  # pylint: disable=bare-except
                 traceback.print_exc()
 
-    def testVersion(self):
-        if not LIVE_IMPORT:
-            global WARNED
-            if not WARNED:
-                WARNED = True
-                print("No I3Live Python code found, cannot run tests",
-                      file=sys.stderr)
+        self.__log.check_status(0)
+
+    def test_version(self):
+        if not self.__imported_live:
             return
 
         cnc = MockCnC()
-        log = MockLogger("liveLog")
-        live = self.__createLive(cnc, log)
+        live = self.__create_live(cnc, self.__log)
 
         self.assertEqual(live.version(),
                          MockCnC.RELEASE + "_" + MockCnC.REPO_REV)
 
-        log.checkStatus(1)
-
-    def testStartingNoStateArgs(self):
-        global WARNED
-        if not LIVE_IMPORT:
-            if not WARNED:
-                WARNED = True
-                print("No I3Live Python code found, cannot run tests",
-                      file=sys.stderr)
+    def test_starting_no_state_args(self):
+        if not self.__imported_live:
             return
 
         cnc = MockCnC()
-        log = MockLogger("liveLog")
-        live = self.__createLive(cnc, log)
+        live = self.__create_live(cnc, self.__log)
 
-        self.assertRaisesMsg(LiveException("No stateArgs specified"),
-                             live.starting, None)
+        self.assert_raises_msg(LiveException("No state_args specified"),
+                               live.starting, None)
 
-    def testStartingNoKeys(self):
-        global WARNED
-        if not LIVE_IMPORT:
-            if not WARNED:
-                WARNED = True
-                print("No I3Live Python code found, cannot run tests",
-                      file=sys.stderr)
+    def test_starting_no_keys(self):
+        if not self.__imported_live:
             return
 
         cnc = MockCnC()
-        log = MockLogger("liveLog")
-        live = self.__createLive(cnc, log)
+        live = self.__create_live(cnc, self.__log)
 
-        runCfg = "foo"
-        runNum = 13579
+        run_cfg = "foo"
+        run_num = 13579
 
-        cnc.setExpectedRunConfig(runCfg)
-        cnc.setExpectedRunNumber(runNum)
+        cnc.set_expected_run_config(run_cfg)
+        cnc.set_expected_run_number(run_num)
 
         state = {}
 
-        self.assertRaisesMsg(LiveException("No stateArgs specified"),
-                             live.starting, state)
+        self.assert_raises_msg(LiveException("No state_args specified"),
+                               live.starting, state)
 
-    def testStartingNoRunCfgKey(self):
-        global WARNED
-        if not LIVE_IMPORT:
-            if not WARNED:
-                WARNED = True
-                print("No I3Live Python code found, cannot run tests",
-                      file=sys.stderr)
+    def test_starting_no_run_cfg_key(self):
+        if not self.__imported_live:
             return
 
         cnc = MockCnC()
-        log = MockLogger("liveLog")
-        live = self.__createLive(cnc, log)
+        live = self.__create_live(cnc, self.__log)
 
-        runCfg = "foo"
-        runNum = 13579
+        run_cfg = "foo"
+        run_num = 13579
 
-        cnc.setExpectedRunConfig(runCfg)
-        cnc.setExpectedRunNumber(runNum)
+        cnc.set_expected_run_config(run_cfg)
+        cnc.set_expected_run_number(run_num)
 
-        state = {"runNumber": runNum}
+        state = {"runNumber": run_num}
 
-        exc = LiveException("stateArgs does not contain key \"runConfig\"")
-        self.assertRaisesMsg(exc, live.starting, state)
+        exc = LiveException("state_args does not contain key \"runConfig\"")
+        self.assert_raises_msg(exc, live.starting, state)
 
-    def testStartingNoRunNumKey(self):
-        global WARNED
-        if not LIVE_IMPORT:
-            if not WARNED:
-                WARNED = True
-                print("No I3Live Python code found, cannot run tests",
-                      file=sys.stderr)
+    def test_starting_no_run_num_key(self):
+        if not self.__imported_live:
             return
 
         cnc = MockCnC()
-        log = MockLogger("liveLog")
-        live = self.__createLive(cnc, log)
+        live = self.__create_live(cnc, self.__log)
 
-        runCfg = "foo"
-        runNum = 13579
+        run_cfg = "foo"
+        run_num = 13579
 
-        cnc.setExpectedRunConfig(runCfg)
-        cnc.setExpectedRunNumber(runNum)
+        cnc.set_expected_run_config(run_cfg)
+        cnc.set_expected_run_number(run_num)
 
-        state = {"runConfig": runCfg}
+        state = {"runConfig": run_cfg}
 
-        exc = LiveException("stateArgs does not contain key \"runNumber\"")
-        self.assertRaisesMsg(exc, live.starting, state)
+        exc = LiveException("state_args does not contain key \"runNumber\"")
+        self.assert_raises_msg(exc, live.starting, state)
 
-    def testStartingNoRunSet(self):
-        global WARNED
-        if not LIVE_IMPORT:
-            if not WARNED:
-                WARNED = True
-                print("No I3Live Python code found, cannot run tests",
-                      file=sys.stderr)
+    def test_starting_no_run_set(self):
+        if not self.__imported_live:
             return
 
         cnc = MockCnC()
-        log = MockLogger("liveLog")
-        live = self.__createLive(cnc, log)
+        live = self.__create_live(cnc, self.__log)
 
-        runCfg = "foo"
-        runNum = 13579
+        run_cfg = "foo"
+        run_num = 13579
 
-        cnc.setExpectedRunConfig(runCfg)
-        cnc.setExpectedRunNumber(runNum)
+        cnc.set_expected_run_config(run_cfg)
+        cnc.set_expected_run_number(run_num)
 
-        state = {"runConfig": runCfg, "runNumber": runNum}
+        state = {"runConfig": run_cfg, "runNumber": run_num}
 
-        errmsg = "Cannot create run #%d runset for \"%s\"" % (runNum, runCfg)
-        log.addExpectedExact(errmsg)
+        errmsg = "Cannot create run #%d runset for \"%s\"" % (run_num, run_cfg)
 
-        self.__waitForStart(live, state, LiveException(errmsg))
+        self.__log.add_expected_exact(StartThread.NAME + ": " + errmsg)
 
-    def testStarting(self):
-        global WARNED
-        if not LIVE_IMPORT:
-            if not WARNED:
-                WARNED = True
-                print("No I3Live Python code found, cannot run tests",
-                      file=sys.stderr)
+        exp_exc = LiveException(errmsg)
+        rtnval = self.__wait_for_complete(live.starting, state,
+                                          expected_exception=exp_exc)
+        self.assertTrue(rtnval, "starting failed with <%s>%s" %
+                        (type(rtnval), rtnval))
+
+    def test_starting(self):
+        if not self.__imported_live:
             return
 
         cnc = MockCnC()
-        log = MockLogger("liveLog")
-        live = self.__createLive(cnc, log)
+        live = self.__create_live(cnc, self.__log)
 
-        runCfg = "foo"
-        runNum = 13579
+        run_cfg = "foo"
+        run_num = 13579
 
-        cnc.setExpectedRunConfig(runCfg)
-        cnc.setExpectedRunNumber(runNum)
-        cnc.setRunSet(MockRunSet(runCfg))
+        cnc.set_expected_run_config(run_cfg)
+        cnc.set_expected_run_number(run_num)
+        cnc.set_runset(MockRunSet(run_cfg))
 
-        state = {"runConfig": runCfg, "runNumber": runNum}
+        state = {"runConfig": run_cfg, "runNumber": run_num}
 
-        self.__waitForStart(live, state)
+        rtnval = self.__wait_for_complete(live.starting, state)
+        self.assertTrue(rtnval, "starting failed with <%s>%s" %
+                        (type(rtnval), rtnval))
 
-    def testStartingTwice(self):
-        global WARNED
-        if not LIVE_IMPORT:
-            if not WARNED:
-                WARNED = True
-                print("No I3Live Python code found, cannot run tests",
-                      file=sys.stderr)
+    def test_starting_twice(self):
+        if not self.__imported_live:
             return
 
         cnc = MockCnC()
-        log = MockLogger("liveLog")
-        live = self.__createLive(cnc, log)
+        live = self.__create_live(cnc, self.__log)
 
-        runCfg = "foo"
-        runNum = 13579
-        runSet = MockRunSet(runCfg)
+        run_cfg = "foo"
+        run_num = 13579
+        runset = MockRunSet(run_cfg)
 
-        cnc.setExpectedRunConfig(runCfg)
-        cnc.setExpectedRunNumber(runNum)
-        cnc.setRunSet(runSet)
+        cnc.set_expected_run_config(run_cfg)
+        cnc.set_expected_run_number(run_num)
+        cnc.set_runset(runset)
 
-        state = {"runConfig": runCfg, "runNumber": runNum}
+        state = {"runConfig": run_cfg, "runNumber": run_num}
 
-        self.__waitForStart(live, state)
+        rtnval = self.__wait_for_complete(live.starting, state)
+        self.assertTrue(rtnval, "starting failed with <%s>%s" %
+                        (type(rtnval), rtnval))
 
-        print("RS %s ST %s" % (runSet, runSet.state))
-        state2 = {"runConfig": runCfg, "runNumber": runNum + 1}
-        self.__waitForStart(live, state)
+        state2 = {"runConfig": run_cfg, "runNumber": run_num + 1}
+        rtnval = self.__wait_for_complete(live.starting, state2)
+        self.assertTrue(rtnval, "starting failed with <%s>%s" %
+                        (type(rtnval), rtnval))
 
-    def testStartingMissingComp(self):
-        global WARNED
-        if not LIVE_IMPORT:
-            if not WARNED:
-                WARNED = True
-                print("No I3Live Python code found, cannot run tests",
-                      file=sys.stderr)
+    def test_starting_missing_comp(self):
+        if not self.__imported_live:
             return
 
         cnc = MockCnC()
-        log = MockLogger("liveLog")
-        live = self.__createLive(cnc, log)
+        live = self.__create_live(cnc, self.__log)
 
-        runCfg = "foo"
-        runNum = 13579
+        run_cfg = "foo"
+        run_num = 13579
 
-        runSet = MockRunSet(runCfg)
-        runSet.setState(MockRunSet.STATE_RUNNING)
+        runset = MockRunSet(run_cfg)
+        runset.set_running()
 
-        cnc.setExpectedRunConfig(runCfg)
-        cnc.setExpectedRunNumber(runNum)
-        cnc.setRunSet(runSet)
+        cnc.set_expected_run_config(run_cfg)
+        cnc.set_expected_run_number(run_num)
+        cnc.set_runset(runset)
 
         missing = ["hub", "bldr"]
-        cnc.setMissingComponents(missing)
+        cnc.set_missing_components(missing)
 
-        state = {"runConfig": runCfg, "runNumber": runNum}
+        state = {"runConfig": run_cfg, "runNumber": run_num}
 
-        errmsg = "Cannot create run #%d runset for \"%s\": Still waiting" \
-                 " for %s" % (runNum, runCfg, missing)
-        log.addExpectedExact(errmsg)
+        errmsg = "%s: Cannot create run #%d runset for \"%s\": Still waiting" \
+                 " for %s" % (StartThread.NAME, run_num, run_cfg, missing)
+        self.__log.add_expected_exact(errmsg)
 
-        self.__waitForStart(live, state, LiveException(errmsg))
+        exp_exc = LiveException(errmsg)
+        rtnval = self.__wait_for_complete(live.starting, state,
+                                          expected_exception=exp_exc)
+        self.assertTrue(rtnval, "starting failed with <%s>%s" %
+                        (type(rtnval), rtnval))
 
-    def testStoppingNoRunset(self):
-        global WARNED
-        if not LIVE_IMPORT:
-            if not WARNED:
-                WARNED = True
-                print("No I3Live Python code found, cannot run tests",
-                      file=sys.stderr)
+    def test_stopping_no_runset(self):
+        if not self.__imported_live:
             return
 
         cnc = MockCnC()
-        log = MockLogger("liveLog")
-        live = self.__createLive(cnc, log)
-
-        exc = LiveException("Cannot stop run; no active runset")
-        self.assertRaisesMsg(exc, live.stopping)
-
-    def testStoppingError(self):
-        global WARNED
-        if not LIVE_IMPORT:
-            if not WARNED:
-                WARNED = True
-                print("No I3Live Python code found, cannot run tests",
-                      file=sys.stderr)
-            return
-
-        cnc = MockCnC()
-        log = MockLogger("liveLog")
-        live = self.__createLive(cnc, log)
-
-        runCfg = "foo"
-        runNum = 13579
-
-        runSet = MockRunSet(runCfg)
-        runSet.setState(MockRunSet.STATE_RUNNING)
-
-        cnc.setExpectedRunConfig(runCfg)
-        cnc.setExpectedRunNumber(runNum)
-        cnc.setRunSet(runSet)
-
-        state = {"runConfig": runCfg, "runNumber": runNum}
-
-        self.__waitForStart(live, state)
-
-        runSet.setStopReturnError()
-
+        live = self.__create_live(cnc, self.__log)
 
         finished = False
         for _ in range(10):
-            try:
-                val = live.stopping()
-            except LiveException as lex:
-                exp_err = "Encountered ERROR while stopping run"
-                self.assertEqual(str(lex), exp_err,
-                                 "Expected \"%s\", not \"%s\"" %
-                                 (exp_err, lex))
-                finished = None
-                break
-
+            val = live.stopping()
             if val == INCOMPLETE_STATE_CHANGE:
                 time.sleep(0.1)
                 continue
 
             finished = True
 
-        self.assertTrue(finished == None, "Unexpected value for 'finished'")
+        self.assertTrue(finished, "Unexpected value %s for 'finished'" %
+                        str(finished))
 
-    def testStopping(self):
-        global WARNED
-        if not LIVE_IMPORT:
-            if not WARNED:
-                WARNED = True
-                print("No I3Live Python code found, cannot run tests",
-                      file=sys.stderr)
+    def test_stopping_error(self):
+        if not self.__imported_live:
             return
 
         cnc = MockCnC()
-        log = MockLogger("liveLog")
-        live = self.__createLive(cnc, log)
+        live = self.__create_live(cnc, self.__log)
 
-        runCfg = "foo"
-        runNum = 13579
+        run_cfg = "foo"
+        run_num = 13579
 
-        runSet = MockRunSet(runCfg)
-        runSet.setState(MockRunSet.STATE_RUNNING)
+        runset = MockRunSet(run_cfg)
+        runset.set_running()
 
-        cnc.setExpectedRunConfig(runCfg)
-        cnc.setExpectedRunNumber(runNum)
-        cnc.setRunSet(runSet)
+        cnc.set_expected_run_config(run_cfg)
+        cnc.set_expected_run_number(run_num)
+        cnc.set_runset(runset)
 
-        state = {"runConfig": runCfg, "runNumber": runNum}
+        self.__log.add_expected_exact("%s: Encountered ERROR while stopping"
+                                      " run" % (StopThread.NAME, ))
 
-        self.__waitForStart(live, state)
+        state = {"runConfig": run_cfg, "runNumber": run_num}
 
-        self.assertTrue(live.stopping(), "stopping failed")
+        rtnval = self.__wait_for_complete(live.starting, state)
+        self.assertTrue(rtnval, "starting failed with <%s>%s" %
+                        (type(rtnval), rtnval))
 
-    def testRecoveringNothing(self):
-        global WARNED
-        if not LIVE_IMPORT:
-            if not WARNED:
-                WARNED = True
-                print("No I3Live Python code found, cannot run tests",
-                      file=sys.stderr)
+        runset.set_stop_return_error()
+
+        finished = self.__wait_for_complete(live.stopping, "Encountered ERROR"
+                                            " while stopping run")
+
+        self.assertTrue(finished, "Unexpected value %s for 'finished'" %
+                        str(finished))
+
+    def test_stopping(self):
+        if not self.__imported_live:
             return
 
         cnc = MockCnC()
-        log = MockLogger("liveLog")
-        live = self.__createLive(cnc, log)
+        live = self.__create_live(cnc, self.__log)
+
+        run_cfg = "foo"
+        run_num = 13579
+
+        runset = MockRunSet(run_cfg)
+        runset.set_running()
+
+        cnc.set_expected_run_config(run_cfg)
+        cnc.set_expected_run_number(run_num)
+        cnc.set_runset(runset)
+
+        state = {"runConfig": run_cfg, "runNumber": run_num}
+
+        rtnval = self.__wait_for_complete(live.starting, state)
+        self.assertTrue(rtnval, "starting failed with <%s>%s" %
+                        (type(rtnval), rtnval))
+
+        finished = False
+        for _ in range(10):
+            val = live.stopping()
+            if val == INCOMPLETE_STATE_CHANGE:
+                time.sleep(0.1)
+                continue
+
+            finished = True
+            break
+
+        self.assertTrue(finished, "Unexpected value %s for 'finished'" %
+                        str(finished))
+
+    def test_recovering_nothing(self):
+        if not self.__imported_live:
+            return
+
+        cnc = MockCnC()
+        live = self.__create_live(cnc, self.__log)
 
         self.assertTrue(live.recovering(), "recovering failed")
 
-    def testRecoveringDestroyed(self):
-        global WARNED
-        if not LIVE_IMPORT:
-            if not WARNED:
-                WARNED = True
-                print("No I3Live Python code found, cannot run tests",
-                      file=sys.stderr)
+    def test_recovering_destroyed(self):
+        if not self.__imported_live:
             return
 
         cnc = MockCnC()
-        log = MockLogger("liveLog")
-        live = self.__createLive(cnc, log)
+        live = self.__create_live(cnc, self.__log)
 
-        runCfg = "foo"
-        runNum = 13579
-        runSet = MockRunSet(runCfg)
+        run_cfg = "foo"
+        run_num = 13579
+        runset = MockRunSet(run_cfg)
 
-        cnc.setExpectedRunConfig(runCfg)
-        cnc.setExpectedRunNumber(runNum)
-        cnc.setRunSet(runSet)
+        cnc.set_expected_run_config(run_cfg)
+        cnc.set_expected_run_number(run_num)
+        cnc.set_runset(runset)
 
-        state = {"runConfig": runCfg, "runNumber": runNum}
+        state = {"runConfig": run_cfg, "runNumber": run_num}
 
-        self.__waitForStart(live, state)
+        rtnval = self.__wait_for_complete(live.starting, state)
+        self.assertTrue(rtnval, "starting failed with <%s>%s" %
+                        (type(rtnval), rtnval))
 
-        runSet.setExpectedStopError()
-        runSet.destroy()
+        runset.set_expected_stop_error()
+        runset.destroy()
 
         self.assertTrue(live.recovering(), "recovering failed")
 
-    def testRecoveringStopFail(self):
-        global WARNED
-        if not LIVE_IMPORT:
-            if not WARNED:
-                WARNED = True
-                print("No I3Live Python code found, cannot run tests",
-                      file=sys.stderr)
+    def test_recovering_stop_fail(self):
+        if not self.__imported_live:
             return
 
         cnc = MockCnC()
-        log = MockLogger("liveLog")
-        live = self.__createLive(cnc, log)
+        live = self.__create_live(cnc, self.__log)
 
-        runCfg = "foo"
-        runNum = 13579
-        runSet = MockRunSet(runCfg)
+        run_cfg = "foo"
+        run_num = 13579
+        runset = MockRunSet(run_cfg)
 
-        cnc.setExpectedRunConfig(runCfg)
-        cnc.setExpectedRunNumber(runNum)
-        cnc.setRunSet(runSet)
+        cnc.set_expected_run_config(run_cfg)
+        cnc.set_expected_run_number(run_num)
+        cnc.set_runset(runset)
 
-        state = {"runConfig": runCfg, "runNumber": runNum}
+        state = {"runConfig": run_cfg, "runNumber": run_num}
 
-        self.__waitForStart(live, state)
+        rtnval = self.__wait_for_complete(live.starting, state)
+        self.assertTrue(rtnval, "starting failed with <%s>%s" %
+                        (type(rtnval), rtnval))
 
-        runSet.setExpectedStopError()
-        runSet.setStopReturnError()
+        runset.set_expected_stop_error()
+        runset.set_stop_return_error()
 
-        log.addExpectedExact("DAQLive stop_run %s returned %s" %
-                             (runSet, False))
-        log.addExpectedExact("DAQLive recovered %s" % runSet)
         self.assertTrue(live.recovering(), "recovering failed")
 
-    def testRecovering(self):
-        global WARNED
-        if not LIVE_IMPORT:
-            if not WARNED:
-                WARNED = True
-                print("No I3Live Python code found, cannot run tests",
-                      file=sys.stderr)
+    def test_recovering(self):
+        if not self.__imported_live:
             return
 
         cnc = MockCnC()
-        log = MockLogger("liveLog")
-        live = self.__createLive(cnc, log)
+        live = self.__create_live(cnc, self.__log)
 
-        runCfg = "foo"
-        runNum = 13579
-        runSet = MockRunSet(runCfg)
+        run_cfg = "foo"
+        run_num = 13579
+        runset = MockRunSet(run_cfg)
 
-        cnc.setExpectedRunConfig(runCfg)
-        cnc.setExpectedRunNumber(runNum)
-        cnc.setRunSet(runSet)
+        cnc.set_expected_run_config(run_cfg)
+        cnc.set_expected_run_number(run_num)
+        cnc.set_runset(runset)
 
-        state = {"runConfig": runCfg, "runNumber": runNum}
+        state = {"runConfig": run_cfg, "runNumber": run_num}
 
-        self.__waitForStart(live, state)
+        rtnval = self.__wait_for_complete(live.starting, state)
+        self.assertTrue(rtnval, "starting failed with <%s>%s" %
+                        (type(rtnval), rtnval))
 
-        runSet.setExpectedStopError()
+        runset.set_expected_stop_error()
 
-        log.addExpectedExact("DAQLive stop_run %s returned %s" %
-                             (runSet, True))
-        log.addExpectedExact("DAQLive recovered %s" % runSet)
+        self.__log.add_expected_exact("DAQLive stop_run %s returned %s" %
+                                      (runset, True))
         self.assertTrue(live.recovering(), "recovering failed")
 
-    def testRunningNothing(self):
-        global WARNED
-        if not LIVE_IMPORT:
-            if not WARNED:
-                WARNED = True
-                print("No I3Live Python code found, cannot run tests",
-                      file=sys.stderr)
+    def test_running_nothing(self):
+        if not self.__imported_live:
             return
 
         cnc = MockCnC()
-        log = MockLogger("liveLog")
-        live = self.__createLive(cnc, log)
+        live = self.__create_live(cnc, self.__log)
 
+        self.__log.add_expected_exact("DAQLive.running() dying due to"
+                                      " missing runset")
         exc = LiveException("Cannot check run state; no active runset")
-        self.assertRaisesMsg(exc, live.running)
+        self.assert_raises_msg(exc, live.running)
 
-    def testRunningBadState(self):
-        global WARNED
-        if not LIVE_IMPORT:
-            if not WARNED:
-                WARNED = True
-                print("No I3Live Python code found, cannot run tests",
-                      file=sys.stderr)
+    def test_running_bad_state(self):
+        if not self.__imported_live:
             return
 
         cnc = MockCnC()
-        log = MockLogger("liveLog")
-        live = self.__createLive(cnc, log)
+        live = self.__create_live(cnc, self.__log)
 
-        runCfg = "foo"
-        runNum = 13579
-        runSet = MockRunSet(runCfg)
+        run_cfg = "foo"
+        run_num = 13579
+        runset = MockRunSet(run_cfg)
 
-        cnc.setExpectedRunConfig(runCfg)
-        cnc.setExpectedRunNumber(runNum)
-        cnc.setRunSet(runSet)
+        cnc.set_expected_run_config(run_cfg)
+        cnc.set_expected_run_number(run_num)
+        cnc.set_runset(runset)
 
-        state = {"runConfig": runCfg, "runNumber": runNum}
+        state = {"runConfig": run_cfg, "runNumber": run_num}
 
-        self.__waitForStart(live, state)
+        rtnval = self.__wait_for_complete(live.starting, state)
+        self.assertTrue(rtnval, "starting failed with <%s>%s" %
+                        (type(rtnval), rtnval))
 
         self.assertTrue(live.running(), "RunSet \"%s\" is %s, not running" %
-                        (runSet, "???" if runSet is None else runSet.state))
+                        (runset, "???" if runset is None else runset.state))
 
-    def testRunning(self):
-        global WARNED
-        if not LIVE_IMPORT:
-            if not WARNED:
-                WARNED = True
-                print("No I3Live Python code found, cannot run tests",
-                      file=sys.stderr)
+    def test_running(self):
+        if not self.__imported_live:
             return
 
         cnc = MockCnC()
-        log = MockLogger("liveLog")
-        live = self.__createLive(cnc, log)
+        live = self.__create_live(cnc, self.__log)
 
-        runCfg = "foo"
-        runNum = 13579
-        runSet = MockRunSet(runCfg)
+        run_cfg = "foo"
+        run_num = 13579
+        runset = MockRunSet(run_cfg)
 
-        cnc.setExpectedRunConfig(runCfg)
-        cnc.setExpectedRunNumber(runNum)
-        cnc.setRunSet(runSet)
+        cnc.set_expected_run_config(run_cfg)
+        cnc.set_expected_run_number(run_num)
+        cnc.set_runset(runset)
 
-        state = {"runConfig": runCfg, "runNumber": runNum}
+        state = {"runConfig": run_cfg, "runNumber": run_num}
 
-        self.__waitForStart(live, state)
+        rtnval = self.__wait_for_complete(live.starting, state)
+        self.assertTrue(rtnval, "starting failed with <%s>%s" %
+                        (type(rtnval), rtnval))
 
-        runSet.setState(runSet.STATE_RUNNING)
+        runset.set_running()
 
         self.assertTrue(live.running(), "running failed")
 
-    def testSubrun(self):
-        global WARNED
-        if not LIVE_IMPORT:
-            if not WARNED:
-                WARNED = True
-                print("No I3Live Python code found, cannot run tests",
-                      file=sys.stderr)
+    def test_subrun(self):
+        if not self.__imported_live:
             return
 
         cnc = MockCnC()
-        log = MockLogger("liveLog")
-        live = self.__createLive(cnc, log)
+        live = self.__create_live(cnc, self.__log)
 
-        runCfg = "foo"
-        runNum = 13579
-        runSet = MockRunSet(runCfg)
+        run_cfg = "foo"
+        run_num = 13579
+        runset = MockRunSet(run_cfg)
 
-        cnc.setExpectedRunConfig(runCfg)
-        cnc.setExpectedRunNumber(runNum)
-        cnc.setRunSet(runSet)
+        cnc.set_expected_run_config(run_cfg)
+        cnc.set_expected_run_number(run_num)
+        cnc.set_runset(runset)
 
-        state = {"runConfig": runCfg, "runNumber": runNum}
+        state = {"runConfig": run_cfg, "runNumber": run_num}
 
-        self.__waitForStart(live, state)
+        rtnval = self.__wait_for_complete(live.starting, state)
+        self.assertTrue(rtnval, "starting failed with <%s>%s" %
+                        (type(rtnval), rtnval))
 
         self.assertEqual("OK", live.subrun(1, ["domA", "dom2", ]))
+
+    def test_switch_run(self):
+        if not self.__imported_live:
+            return
+
+        cnc = MockCnC()
+        live = self.__create_live(cnc, self.__log)
+
+        run_cfg = "foo"
+        run_num = 13579
+        runset = MockRunSet(run_cfg)
+
+        cnc.set_expected_run_config(run_cfg)
+        cnc.set_expected_run_number(run_num)
+        cnc.set_runset(runset)
+
+        state = {"runConfig": run_cfg, "runNumber": run_num}
+
+        rtnval = self.__wait_for_complete(live.starting, state)
+        self.assertTrue(rtnval, "starting failed with <%s>%s" %
+                        (type(rtnval), rtnval))
+
+        state = {"runNumber": run_num + 1}
+
+        self.__log.add_expected_exact("SwitchRun is returning True after"
+                                      " ending LiveSwitch thread")
+        rtnval = self.__wait_for_complete(live.switchrun, state)
+        self.assertTrue(rtnval, "switchrun failed with <%s>%s" %
+                        (type(rtnval), rtnval))
 
 
 if __name__ == '__main__':

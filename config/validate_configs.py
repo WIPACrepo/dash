@@ -2,11 +2,12 @@
 
 from __future__ import print_function
 
-from lxml import etree
-from lxml.etree import XMLSyntaxError
 import os
 import sys
 import glob
+
+from lxml import etree
+from lxml.etree import XMLSyntaxError
 
 try:
     from CachedConfigName import CachedConfigName
@@ -32,7 +33,6 @@ def _open_schema(path, description):
     except IOError:
         # look in the schema directory
         path2 = os.path.join(PDAQ_HOME, 'schema', os.path.basename(path))
-
         try:
             return open(path2, 'r')
         except IOError:
@@ -43,8 +43,7 @@ validated_def_dom_geom = None
 validated_cluster_cfg = None
 
 
-def validate_configs(cluster_xml_filename, runconfig_xml_filename,
-                     default_dom_geom_xml_filename=None):
+def validate_configs(cluster_xml_filename, runconfig_xml_filename):
 
     config_dir = find_pdaq_config()
 
@@ -64,7 +63,7 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
     # validate the cluster config
     # really odd file name rules..  but try to keep it consistent
     if cluster_xml_filename is None:
-        cluster_xml_filename = ClusterDescription.getClusterFromHostName()
+        cluster_xml_filename = ClusterDescription.get_cluster_name()
 
     if cluster_xml_filename.endswith('.xml'):
         # old cluster configs not supported
@@ -73,13 +72,11 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
 
     basename = os.path.basename(cluster_xml_filename)
 
-    fname, extension = os.path.splitext(basename)
-    if not extension or extension is not 'cfg':
-        extension = 'cfg'
+    fname, _ = os.path.splitext(basename)
 
-    path = os.path.join(config_dir, "%s.%s" % (fname, extension))
+    path = os.path.join(config_dir, "%s.cfg" % (fname, ))
     if not os.path.exists(path):
-        path = os.path.join(config_dir, "%s-cluster.%s" % (fname, extension))
+        path = os.path.join(config_dir, "%s-cluster.cfg" % (fname, ))
 
     cluster_xml_filename = path
 
@@ -97,14 +94,15 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
 
     # RUN configs are cached, not cluster
     if runconfig_xml_filename is None:
-        runconfig_xml_filename = CachedConfigName.getConfigToUse(
-            runconfig_xml_filename, False, True)
+        runconfig_xml_filename \
+          = CachedConfigName.get_config_to_use(runconfig_xml_filename,
+                                               False, True)
 
     # oddly enough some code skips passing in a run config sometimes
     # just passing in the cluster configuration instead.  so
     # be okay with no run config
     if runconfig_xml_filename is None:
-            return (True, "")
+        return (True, "")
 
     if not runconfig_xml_filename.endswith('.xml'):
         runconfig_xml_filename = "%s.xml" % runconfig_xml_filename
@@ -119,13 +117,14 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
         return (valid, "RunConfig " + runconfig_xml_filename + ": " +
                 str(reason))
 
-    # parse the run config for all domConfigList, and trigger
+    # parse the run config for all domConfig_list, and trigger
     try:
         with open(runconfig_xml_filename, 'r') as xml_fd:
             try:
                 doc_xml = etree.parse(xml_fd)
-            except XMLSyntaxError as e:
-                return (False, "file: '%s', %s" % (runconfig_xml_filename, e))
+            except XMLSyntaxError as exc:
+                return (False, "file: '%s', %s" %
+                        (runconfig_xml_filename, exc))
     except IOError:
         # cannot open the run config file
         return (False, "Cannot open runconfig '%s'" % runconfig_xml_filename)
@@ -137,10 +136,11 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
 
     run_configs = doc_xml.getroot()
 
-    dconfigList = run_configs.findall('domConfigList')
-    for dconfig in dconfigList:
-        config_dir = find_pdaq_config()
-        dom_config_txt = "%s.xml" % dconfig.text
+    config_dir = find_pdaq_config()
+
+    dom_config_list = run_configs.findall('domConfigList')
+    for domcfg in dom_config_list:
+        dom_config_txt = "%s.xml" % domcfg.text
         dom_config_path = os.path.join(config_dir, 'domconfigs',
                                        dom_config_txt)
 
@@ -152,10 +152,9 @@ def validate_configs(cluster_xml_filename, runconfig_xml_filename,
         if not valid:
             return (False, "DOMConfig " + dom_config_path + ": " + str(reason))
 
-    trigConfigList = run_configs.findall('triggerConfig')
-    for trigConfig in trigConfigList:
-        config_dir = find_pdaq_config()
-        trig_config_txt = "%s.xml" % trigConfig.text
+    trig_config_list = run_configs.findall('triggerConfig')
+    for trigcfg in trig_config_list:
+        trig_config_txt = "%s.xml" % trigcfg.text
         trig_config_path = os.path.join(config_dir, 'trigger',
                                         trig_config_txt)
 
@@ -191,7 +190,7 @@ def is_sps_cluster(cluster_xml_filename):
     """sps by definition is the most strict validation
     if we cannot determine the cluster for some reason assume sps"""
 
-    (valid, reason) = validate_clusterconfig(cluster_xml_filename)
+    (valid, _) = validate_clusterconfig(cluster_xml_filename)
     if not valid:
         return True
 
@@ -199,7 +198,7 @@ def is_sps_cluster(cluster_xml_filename):
         with open(cluster_xml_filename, 'r') as xml_fd:
             try:
                 doc_xml = etree.parse(xml_fd)
-            except XMLSyntaxError as e:
+            except XMLSyntaxError:
                 return True
     except IOError:
         return True
@@ -209,21 +208,17 @@ def is_sps_cluster(cluster_xml_filename):
     cluster = doc_xml.getroot()
     if cluster is None:
         return True
+
     # 'name' is required by the validate_clustercfg code
     # but be a bit paranoid so check for it
     if 'name' not in cluster.attrib:
         return True
 
-    name = cluster.attrib['name']
-
     # make the localhost cluster be
     # equivalent to the sps cluster
     # This is okay as sps is the most
     # strict cluster
-    if name == 'sps':
-        return True
-    else:
-        return False
+    return cluster.attrib['name'] == 'sps'
 
 
 def validate_dom_config_sps(xml_filename):
@@ -243,8 +238,8 @@ def _validate_dom_config_xml(xml_filename, rng_real_filename):
         with open(xml_filename, 'r') as xml_fd:
             try:
                 doc_xml = etree.parse(xml_fd)
-            except XMLSyntaxError as e:
-                return (False, "file: '%s', %s" % (xml_filename, e))
+            except XMLSyntaxError as exc:
+                return (False, "file: '%s', %s" % (xml_filename, exc))
     except IOError:
         return (False, "Cannot open: %s" % xml_filename)
 
@@ -253,10 +248,10 @@ def _validate_dom_config_xml(xml_filename, rng_real_filename):
 
     rng_real = etree.RelaxNG(rng_doc)
 
-    if rng_real.validate(doc_xml):
-        return (True, "")
-    else:
+    if not rng_real.validate(doc_xml):
         return (False, "%s" % rng_real.error_log)
+
+    return (True, "")
 
 
 def _validate_xml_rng(xml_filename, relaxng_filename):
@@ -276,8 +271,8 @@ def _validate_xml_rng(xml_filename, relaxng_filename):
     try:
         with _open_schema(relaxng_filename, "RNG schema") as relaxng_fd:
             relaxng_doc = etree.parse(relaxng_fd)
-    except IOError as e:
-        return (False, str(e))
+    except IOError as exc:
+        return (False, str(exc))
 
     relaxng = etree.RelaxNG(relaxng_doc)
 
@@ -285,15 +280,15 @@ def _validate_xml_rng(xml_filename, relaxng_filename):
         with open(xml_filename, 'r') as doc_fd:
             try:
                 doc_xml = etree.parse(doc_fd)
-            except XMLSyntaxError as e:
-                return (False, "file: '%s' %s" % (xml_filename, e))
+            except XMLSyntaxError as exc:
+                return (False, "file: '%s' %s" % (xml_filename, exc))
     except IOError:
         return (False, "Could not open '%s'" % xml_filename)
 
-    if relaxng.validate(doc_xml):
-        return (True, "")
-    else:
+    if not relaxng.validate(doc_xml):
         return (False, "%s" % relaxng.error_log)
+
+    return (True, "")
 
 
 def _validate_xml(xml_filename, xsd_filename):
@@ -314,8 +309,8 @@ def _validate_xml(xml_filename, xsd_filename):
     try:
         with _open_schema(xsd_filename, "XSD schema") as xsd_fd:
             xmlschema_doc = etree.parse(xsd_fd)
-    except IOError as e:
-        return (False, str(e))
+    except IOError as exc:
+        return (False, str(exc))
 
     xsd = etree.XMLSchema(xmlschema_doc)
 
@@ -323,18 +318,19 @@ def _validate_xml(xml_filename, xsd_filename):
         with open(xml_filename, 'r') as doc_fd:
             try:
                 doc_xml = etree.parse(doc_fd)
-            except XMLSyntaxError as e:
-                return (False, "file: '%s' %s" % (xml_filename, e))
+            except XMLSyntaxError as exc:
+                return (False, "file: '%s' %s" % (xml_filename, exc))
     except IOError:
         return (False, "Could not open '%s'" % xml_filename)
 
-    if xsd.validate(doc_xml):
-        return (True, "")
-    else:
+    if not xsd.validate(doc_xml):
         return (False, "%s" % xsd.error_log)
 
+    return (True, "")
 
-if __name__ == "__main__":
+
+def main():
+    "Main program"
 
     config_dir = find_pdaq_config()
 
@@ -372,3 +368,7 @@ if __name__ == "__main__":
             print(reason)
         else:
             print("Configuration is valid")
+
+
+if __name__ == "__main__":
+    main()

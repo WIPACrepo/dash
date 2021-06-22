@@ -7,50 +7,72 @@ import unittest
 
 from CachedConfigName import CachedConfigName
 from DAQConst import DAQPort
-from DAQLaunch import launch, kill
+from DAQLaunch import add_arguments_both, add_arguments_launch, \
+     add_arguments_kill, launch, kill
 from DAQMocks import MockClusterConfigFile, MockParallelShell, \
     MockRunConfigFile
 
 
+class MockArguments(object):
+    def __init__(self):
+        pass
+
+    def add_argument(self, *args, **kwargs):
+        """
+        Use 'dest' and 'default' keywords to create an argument attribute
+        """
+        if "dest" not in kwargs:
+            raise Exception("No 'dest' for %s" % str(args))
+        setattr(self, kwargs["dest"], kwargs.get("default", None))
+
+    def set_argument(self, name, value):
+        """
+        Update the value on an existing argument attribute
+        """
+        if not hasattr(self, name):
+            raise Exception("Unknown argument \"%s\"" % (name, ))
+        setattr(self, name, value)
+
+
 class TestDAQLaunch(unittest.TestCase):
-    def __createClusterConfigFile(self, configDir, cluDesc, daqDataDir, logDir,
-                                  spadeDir, compHostDict):
-        cluDesc = "xxx"
-        cluCfgFile = MockClusterConfigFile(configDir, cluDesc)
+    @classmethod
+    def __create_cluster_config_file(cls, config_dir, clu_desc, daq_data_dir,
+                                     log_dir, spade_dir, comp_host_dict):
+        clu_cfg_file = MockClusterConfigFile(config_dir, clu_desc)
 
-        cluCfgFile.setDataDir(daqDataDir)
-        cluCfgFile.setLogDir(logDir)
-        cluCfgFile.setSpadeDir(spadeDir)
+        clu_cfg_file.set_data_dir(daq_data_dir)
+        clu_cfg_file.set_log_dir(log_dir)
+        clu_cfg_file.set_spade_dir(spade_dir)
 
-        h1 = cluCfgFile.addHost("ctlhost")
-        h1.addControlServer()
+        ctlhost = clu_cfg_file.add_host("ctlhost")
+        ctlhost.add_control_server()
 
-        cluHosts = {}
-        for name, host in list(compHostDict.items()):
-            if host not in cluHosts:
-                cluHosts[host] = cluCfgFile.addHost(host)
-            cluHosts[host].addComponent(name)
+        clu_hosts = {}
+        for name, host in list(comp_host_dict.items()):
+            if host not in clu_hosts:
+                clu_hosts[host] = clu_cfg_file.add_host(host)
+            clu_hosts[host].add_component(name)
 
-        sim = cluCfgFile.addHost("simhost")
-        sim.addSimHubs(10, 1)
+        sim = clu_cfg_file.add_host("simhost")
+        sim.add_sim_hubs(10, 1)
 
-        cluCfgFile.create()
+        clu_cfg_file.create()
 
-        return cluCfgFile
+        return clu_cfg_file
 
     def tearDown(self):
         # clear cached config directory
-        CachedConfigName.clearActiveConfig()
+        CachedConfigName.clear_active_config()
 
-    def testLaunchOnlyCnC(self):
-        tmpdir = tempfile.mkdtemp()
-        configDir = os.path.join(tmpdir, 'cfg')
-        daqDataDir = os.path.join(tmpdir, 'data')
-        dashDir = os.path.join(tmpdir, 'dash')
-        logDir = os.path.join(tmpdir, 'log')
-        spadeDir = os.path.join(tmpdir, 'spade')
+    def test_launch_only_cnc(self):
+        tmp_dir = tempfile.mkdtemp()
+        config_dir = os.path.join(tmp_dir, 'cfg')
+        daq_data_dir = os.path.join(tmp_dir, 'data')
+        dash_dir = os.path.join(tmp_dir, 'dash')
+        log_dir = os.path.join(tmp_dir, 'log')
+        spade_dir = os.path.join(tmp_dir, 'spade')
 
-        compHostDict = {
+        comp_host_dict = {
             "inIceTrigger": "trigger",
             "globalTrigger": "trigger",
             "eventBuilder": "builder",
@@ -58,43 +80,50 @@ class TestDAQLaunch(unittest.TestCase):
             "ichub01": "ichub01",
         }
 
-        cluCfgFile = self.__createClusterConfigFile(configDir, "xxx",
-                                                    daqDataDir, logDir,
-                                                    spadeDir, compHostDict)
+        clu_cfg_file = self.__create_cluster_config_file(config_dir, "xxx",
+                                                         daq_data_dir, log_dir,
+                                                         spade_dir,
+                                                         comp_host_dict)
 
-        runCfgFile = MockRunConfigFile(configDir)
-        cfgName = runCfgFile.create(list(compHostDict.keys()), {})
+        run_cfg_file = MockRunConfigFile(config_dir)
+        cfg_name = run_cfg_file.create(list(comp_host_dict.keys()), {})
 
-        copyDir = None
-        logPort = None
-        livePort = DAQPort.I3LIVE_ZMQ
+        copy_dir = None
+        log_port = None
+        live_port = DAQPort.I3LIVE_ZMQ
 
-        validate = False
-        verbose = False
-        dryRun = False
-        evtChk = False
+        force_restart = False
         logger = None
-        forceRestart = False
-        checkExists = False
+        check_exists = False
 
         shell = MockParallelShell()
-        shell.addExpectedPython(True, dashDir, configDir, logDir, daqDataDir,
-                                spadeDir, cluCfgFile.name, cfgName, copyDir,
-                                logPort, livePort, forceRestart=forceRestart)
+        shell.add_expected_python(True, dash_dir, config_dir, log_dir,
+                                  daq_data_dir, spade_dir, clu_cfg_file.name,
+                                  copy_dir, log_port, live_port,
+                                  force_restart=force_restart)
 
-        launch(configDir, dashDir, logger, clusterDesc=cluCfgFile.name,
-               configName=cfgName, validate=validate, verbose=verbose,
-               dryRun=dryRun, eventCheck=evtChk, parallel=shell,
-               forceRestart=forceRestart, checkExists=checkExists)
+        args = MockArguments()
+        add_arguments_both(args)
+        add_arguments_launch(args)
+        args.set_argument("cluster_desc", clu_cfg_file.name)
+        args.set_argument("config_name", cfg_name)
+        args.set_argument("validate", False)
+        args.set_argument("verbose", False)
+        args.set_argument("dry_run", False)
+        args.set_argument("event_check", False)
+        args.set_argument("force_restart", force_restart)
 
-    def testKillOnlyCnC(self):
-        tmpdir = tempfile.mkdtemp()
-        configDir = os.path.join(tmpdir, 'cfg')
-        daqDataDir = os.path.join(tmpdir, 'data')
-        logDir = os.path.join(tmpdir, 'log')
-        spadeDir = os.path.join(tmpdir, 'spade')
+        launch(config_dir, dash_dir, logger, args=args, parallel=shell,
+               check_exists=check_exists)
 
-        compHostDict = {
+    def test_kill_only_cnc(self):
+        tmp_dir = tempfile.mkdtemp()
+        config_dir = os.path.join(tmp_dir, 'cfg')
+        daq_data_dir = os.path.join(tmp_dir, 'data')
+        log_dir = os.path.join(tmp_dir, 'log')
+        spade_dir = os.path.join(tmp_dir, 'spade')
+
+        comp_host_dict = {
             "inIceTrigger": "trigger",
             "globalTrigger": "trigger",
             "eventBuilder": "builder",
@@ -102,33 +131,37 @@ class TestDAQLaunch(unittest.TestCase):
             "ichub01": "ichub01",
         }
 
-        cluCfgFile = self.__createClusterConfigFile(configDir, "xxx",
-                                                    daqDataDir, logDir,
-                                                    spadeDir, compHostDict)
+        clu_cfg_file = self.__create_cluster_config_file(config_dir, "xxx",
+                                                         daq_data_dir, log_dir,
+                                                         spade_dir,
+                                                         comp_host_dict)
 
-        runCfgFile = MockRunConfigFile(configDir)
-        cfgName = runCfgFile.create(list(compHostDict.keys()), {})
-
-        validate = False
-        serverKill = True
-        verbose = False
-        dryRun = False
-        killWith9 = False
+        kill_with_9 = False
         logger = None
-        forceKill = True
 
         shell = MockParallelShell()
-        shell.addExpectedPythonKill(True, killWith9=killWith9)
+        shell.add_expected_python_kill(True, kill_with_9=kill_with_9)
+
+        run_cfg_file = MockRunConfigFile(config_dir)
+        cfg_name = run_cfg_file.create(list(comp_host_dict.keys()), {})
 
         # set the cached config name
-        cc = CachedConfigName()
-        cc.setConfigName(cfgName)
-        cc.writeCacheFile(writeActiveConfig=True)
+        ccfg = CachedConfigName()
+        ccfg.set_name(cfg_name)
+        ccfg.write_cache_file(write_active_config=True)
 
-        kill(configDir, logger, clusterDesc=cluCfgFile.name,
-             validate=validate, serverKill=serverKill, verbose=verbose,
-             dryRun=dryRun, killWith9=killWith9, force=forceKill,
-             parallel=shell)
+        args = MockArguments()
+        add_arguments_both(args)
+        add_arguments_kill(args)
+        args.set_argument("cluster_desc", clu_cfg_file.name)
+        args.set_argument("validate", False)
+        args.set_argument("serverKill", True)
+        args.set_argument("verbose", False)
+        args.set_argument("dry_run", False)
+        args.set_argument("kill_with_9", kill_with_9)
+        args.set_argument("force", True)
+
+        kill(config_dir, logger, args=args)
 
 
 if __name__ == '__main__':

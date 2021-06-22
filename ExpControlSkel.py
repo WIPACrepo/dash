@@ -12,14 +12,13 @@ import re
 import sys
 from BaseRun import FlasherScript
 from cncrun import CnCRun
-from datetime import datetime
 from utils.Machineid import Machineid
 
-SVN_ID = "$Id: ExpControlSkel.py 17035 2018-06-08 18:17:03Z dglo $"
+SVN_ID = "$Id: ExpControlSkel.py 17720 2020-02-25 21:53:22Z dglo $"
 
 
 class DOMArgumentException(Exception):
-    pass
+    "Problem with a DOM argument"
 
 
 class SubRunDOM(object):
@@ -45,17 +44,20 @@ class SubRunDOM(object):
         else:
             raise DOMArgumentException()
 
-    def flasherInfo(self):
+    @property
+    def flasher_info(self):
         if self.mbid is not None:
             return (self.mbid, self.bright, self.window,
                     self.delay, self.mask, self.rate)
-        elif self.string is not None and self.pos is not None:
+
+        if self.string is not None and self.pos is not None:
             return (self.string, self.pos, self.bright, self.window,
                     self.delay, self.mask, self.rate)
-        else:
-            raise DOMArgumentException()
 
-    def flasherHash(self):
+        raise DOMArgumentException()
+
+    @property
+    def flasher_hash(self):
         if self.mbid is not None:
             return {"MBID": self.mbid,
                     "brightness": self.bright,
@@ -63,7 +65,8 @@ class SubRunDOM(object):
                     "delay": self.delay,
                     "mask": str(self.mask),
                     "rate": self.rate}
-        elif self.string is not None and self.pos is not None:
+
+        if self.string is not None and self.pos is not None:
             return {"stringHub": self.string,
                     "domPosition": self.pos,
                     "brightness": self.bright,
@@ -71,8 +74,8 @@ class SubRunDOM(object):
                     "delay": self.delay,
                     "mask": str(self.mask),
                     "rate": self.rate}
-        else:
-            raise DOMArgumentException()
+
+        raise DOMArgumentException()
 
 
 class SubRun(object):
@@ -82,48 +85,48 @@ class SubRun(object):
     def __init__(self, runtype, duration, runid):
         self.type = runtype
         self.duration = duration
-        self.id = runid
+        self.runid = runid
         self.domlist = []
 
-    def addDOM(self, d):
-        raise NotImplementedError(("source for SubRunDOM class"
-                                   "parameters not known"))
-
     def __str__(self):
-        typ = "FLASHER"
         if self.type == SubRun.DELAY:
-            typ = "DELAY"
+            srtype = "DELAY"
+        else:
+            srtype = "FLASHER"
 
-        s = "SubRun ID=%d TYPE=%s DURATION=%d\n" % (self.id,
-                                                    typ,
-                                                    self.duration)
+        sstr = "SubRun ID=%d TYPE=%s DURATION=%d\n" % (self.runid, srtype,
+                                                       self.duration)
         if self.type == SubRun.FLASH:
-            for m in self.domlist:
-                s += "%s\n" % m
-        return s
+            for dom in self.domlist:
+                sstr += "%s\n" % str(dom)
+        return sstr
 
-    def flasherInfo(self):
+    @property
+    def flasher_info(self):
         if self.type != SubRun.FLASH:
             return None
 
-        return [d.flasherInfo() for d in self.domlist]
+        return [d.flasher_info for d in self.domlist]
 
-    def flasherDictList(self):
-        return [d.flasherHash() for d in self.domlist]
+    @property
+    def flasher_dict_list(self):
+        return [d.flasher_hash for d in self.domlist]
 
 
 def add_arguments(parser, config_as_arg=False):
-    parser.add_argument("-C", "--cluster-desc", dest="clusterDesc",
+    "Add command-line arguments"
+
+    parser.add_argument("-C", "--cluster-desc", dest="cluster_desc",
                         help="Cluster description name.")
     if config_as_arg:
-        parser.add_argument("-c", "--config-name", dest="runConfig",
+        parser.add_argument("-c", "--config-name", dest="run_config",
                             required=True,
                             help="REQUIRED: Configuration name")
     else:
         parser.add_argument("-c", dest="minusC",
                             action="store_true", default=False,
                             help="Ignored, run config is a positional param")
-        parser.add_argument("runConfig",
+        parser.add_argument("run_config",
                             help="Run configuration name")
     parser.add_argument("-d", "--duration-seconds", dest="duration",
                         default="8h",
@@ -133,7 +136,7 @@ def add_arguments(parser, config_as_arg=False):
     parser.add_argument("-l", dest="duration",
                         default="8h",
                         help="Run duration (in seconds)")
-    parser.add_argument("-n", "--num-runs", type=int, dest="numRuns",
+    parser.add_argument("-n", "--num-runs", type=int, dest="num_runs",
                         default=10000000,
                         help="Number of runs")
     parser.add_argument("-r", "--remote-host", dest="remoteHost",
@@ -143,10 +146,10 @@ def add_arguments(parser, config_as_arg=False):
                         dest="runsPerRestart",
                         default=1,
                         help="Number of runs per restart")
-    parser.add_argument("-s", "--showCommands", dest="showCmd",
+    parser.add_argument("-s", "--show_commands", dest="show_commands",
                         action="store_true", default=False,
                         help="Show the commands used to deploy and/or run")
-    parser.add_argument("-x", "--showCommandOutput", dest="showCmdOut",
+    parser.add_argument("-x", "--show_command_output", dest="show_command_out",
                         action="store_true", default=False,
                         help=("Show the output of the deploy and/or"
                               " run commands"))
@@ -157,11 +160,11 @@ def add_arguments(parser, config_as_arg=False):
 
 
 # adapted from live/misc/util.py
-def getDurationFromString(durstr):
+def get_duration_from_string(durstr):
     """
     Return duration in seconds based on string <durstr>
 
-    >>> gdfs = getDurationFromString
+    >>> gdfs = get_duration_from_string
     >>> gdfs("1day")
     86400
     >>> gdfs("60mins")
@@ -196,35 +199,30 @@ def getDurationFromString(durstr):
     return int(mtch.group(1)) * scale
 
 
-def updateStatus(oldStatus, newStatus):
-    "Show any changes in status on stdout"
-    if oldStatus != newStatus:
-        print("%s: %s -> %s" % (datetime.now(), oldStatus, newStatus))
-    return newStatus
-
-
 def daqrun(args):
-    if args.runConfig is None:
+    if args.run_config is None:
         raise SystemExit("You must specify a run configuration ( -c option )")
 
     if args.flasherScript is None:
-        flashData = None
+        flasher_data = None
     else:
-        flashData = FlasherScript.parse(args.flasherScript)
+        flasher_data = FlasherScript.parse(args.flasherScript)
 
-    cnc = CnCRun(showCmd=args.showCmd, showCmdOutput=args.showCmdOut)
+    cnc = CnCRun(show_commands=args.show_commands,
+                 show_command_output=args.show_command_out)
 
-    clusterCfg = cnc.getActiveClusterConfig()
-    if clusterCfg is None:
+    cluster_cfg = cnc.active_cluster_config()
+    if cluster_cfg is None:
         raise SystemExit("Cannot determine cluster configuration")
 
-    duration = getDurationFromString(args.duration)
+    duration = get_duration_from_string(args.duration)
 
-    n = 0
-    while n < args.numRuns:
-        run = cnc.createRun(None, args.runConfig, clusterDesc=args.clusterDesc,
-                            flashData=flashData)
-        run.start(duration, numRuns=args.runsPerRestart)
+    num = 0
+    while num < args.num_runs:
+        run = cnc.create_run(None, args.run_config,
+                             cluster_desc=args.cluster_desc,
+                             flasher_data=flasher_data)
+        run.start(duration, num_runs=args.runsPerRestart)
 
         try:
             try:
@@ -236,23 +234,27 @@ def daqrun(args):
             print("Stopping run...", file=sys.stderr)
             run.finish()
 
-        n += args.runsPerRestart
+        num += args.runsPerRestart
 
 
-if __name__ == "__main__":
+def main():
     "Main program"
     import argparse
 
-    p = argparse.ArgumentParser()
-    add_arguments(p)
-    args = p.parse_args()
+    parser = argparse.ArgumentParser()
+    add_arguments(parser)
+    args = parser.parse_args()
 
     if not args.nohostcheck:
         hostid = Machineid()
-        if not (hostid.is_control_host() or
-                (hostid.is_unknown_host() and hostid.is_unknown_cluster())):
+        if not (hostid.is_control_host or
+                (hostid.is_unknown_host and hostid.is_unknown_cluster)):
             # you should either be a control host or a totally unknown host
             raise SystemExit("Are you sure you are running ExpControlSkel "
                              "on the correct host?")
 
     daqrun(args)
+
+
+if __name__ == "__main__":
+    main()

@@ -2,11 +2,16 @@
 
 from __future__ import print_function
 
+import numbers
 import os
 import socket
 import sys
 import threading
 import time
+try:
+    import xmlrpc.client as rpcclient
+except ImportError:
+    import xmlrpclib as rpcclient
 
 from DAQConst import DAQPort
 from DAQRPC import RPCClient, RPCServer
@@ -34,7 +39,7 @@ class PortNumber(object):
         return port
 
     @classmethod
-    def set_first(cls, number):
+    def set_next_number(cls, number):
         cls.NEXT_PORT = number
 
 
@@ -89,22 +94,16 @@ class InputOutputThread(threading.Thread):
 
     def pull(self):
         # try to get data from the queue
-        self.__queue_flag.acquire()
-        try:
-            if len(self.__queue) == 0:
+        with self.__queue_flag:
+            if len(self.__queue) == 0:  # pylint: disable=len-as-condition
                 return None
 
             # return the next block of data
             return self.__queue.pop(0)
-        finally:
-            self.__queue_flag.release()
 
     def push(self, data):
-        self.__queue_flag.acquire()
-        try:
+        with self.__queue_flag:
             self.__queue.append(data)
-        finally:
-            self.__queue_flag.release()
 
 
 class InputChannel(InputOutputThread):
@@ -245,7 +244,7 @@ class OutputChannel(InputOutputThread):
 
             try:
                 self.__sock.send(data)
-            except:
+            except:  # pylint: disable=bare-except
                 import traceback
                 traceback.print_exc()
             # written += len(data)
@@ -256,12 +255,13 @@ class OutputChannel(InputOutputThread):
             while self.__running:
                 try:
                     data = fin.read(256)
-                    if data is None or len(data) == 0:
+                    if data is None or \
+                      len(data) == 0:  # pylint: disable=len-as-condition
                         break
 
                     self.__sock.send(data)
                     # written += len(data)
-                except:
+                except:  # pylint: disable=bare-except
                     import traceback
                     traceback.print_exc()
 
@@ -303,7 +303,7 @@ class OutputEngine(Engine):
             chan = OutputChannel(host, port, self, path=path)
             self.add_channel(chan)
             chan.start()
-        except:
+        except:  # pylint: disable=bare-except
             import traceback
             traceback.print_exc()
 
@@ -313,8 +313,8 @@ class OutputEngine(Engine):
             return "O"
         return "o"
 
-    def start(self):
-        pass
+    def start(self):  # pylint: disable=no-self-use
+        return
 
 
 class BeanValue(object):
@@ -332,8 +332,8 @@ class BeanValue(object):
            isinstance(value, numbers.Number):
             return value, value + delta
 
-        if (isinstance(delta, list) or isinstance(delta, tuple)) and \
-           (isinstance(value, list) or isinstance(value, tuple)) and \
+        if isinstance(delta, (list, tuple)) and \
+          isinstance(value, (list, tuple)) and \
            len(delta) == len(value):
             rtnval = value[:]
             newlist = []
@@ -342,12 +342,11 @@ class BeanValue(object):
                 newlist.append(newval)
             if isinstance(value, list):
                 return rtnval, newlist
-            else:
-                return rtnval, tuple(newlist)
+            return rtnval, tuple(newlist)
 
-        print("Not updating %s: value %s<%s> != delta" \
-            " %s<%s>" % (name, value, type(value).__name__, delta,
-                         type(delta).__name__), file=sys.stderr)
+        print("Not updating %s: value %s<%s> != delta %s<%s>" %
+              (name, value, type(value).__name__, delta, type(delta).__name__),
+              file=sys.stderr)
         return value, delta
 
     def get(self):
@@ -377,6 +376,7 @@ class FakeMBeanData(object):
                 "NumberOfActiveAndTotalChannels": ((0, 0), None),
                 "NumberOfNonZombies": (60, 60),
                 "LatestFirstChannelHitTime": (12345, 67890),
+                "EarliestLastChannelHitTime": (23456, 98765),
                 "TotalLBMOverflows": (0, 0),
                 },
             },
@@ -399,8 +399,8 @@ class FakeMBeanData(object):
         "eventBuilder": {
             "backEnd": {
                 "DiskAvailable": (2048, None),
-                "EventData": ((0, 1), (None, 3, 10000000000)),
-                "FirstEventTime": (0, None),
+                "EventData": ((0, 10000000001), (3, 10000000000)),
+                "FirstEventTime": (10000000001, None),
                 "GoodTimes": ((0, 0), None),
                 "NumBadEvents": (0, None),
                 "NumEventsSent": (0, 1),
@@ -412,14 +412,17 @@ class FakeMBeanData(object):
         "secondaryBuilders": {
             "moniBuilder": {
                 "DiskAvailable": (2048, None),
+                "EventData": ((0, 22), (2, 10000000000)),
                 "NumDispatchedData": (0, 100),
                 },
             "snBuilder": {
                 "DiskAvailable": (2048, None),
+                "EventData": ((0, 33), (1, 10000000000)),
                 "NumDispatchedData": (0, 100),
                 },
             "tcalBuilder": {
                 "DiskAvailable": (2048, None),
+                "EventData": ((0, 44), (1, 10000000000)),
                 "NumDispatchedData": (0, 100),
                 },
             }}
@@ -442,19 +445,18 @@ class FakeMBeanData(object):
 
 
 class FakeClientException(Exception):
-    pass
+    "General FakeClient exception"
 
 
 class FakeClient(object):
-    NEXT_PREFIX = 1
+    __next_number = 1
 
     def __init__(self, name, num, conn_list, mbean_dict=None,
                  numeric_prefix=False, quiet=False):
         if not numeric_prefix:
             self.__name = name
         else:
-            self.__name = str(self.NEXT_PREFIX) + name
-            self.NEXT_PREFIX += 1
+            self.__name = str(self.__get_next_number()) + name
 
         self.__num = num
         self.__connections = self.__build_engines(conn_list)
@@ -500,7 +502,7 @@ class FakeClient(object):
                                                       latest_time))
         return "CommitSubrun"
 
-    def __configure(self, cfg_name=None):
+    def __configure(self, _=None):
         self.__state = "ready"
         return self.__state
 
@@ -523,6 +525,24 @@ class FakeClient(object):
         self.__state = "connected"
         return self.__state
 
+    @classmethod
+    def __fix_value(cls, obj):
+        if isinstance(obj, dict):
+            for key, val in list(obj.items()):
+                obj[key] = cls.__fix_value(val)
+        elif isinstance(obj, list):
+            for idx, val in enumerate(obj):
+                obj[idx] = cls.__fix_value(val)
+        elif isinstance(obj, tuple):
+            new_obj = []
+            for val in obj:
+                new_obj.append(cls.__fix_value(val))
+            obj = tuple(new_obj)
+        elif isinstance(obj, int):
+            if obj < rpcclient.MININT or obj > rpcclient.MAXINT:
+                return str(obj)
+        return obj
+
     def __get_mbean_attributes(self, bean, attr_list):
         val_dict = {}
         for attr in attr_list:
@@ -537,19 +557,35 @@ class FakeClient(object):
             raise Exception("Unknown %s MBean \"%s\" attribute \"%s\"" %
                             (self, bean, attr))
 
-        self.__mbean_dict[bean][attr].update()
+        upval = self.__mbean_dict[bean][attr].update()
 
         val = self.__mbean_dict[bean][attr].get()
         if val is None:
-            return ''
+            val = ''
 
-        return val
+        if attr == "EventData":
+            if not isinstance(val, (tuple, list)):
+                raise FakeClientException("EventData should be tuple/list,"
+                                          " not %s" % type(val).__name__)
+            elif len(val) != 2:
+                raise FakeClientException("EventData should be (count, time),"
+                                          " not %s" % str(val))
+
+            val = (self.__run_num, val[0], val[1])
+
+        return self.__fix_value(val)
 
     def __get_events(self, subrun_num):
         if not self.__quiet:
             print("GetEvents %s subrun %d" % (self, subrun_num))
         self.__num_evts += 1
         return self.__num_evts
+
+    @classmethod
+    def __get_next_number(cls):
+        num = cls.__next_number
+        cls.__next_number += 1
+        return num
 
     def __get_output_data_path(self):
         if self.__name == "inIceTrigger":
@@ -572,43 +608,58 @@ class FakeClient(object):
         path = os.path.join(os.environ["HOME"], "prj", "simplehits", fullname)
 
         if not os.path.exists(path):
-            print("%s cannot read data from %s" % (self, path), file=sys.stderr)
+            print("%s cannot read data from %s" % (self, path),
+                  file=sys.stderr)
             return None
 
         return path
 
     def __get_run_data(self, run_num):
-        if not self.__quiet:
-            print("GetRunData %s run %d" % (self, run_num))
-        return (long(1), long(2), long(3), long(4), long(5))
+        if self.__name == "eventBuilder":
+            first_time = self.__mbean_dict["backEnd"]["FirstEventTime"].get()
+            count, now = self.__mbean_dict["backEnd"]["EventData"].get()
+
+            val = (count, first_time, now, first_time, now)
+        elif self.__name.endswith("Builders"):
+            val = (int(1), int(2), int(3), int(4), int(5), int(6))
+        else:
+            raise FakeClientException("Cannot return run data for"
+                                      " non-builder %s" % (self.__name, ))
+
+        return self.__fix_value(val)
 
     def __get_run_number(self):
         return self.__run_num
 
     def __get_source_id(self):
+        src_id = None
         if self.__name == "inIceTrigger":
-            return 4000 + self.__num
+            src_id = 4000 + self.__num
         elif self.__name == "iceTopTrigger":
-            return 5000 + self.__num
+            src_id = 5000 + self.__num
         elif self.__name == "globalTrigger":
-            return 6000 + self.__num
+            src_id = 6000 + self.__num
         elif self.__name == "eventBuilder":
-            return 7000 + self.__num
+            src_id = 7000 + self.__num
         elif self.__name == "tcalBuilder":
-            return 8000 + self.__num
+            src_id = 8000 + self.__num
         elif self.__name == "moniBuilder":
-            return 9000 + self.__num
+            src_id = 9000 + self.__num
         elif self.__name == "snBuilder":
-            return 11000 + self.__num
+            src_id = 11000 + self.__num
         elif self.__name == "stringHub" or self.__name == "icetopHub":
-            return 12000 + self.__num
+            src_id = 12000 + self.__num
         elif self.__name == "secondaryBuilders":
-            return 14000 + self.__num
+            src_id = 14000 + self.__num
+        else:
+            raise Exception("Unknown component name \"%s\"" % (self.__name, ))
+
+        return src_id
 
     def __get_state(self):
         return self.__state
 
-    def __get_version_info(self):
+    def __get_version_info(self):  # pylint: disable=no-self-use
         return '$Id: filename revision date time author xxx'
 
     def __list_connections(self):
@@ -639,8 +690,8 @@ class FakeClient(object):
 
     def __log_to(self, log_host, log_port, live_host, live_port):
         if not self.__quiet:
-            print("LogTo %s LOG %s:%d LIVE %s:%d" % \
-                (self, log_host, log_port, live_host, live_port))
+            print("LogTo %s LOG %s:%d LIVE %s:%d" %
+                  (self, log_host, log_port, live_host, live_port))
         return False
 
     def __prepare_subrun(self, subrun_num):
@@ -664,17 +715,23 @@ class FakeClient(object):
             print("SetFirstGoodTime %s -> %s" % (self, first_time))
         return "SetFirstGoodTime"
 
+    def __set_last_good_time(self, last_time):
+        if not self.__quiet:
+            print("SetLastGoodTime %s -> %s" % (self, last_time))
+        return "SetLastGoodTime"
+
     def __start_run(self, run_num):
         if not self.__quiet:
             print("StartRun %s" % self)
         self.start_run(run_num)
         self.__state = "running"
+        self.__run_num = run_num
         return self.__state
 
     def __start_subrun(self, data):
         if not self.__quiet:
             print("StartSubrun %s data %s" % (self, data))
-        return 123456789L
+        return 123456789
 
     def __stop_run(self):
         if not self.__quiet:
@@ -761,6 +818,8 @@ class FakeClient(object):
         rpc_srvr.register_function(self.__reset_logging, 'xmlrpc.resetLogging')
         rpc_srvr.register_function(self.__set_first_good_time,
                                    'xmlrpc.setFirstGoodTime')
+        rpc_srvr.register_function(self.__set_last_good_time,
+                                   'xmlrpc.setLastGoodTime')
         rpc_srvr.register_function(self.__start_run, 'xmlrpc.startRun')
         rpc_srvr.register_function(self.__stop_run, 'xmlrpc.stopRun')
 
@@ -796,10 +855,10 @@ class FakeClient(object):
             conn.start()
 
     def start_run(self, run_num):
-        print("%s not starting run#%s" % (self, run_num), file=sys.stderr)
+        print("%s fake-starting run#%s" % (self, run_num), file=sys.stderr)
 
     def stop_run(self):
-        print("%s not stopping run" % (self, ), file=sys.stderr)
+        print("%s fake-stopping run" % (self, ), file=sys.stderr)
 
     def switch_run(self, run_num):
-        print("%s not switching to run#%s" % (self, run_num), file=sys.stderr)
+        print("%s fake-switching to run#%s" % (self, run_num), file=sys.stderr)

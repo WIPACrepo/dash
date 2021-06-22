@@ -4,20 +4,24 @@
 
 from __future__ import print_function
 
+import argparse
 import os
 import re
 import sys
 
 from ClusterDescription import ClusterDescription
 from DAQTime import DAQDateTime, PayloadTime
+from i3helper import Comparable
 from utils.DashXMLLog import DashXMLLog
 
 
 class LogParseException(Exception):
-    pass
+    "Log parsing exception"
+    pass  # pylint: disable=unnecessary-pass
 
 
-class LogLevel(object):
+class LogLevel(Comparable):
+    "Translate between string and integer log levels"
     def __init__(self, level):
         if level is None or level.strip() == "":
             self.__level = -1
@@ -40,78 +44,121 @@ class LogLevel(object):
             else:
                 raise ValueError("Unrecognized log level \"%s\"" % level)
 
-    def __cmp__(self, other):
-        return cmp(self.__level, other.__level)
+    @property
+    def compare_key(self):
+        "Return the keys to be used by the Comparable methods"
+        return self.__level
 
     def __repr__(self):
+        val = None
         if self.__level == -1:
-            return ""
+            val = ""
         elif self.__level == 0:
-            return "-"
+            val = "-"
         elif self.__level == 1:
-            return "TRACE"
+            val = "TRACE"
         elif self.__level == 2:
-            return "DEBUG"
+            val = "DEBUG"
         elif self.__level == 3:
-            return "INFO"
+            val = "INFO"
         elif self.__level == 4:
-            return "WARN"
+            val = "WARN"
         elif self.__level == 5:
-            return "ERROR"
+            val = "ERROR"
         elif self.__level == 6:
-            return "FATAL"
+            val = "FATAL"
 
-    def __str__(self):
-        return repr(self)
-
-
-class LogLine(object):
-    def __init__(self, component, className, logLevel, date, text):
-        self.__component = component
-        self.__className = className
-        self.__logLevel = LogLevel(logLevel)
-        self.__date = date
-        self.__text = text
-
-    def __cmp__(self, other):
-        val = cmp(self.__date, other.__date)
-        if val == 0:
-            val = cmp(self.__logLevel, other.__logLevel)
-            if val == 0:
-                val = cmp(self.__component, other.__component)
-                if val == 0:
-                    val = cmp(self.__className, other.__className)
+        if val is None:
+            val = "???%s???" % (self.__level, )
 
         return val
 
-    def __repr__(self):
-        rtnstr = self.__component
-        if self.__className is not None:
-            rtnstr += " " + self.__className
-        rtnstr += " " + str(self.__logLevel)
-        rtnstr += " [" + str(self.__date) + "] " + self.__text
-        return rtnstr
-
     def __str__(self):
         return repr(self)
 
-    def append(self, line):
-        self.__text += "\n" + line
+    @property
+    def level(self):
+        return self.__level
 
-    def setText(self, text):
+    @property
+    def value(self):
+        "Return the numeric value of this log level"
+        return self.__level
+
+
+class LogLine(Comparable):
+    "A single log line"
+
+    def __init__(self, component, class_name, log_level, date, text):
+        self.__component = component
+        self.__class_name = class_name
+        self.__log_level = LogLevel(log_level)
+        self.__date = date
         self.__text = text
 
+    def __repr__(self):
+        "Return a formatted log line"
+        rtnstr = str(self.__component)
+        if self.__class_name is not None:
+            rtnstr += " " + str(self.__class_name)
+        rtnstr += " %s [%s] %s" % (self.__log_level, self.__date, self.__text)
+        return rtnstr
+
+    def __str__(self):
+        "Return a formatted log line"
+        return repr(self)
+
+    def append(self, line):
+        "Append a line of text"
+        self.__text += "\n" + line
+
+    @property
+    def class_name(self):
+        "Return the class name from this log line"
+        return self.__class_name
+
+    @property
+    def compare_key(self):
+        "Return the keys to be used by the Comparable methods"
+        return (self.__date, self.__log_level, self.__component,
+                self.__class_name)
+
+    @property
+    def component(self):
+        "Return the name of the component which logged this line"
+        return self.__component
+
+    @property
+    def date(self):
+        "Return the date from this log line"
+        return self.__date
+
+    @property
+    def log_level(self):
+        "Return the log leve from this log line as a LogLevel object"
+        return self.__log_level
+
+    @property
     def text(self):
+        "Return the text from this log line"
         return self.__text
+
+    @text.setter
+    def text(self, text):
+        "Overwrite the text for this log line"
+        self.__text = text
 
 
 class BadLine(LogLine):
+    "Bad log line"
     def __init__(self, text):
         super(BadLine, self).__init__("??", None, "ERROR",
                                       DAQDateTime(0, 0, 0, 0, 0, 0, 0), text)
 
 
 class BaseLog(object):
+    "Base class for log file parsers"
+
     DATE_STR = r"(\d+-\d+-\d+ \d+:\d+:\d+\.\d+)"
     LINE_PAT = re.compile(r"^(\S+)\s+(\S+)\s+(\S+)\s+\[" + DATE_STR +
                           r"\]\s+(.*)$")
@@ -119,78 +166,81 @@ class BaseLog(object):
 
     LOGSTART_PAT = re.compile(r"Start of log at .*$")
     OLDVERS_PAT = re.compile(r"Version info: \S+ \S+ \S+ \S+Z? \S+ (\S+)"
-                             " (\S+)")
+                             r" (\S+)")
     LOGVERS_PAT = re.compile(r"Version info: (\S+) (\S+) \S+ \S+Z?")
 
-    def __init__(self, fileName):
-        self.__fileName = fileName
-        self.__relName = None
-        self.__relNums = None
+    def __init__(self, file_name):
+        self.__file_name = file_name
+        self.__rel_name = None
+        self.__rel_nums = None
 
     def __str__(self):
-        return self.__fileName
+        return self.__file_name
 
-    def __gotVersionInfo(self, lobj):
-        m = self.LOGVERS_PAT.match(lobj.text())
-        if m:
-            (self.__relName, self.__relNums) = m.groups()
+    def __got_version_info(self, lobj):
+        match = self.LOGVERS_PAT.match(lobj.text)
+        if match is not None:
+            (self.__rel_name, self.__rel_nums) = match.groups()
             return True
 
-        m = self.OLDVERS_PAT.match(lobj.text())
-        if m:
-            (self.__relName, self.__relNums) = m.groups()
+        match = self.OLDVERS_PAT.match(lobj.text)
+        if match is not None:
+            (self.__rel_name, self.__rel_nums) = match.groups()
             return True
 
         return False
 
-    def __parseLine(self, line):
-        m = self.LINE_PAT.match(line)
-        if m is not None:
-            (component, className, logLevel, dateStr, text) = m.groups()
+    def __parse_line(self, line):
+        match = self.LINE_PAT.match(line)
+        if match is not None:
+            (component, class_name, log_level, date_str, text) = match.groups()
         else:
-            m = self.DASH_PAT.match(line)
-            if m is not None:
-                (component, dateStr, text) = m.groups()
-                (className, logLevel) = ("-", "-")
+            match = self.DASH_PAT.match(line)
+            if match is not None:
+                (component, date_str, text) = match.groups()
+                (class_name, log_level) = ("-", "-")
             else:
                 return None
 
         try:
-            date = PayloadTime.fromString(dateStr)
+            date = PayloadTime.from_string(date_str)
         except ValueError:
             return BadLine(line)
 
-        return LogLine(component, className, logLevel, date, text)
+        return LogLine(component, class_name, log_level, date, text)
 
-    def _isNoise(self, _):
-        raise Exception("Unimplemented for " + self.__fileName)
+    def _is_noise(self, _):
+        """Return True if this line is "noise" and should be ignored"""
+        raise Exception("Unimplemented for " + self.__file_name)
 
-    def _isStart(self, lobj):
-        m = self.LOGSTART_PAT.match(lobj.text())
-        if m:
+    def _is_start(self, lobj):
+        match = self.LOGSTART_PAT.match(lobj.text)
+        if match is not None:
             return True
 
         return False
 
-    def cleanup(self, lobj):
-        pass
+    def cleanup(self, lobj):  # pylint: disable=no-self-use,unused-argument
+        "Clean up the log line"
+        return
 
-    def parse(self, path, verbose):
+    def parse(self, path, verbose=False):
+        "Parse a log file"
         log = []
-        with open(path, 'r') as fd:
+        with open(path, 'r') as fin:
             prevobj = None
-            for line in fd:
+            for line in fin:
                 line = line.rstrip()
-                if len(line) == 0:
+                if line == "":
                     continue
 
-                lobj = self.__parseLine(line)
+                lobj = self.__parse_line(line)
                 if lobj is not None:
-                    if self.__gotVersionInfo(lobj):
+                    if self.__got_version_info(lobj):
                         if verbose:
                             log.append(lobj)
-                    elif verbose or (not self._isStart(lobj) and
-                                     not self._isNoise(lobj)):
+                    elif verbose or (not self._is_start(lobj) and
+                                     not self._is_noise(lobj)):
                         log.append(lobj)
 
                     if prevobj is not None:
@@ -208,6 +258,8 @@ class BaseLog(object):
 
 
 class CatchallLog(BaseLog):
+    "Parser for catchall.log files"
+
     CYCLE_PAT = re.compile(r"Cycling components \[(.*)\]$")
     CYCLE_PAT2 = re.compile(r"Cycling components \w[\w#\-, ]+$")
     LOGLINE_PAT = re.compile(r"(\S+) (\S+)" +
@@ -216,145 +268,153 @@ class CatchallLog(BaseLog):
     REG_PAT = re.compile(r"Registered (\S+)$")
     SHUTHOOK_PAT = re.compile(r"ShutdownHook: moving temp file for (\S+)")
 
-    def __init__(self, fileName):
-        super(CatchallLog, self).__init__(fileName)
-
-    def _isNoise(self, lobj):
+    def _is_noise(self, lobj):
+        """Return True if this line is "noise" and should be ignored"""
         for pat in (self.CYCLE_PAT, self.CYCLE_PAT2, self.LOGLINE_PAT,
                     self.REG_PAT, self.SHUTHOOK_PAT):
-            m = pat.match(lobj.text())
-            if m:
+            match = pat.match(lobj.text)
+            if match is not None:
                 return True
 
         return False
 
 
 class CnCServerLog(BaseLog):
-    def __init__(self, fileName):
-        super(CnCServerLog, self).__init__(fileName)
+    "Parser for CnCServer log files"
 
-    def _isNoise(self, lobj):
+    def _is_noise(self, _):
+        """Return True if this line is "noise" and should be ignored"""
         return False
 
 
 class DashLog(BaseLog):
+    "Parser for dash.log files"
+
     RATES_PAT = re.compile(r"\d+ physics events(\s+\(\d+\.\d+ Hz\))?," +
                            r" \d+ moni events, \d+ SN events, \d+ tcals")
 
-    def __init__(self, fileName, hide_rates=False):
-        super(DashLog, self).__init__(fileName)
+    def __init__(self, file_name, hide_rates=False):
+        super(DashLog, self).__init__(file_name)
 
-        self.__hideRates = hide_rates
+        self.__hide_rates = hide_rates
 
-    def _isNoise(self, lobj):
-        if self.__hideRates:
-            m = self.RATES_PAT.match(lobj.text())
-            if m:
+    def _is_noise(self, lobj):
+        """Return True if this line is "noise" and should be ignored"""
+        if self.__hide_rates:
+            match = self.RATES_PAT.match(lobj.text)
+            if match is not None:
                 return True
 
         return False
 
 
 class EventBuilderLog(BaseLog):
-    def __init__(self, fileName):
-        super(EventBuilderLog, self).__init__(fileName)
+    "Parser for eventBuilder log files"
 
-    def _isNoise(self, lobj):
+    def _is_noise(self, _):
+        """Return True if this line is "noise" and should be ignored"""
         return False
 
 
 class GlobalTriggerLog(BaseLog):
-    def __init__(self, fileName):
-        super(GlobalTriggerLog, self).__init__(fileName)
+    "Parser for globalTrigger log files"
 
-    def _isNoise(self, lobj):
+    def _is_noise(self, _):
+        """Return True if this line is "noise" and should be ignored"""
         return False
 
 
 class LocalTriggerLog(BaseLog):
-    def __init__(self, fileName):
-        super(LocalTriggerLog, self).__init__(fileName)
+    "Parser for inIceTrigger/iceTopTrigger log files"
 
-    def _isNoise(self, lobj):
+    def _is_noise(self, _):
+        """Return True if this line is "noise" and should be ignored"""
         return False
 
 
 class SecondaryBuildersLog(BaseLog):
-    def __init__(self, fileName):
-        super(SecondaryBuildersLog, self).__init__(fileName)
+    "Parser for secondaryBuilders log files"
 
-    def _isNoise(self, lobj):
+    def _is_noise(self, _):
+        """Return True if this line is "noise" and should be ignored"""
         return False
 
 
 class StringHubLog(BaseLog):
-    def __init__(self, fileName, show_tcal=False, hide_sn_gaps=False,
+    "Parser for stringHub log files"
+
+    def __init__(self, file_name, show_tcal=False, hide_sn_gaps=False,
                  show_lbmdebug=False):
-        super(StringHubLog, self).__init__(fileName)
+        super(StringHubLog, self).__init__(file_name)
 
-        self.__showTCAL = show_tcal
-        self.__hideSNGaps = hide_sn_gaps
-        self.__showLBMDebug = show_lbmdebug
+        self.__show_tcal = show_tcal
+        self.__hide_sn_gaps = hide_sn_gaps
+        self.__show_lbmdebug = show_lbmdebug
 
-    def _isNoise(self, lobj):
-        if not self.__showTCAL and \
-            (lobj.text().startswith("Wild TCAL") or
-             lobj.text().find("Got IO exception") >= 0 or
-             lobj.text().find("Ignoring tcal error") >= 0):
+    def _is_noise(self, lobj):
+        """Return True if this line is "noise" and should be ignored"""
+        if not self.__show_tcal and \
+            (lobj.text.startswith("Wild TCAL") or
+             lobj.text.find("Got IO exception") >= 0 or
+             lobj.text.find("Ignoring tcal error") >= 0):
             return True
 
-        if not self.__showLBMDebug and \
-            (lobj.text().startswith("HISTORY:") or
-             lobj.text().find("data collection stats") >= 0):
+        if not self.__show_lbmdebug and \
+            (lobj.text.startswith("HISTORY:") or
+             lobj.text.find("data collection stats") >= 0):
             return True
 
-        if self.__hideSNGaps and \
-                lobj.text().startswith("Gap or overlap in SN rec"):
+        if self.__hide_sn_gaps and \
+                lobj.text.startswith("Gap or overlap in SN rec"):
             return True
 
         return False
 
     def cleanup(self, lobj):
-        if lobj.text().find("Got IO exception") >= 0 and \
-                lobj.text().find("TCAL read failed") > 0:
-            lobj.setText("TCAL read failed")
-        elif lobj.text().find("Ignoring tcal error") >= 0 and \
-             lobj.text().find("TCAL read failed") > 0:
-            lobj.setText("TCAL read failed")
+        "Clean up the log line"
+        if lobj.text.find("Got IO exception") >= 0 and \
+                lobj.text.find("TCAL read failed") > 0:
+            lobj.set_text("TCAL read failed")
+        elif lobj.text.find("Ignoring tcal error") >= 0 and \
+             lobj.text.find("TCAL read failed") > 0:
+            lobj.set_text("TCAL read failed")
 
 
 class ReplayHubLog(BaseLog):
-    def __init__(self, fileName):
-        super(ReplayHubLog, self).__init__(fileName)
+    "Parser for replayHub log files"
 
-    def _isNoise(self, lobj):
+    def _is_noise(self, _):
+        """Return True if this line is "noise" and should be ignored"""
         return False
 
 
 class LogSorter(object):
-    def __init__(self, runDir=None, runNum=None):
-        self.__runDir = runDir
-        self.__runNum = runNum
+    "Sort all the log files from a single run"
 
-    def __processDir(self, dirName, verbose=False, show_tcal=False,
-                     hide_rates=False, hide_sn_gaps=False,
-                     show_lbmdebug=False):
+    def __init__(self, run_dir=None, run_num=None):
+        self.__run_dir = run_dir
+        self.__run_num = run_num
+
+    def __process_dir(self, dir_name, verbose=False, show_tcal=False,
+                      hide_rates=False, hide_sn_gaps=False,
+                      show_lbmdebug=False):
         log = None
-        for f in os.listdir(dirName):
+        for entry in os.listdir(dir_name):
             # ignore MBean output files and run summary files
-            if f.endswith(".moni") or f == "run.xml" or f == "logs-queued":
+            if entry.endswith(".moni") or entry == "run.xml" or \
+              entry == "logs-queued":
                 continue
 
-            path = os.path.join(dirName, f)
+            path = os.path.join(dir_name, entry)
 
             if not os.path.isfile(path):
                 continue
 
-            flog = self.__processFile(path, verbose=verbose,
-                                      show_tcal=show_tcal,
-                                      hide_rates=hide_rates,
-                                      hide_sn_gaps=hide_sn_gaps,
-                                      show_lbmdebug=show_lbmdebug)
+            flog = self.__process_file(path, verbose=verbose,
+                                       show_tcal=show_tcal,
+                                       hide_rates=hide_rates,
+                                       hide_sn_gaps=hide_sn_gaps,
+                                       show_lbmdebug=show_lbmdebug)
             if flog is not None:
                 if log is None:
                     log = flog
@@ -363,84 +423,95 @@ class LogSorter(object):
 
         return log
 
-    def __processFile(self, path, verbose=False, show_tcal=False,
-                      hide_rates=False, hide_sn_gaps=False,
-                      show_lbmdebug=False):
-        fileName = os.path.basename(path)
+    @classmethod
+    def __process_file(cls, path, verbose=False, show_tcal=False,
+                       hide_rates=False, hide_sn_gaps=False,
+                       show_lbmdebug=False):
+        file_name = os.path.basename(path)
 
         log = None
-        if not fileName.endswith(".log"):
+        if not file_name.endswith(".log"):
             return [BadLine("Ignoring \"%s\"" % path), ]
-        elif fileName.startswith("stringHub-"):
-            log = StringHubLog(fileName, show_tcal=show_tcal,
+
+        if file_name.startswith("stringHub-"):
+            log = StringHubLog(file_name, show_tcal=show_tcal,
                                hide_sn_gaps=hide_sn_gaps,
                                show_lbmdebug=show_lbmdebug)
-        elif fileName.startswith("inIceTrigger-") or \
-                fileName.startswith("iceTopTrigger-"):
-            log = LocalTriggerLog(fileName)
-        elif fileName.startswith("globalTrigger-"):
-            log = GlobalTriggerLog(fileName)
-        elif fileName.startswith("eventBuilder-"):
-            log = EventBuilderLog(fileName)
-        elif fileName.startswith("secondaryBuilders-"):
-            log = SecondaryBuildersLog(fileName)
-        elif fileName.startswith("catchall"):
-            log = CatchallLog(fileName)
-        elif fileName.startswith("cncserver"):
-            log = CnCServerLog(fileName)
-        elif fileName.startswith("replayHub-"):
-            log = ReplayHubLog(fileName)
-        elif fileName.startswith("dash"):
-            log = DashLog(fileName, hide_rates=hide_rates)
-        elif fileName.startswith("combined") or \
-                fileName.startswith(".combined"):
+        elif file_name.startswith("inIceTrigger-") or \
+                file_name.startswith("iceTopTrigger-"):
+            log = LocalTriggerLog(file_name)
+        elif file_name.startswith("globalTrigger-"):
+            log = GlobalTriggerLog(file_name)
+        elif file_name.startswith("eventBuilder-"):
+            log = EventBuilderLog(file_name)
+        elif file_name.startswith("secondaryBuilders-"):
+            log = SecondaryBuildersLog(file_name)
+        elif file_name.startswith("catchall"):
+            log = CatchallLog(file_name)
+        elif file_name.startswith("cncserver"):
+            log = CnCServerLog(file_name)
+        elif file_name.startswith("replayHub-"):
+            log = ReplayHubLog(file_name)
+        elif file_name.startswith("dash"):
+            log = DashLog(file_name, hide_rates=hide_rates)
+        elif file_name.startswith("combined") or \
+                file_name.startswith(".combined"):
             return None
         else:
             return [BadLine("Unknown log file \"%s\"" % path), ]
 
         return log.parse(path, verbose)
 
-    def dumpRun(self, out, verbose=False, show_tcal=False, hide_rates=False,
-                hide_sn_gaps=False, show_lbmdebug=False):
+    def dump_run(self, out, verbose=False, show_tcal=False, hide_rates=False,
+                 hide_sn_gaps=False, show_lbmdebug=False):
+        "Print a summary of the run"
         try:
-            runXML = DashXMLLog.parse(self.__runDir)
-        except:
-            runXML = None
+            run_xml = DashXMLLog.parse(self.__run_dir)
+        except:  # pylint: disable=bare-except
+            run_xml = None
 
-        if runXML is None:
+        if run_xml is None:
             cond = ""
         else:
-            if runXML.getTermCond():
+            if run_xml.run_status:
                 cond = "ERROR"
-            else:
+            elif run_xml.run_status is not None:
                 cond = "SUCCESS"
+            else:
+                cond = "UNKNOWN"
 
-            if runXML.getEndTime() is None or runXML.getStartTime() is None:
+            if run_xml.end_time is None or run_xml.start_time is None:
                 secs = 0
             else:
-                delta = runXML.getEndTime() - runXML.getStartTime()
+                delta = run_xml.end_time - run_xml.start_time
+                # pylint: disable=no-member
+                # PyLint thinks 'delta' is a 'float'
                 secs = float(delta.seconds) + \
                        (float(delta.microseconds) / 1000000.0)
 
         if cond == "ERROR":
             print("-v-v-v-v-v-v-v-v-v-v ERROR v-v-v-v-v-v-v-v-v-v-", file=out)
-        if runXML is not None:
-            print("Run %s: %s, %d evts, %s secs" % \
-                (runXML.getRun(), cond, runXML.getEvents(), secs), file=out)
-            print("    %s" % runXML.getConfig(), file=out)
-            print("    from %s to %s" % \
-                (runXML.getStartTime(), runXML.getEndTime()), file=out)
-        log = sorted(self.__processDir(self.__runDir, verbose=verbose,
-                                show_tcal=show_tcal, hide_rates=hide_rates,
-                                hide_sn_gaps=hide_sn_gaps,
-                                show_lbmdebug=show_lbmdebug))
-        for l in log:
-            print(str(l), file=out)
+        if run_xml is not None:
+            print("Run %s: %s, %d evts, %s secs" %
+                  (run_xml.run_number, cond, run_xml.num_physics, secs),
+                  file=out)
+            print("    %s" % run_xml.run_config_name, file=out)
+            print("    from %s to %s" %
+                  (run_xml.start_time, run_xml.end_time), file=out)
+        log = sorted(self.__process_dir(self.__run_dir, verbose=verbose,
+                                        show_tcal=show_tcal,
+                                        hide_rates=hide_rates,
+                                        hide_sn_gaps=hide_sn_gaps,
+                                        show_lbmdebug=show_lbmdebug))
+        for line in log:
+            print(str(line), file=out)
         if cond == "ERROR":
             print("-^-^-^-^-^-^-^-^-^-^ ERROR ^_^_^_^_^_^_^_^_^_^_", file=out)
 
 
 def add_arguments(parser):
+    "Add command-line arguments"
+
     parser.add_argument("-d", "--rundir", dest="rundir",
                         help=("Directory holding pDAQ run monitoring"
                               " and log files"))
@@ -459,29 +530,29 @@ def add_arguments(parser):
     parser.add_argument("-v", "--verbose", dest="verbose",
                         action="store_true", default=False,
                         help="Include superfluous log lines")
-    parser.add_argument("runNumber", nargs="+")
+    parser.add_argument("run_number", nargs="+")
 
 
-def getDirAndRunnum(topDir, subDir):
+def get_dir_and_runnum(top_dir, sub_dir):
     "Return path to log files and run number for the log files"
 
-    DIGITS_PAT = re.compile(r"^.*(\d+)$")
+    digits_pat = re.compile(r"^.*(\d+)$")
     for i in range(100):
         if i == 0:
-            fullpath = os.path.join(topDir, subDir)
+            fullpath = os.path.join(top_dir, sub_dir)
         elif i == 1:
-            fullpath = subDir
+            fullpath = sub_dir
         elif i == 2:
             try:
-                num = int(subDir)
-                fullpath = os.path.join(topDir, "daqrun%05d" % num)
-            except:
+                num = int(sub_dir)
+                fullpath = os.path.join(top_dir, "daqrun%05d" % num)
+            except ValueError:
                 continue
         elif i == 3:
             try:
-                num = int(subDir)
+                num = int(sub_dir)
                 fullpath = "daqrun%05d" % num
-            except:
+            except ValueError:
                 continue
         else:
             break
@@ -491,14 +562,14 @@ def getDirAndRunnum(topDir, subDir):
             if filename.startswith("daqrun"):
                 numstr = filename[6:]
             else:
-                m = DIGITS_PAT.match(filename)
-                if m is not None:
-                    numstr = m.group(1)
+                match = digits_pat.match(filename)
+                if match is not None:
+                    numstr = match.group(1)
                 else:
                     numstr = filename
             try:
                 return(fullpath, int(numstr))
-            except:
+            except ValueError:
                 pass
 
     return (None, None)
@@ -506,28 +577,33 @@ def getDirAndRunnum(topDir, subDir):
 
 def sort_logs(args):
     if args.rundir is not None:
-        runDir = args.rundir
+        run_dir = args.rundir
     else:
-        cd = ClusterDescription()
-        runDir = cd.daqLogDir
+        cdesc = ClusterDescription()
+        run_dir = cdesc.daq_log_dir
 
-    for arg in args.runNumber:
-        (path, runnum) = getDirAndRunnum(runDir, arg)
-        if path is None or runnum is None:
+    for arg in args.run_number:
+        (path, run_num) = get_dir_and_runnum(run_dir, arg)
+        if path is None or run_num is None:
             print("Bad run number \"%s\"" % arg, file=sys.stderr)
             continue
 
-        ls = LogSorter(path, runnum)
-        ls.dumpRun(sys.stdout, verbose=args.verbose, show_tcal=args.show_tcal,
-                   hide_rates=args.hide_rates, hide_sn_gaps=args.hide_sn_gaps,
-                   show_lbmdebug=args.show_lbmdebug)
+        lsrt = LogSorter(path, run_num)
+        lsrt.dump_run(sys.stdout, verbose=args.verbose,
+                      show_tcal=args.show_tcal, hide_rates=args.hide_rates,
+                      hide_sn_gaps=args.hide_sn_gaps,
+                      show_lbmdebug=args.show_lbmdebug)
+
+
+def main():
+    "Main program"
+
+    parser = argparse.ArgumentParser()
+    add_arguments(parser)
+    args = parser.parse_args()
+
+    sort_logs(args)
 
 
 if __name__ == "__main__":
-    import argparse
-
-    p = argparse.ArgumentParser()
-    add_arguments(p)
-    args = p.parse_args()
-
-    sort_logs(args)
+    main()

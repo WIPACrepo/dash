@@ -11,34 +11,39 @@ from DAQMocks import SocketWriter
 
 
 class TestDAQLog(unittest.TestCase):
+    "Test DAQLog class"
     DIR_PATH = None
 
-    def checkLog(self, logPath, msgList):
-        lines = self.readLog(logPath)
-        self.assertEqual(len(msgList), len(lines), 'Expected %d line, not %d' %
-                         (len(msgList), len(lines)))
+    def __check_log(self, log_path, msg_list):
+        "Compare log file lines against original log messages"
+        lines = self.__read_log(log_path)
+        self.assertEqual(len(msg_list), len(lines),
+                         'Expected %d line(s), not %d' %
+                         (len(msg_list), len(lines)))
 
-        for i in range(len(msgList)):
-            msg = lines[i].rstrip()
-            self.assertEqual(msgList[i], msg,
-                             'Expected "%s", not "%s"' % (msgList[i], msg))
+        for idx, msg in enumerate(msg_list):
+            msg = msg.rstrip()
+            line = lines[idx].rstrip()
+            self.assertEqual(line, msg,
+                             'Expected "%s", not "%s"' % (msg, line))
 
-    def readLog(self, logPath):
+    @classmethod
+    def __read_log(cls, log_path):
+        "Return log file contents as a list of strings"
         lines = []
-        fd = open(logPath, 'r')
-        for line in fd:
-            lines.append(line.rstrip())
-        fd.close()
+        with open(log_path, 'r') as fin:
+            for line in fin:
+                lines.append(line.rstrip())
         return lines
 
     def setUp(self):
-        self.sockLog = None
+        self.__sock_log = None
 
         TestDAQLog.DIR_PATH = tempfile.mkdtemp()
 
     def tearDown(self):
-        if self.sockLog is not None:
-            self.sockLog.stopServing()
+        if self.__sock_log is not None:
+            self.__sock_log.stop_serving()
 
         time.sleep(0.1)
 
@@ -51,19 +56,48 @@ class TestDAQLog(unittest.TestCase):
         os.rmdir(TestDAQLog.DIR_PATH)
         TestDAQLog.DIR_PATH = None
 
-    def testLogSocketServer(self):
-        port = 5432
-        cname = 'foo'
-        logPath = os.path.join(TestDAQLog.DIR_PATH, cname + '.log')
+    def test_log_socket_server_no_port(self):
+        "Test LogSocketServer with unassigned port number"
+        cname = 'portless'
+        log_path = os.path.join(TestDAQLog.DIR_PATH, cname + '.log')
 
-        self.sockLog = LogSocketServer(port, cname, logPath, True)
-        self.sockLog.startServing()
+        self.__sock_log = LogSocketServer(None, cname, log_path, True)
+        self.__sock_log.start_serving()
         for _ in range(5):
-            if self.sockLog.isServing:
+            if self.__sock_log.is_serving:
                 break
             time.sleep(0.1)
-        self.assertTrue(os.path.exists(logPath), 'Log file was not created')
-        self.assertTrue(self.sockLog.isServing, 'Log server was not started')
+        self.assertTrue(os.path.exists(log_path), 'Log file was not created')
+        self.assertTrue(self.__sock_log.is_serving,
+                        'Log server was not started')
+
+        now = datetime.datetime.now()
+        msg = 'Test 1 2 3'
+
+        client = SocketWriter('localhost', self.__sock_log.port)
+        client.write_ts(msg, now)
+
+        client.close()
+
+        self.__sock_log.stop_serving()
+
+        self.__check_log(log_path, ('%s - - [%s] %s' % (cname, now, msg), ))
+
+    def test_log_socket_server(self):
+        "Test LogSocketServer"
+        port = 5432
+        cname = 'foo'
+        log_path = os.path.join(TestDAQLog.DIR_PATH, cname + '.log')
+
+        self.__sock_log = LogSocketServer(port, cname, log_path, True)
+        self.__sock_log.start_serving()
+        for _ in range(5):
+            if self.__sock_log.is_serving:
+                break
+            time.sleep(0.1)
+        self.assertTrue(os.path.exists(log_path), 'Log file was not created')
+        self.assertTrue(self.__sock_log.is_serving,
+                        'Log server was not started')
 
         now = datetime.datetime.now()
         msg = 'Test 1 2 3'
@@ -73,9 +107,9 @@ class TestDAQLog(unittest.TestCase):
 
         client.close()
 
-        self.sockLog.stopServing()
+        self.__sock_log.stop_serving()
 
-        self.checkLog(logPath, ('%s - - [%s] %s' % (cname, str(now), msg), ))
+        self.__check_log(log_path, ('%s - - [%s] %s' % (cname, now, msg), ))
 
 
 if __name__ == '__main__':

@@ -7,8 +7,14 @@
 # J. Jacobsen, for UW-IceCube 2006-2007
 #
 
-import DocXMLRPCServer
-import datetime
+from __future__ import print_function
+
+try:
+    from DocXMLRPCServer import DocXMLRPCServer
+    from xmlrpclib import ServerProxy, Transport
+except:  # ModuleNotFoundError only works under 2.7/3.0
+    from xmlrpc.server import DocXMLRPCServer
+    from xmlrpc.client import ServerProxy, Transport
 import errno
 import math
 import select
@@ -17,29 +23,28 @@ import sys
 import threading
 import time
 import traceback
-import xmlrpclib
 
-class LockedTransport(xmlrpclib.Transport):
+
+class LockedTransport(Transport):
     "XML-RPC transport layer which only allows one active request at a time"
 
     def __init__(self):
-        xmlrpclib.Transport.__init__(self)
+        Transport.__init__(self)
         self.__req_lock = threading.Lock()
-
-    if sys.version_info < (2, 7):
-        super_single_request = None
-    else:
-        # Preserve Transport.single_request so we can call it
-        super_single_request = xmlrpclib.Transport.single_request
 
     def single_request(self, host, handler, request_body, verbose=0):
         "Don't allow more than one request at a time"
         with self.__req_lock:
-            return self.super_single_request(host, handler, request_body,
-                                             verbose=verbose)
+            if sys.version_info < (3, 0):
+                return Transport.single_request(self, host, handler,
+                                                request_body, verbose=verbose)
+
+            return super(LockedTransport, self).single_request(host, handler,
+                                                               request_body,
+                                                               verbose=verbose)
 
 
-class RPCClient(xmlrpclib.ServerProxy):
+class RPCClient(ServerProxy):
     """Generic class for accessing methods on remote objects
     WARNING: instantiating RPCClient sets socket default timeout duration!"""
 
@@ -52,7 +57,7 @@ class RPCClient(xmlrpclib.ServerProxy):
         self.servername = servername
         self.portnum = portnum
 
-        hostPort = "%s:%s" % (self.servername, self.portnum)
+        host_port = "%s:%s" % (self.servername, self.portnum)
 
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # !!!!!! Warning - this is ugly !!!!!!!
@@ -66,15 +71,15 @@ class RPCClient(xmlrpclib.ServerProxy):
         else:
             transport = LockedTransport()
 
-        xmlrpclib.ServerProxy.__init__(self, "http://" + hostPort,
-                                       transport=transport, verbose=verbose)
+        ServerProxy.__init__(self, "http://" + host_port, transport=transport,
+                             verbose=verbose)
 
     @classmethod
     def client_statistics(cls):
         return {}
 
 
-class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
+class RPCServer(DocXMLRPCServer):
     "Generic class for serving methods to remote objects"
     # also inherited: register_function
     def __init__(self, portnum, servername="localhost",
@@ -90,8 +95,7 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
         self.__sock_count = 0
         self.__registered = False
 
-        DocXMLRPCServer.DocXMLRPCServer.__init__(self, ('', portnum),
-                                                 logRequests=False)
+        DocXMLRPCServer.__init__(self, ('', portnum), logRequests=False)
         # note that this has to be AFTER the init above as it can be
         # set to false in the __init__
         self.allow_reuse_address = True
@@ -119,7 +123,8 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
                     self.__times[method] = RPCStats(method)
                 self.__times[method].add(time.time() - start, success)
 
-    def client_statistics(self):
+    @classmethod
+    def client_statistics(cls):
         return {}
 
     def get_request(self):
@@ -141,8 +146,14 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
     def server_close(self):
         if self.__running:
             self.__running = False
-            self.__is_shut_down.wait()
-        DocXMLRPCServer.DocXMLRPCServer.server_close(self)
+            try:
+                self.socket.shutdown(2)
+                self.socket.close()
+            except:
+                print("Error while closing RPCServer\n%s" %
+                      traceback.format_exc())
+            # self.__is_shut_down.wait()
+        DocXMLRPCServer.server_close(self)
 
     def server_statistics(self):
         # get statistics for server calls
@@ -168,18 +179,18 @@ class RPCServer(DocXMLRPCServer.DocXMLRPCServer):
         self.__running = True
         self.__is_shut_down.clear()
         while self.__running:
-            # initialize r to an empty list - identical behaviour to a timeout
-            r = []
             try:
-                r, w, e = select.select([self.socket], [], [], self.__timeout)
+                rdat, _, _ = select.select([self.socket], [], [],
+                                           self.__timeout)
             except select.error as err:
                 if err[0] == errno.EINTR:  # Interrupted system call
                     continue
                 if err[0] != errno.EBADF:  # Bad file descriptor
                     traceback.print_exc()
                 break
-            if r:
+            if rdat:
                 self.handle_request()
+
         self.__is_shut_down.set()
 
 
@@ -214,13 +225,19 @@ class RPCStats(object):
         xavg2 = avg * avg
         try:
             rms = math.sqrt(x2avg - xavg2)
-        except:
+        except ValueError:
             rms = 0
 
         return (self.__num, self.__succeed, self.__failed, self.__min,
                 self.__max, avg, rms)
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     from DAQConst import DAQPort
-    cl = RPCClient("localhost", DAQPort.CNCSERVER)
+    RPCClient("localhost", DAQPort.CNCSERVER)
+
+
+if __name__ == "__main__":
+    main()

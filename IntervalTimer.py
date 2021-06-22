@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+"Timer which triggers each time the specified number of seconds has passed"
 
 from datetime import datetime
 
@@ -7,37 +8,38 @@ class IntervalTimer(object):
     """
     Timer which triggers each time the specified number of seconds has passed.
     """
-    def __init__(self, name, interval, startTriggered=False):
+    def __init__(self, name, interval, start_triggered=False):
         self.__name = name
-        self.__isTime = startTriggered
-        self.__nextTime = None
+        self.__is_time = start_triggered
+        self.__next_time = None
         self.__interval = interval
 
-    def isTime(self, now=None):
+    def is_time(self, now=None):
         "Return True if another interval has passed"
-        if not self.__isTime:
-            secsLeft = self.timeLeft(now)
+        if not self.__is_time:
+            secs_left = self.time_left(now)
 
-            if secsLeft <= 0.0:
-                self.__isTime = True
+            if secs_left <= 0.0:
+                self.__is_time = True
 
-        return self.__isTime
+        return self.__is_time
 
     def reset(self):
         "Reset timer for the next interval"
-        self.__nextTime = datetime.now()
-        self.__isTime = False
+        self.__next_time = datetime.now()
+        self.__is_time = False
 
-    def timeLeft(self, now=None):
-        if self.__isTime:
+    def time_left(self, now=None):
+        "Return the number of seconds remaining in this interval"
+        if self.__is_time:
             return 0.0
 
         if now is None:
             now = datetime.now()
-        if self.__nextTime is None:
-            self.__nextTime = now
+        if self.__next_time is None:
+            self.__next_time = now
 
-        dt = now - self.__nextTime
+        dtm = now - self.__next_time
 
-        secs = dt.seconds + (dt.microseconds * 0.000001)
+        secs = dtm.seconds + (dtm.microseconds * 0.000001)
         return self.__interval - secs

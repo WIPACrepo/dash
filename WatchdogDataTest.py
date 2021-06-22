@@ -9,8 +9,8 @@ class MockBean(object):
     def __init__(self, val):
         self.__val = val
 
-    def _setValue(self, newVal):
-        self.__val = newVal
+    def _set_value(self, new_val):
+        self.__val = new_val
 
     def _value(self):
         return self.__val
@@ -21,10 +21,11 @@ class MockBeanDecreasing(MockBean):
         self.__dec = dec
         super(MockBeanDecreasing, self).__init__(val)
 
-    def nextValue(self):
-        newVal = self._value() - self.__dec
-        self._setValue(newVal)
-        return newVal
+    @property
+    def next_value(self):
+        new_val = self._value() - self.__dec
+        self._set_value(new_val)
+        return new_val
 
 
 class MockBeanIncreasing(MockBean):
@@ -32,90 +33,98 @@ class MockBeanIncreasing(MockBean):
         self.__inc = inc
         super(MockBeanIncreasing, self).__init__(val)
 
-    def nextValue(self):
-        newVal = self._value() + self.__inc
-        self._setValue(newVal)
-        return newVal
+    @property
+    def next_value(self):
+        new_val = self._value() + self.__inc
+        self._set_value(new_val)
+        return new_val
 
 
 class MockBeanStagnant(MockBean):
-    def __init__(self, val, countDown):
-        self.__countDown = countDown
+    def __init__(self, val, count_down):
+        self.__count_down = count_down
         super(MockBeanStagnant, self).__init__(val)
 
-    def nextValue(self):
+    @property
+    def next_value(self):
         val = self._value()
-        if self.__countDown == 0:
+        if self.__count_down == 0:
             return val
-        self.__countDown -= 1
+        self.__count_down -= 1
         val += 1
-        self._setValue(val)
+        self._set_value(val)
         return val
 
 
 class MockBeanTimeBomb(MockBeanIncreasing):
-    def __init__(self, val, inc, bombTicks):
-        self.__bombTicks = bombTicks
+    def __init__(self, val, inc, bomb_ticks):
+        self.__bomb_ticks = bomb_ticks
         super(MockBeanTimeBomb, self).__init__(val, inc)
 
-    def nextValue(self):
-        if self.__bombTicks == 0:
+    @property
+    def next_value(self):
+        if self.__bomb_ticks == 0:
             raise Exception("TimeBomb")
-        self.__bombTicks -= 1
-        return super(MockBeanTimeBomb, self).nextValue()
+        self.__bomb_ticks -= 1
+        return super(MockBeanTimeBomb, self).next_value
 
 
 class MockMBeanClient(object):
     def __init__(self):
-        self.__beanData = {}
+        self.__bean_data = {}
 
-    def __checkAddBean(self, name, fldName):
-        if name not in self.__beanData:
-            self.__beanData[name] = {}
-        if fldName in self.__beanData[name]:
+    def __check_add_bean(self, name, fld_name):
+        if name not in self.__bean_data:
+            self.__bean_data[name] = {}
+        if fld_name in self.__bean_data[name]:
             raise Exception("Cannot add duplicate bean %s.%s to %s" %
-                            (name, fldName, self.fullname))
+                            (name, fld_name, self.fullname))
 
-    def addDecreasing(self, name, fldName, val, dec):
-        self.__checkAddBean(name, fldName)
-        self.__beanData[name][fldName] = MockBeanDecreasing(val, dec)
+    def add_decreasing(self, name, fld_name, val, dec):
+        self.__check_add_bean(name, fld_name)
+        self.__bean_data[name][fld_name] = MockBeanDecreasing(val, dec)
 
-    def addIncreasing(self, name, fldName, val, inc):
-        self.__checkAddBean(name, fldName)
-        self.__beanData[name][fldName] = MockBeanIncreasing(val, inc)
+    def add_increasing(self, name, fld_name, val, inc):
+        self.__check_add_bean(name, fld_name)
+        self.__bean_data[name][fld_name] = MockBeanIncreasing(val, inc)
 
-    def addStagnant(self, name, fldName, val, countDown):
-        self.__checkAddBean(name, fldName)
-        self.__beanData[name][fldName] = MockBeanStagnant(val, countDown)
+    def add_stagnant(self, name, fld_name, val, count_down):
+        self.__check_add_bean(name, fld_name)
+        self.__bean_data[name][fld_name] = MockBeanStagnant(val, count_down)
 
-    def addTimeBomb(self, name, fldName, val, inc, bombTicks):
-        self.__checkAddBean(name, fldName)
-        self.__beanData[name][fldName] = MockBeanTimeBomb(val, inc, bombTicks)
+    def add_time_bomb(self, name, fld_name, val, inc, bomb_ticks):
+        self.__check_add_bean(name, fld_name)
+        self.__bean_data[name][fld_name] = MockBeanTimeBomb(val, inc,
+                                                            bomb_ticks)
 
-    def check(self, name, fldName):
-        if name not in self.__beanData or \
-           fldName not in self.__beanData[name]:
+    def check(self, name, fld_name):
+        if name not in self.__bean_data or \
+           fld_name not in self.__bean_data[name]:
             raise Exception("Unknown %s bean %s.%s" %
-                            (self.fullname, name, fldName))
+                            (self.fullname, name, fld_name))
 
-    def get(self, beanName, fldName):
-        self.check(beanName, fldName)
-        return self.__beanData[beanName][fldName].nextValue()
+    @property
+    def fullname(self):
+        return "MockMBeanClient"
 
-    def getAttributes(self, beanName, fldList):
-        rtnMap = {}
-        for f in fldList:
-            rtnMap[f] = self.get(beanName, f)
-        return rtnMap
+    def get(self, bean_name, fld_name):
+        self.check(bean_name, fld_name)
+        return self.__bean_data[bean_name][fld_name].next_value
+
+    def get_attributes(self, bean_name, fld_list):
+        rtn_map = {}
+        for fld in fld_list:
+            rtn_map[fld] = self.get(bean_name, fld)
+        return rtn_map
 
 
 class MockComponent(object):
-    def __init__(self, name, num, order, mbeanClient, source=False,
+    def __init__(self, name, num, order, mbean_client, source=False,
                  builder=False):
         self.__name = name
         self.__num = num
         self.__order = order
-        self.__mbeanClient = mbeanClient
+        self.__mbean_client = mbean_client
         self.__source = source
         self.__builder = builder
 
@@ -129,56 +138,57 @@ class MockComponent(object):
         return self.__name + "#%d" % self.__num
 
     @property
-    def isBuilder(self):
+    def is_builder(self):
         return self.__builder
 
     @property
-    def isSource(self):
+    def is_source(self):
         return self.__source
 
+    @property
     def order(self):
         return self.__order
 
 
 class WatchdogDataTest(unittest.TestCase):
-    def testCreate(self):
+    def test_create(self):
         comp = MockComponent("foo", 1, 1, MockMBeanClient())
 
-        wd = WatchData(comp, None, None)
-        self.assertEqual(comp.order(), wd.order(),
+        wdata = WatchData(comp, None, None)
+        self.assertEqual(comp.order, wdata.order,
                          "Expected WatchData order %d, not %d" %
-                         (comp.order(), wd.order()))
+                         (comp.order, wdata.order))
 
-    def testCheckValuesGood(self):
-        beanName = "bean"
-        inName = "inFld"
-        outName = "outFld"
-        ltName = "ltFld"
-        gtName = "gtFld"
+    def test_check_values_good(self):
+        bean_name = "bean"
+        in_name = "inFld"
+        out_name = "outFld"
+        lt_name = "ltFld"
+        gt_name = "gtFld"
 
-        threshVal = 15
+        thresh_val = 15
 
-        mbeanClient = MockMBeanClient()
-        mbeanClient.addIncreasing(beanName, inName, 12, 1)
-        mbeanClient.addIncreasing(beanName, outName, 5, 1)
-        mbeanClient.addIncreasing(beanName, ltName, threshVal, 1)
-        mbeanClient.addDecreasing(beanName, gtName, threshVal, 1)
+        mbean_client = MockMBeanClient()
+        mbean_client.add_increasing(bean_name, in_name, 12, 1)
+        mbean_client.add_increasing(bean_name, out_name, 5, 1)
+        mbean_client.add_increasing(bean_name, lt_name, thresh_val, 1)
+        mbean_client.add_decreasing(bean_name, gt_name, thresh_val, 1)
 
-        comp = MockComponent("foo", 1, 1, mbeanClient)
+        comp = MockComponent("foo", 1, 1, mbean_client)
         other = MockComponent("other", 0, 17, MockMBeanClient())
 
-        wd = WatchData(comp, mbeanClient, None)
+        wdata = WatchData(comp, mbean_client, None)
 
-        wd.addInputValue(other, beanName, inName)
-        wd.addOutputValue(other, beanName, outName)
-        wd.addThresholdValue(beanName, ltName, threshVal, True)
-        wd.addThresholdValue(beanName, gtName, threshVal, False)
+        wdata.add_input_value(other, bean_name, in_name)
+        wdata.add_output_value(other, bean_name, out_name)
+        wdata.add_threshold_value(bean_name, lt_name, thresh_val, True)
+        wdata.add_threshold_value(bean_name, gt_name, thresh_val, False)
 
         starved = []
         stagnant = []
         threshold = []
         for i in range(4):
-            if not wd.check(starved, stagnant, threshold):
+            if not wdata.check(starved, stagnant, threshold):
                 self.fail("Check #%d failed" % i)
             self.assertEqual(0, len(starved),
                              "Check #%d returned %d starved (%s)" %
@@ -190,182 +200,187 @@ class WatchdogDataTest(unittest.TestCase):
                              "Check #%d returned %d threshold (%s)" %
                              (i, len(threshold), threshold))
 
-    def testCheckValuesFailOne(self):
-        beanName = "bean"
-        inName = "inFld"
-        outName = "outFld"
-        gtName = "gtFld"
+    def test_check_values_fail_one(self):
+        bean_name = "bean"
+        in_name = "inFld"
+        out_name = "outFld"
+        gt_name = "gtFld"
 
-        starveVal = 12
-        stagnantVal = 5
-        threshVal = 15
-        failNum = 2
+        starve_val = 12
+        stagnant_val = 5
+        thresh_val = 15
+        fail_num = 2
 
-        for f in range(2):
-            mbeanClient = MockMBeanClient()
+        for fidx in range(2):
+            mbean_client = MockMBeanClient()
 
-            comp = MockComponent("foo", 1, 1, mbeanClient)
+            comp = MockComponent("foo", 1, 1, mbean_client)
             other = MockComponent("other", 0, 17, MockMBeanClient())
 
-            wd = WatchData(comp, mbeanClient, None)
+            wdata = WatchData(comp, mbean_client, None)
 
-            if f == 0:
-                mbeanClient.addStagnant(beanName, inName, starveVal, failNum)
-                wd.addInputValue(other, beanName, inName)
-            elif f == 1:
-                mbeanClient.addStagnant(beanName, outName, stagnantVal,
-                                        failNum)
-                wd.addOutputValue(other, beanName, outName)
+            if fidx == 0:
+                mbean_client.add_stagnant(bean_name, in_name, starve_val,
+                                          fail_num)
+                wdata.add_input_value(other, bean_name, in_name)
+            elif fidx == 1:
+                mbean_client.add_stagnant(bean_name, out_name, stagnant_val,
+                                          fail_num)
+                wdata.add_output_value(other, bean_name, out_name)
 
-            mbeanClient.addIncreasing(beanName, gtName, threshVal - failNum, 1)
-            wd.addThresholdValue(beanName, gtName, threshVal, False)
+            mbean_client.add_increasing(bean_name, gt_name,
+                                        thresh_val - fail_num, 1)
+            wdata.add_threshold_value(bean_name, gt_name, thresh_val, False)
 
-            for i in range(5):
+            for idx in range(5):
                 starved = []
                 stagnant = []
                 threshold = []
-                rtnval = wd.check(starved, stagnant, threshold)
+                rtnval = wdata.check(starved, stagnant, threshold)
 
-                nStarved = 0
-                nStagnant = 0
-                nThreshold = 0
+                n_starved = 0
+                n_stagnant = 0
+                n_threshold = 0
 
-                if i < failNum:
-                    self.assertTrue(rtnval, "Check #%d failed" % i)
+                if idx < fail_num:
+                    self.assertTrue(rtnval, "Check #%d failed" % idx)
                 else:
-                    self.assertTrue(not rtnval, "Check #%d succeeded" % i)
-                    if f == 0:
-                        nStarved = 1
-                        nStagnant = 0
+                    self.assertTrue(not rtnval, "Check #%d succeeded" % idx)
+                    if fidx == 0:
+                        n_starved = 1
+                        n_stagnant = 0
                     else:
-                        nStarved = 0
-                        nStagnant = 1
-                    nThreshold = 1
+                        n_starved = 0
+                        n_stagnant = 1
+                    n_threshold = 1
 
-                self.assertEqual(nStarved, len(starved),
+                self.assertEqual(n_starved, len(starved),
                                  "Check #%d returned %d starved (%s)" %
-                                 (i, len(starved), starved))
-                self.assertEqual(nStagnant, len(stagnant),
+                                 (idx, len(starved), starved))
+                self.assertEqual(n_stagnant, len(stagnant),
                                  "Check #%d returned %d stagnant (%s)" %
-                                 (i, len(stagnant), stagnant))
-                self.assertEqual(nThreshold, len(threshold),
+                                 (idx, len(stagnant), stagnant))
+                self.assertEqual(n_threshold, len(threshold),
                                  "Check #%d returned %d threshold (%s)" %
-                                 (i, len(threshold), threshold))
+                                 (idx, len(threshold), threshold))
 
-                if nStarved > 0:
+                if n_starved > 0:
                     msg = UnhealthyRecord(
                         ("%s->%s %s.%s not changing from %d") %
-                        (other, comp, beanName, inName,
-                         starveVal + failNum), other.order())
+                        (other, comp, bean_name, in_name,
+                         starve_val + fail_num), other.order)
                     self.assertEqual(msg, starved[0],
                                      ("Check #%d starved#1 should be" +
                                       " \"%s\" not \"%s\"") %
-                                     (i, msg, starved[0]))
+                                     (idx, msg, starved[0]))
 
-                if nStagnant > 0:
+                if n_stagnant > 0:
                     msg = UnhealthyRecord(("%s->%s %s.%s not changing" +
                                            " from %d") %
-                                          (comp, other, beanName, outName,
-                                           stagnantVal + failNum),
-                                          comp.order())
+                                          (comp, other, bean_name, out_name,
+                                           stagnant_val + fail_num),
+                                          comp.order)
                     self.assertEqual(msg, stagnant[0],
                                      ("Check #%d stagnant#1 should be" +
                                       " \"%s\" not \"%s\"") %
-                                     (i, msg, stagnant[0]))
+                                     (idx, msg, stagnant[0]))
 
-                if nThreshold > 0:
+                if n_threshold > 0:
                     msg = UnhealthyRecord("%s %s.%s above %d (value=%d)" %
-                                          (comp, beanName, gtName,
-                                           threshVal,
-                                           threshVal + i - (failNum - 1)),
-                                          comp.order())
+                                          (comp, bean_name, gt_name,
+                                           thresh_val,
+                                           thresh_val + idx - (fail_num - 1)),
+                                          comp.order)
                     self.assertEqual(msg, threshold[0],
                                      ("Check #%d threshold#1 should be" +
                                       " \"%s\" not \"%s\"") %
-                                     (i, msg, threshold[0]))
+                                     (idx, msg, threshold[0]))
 
-    def testCheckValuesTimeBomb(self):
-        beanName = "bean"
-        inName = "inFld"
-        outName = "outFld"
-        gtName = "gtFld"
+    def test_check_values_time_bomb(self):
+        bean_name = "bean"
+        in_name = "inFld"
+        out_name = "outFld"
+        gt_name = "gtFld"
 
-        tVal = 10
-        ltThresh = True
-        bombTicks = 2
+        t_val = 10
+        lt_thresh = True
+        bomb_ticks = 2
 
-        for f in range(3):
-            mbeanClient = MockMBeanClient()
+        for fidx in range(3):
+            mbean_client = MockMBeanClient()
 
-            comp = MockComponent("foo", 1, 1, mbeanClient)
+            comp = MockComponent("foo", 1, 1, mbean_client)
             other = MockComponent("other", 0, 17, MockMBeanClient())
 
-            wd = WatchData(comp, mbeanClient, None)
+            wdata = WatchData(comp, mbean_client, None)
 
-            if f == 0:
-                mbeanClient.addTimeBomb(beanName, inName, tVal, 1, bombTicks)
-                wd.addInputValue(other, beanName, inName)
-            elif f == 1:
-                mbeanClient.addTimeBomb(beanName, outName, tVal, 1, bombTicks)
-                wd.addOutputValue(other, beanName, outName)
-            elif f == 2:
-                mbeanClient.addTimeBomb(beanName, gtName, tVal, 1, bombTicks)
-                wd.addThresholdValue(beanName, gtName, tVal, ltThresh)
+            if fidx == 0:
+                mbean_client.add_time_bomb(bean_name, in_name, t_val, 1,
+                                           bomb_ticks)
+                wdata.add_input_value(other, bean_name, in_name)
+            elif fidx == 1:
+                mbean_client.add_time_bomb(bean_name, out_name, t_val, 1,
+                                           bomb_ticks)
+                wdata.add_output_value(other, bean_name, out_name)
+            elif fidx == 2:
+                mbean_client.add_time_bomb(bean_name, gt_name, t_val, 1,
+                                           bomb_ticks)
+                wdata.add_threshold_value(bean_name, gt_name, t_val, lt_thresh)
 
-            for i in range(bombTicks + 1):
+            for idx in range(bomb_ticks + 1):
                 starved = []
                 stagnant = []
                 threshold = []
-                rtnval = wd.check(starved, stagnant, threshold)
+                rtnval = wdata.check(starved, stagnant, threshold)
 
-                nStarved = 0
-                nStagnant = 0
-                nThreshold = 0
+                n_starved = 0
+                n_stagnant = 0
+                n_threshold = 0
 
-                if i < bombTicks:
-                    self.assertTrue(rtnval, "Check #%d failed" % i)
+                if idx < bomb_ticks:
+                    self.assertTrue(rtnval, "Check #%d failed" % idx)
                 else:
-                    self.assertTrue(not rtnval, "Check #%d succeeded" % i)
-                    if f == 0:
-                        nStarved = 1
-                    elif f == 1:
-                        nStagnant = 1
-                    elif f == 2:
-                        nThreshold = 1
+                    self.assertTrue(not rtnval, "Check #%d succeeded" % idx)
+                    if fidx == 0:
+                        n_starved = 1
+                    elif fidx == 1:
+                        n_stagnant = 1
+                    elif fidx == 2:
+                        n_threshold = 1
 
-                self.assertEqual(nStarved, len(starved),
+                self.assertEqual(n_starved, len(starved),
                                  "Check #%d returned %d starved (%s)" %
-                                 (i, len(starved), starved))
-                self.assertEqual(nStagnant, len(stagnant),
+                                 (idx, len(starved), starved))
+                self.assertEqual(n_stagnant, len(stagnant),
                                  "Check #%d returned %d stagnant (%s)" %
-                                 (i, len(stagnant), stagnant))
-                self.assertEqual(nThreshold, len(threshold),
+                                 (idx, len(stagnant), stagnant))
+                self.assertEqual(n_threshold, len(threshold),
                                  "Check #%d returned %d threshold (%s)" %
-                                 (i, len(threshold), threshold))
+                                 (idx, len(threshold), threshold))
 
                 front = None
-                badRec = None
+                bad_rec = None
 
-                if nStarved > 0:
-                    front = "%s->%s %s.%s" % (other, comp, beanName, inName)
-                    badRec = starved[0]
-                elif nStagnant > 0:
-                    front = "%s->%s %s.%s" % (comp, other, beanName, outName)
-                    badRec = stagnant[0]
-                elif nThreshold > 0:
+                if n_starved > 0:
+                    front = "%s->%s %s.%s" % (other, comp, bean_name, in_name)
+                    bad_rec = starved[0]
+                elif n_stagnant > 0:
+                    front = "%s->%s %s.%s" % (comp, other, bean_name, out_name)
+                    bad_rec = stagnant[0]
+                elif n_threshold > 0:
                     front = "%s %s.%s %s %s" % \
-                            (comp, beanName, gtName,
-                             ltThresh and "below" or "above", tVal)
-                    badRec = threshold[0]
+                            (comp, bean_name, gt_name,
+                             lt_thresh and "below" or "above", t_val)
+                    bad_rec = threshold[0]
 
                 if front is not None:
-                    self.assertTrue(badRec is not None,
+                    self.assertTrue(bad_rec is not None,
                                     "No UnhealthyRecord found for " + front)
 
                     front += ': Exception("TimeBomb")'
-                    if badRec.message().find(front) != 0:
+                    if bad_rec.message.find(front) != 0:
                         self.fail(("Expected UnhealthyRecord %s to start" +
-                                   " with \"%s\"") % (badRec, front))
+                                   " with \"%s\"") % (bad_rec, front))
 
 
 if __name__ == '__main__':

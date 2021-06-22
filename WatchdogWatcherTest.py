@@ -24,20 +24,22 @@ class MockComponent(object):
         return self.__name + "#%d" % self.__num
 
     @property
-    def isBuilder(self):
+    def is_builder(self):
         return self.__builder
 
     @property
-    def isSource(self):
+    def is_source(self):
         return self.__source
 
+    @property
     def order(self):
         return self.__order
 
 
 class WatchdogWatcherTest(unittest.TestCase):
-    def __buildValueComps(self, fname, fnum, forder, tname,
-                          tnum, torder, bits):
+    @classmethod
+    def __build_value_comps(cls, fname, fnum, forder, tname, tnum, torder,
+                            bits):
         fbldr = False
         fsrc = False
         tbldr = False
@@ -66,296 +68,301 @@ class WatchdogWatcherTest(unittest.TestCase):
 
         return (fcomp, tcomp, vorder)
 
-    def testThresholdStrings(self):
-        compOrder = 1
-        comp = MockComponent("foo", 1, compOrder)
+    def test_threshold_strings(self):
+        comp_order = 1
+        comp = MockComponent("foo", 1, comp_order)
 
-        beanName = "bean"
-        fldName = "fld"
-        for lt in False, True:
-            for tv in -10, 15, 100000000000:
-                tw = ThresholdWatcher(comp, beanName, fldName, tv, lt)
+        bean_name = "bean"
+        fld_name = "fld"
+        for less_than in False, True:
+            for thresh_val in -10, 15, 100000000000:
+                watcher = ThresholdWatcher(comp, bean_name, fld_name,
+                                           thresh_val, less_than)
 
-                nm = "%s %s.%s %s %s" % (comp.fullname, beanName, fldName,
-                                         lt and "below" or "above", tv)
-                if str(tw) != nm:
-                    self.fail("Expected \"%s\", not \"%s\"" % (str(tw), nm))
+                name = "%s %s.%s %s %s" % (comp.fullname, bean_name, fld_name,
+                                           less_than and "below" or "above",
+                                           thresh_val)
+                if str(watcher) != name:
+                    self.fail("Expected \"%s\", not \"%s\"" %
+                              (str(watcher), name))
 
                 uval = 16
-                urec = tw.unhealthyRecord(uval)
+                urec = watcher.unhealthy_record(uval)
 
-                self.assertEqual(urec.order(), compOrder,
+                self.assertEqual(urec.order, comp_order,
                                  "Expected order %d, not %d" %
-                                 (compOrder, urec.order()))
+                                 (comp_order, urec.order))
 
-                umsg = "%s (value=%s)" % (nm, uval)
-                self.assertEqual(urec.message(), umsg,
+                umsg = "%s (value=%s)" % (name, uval)
+                self.assertEqual(urec.message, umsg,
                                  "Expected message %s, not %s" %
-                                 (umsg, urec.message()))
+                                 (umsg, urec.message))
 
-    def testThresholdBadType(self):
+    def test_threshold_bad_type(self):  # pylint: disable=no-self-use
         comp = MockComponent("foo", 1, 1)
 
-        beanName = "bean"
-        fldName = "fld"
-        threshVal = 15
+        bean_name = "bean"
+        fld_name = "fld"
+        thresh_val = 15
 
-        tw = ThresholdWatcher(comp, beanName, fldName, threshVal, True)
+        watcher = ThresholdWatcher(comp, bean_name, fld_name, thresh_val, True)
 
-        badVal = "foo"
+        bad_val = "foo"
         try:
-            tw.check(badVal)
-        except TaskException as te:
-            expMsg = " is %s, new value is %s" % \
-                (type(threshVal), type(badVal))
-            if str(te).find(expMsg) < 0:
+            watcher.check(bad_val)
+        except TaskException as tex:
+            exp_msg = " is %s, new value is %s" % \
+                (type(thresh_val), type(bad_val))
+            if str(tex).find(exp_msg) < 0:
                 raise
 
-    def testThresholdUnsupported(self):
+    def test_threshold_unsupported(self):  # pylint: disable=no-self-use
         comp = MockComponent("foo", 1, 1)
 
-        beanName = "bean"
-        fldName = "fld"
+        bean_name = "bean"
+        fld_name = "fld"
 
-        for threshVal in ["q", "r"], {"x": 1, "y": 2}:
-            tw = ThresholdWatcher(comp, beanName, fldName, threshVal, True)
+        for thresh_val in ["q", "r"], {"x": 1, "y": 2}:
+            watcher = ThresholdWatcher(comp, bean_name, fld_name, thresh_val,
+                                       True)
             try:
-                tw.check(threshVal)
-            except TaskException as te:
-                expMsg = "ThresholdWatcher does not support %s" % \
-                    type(threshVal)
-                if str(te).find(expMsg) < 0:
+                watcher.check(thresh_val)
+            except TaskException as tex:
+                exp_msg = "ThresholdWatcher does not support %s" % \
+                    type(thresh_val)
+                if str(tex).find(exp_msg) < 0:
                     raise
 
-    def testThresholdCheck(self):
+    def test_threshold_check(self):
         comp = MockComponent("foo", 1, 1)
 
-        beanName = "bean"
-        fldName = "fld"
-        threshVal = 15
+        bean_name = "bean"
+        fld_name = "fld"
+        thresh_val = 15
 
-        for lt in False, True:
-            tw = ThresholdWatcher(comp, beanName, fldName, threshVal, lt)
+        for less_than in False, True:
+            watcher = ThresholdWatcher(comp, bean_name, fld_name, thresh_val,
+                                       less_than)
 
-            for val in threshVal - 5, threshVal - 1, threshVal, \
-                    threshVal + 1, threshVal + 5:
+            for val in thresh_val - 5, thresh_val - 1, thresh_val, \
+                    thresh_val + 1, thresh_val + 5:
 
-                if lt:
-                    cmpVal = val >= threshVal
+                if less_than:
+                    cmp_val = val >= thresh_val
                 else:
-                    cmpVal = val <= threshVal
+                    cmp_val = val <= thresh_val
 
-                if tw.check(val) != cmpVal:
+                if watcher.check(val) != cmp_val:
                     self.fail("ThresholdWatcher(%d) returned %s for value %d" %
-                              (threshVal, not cmpVal, val))
+                              (thresh_val, not cmp_val, val))
 
-    def testValueStrings(self):
+    def test_value_strings(self):
         for bits in range(1, 8):
             (fcomp, tcomp, uorder) = \
-                    self.__buildValueComps("foo", 1, 1, "bar", 0, 10, bits)
+                    self.__build_value_comps("foo", 1, 1, "bar", 0, 10, bits)
 
-            beanName = "bean"
-            fldName = "fld"
+            bean_name = "bean"
+            fld_name = "fld"
 
-            vw = ValueWatcher(fcomp, tcomp, beanName, fldName)
+            watcher = ValueWatcher(fcomp, tcomp, bean_name, fld_name)
 
-            nm = "%s->%s %s.%s" % (fcomp.fullname, tcomp.fullname,
-                                   beanName, fldName)
-            if str(vw) != nm:
-                self.fail("Expected \"%s\", not \"%s\"" % (str(vw), nm))
+            name = "%s->%s %s.%s" % (fcomp.fullname, tcomp.fullname,
+                                     bean_name, fld_name)
+            if str(watcher) != name:
+                self.fail("Expected \"%s\", not \"%s\"" % (str(watcher), name))
 
             uval = 16
-            urec = vw.unhealthyRecord(uval)
+            urec = watcher.unhealthy_record(uval)
 
-            self.assertEqual(urec.order(), uorder,
+            self.assertEqual(urec.order, uorder,
                              "Expected order %d, not %d" %
-                             (uorder, urec.order()))
+                             (uorder, urec.order))
 
-            umsg = "%s not changing from %s" % (nm, None)
-            self.assertEqual(urec.message(), umsg,
+            umsg = "%s not changing from %s" % (name, None)
+            self.assertEqual(urec.message, umsg,
                              "Expected message %s, not %s" %
-                             (umsg, urec.message()))
+                             (umsg, urec.message))
 
-    def testValueBadType(self):
-        (fcomp, tcomp, uorder) = \
-                self.__buildValueComps("foo", 1, 1, "bar", 0, 10, 0)
+    def test_value_bad_type(self):
+        (fcomp, tcomp, _) = \
+                self.__build_value_comps("foo", 1, 1, "bar", 0, 10, 0)
 
-        beanName = "bean"
-        fldName = "fld"
+        bean_name = "bean"
+        fld_name = "fld"
 
-        vw = ValueWatcher(fcomp, tcomp, beanName, fldName)
+        watcher = ValueWatcher(fcomp, tcomp, bean_name, fld_name)
 
-        prevVal = 5
-        vw.check(prevVal)
+        prev_val = 5
+        watcher.check(prev_val)
 
-        badVal = "foo"
+        bad_val = "foo"
         try:
-            vw.check(badVal)
-        except TaskException as te:
-            expMsg = " was %s (%s), new type is %s (%s)" % \
-                     (type(prevVal), prevVal, type(badVal), badVal)
-            if str(te).find(expMsg) < 0:
+            watcher.check(bad_val)
+        except TaskException as tex:
+            exp_msg = " was %s (%s), new type is %s (%s)" % \
+                     (type(prev_val), prev_val, type(bad_val), bad_val)
+            if str(tex).find(exp_msg) < 0:
                 raise
 
-    def testValueCheckListSize(self):
-        (fcomp, tcomp, uorder) = \
-                self.__buildValueComps("foo", 1, 1, "bar", 0, 10, 0)
+    def test_value_check_list_size(self):
+        (fcomp, tcomp, _) = \
+                self.__build_value_comps("foo", 1, 1, "bar", 0, 10, 0)
 
-        beanName = "bean"
-        fldName = "fld"
+        bean_name = "bean"
+        fld_name = "fld"
 
-        vw = ValueWatcher(fcomp, tcomp, beanName, fldName)
+        watcher = ValueWatcher(fcomp, tcomp, bean_name, fld_name)
 
         lst = [1, 15, 7, 3]
-        vw.check(lst)
+        watcher.check(lst)
 
-        l2 = lst[:-1]
+        ls2 = lst[:-1]
         try:
-            vw.check(l2)
-        except TaskException as te:
-            expMsg = "Previous %s list had %d entries, new list has %d" % \
-                     (vw, len(lst), len(l2))
-            if str(te).find(expMsg) < 0:
+            watcher.check(ls2)
+        except TaskException as tex:
+            exp_msg = "Previous %s list had %d entries, new list has %d" % \
+                     (watcher, len(lst), len(ls2))
+            if str(tex).find(exp_msg) < 0:
                 raise
 
-    def testValueCheckDecreased(self):
-        (fcomp, tcomp, uorder) = \
-                self.__buildValueComps("foo", 1, 1, "bar", 0, 10, 0)
+    def test_value_check_decreased(self):
+        (fcomp, tcomp, _) = \
+                self.__build_value_comps("foo", 1, 1, "bar", 0, 10, 0)
 
-        beanName = "bean"
-        fldName = "fld"
+        bean_name = "bean"
+        fld_name = "fld"
 
-        vw = ValueWatcher(fcomp, tcomp, beanName, fldName)
+        watcher = ValueWatcher(fcomp, tcomp, bean_name, fld_name)
 
         val = 15
-        vw.check(val)
+        watcher.check(val)
 
         try:
-            vw.check(val - 2)
-        except TaskException as te:
-            expMsg = "%s DECREASED (%s->%s)" % (vw, val, val - 2)
-            if str(te).find(expMsg) < 0:
+            watcher.check(val - 2)
+        except TaskException as tex:
+            exp_msg = "%s DECREASED (%s->%s)" % (watcher, val, val - 2)
+            if str(tex).find(exp_msg) < 0:
                 raise
 
-    def testValueCheckDecreasedList(self):
-        (fcomp, tcomp, uorder) = \
-                self.__buildValueComps("foo", 1, 1, "bar", 0, 10, 0)
+    def test_value_check_decreased_list(self):
+        (fcomp, tcomp, _) = \
+                self.__build_value_comps("foo", 1, 1, "bar", 0, 10, 0)
 
-        beanName = "bean"
-        fldName = "fld"
+        bean_name = "bean"
+        fld_name = "fld"
 
-        vw = ValueWatcher(fcomp, tcomp, beanName, fldName)
+        watcher = ValueWatcher(fcomp, tcomp, bean_name, fld_name)
 
         lst = [1, 15, 7, 3]
-        vw.check(lst)
+        watcher.check(lst)
 
-        l2 = lst[:]
-        for i in range(len(l2)):
-            l2[i] -= 2
+        ls2 = lst[:]
+        for idx in range(len(ls2)):  # pylint: disable=consider-using-enumerate
+            ls2[idx] -= 2
 
         try:
-            vw.check(l2)
-        except TaskException as te:
-            expMsg = "%s DECREASED (%s->%s)" % (vw, lst[0], l2[0])
-            if str(te).find(expMsg) < 0:
+            watcher.check(ls2)
+        except TaskException as tex:
+            exp_msg = "%s DECREASED (%s->%s)" % (watcher, lst[0], ls2[0])
+            if str(tex).find(exp_msg) < 0:
                 raise
 
-    def testValueCheckUnchanged(self):
-        (fcomp, tcomp, uorder) = \
-                self.__buildValueComps("foo", 1, 1, "bar", 0, 10, 0)
+    def test_value_check_unchanged(self):
+        (fcomp, tcomp, _) = \
+                self.__build_value_comps("foo", 1, 1, "bar", 0, 10, 0)
 
-        beanName = "bean"
-        fldName = "fld"
+        bean_name = "bean"
+        fld_name = "fld"
 
-        vw = ValueWatcher(fcomp, tcomp, beanName, fldName)
+        watcher = ValueWatcher(fcomp, tcomp, bean_name, fld_name)
 
         val = 5
 
-        sawUnchanged = False
-        for i in range(4):
+        saw_unchanged = False
+        for _ in range(4):
             try:
-                vw.check(val)
-            except TaskException as te:
-                expMsg = "%s.%s is not changing" % (beanName, fldName)
-                if str(te).find(expMsg) < 0:
+                watcher.check(val)
+            except TaskException as tex:
+                exp_msg = "%s.%s is not changing" % (bean_name, fld_name)
+                if str(tex).find(exp_msg) < 0:
                     raise
-                sawUnchanged = True
+                saw_unchanged = True
 
-        if not sawUnchanged:
+        if not saw_unchanged:
             self.fail("Never saw \"unchanged\" exception")
 
-    def testValueCheckUnchangedList(self):
-        (fcomp, tcomp, uorder) = \
-                self.__buildValueComps("foo", 1, 1, "bar", 0, 10, 0)
+    def test_value_check_unchanged_list(self):
+        (fcomp, tcomp, _) = \
+                self.__build_value_comps("foo", 1, 1, "bar", 0, 10, 0)
 
-        beanName = "bean"
-        fldName = "fld"
+        bean_name = "bean"
+        fld_name = "fld"
 
-        vw = ValueWatcher(fcomp, tcomp, beanName, fldName)
+        watcher = ValueWatcher(fcomp, tcomp, bean_name, fld_name)
 
         lst = [1, 15, 7, 3]
 
-        sawUnchanged = False
-        for i in range(4):
+        saw_unchanged = False
+        for _ in range(4):
             try:
-                vw.check(lst)
-            except TaskException as te:
-                expMsg = "At least one %s value is not changing" % vw
-                if str(te).find(expMsg) < 0:
+                watcher.check(lst)
+            except TaskException as tex:
+                exp_msg = "At least one %s value is not changing" % watcher
+                if str(tex).find(exp_msg) < 0:
                     raise
-                sawUnchanged = True
+                saw_unchanged = True
 
-        if not sawUnchanged:
+        if not saw_unchanged:
             self.fail("Never saw \"unchanged\" exception")
 
-    def testValueUnsupported(self):
-        (fcomp, tcomp, uorder) = \
-                self.__buildValueComps("foo", 1, 1, "bar", 0, 10, 0)
+    def test_value_unsupported(self):
+        (fcomp, tcomp, _) = \
+                self.__build_value_comps("foo", 1, 1, "bar", 0, 10, 0)
 
-        beanName = "bean"
-        fldName = "fld"
+        bean_name = "bean"
+        fld_name = "fld"
 
-        vw = ValueWatcher(fcomp, tcomp, beanName, fldName)
+        watcher = ValueWatcher(fcomp, tcomp, bean_name, fld_name)
 
-        prevVal = {"a": 1, "b": 2}
-        vw.check(prevVal)
+        prev_val = {"a": 1, "b": 2}
+        watcher.check(prev_val)
 
-        badVal = {"a": 1, "b": 2}
+        bad_val = {"a": 1, "b": 2}
         try:
-            vw.check(badVal)
-        except TaskException as te:
-            expMsg = "ValueWatcher does not support %s" % type(badVal)
-            if str(te).find(expMsg) < 0:
+            watcher.check(bad_val)
+        except TaskException as tex:
+            exp_msg = "ValueWatcher does not support %s" % type(bad_val)
+            if str(tex).find(exp_msg) < 0:
                 raise
 
-    def testValueCheck(self):
-        (fcomp, tcomp, uorder) = \
-                self.__buildValueComps("foo", 1, 1, "bar", 0, 10, 0)
+    def test_value_check(self):
+        (fcomp, tcomp, _) = \
+                self.__build_value_comps("foo", 1, 1, "bar", 0, 10, 0)
 
-        beanName = "bean"
-        fldName = "fld"
+        bean_name = "bean"
+        fld_name = "fld"
 
-        vw = ValueWatcher(fcomp, tcomp, beanName, fldName)
+        watcher = ValueWatcher(fcomp, tcomp, bean_name, fld_name)
 
         for val in range(4):
-            vw.check(val)
+            watcher.check(val)
 
-    def testValueCheckList(self):
-        (fcomp, tcomp, uorder) = \
-                self.__buildValueComps("foo", 1, 1, "bar", 0, 10, 0)
+    def test_value_check_list(self):
+        (fcomp, tcomp, _) = \
+                self.__build_value_comps("foo", 1, 1, "bar", 0, 10, 0)
 
-        beanName = "bean"
-        fldName = "fld"
+        bean_name = "bean"
+        fld_name = "fld"
 
-        vw = ValueWatcher(fcomp, tcomp, beanName, fldName)
+        watcher = ValueWatcher(fcomp, tcomp, bean_name, fld_name)
 
         lst = [1, 15, 7, 3]
 
-        for i in range(4):
-            l2 = lst[:]
-            for n in range(len(lst)):
-                l2[n] += i
-            vw.check(l2)
+        for idx in range(4):
+            ls2 = lst[:]
+            for idx2 in range(len(lst)):
+                ls2[idx2] += idx
+            watcher.check(ls2)
 
 
 if __name__ == '__main__':

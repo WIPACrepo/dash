@@ -6,7 +6,6 @@ from __future__ import print_function
 
 import os
 import re
-import stat
 import sys
 import traceback
 
@@ -15,6 +14,7 @@ import DeployPDAQ
 from BaseRun import FlasherScript, LaunchException
 from DAQConfig import DAQConfigException, DAQConfigParser
 from cncrun import CnCRun
+from decorators import classproperty
 from liverun import LiveRun, LiveTimeoutException
 from locate_pdaq import find_pdaq_trunk
 from utils.Machineid import Machineid
@@ -31,8 +31,12 @@ FOUR_HR = SECONDS_PER_HOUR * 4
 EIGHT_HR = SECONDS_PER_HOUR * 8
 
 
+# find top pDAQ directory
+PDAQ_HOME = find_pdaq_trunk()
+
+
 class PDAQRunException(Exception):
-    pass
+    "Problem with a pDAQ run"
 
 
 class PDAQRun(object):
@@ -46,35 +50,39 @@ class PDAQRun(object):
     #
     MAX_TIMEOUTS = 6
 
-    def __init__(self, runCfgName, duration, numRuns=1, flashData=None):
-        self.__runCfgName = runCfgName
+    def __init__(self, run_cfg_name, duration, num_runs=1, flasher_data=None):
+        self.__run_cfg_name = run_cfg_name
         self.__duration = duration
-        self.__numRuns = numRuns
+        self.__num_runs = num_runs
 
-        if flashData is None:
-            self.__flashData = None
+        if flasher_data is None:
+            self.__flasher_data = None
         else:
-            self.__flashData = []
-            for pair in flashData:
+            self.__flasher_data = []
+            for pair in flasher_data:
                 if pair[0] is None:
                     path = None
                 else:
-                    if self.TSTRSRC is None:
-                        metadir = find_pdaq_trunk()
-                        self.TSTRSRC = os.path.join(metadir, "src", "test",
-                                                    "resources")
+                    tstdir = self.test_resource_path
+                    path = FlasherScript.find_data_file(pair[0],
+                                                        basedir=tstdir)
 
-                    path = FlasherScript.findDataFile(pair[0],
-                                                      basedir=self.TSTRSRC)
+                self.__flasher_data.append((path, pair[1]))
 
-                self.__flashData.append((path, pair[1]))
+    @property
+    def cluster_config(self):
+        return self.__run_cfg_name
 
-    def clusterConfig(self):
-        return self.__runCfgName
+    @classproperty
+    def test_resource_path(cls):  # pylint: disable=no-self-argument
+        if cls.TSTRSRC is None:
+            # pylint: disable=invalid-name
+            cls.TSTRSRC = os.path.join(PDAQ_HOME, "src", "test", "resources")
+        return cls.TSTRSRC
 
-    def run(self, runmgr, quick, clusterDesc=None, ignoreDB=False,
+    def run(self, runmgr, quick, cluster_desc=None, ignore_db=False,
             verbose=False):
-        flasherDelay = 120
+        flasher_delay = 120
         if not quick:
             duration = self.__duration
         else:
@@ -86,14 +94,15 @@ class PDAQRun(object):
             else:
                 duration = self.__duration
 
-            flasherDelay = 30
+            flasher_delay = 30
 
         timeouts = 0
         try:
-            runmgr.run(self.__runCfgName, self.__runCfgName, duration,
-                       numRuns=self.__numRuns, flashData=self.__flashData,
-                       flasherDelay=flasherDelay, clusterDesc=clusterDesc,
-                       ignoreDB=ignoreDB, verbose=verbose)
+            runmgr.run(self.__run_cfg_name, self.__run_cfg_name, duration,
+                       num_runs=self.__num_runs,
+                       flasher_data=self.__flasher_data,
+                       flasher_delay=flasher_delay, cluster_desc=cluster_desc,
+                       ignore_db=ignore_db, verbose=verbose)
 
             # reset the timeout counter after each set of successful runs
             timeouts = 0
@@ -104,13 +113,11 @@ class PDAQRun(object):
             timeouts += 1
             if timeouts > self.MAX_TIMEOUTS:
                 raise SystemExit("I3Live seems to have gone away")
-        except:
+        except:  # pylint: disable=bare-except
             traceback.print_exc()
 
 
 class Deploy(object):
-    DEPLOY_CLEAN = False
-
     COMP_SUBPAT = r"(\S+):(\d+)\s*(\[(\S+)\])?"
 
     CFG_PAT = re.compile(r"^CONFIG:\s+(\S+)\s*$")
@@ -119,79 +126,57 @@ class Deploy(object):
     VERS_PAT = re.compile(r"^VERSION:\s+(\S+)\s*$")
     CMD_PAT = re.compile(r"^\s\s+.*rsync\s+.*$")
 
-    def __init__(self, showCmd, showCmdOutput, dryRun, clusterDesc):
-        self.__showCmd = showCmd
-        self.__showCmdOutput = showCmdOutput
-        self.__dryRun = dryRun
-        self.__clusterDesc = clusterDesc
+    def __init__(self, show_commands, show_command_output, dry_run,
+                 cluster_desc):
+        self.__show_commands = show_commands
+        self.__show_command_output = show_command_output
+        self.__dry_run = dry_run
+        self.__cluster_desc = cluster_desc
 
-        homePath = os.environ["PDAQ_HOME"]
-        self.__pdaqHome = self.__getCurrentLocation(homePath)
-
-    def __checkExists(self, name, path):
-        if not os.path.exists(path):
-            raise SystemExit("%s '%s' does not exist" % (name, path))
-
-    def __getCurrentLocation(self, homePath):
-        statTuple = os.lstat(homePath)
-        if not stat.S_ISLNK(statTuple[stat.ST_MODE]):
-            return homePath
-        return os.readlink(homePath)
-
-    def deploy(self, clusterCfgName):
+    def deploy(self, cluster_cfg_name):
         "Deploy to the specified cluster"
         try:
-            cluDesc = self.__clusterDesc
-            clusterCfg = \
-                DAQConfigParser.getClusterConfiguration(clusterCfgName,
-                                                        useActiveConfig=False,
-                                                        clusterDesc=cluDesc,
-                                                        configDir=None,
-                                                        validate=False)
+            clu_desc = self.__cluster_desc
+            cluster_cfg = \
+                DAQConfigParser.get_cluster_configuration\
+                (cluster_cfg_name, use_active_config=False,
+                 cluster_desc=clu_desc, config_dir=None, validate=False)
         except DAQConfigException:
             raise LaunchException("Cannot load configuration \"%s\": %s" %
-                                  (clusterCfgName, exc_string()))
+                                  (cluster_cfg_name, exc_string()))
 
-        if not self.__showCmd:
-            print("Deploying %s" % clusterCfg)
+        if not self.__show_commands:
+            print("Deploying %s" % str(cluster_cfg))
 
         subdirs = None
         delete = True
-        deepDryRun = False
-        traceLevel = 0
+        deep_dry_run = False
+        trace_level = 0
 
-        if Deploy.DEPLOY_CLEAN:
-            undeploy = True
-
-            DeployPDAQ.deploy(clusterCfg, os.environ["HOME"],
-                              os.environ["PDAQ_HOME"], subdirs, delete,
-                              self.__dryRun, deepDryRun, undeploy, traceLevel)
-
-        undeploy = False
-        DeployPDAQ.deploy(clusterCfg, os.environ["HOME"],
-                          os.environ["PDAQ_HOME"], subdirs, delete,
-                          self.__dryRun, deepDryRun, undeploy, traceLevel)
+        DeployPDAQ.deploy(cluster_cfg, PDAQ_HOME, subdirs, delete,
+                          self.__dry_run, deep_dry_run, trace_level)
 
     @staticmethod
-    def getUniqueClusterConfigs(runList):
+    def get_unique_cluster_configs(runlist):
         "Return a list of the unique elements"
-        ccDict = {}
-        for data in runList:
-            ccDict[data.clusterConfig()] = 1
+        cc_dict = {}
+        for data in runlist:
+            cc_dict[data.cluster_config] = 1
 
-        uniqList = sorted(ccDict.keys())
+        return sorted(cc_dict.keys())
 
-        return uniqList
-
-    def showHome(self):
+    @classmethod
+    def show_home(cls):
         "Print the actual pDAQ home directory name"
-        print("===============================================================")
-        print("== PDAQ_HOME points to %s" % self.__pdaqHome)
-        print("===============================================================")
+        print("==============================================================")
+        print("== PDAQ_HOME points to %s" % str(PDAQ_HOME))
+        print("==============================================================")
 
 
 def add_arguments(parser):
-    parser.add_argument("-C", "--cluster-desc", dest="clusterDesc",
+    "Add command-line arguments"
+
+    parser.add_argument("-C", "--cluster-desc", dest="cluster_desc",
                         help="Cluster description name")
     parser.add_argument("-c", "--cncrun", dest="cncrun",
                         action="store_true", default=False,
@@ -199,10 +184,10 @@ def add_arguments(parser):
     parser.add_argument("-d", "--deploy", dest="deploy",
                         action="store_true", default=False,
                         help="Deploy the standard tests")
-    parser.add_argument("-i", "--ignore-db", dest="ignoreDB",
+    parser.add_argument("-i", "--ignore-db", dest="ignore_db",
                         action="store_true", default=False,
                         help="Do not update database with run configuration")
-    parser.add_argument("-n", "--dry-run", dest="dryRun",
+    parser.add_argument("-n", "--dry-run", dest="dry_run",
                         action="store_true", default=False,
                         help=("Don't run commands, just print as they"
                               " would be run"))
@@ -212,19 +197,20 @@ def add_arguments(parser):
     parser.add_argument("-r", "--run", dest="run",
                         action="store_true", default=False,
                         help="Run the standard tests")
-    parser.add_argument("-S", "--showCheck", dest="showChk",
+    parser.add_argument("-S", "--show_check", dest="show_check",
                         action="store_true", default=False,
                         help="Show the 'livecmd check' commands")
-    parser.add_argument("-s", "--showCommands", dest="showCmd",
+    parser.add_argument("-s", "--show_commands", dest="show_commands",
                         action="store_true", default=False,
                         help="Show the commands used to deploy and/or run")
     parser.add_argument("-v", "--verbose", dest="verbose",
                         action="store_true", default=False,
                         help="Print more details of run transitions")
-    parser.add_argument("-X", "--showCheckOutput", dest="showChkOutput",
+    parser.add_argument("-X", "--show_check_output", dest="show_check_output",
                         action="store_true", default=False,
                         help="Show the output of the 'livecmd check' commands")
-    parser.add_argument("-x", "--showCommandOutput", dest="showCmdOutput",
+    parser.add_argument("-x", "--show_command_output",
+                        dest="show_command_output",
                         action="store_true", default=False,
                         help=("Show the output of the deploy and/or"
                               " run commands"))
@@ -241,7 +227,7 @@ RUN_LIST = (
     PDAQRun("spts-dirtydozen-intervals3-snmix-014", HALF_HR),
     PDAQRun("random-01", HALF_HR),
     PDAQRun("replay-125659-local", EIGHT_HR),
-    PDAQRun("replay-125659-local", QUARTER_HR, numRuns=3),
+    PDAQRun("replay-125659-local", QUARTER_HR, num_runs=3),
 )
 
 
@@ -250,71 +236,68 @@ def run_tests(args):
 
     hostid = Machineid()
 
-    if hostid.is_sps_cluster():
+    if hostid.is_sps_cluster:
         raise SystemExit("Tests should not be run on SPS cluster")
 
     if not args.deploy and not args.run:
-        if hostid.is_build_host():
+        if hostid.is_build_host:
             args.deploy = True
-        elif hostid.is_control_host():
+        elif hostid.is_control_host:
             args.run = True
         else:
             raise SystemExit("Please specify --deploy or --run" +
                              " (unrecognized host %s)" % hostid.hname)
 
-    # Make sure expected environment variables are set
-    #
-    for nm in ("HOME", "PDAQ_HOME"):
-        if nm not in os.environ:
-            raise SystemExit("Environment variable '%s' has not been set" % nm)
-
     # run tests from pDAQ top-level directory
     #
-    os.chdir(os.environ["PDAQ_HOME"])
+    os.chdir(PDAQ_HOME)
 
     if args.deploy:
-        deploy = Deploy(args.showCmd, args.showCmdOutput, args.dryRun,
-                        args.clusterDesc)
-        deploy.showHome()
-        for cfg in Deploy.getUniqueClusterConfigs(RUN_LIST):
+        deploy = Deploy(args.show_commands, args.show_command_output,
+                        args.dry_run, args.cluster_desc)
+        deploy.show_home()
+        for cfg in Deploy.get_unique_cluster_configs(RUN_LIST):
             deploy.deploy(cfg)
-        deploy.showHome()
+        deploy.show_home()
     if args.run:
         if args.cncrun:
-            runmgr = CnCRun(showCmd=args.showCmd,
-                            showCmdOutput=args.showCmdOutput,
-                            dryRun=args.dryRun)
+            runmgr = CnCRun(show_commands=args.show_commands,
+                            show_command_output=args.show_command_output,
+                            dry_run=args.dry_run)
         else:
-            runmgr = LiveRun(showCmd=args.showCmd,
-                             showCmdOutput=args.showCmdOutput,
-                             showCheck=args.showChk,
-                             showCheckOutput=args.showChkOutput,
-                             dryRun=args.dryRun)
+            runmgr = LiveRun(show_commands=args.show_commands,
+                             show_command_output=args.show_command_output,
+                             show_check=args.show_check,
+                             show_check_output=args.show_check_output,
+                             dry_run=args.dry_run)
 
         if sys.version_info > (2, 3):
             from DumpThreads import DumpThreadsOnSignal
-            DumpThreadsOnSignal(fd=sys.stderr)
+            DumpThreadsOnSignal(file_handle=sys.stderr)
 
         # always kill running components in case they're from a
         # previous release
         #
-        runmgr.killComponents(dryRun=args.dryRun)
+        runmgr.kill_components(dry_run=args.dry_run)
 
         # stop existing runs gracefully on ^C
         #
-        signal.signal(signal.SIGINT, runmgr.stopOnSIGINT)
+        signal.signal(signal.SIGINT, runmgr.stop_on_sigint)
 
         for data in RUN_LIST:
-            data.run(runmgr, args.quick, clusterDesc=args.clusterDesc,
-                     ignoreDB=args.ignoreDB, verbose=args.verbose)
+            data.run(runmgr, args.quick, cluster_desc=args.cluster_desc,
+                     ignore_db=args.ignore_db, verbose=args.verbose)
+
+
+def main():
+    "Main program"
+
+    parser = argparse.ArgumentParser()
+    add_arguments(parser)
+    run_tests(parser.parse_args())
 
 
 if __name__ == "__main__":
     import argparse
 
-    op = argparse.ArgumentParser()
-    add_arguments(op)
-
-    args = op.parse_args()
-
-    run_tests(args)
+    main()

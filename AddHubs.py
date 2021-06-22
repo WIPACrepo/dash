@@ -13,19 +13,12 @@ from DAQConfig import DAQConfigException
 
 # find pDAQ's run configuration directory
 from locate_pdaq import find_pdaq_config
-configDir = find_pdaq_config()
+
+# save path to configuration directory
+CONFIG_DIR = find_pdaq_config()
 
 
-def getHubName(num):
-    """Get the standard representation for a hub number"""
-    if num > 0 and num < 100:
-        return "%02d" % num
-    if num > 200 and num < 220:
-        return "%02dt" % (num - 200)
-    return "?%d?" % num
-
-
-def parseArgs():
+def parse_args():
     """
     Parse command-line arguments
     Return a tuple containing:
@@ -33,108 +26,104 @@ def parseArgs():
         the run configuration name
         the list of hub IDs to be removed
     """
-    if not os.path.exists(configDir):
+    if not os.path.exists(CONFIG_DIR):
         print("Cannot find configuration directory", file=sys.stderr)
 
-    cluCfgName = None
-    forceCreate = False
-    runCfgName = None
-    hubIdList = []
-
-    needCluCfgName = False
+    force_create = False
+    run_cfg_name = None
+    hub_id_list = []
 
     usage = False
-    for a in sys.argv[1:]:
-        if a == "--force":
-            forceCreate = True
+    for arg in sys.argv[1:]:
+        if arg == "--force":
+            force_create = True
             continue
 
-        if a == "-C":
-            needCluCfgName = True
-            continue
-
-        if needCluCfgName:
-            cluCfgName = a
-            needCluCfgName = False
-            continue
-
-        if runCfgName is None:
-            path = os.path.join(configDir, a)
+        if run_cfg_name is None:
+            path = os.path.join(CONFIG_DIR, arg)
             if not path.endswith(".xml"):
                 path += ".xml"
 
             if os.path.exists(path):
-                runCfgName = a
+                run_cfg_name = arg
                 continue
 
-        for s in a.split(","):
-            if s.endswith("t"):
+        for fld in arg.split(","):
+            if fld.endswith("t"):
                 try:
-                    num = int(s[:-1])
-                    hubIdList.append(200 + num)
+                    num = int(fld[:-1])
+                    hub_id_list.append(200 + num)
                     continue
-                except:
-                    print("Unknown argument \"%s\"" % s, file=sys.stderr)
+                except ValueError:
+                    print("Unknown argument \"%s\"" % fld, file=sys.stderr)
                     usage = True
                     continue
 
-            if s.endswith("i"):
-                s = s[:-1]
+            if fld.endswith("i"):
+                fld = fld[:-1]
 
             try:
-                num = int(s)
-                hubIdList.append(num)
+                num = int(fld)
+                hub_id_list.append(num)
                 continue
-            except:
-                print("Unknown argument \"%s\"" % a, file=sys.stderr)
+            except ValueError:
+                print("Unknown argument \"%s\"" % fld, file=sys.stderr)
                 usage = True
                 continue
 
-    if not usage and runCfgName is None:
+    if not usage and run_cfg_name is None:
         print("No run configuration specified", file=sys.stderr)
         usage = True
 
-    if not usage and len(hubIdList) == 0:
+    if not usage and len(hub_id_list) == 0:  # pylint: disable=len-as-condition
         print("No hub IDs specified", file=sys.stderr)
         usage = True
 
     if usage:
-        print("Usage: %s runConfig hubId [hubId ...]" % sys.argv[0], file=sys.stderr)
-        print("  (Hub IDs can be \"6\", \"06\", \"6i\", \"6t\")", file=sys.stderr)
+        print("Usage: %s runConfig hubId [hubId ...]" % sys.argv[0],
+              file=sys.stderr)
+        print("  (Hub IDs can be \"6\", \"06\", \"6i\", \"6t\")",
+              file=sys.stderr)
         raise SystemExit()
 
-    return (forceCreate, runCfgName, cluCfgName, hubIdList)
+    return (force_create, run_cfg_name, hub_id_list)
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
 
     hostid = Machineid()
-    if not hostid.is_build_host():
+    if not hostid.is_build_host:
         print("-" * 60, file=sys.stderr)
-        print("Warning: AddHubs.py should be run on the build machine", file=sys.stderr)
+        print("Warning: AddHubs.py should be run on the build machine",
+              file=sys.stderr)
         print("-" * 60, file=sys.stderr)
 
-    (forceCreate, runCfgName, cluCfgName, hubIdList) = parseArgs()
+    (force_create, run_cfg_name, hub_id_list) = parse_args()
 
-    newPath = DAQConfig.createOmitFileName(configDir, runCfgName, hubIdList,
-                                           keepList=True)
-    if os.path.exists(newPath):
-        if forceCreate:
-            print("WARNING: Overwriting %s" % newPath, file=sys.stderr)
+    new_path = DAQConfig.create_omit_file_name(CONFIG_DIR, run_cfg_name,
+                                               hub_id_list, keep_list=True)
+    if os.path.exists(new_path):
+        if force_create:
+            print("WARNING: Overwriting %s" % new_path, file=sys.stderr)
         else:
-            print("WARNING: %s already exists" % newPath, file=sys.stderr)
+            print("WARNING: %s already exists" % new_path, file=sys.stderr)
             print("Specify --force to overwrite this file", file=sys.stderr)
             raise SystemExit()
 
     try:
-        runCfg = DAQConfigParser.parse(configDir, runCfgName)
+        run_cfg = DAQConfigParser.parse(CONFIG_DIR, run_cfg_name)
     except DAQConfigException as config_exp:
-        print("WARNING: Error parsing %s" % runCfgName, file=sys.stderr)
+        print("WARNING: Error parsing %s" % run_cfg_name, file=sys.stderr)
         raise SystemExit(config_exp)
 
-    if runCfg is not None:
-        newCfg = runCfg.omit(hubIdList, keepList=True)
-        if newCfg is not None:
-            with open(newPath, 'w') as fd:
-                fd.write(newCfg)
-            print("Created %s" % newPath)
+    if run_cfg is not None:
+        new_cfg = run_cfg.omit(hub_id_list, keep_list=True)
+        if new_cfg is not None:
+            with open(new_path, 'w') as fout:
+                fout.write(new_cfg)
+            print("Created %s" % new_path)
+
+
+if __name__ == "__main__":
+    main()

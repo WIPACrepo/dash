@@ -1,35 +1,38 @@
 #!/usr/bin/env python
-#
-# IceCube payloads and associated classes
-#
-# If you find/fix any bugs or add improvements, please also broadcast them
-# on daq-dev@icecube.wisc.edu
+"""
+IceCube payloads and associated classes
+
+If you find/fix any bugs or add improvements, please also broadcast them
+on daq-dev@icecube.wisc.edu
+"""
 
 from __future__ import print_function
 
 import bz2
-import cStringIO
 import gzip
 import numbers
 import os
 import struct
 
+try:
+    from cStringIO import StringIO
+except:  # ModuleNotFoundError only works under 2.7/3.0
+    from io import StringIO
+
+from i3helper import Comparable
+
 
 class PayloadException(Exception):
     "Payload exception"
-    pass
 
 
 class StopMessage(object):
-    def __init__(self):
-        pass
-
     @property
     def bytes(self):
         return struct.pack(">I", 4)
 
 
-class Payload(object):
+class Payload(Comparable):
     "Base payload class"
     TYPE_ID = None
     ENVELOPE_LENGTH = 16
@@ -44,20 +47,17 @@ class Payload(object):
             self.__data = None
             self.__valid_data = False
 
-    def __cmp__(self, other):
-        "Compare envelope times"
-        if self.__utime < other.utime:
-            return -1
-        if self.__utime > other.utime:
-            return 1
-        return 0
-
     @property
     def bytes(self):
         "Return the binary representation of this payload"
         if not self.__valid_data:
             raise PayloadException("Data was discarded; cannot return bytes")
         return self.envelope + self.__data
+
+    @property
+    def compare_key(self):
+        "Return the keys to be used by the Comparable methods"
+        return self.__time
 
     @property
     def data_bytes(self):
@@ -86,7 +86,7 @@ class Payload(object):
                 rawval >>= 8
             return tmpbytes
 
-        if isinstance(rawval, list) or isinstance(rawval, tuple):
+        if isinstance(rawval, (list, tuple)):
             if len(rawval) != 6:
                 raise PayloadException("Expected 6 clock bytes, not " +
                                        len(rawval))
@@ -115,10 +115,14 @@ class Payload(object):
 
         if comp_type == 3:
             return "icetopHandler-%d" % comp_num
-        elif comp_type == 12:
+        if comp_type == 12:
             return "stringHub-%d" % comp_num
-        elif comp_type == 13:
+        if comp_type == 13:
             return "simHub-%d" % comp_num
+
+        if comp_num != 0:
+            raise PayloadException("Unexpected component#%d for source#%d" %
+                                   (comp_num, comp_type * 1000))
 
         if comp_type == 4:
             comp_name = "inIceTrigger"
@@ -140,10 +144,8 @@ class Payload(object):
             comp_name = "secondaryBuilders"
         elif comp_type == 15:
             comp_name = "trackEngine"
-
-        if comp_num != 0:
-            raise PayloadException("Unexpected component#%d for %s" %
-                                   (comp_num, comp_name))
+        else:
+            comp_name = "??component#%d??" % (comp_type, )
 
         return comp_name
 
@@ -255,7 +257,7 @@ class delta_codec(object):
     """
     def __init__(self, buf):
         "Load the buffer and prepare to decode"
-        self.tape = cStringIO.StringIO(buf)
+        self.tape = StringIO(buf)
         self.valid_bits = 0
         self.register = 0
         self.bpw = None
@@ -658,6 +660,7 @@ class EventV5(Payload):
     def trigger_count(self):
         return len(self.__trig_records)
 
+    @property
     def triggers(self):
         return self.__trig_records[:]
 
@@ -688,6 +691,9 @@ class BaseHitRecord(object):
     def __len__(self):
         return self.HEADER_LEN + len(self.__data)
 
+    def __str__(self):
+        return "%d@%d[flags %x]" % (self.__chan_id, self.__utime, self.__flags)
+
     @property
     def channel_id(self):
         return self.__chan_id
@@ -705,17 +711,10 @@ class DeltaHitRecord(BaseHitRecord):
     "Delta-compressed hit record inside V5 event payload"
     TYPE_ID = 1
 
-    def __init__(self, base_time, hdr, data, offset):
-        super(DeltaHitRecord, self).__init__(base_time, hdr, data, offset)
-
 
 class EngineeringHitRecord(BaseHitRecord):
     "Engineering hit record inside V5 event payload"
     TYPE_ID = 0
-
-    def __init__(self, base_time, hdr, data, offset):
-        super(EngineeringHitRecord, self).__init__(base_time, hdr, data,
-                                                   offset)
 
 
 class Monitor(object):
@@ -765,6 +764,10 @@ class MonitorRecord(object):
         self.__utime = utime
         self.__dom_id = dom_id
         self.__clock_bytes = Payload.extract_clock_bytes(domclock)
+
+    @property
+    def bytes(self):
+        return NotImplementedError()
 
     @property
     def clockbytes(self):
@@ -1102,7 +1105,7 @@ class PayloadReader(object):
         self.__filename = filename
         self.__fin = fin
         self.__keep_data = keep_data
-        self.__num_read = 0L
+        self.__num_read = 0
 
     def __enter__(self):
         """
@@ -1127,13 +1130,19 @@ class PayloadReader(object):
                 return
 
             # decode the next payload
-            pay = self.next()
+            pay = next(self)
             if pay is None:
                 # must have hit the end of the file
                 return
 
             # return the next payload
             yield pay
+
+    def __next__(self):
+        "Read the next payload"
+        pay = self.decode_payload(self.__fin, keep_data=self.__keep_data)
+        self.__num_read += 1
+        return pay
 
     def close(self):
         """
@@ -1161,7 +1170,7 @@ class PayloadReader(object):
         Decode and return the next payload
         """
         envelope = stream.read(Payload.ENVELOPE_LENGTH)
-        if len(envelope) == 0:
+        if len(envelope) == 0:  # pylint: disable=len-as-condition
             return None
 
         length, type_id, utime = struct.unpack(">iiq", envelope)
@@ -1186,11 +1195,7 @@ class PayloadReader(object):
 
         return UnknownPayload(type_id, utime, rawdata, keep_data=keep_data)
 
-    def next(self):
-        "Read the next payload"
-        pay = self.decode_payload(self.__fin, keep_data=self.__keep_data)
-        self.__num_read += 1
-        return pay
+    next = __next__  # XXX backward compatibility for Python 2
 
 
 if __name__ == "__main__":
@@ -1214,7 +1219,8 @@ if __name__ == "__main__":
                 out.close()
 
     def main():
-        "Dump all payloads"
+        "Main program"
+
         import argparse
 
         parser = argparse.ArgumentParser()

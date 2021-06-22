@@ -5,51 +5,53 @@ from __future__ import print_function
 import os
 import re
 
-from RestartSPTS import isSPTSActive
+from RestartSPTS import is_spts_active
 
 
 # stolen from live/misc/util.py
-def getDurationFromString(s):
+def get_duration_from_string(dstr):
     """
     Return duration in seconds based on string <s>
     """
-    m = re.search(r'^(\d+)$', s)
-    if m:
-        return int(m.group(1))
-    m = re.search(r'^(\d+)s(?:ec(?:s)?)?$', s)
-    if m:
-        return int(m.group(1))
-    m = re.search(r'^(\d+)m(?:in(?:s)?)?$', s)
-    if m:
-        return int(m.group(1)) * 60
-    m = re.search(r'^(\d+)h(?:r(?:s)?)?$', s)
-    if m:
-        return int(m.group(1)) * 3600
-    m = re.search(r'^(\d+)d(?:ay(?:s)?)?$', s)
-    if m:
-        return int(m.group(1)) * 86400
+    mtch = re.search(r'^(\d+)$', dstr)
+    if mtch is not None:
+        return int(mtch.group(1))
+    mtch = re.search(r'^(\d+)s(?:ec(?:s)?)?$', dstr)
+    if mtch is not None:
+        return int(mtch.group(1))
+    mtch = re.search(r'^(\d+)m(?:in(?:s)?)?$', dstr)
+    if mtch is not None:
+        return int(mtch.group(1)) * 60
+    mtch = re.search(r'^(\d+)h(?:r(?:s)?)?$', dstr)
+    if mtch is not None:
+        return int(mtch.group(1)) * 3600
+    mtch = re.search(r'^(\d+)d(?:ay(?:s)?)?$', dstr)
+    if mtch is not None:
+        return int(mtch.group(1)) * 86400
     raise ValueError('String "%s" is not a known duration format.  Try'
-                     '30sec, 10min, 2days etc.' % s)
+                     '30sec, 10min, 2days etc.' % str(dstr))
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     import subprocess
     import sys
 
     from utils.Machineid import Machineid
 
     hostid = Machineid()
-    if hostid.is_sps_cluster():
+    if hostid.is_sps_cluster:
         raise SystemExit("This script should not be run on SPS")
 
-    usage = False
     if len(sys.argv) == 1:
-        print("%s: Please specify the number of minutes to pause" % sys.argv[0], file=sys.stderr)
+        print("%s: Please specify the number of minutes to pause" %
+              sys.argv[0], file=sys.stderr)
         raise SystemExit("Usage: %s minutes-to-pause" % sys.argv[0])
 
     try:
-        minutes = getDurationFromString(sys.argv[1]) / 60
-    except:
+        minutes = get_duration_from_string(sys.argv[1]) / 60
+    except ValueError:
         raise SystemExit("%s: Bad duration \"%s\"" %
                          (sys.argv[0], sys.argv[1]))
 
@@ -57,9 +59,13 @@ if __name__ == "__main__":
         print("%s: Ignoring extra arguments" % sys.argv[0], file=sys.stderr)
 
     print("Pausing for %d minutes" % minutes)
-    with open(os.path.join(os.environ["HOME"], ".paused"), "w") as fd:
-        print(str(minutes), file=fd)
+    with open(os.path.join(os.environ["HOME"], ".paused"), "w") as fout:
+        print(str(minutes), file=fout)
 
-    if isSPTSActive(2):
+    if is_spts_active(2):
         print("Stopping current run")
         subprocess.call(["livecmd", "stop", "daq"])
+
+
+if __name__ == "__main__":
+    main()

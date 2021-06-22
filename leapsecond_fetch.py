@@ -8,14 +8,14 @@ import os
 import shutil
 
 from ftplib import FTP
-from leapseconds import leapseconds
+from leapseconds import LeapSeconds
 
 
 def compare_latestleap(latest, filename, verbose=False):
     # load in the new file
     try:
-        newleap = leapseconds(filename)
-    except:
+        newleap = LeapSeconds(filename)
+    except:  # pylint: disable=bare-except
         print("Downloaded NIST file %s is not valid" % filename)
         import traceback
         traceback.print_exc()
@@ -27,27 +27,27 @@ def compare_latestleap(latest, filename, verbose=False):
 
     # load in the latest file
     try:
-        oldleap = leapseconds(latest)
-    except:
+        oldleap = LeapSeconds(latest)
+    except:  # pylint: disable=bare-except
         print("Replacing invalid %s" % latest)
         return True
 
     # compare expiry date/times for new file and installed latest file
     if oldleap.expiry < newleap.expiry:
         if verbose:
-            print("Current file expiry (%s) is older than %s expiry (%s)" % \
-                    (oldleap.expiry, filename, newleap.expiry))
+            print("Current file expiry (%s) is older than %s expiry (%s)" %
+                  (oldleap.expiry, filename, newleap.expiry))
         return True
 
     # let user know that the new file is not newer than the installed file
     if verbose:
         if oldleap.expiry == newleap.expiry:
-            print("A leapsecond file with this expiry date" \
-                " has already been installed")
+            print("A leapsecond file with this expiry date"
+                  " has already been installed")
         else:
-            print("%s has an older expiry date (%s) than the currently" \
-                " installed version (%s)" % \
-                (filename, newleap.expiry, oldleap.expiry))
+            print("%s has an older expiry date (%s) than the currently"
+                  " installed version (%s)" %
+                  (filename, newleap.expiry, oldleap.expiry))
 
     return False
 
@@ -58,7 +58,7 @@ def fetch_latestleap(host='tycho.usno.navy.mil', path='/pub/ntp',
         ftp = FTP(host)
     except socket.error:
         print("Failed to connect to host: '%s'" % host)
-        return
+        return None
 
     if verbose:
         print("Starting FTP session with %s" % host)
@@ -79,16 +79,16 @@ def fetch_latestleap(host='tycho.usno.navy.mil', path='/pub/ntp',
     times_list = []
     match_dict = {}
     for fname in file_list:
-        m = lsec_pattern.match(fname)
-        if m:
-            file_time = int(m.group(1))
+        mtch = lsec_pattern.match(fname)
+        if mtch is not None:
+            file_time = int(mtch.group(1))
             match_dict[file_time] = fname
             times_list.append(file_time)
 
-    if len(times_list) == 0:
+    if len(times_list) == 0:  # pylint: disable=len-as-condition
         print("Did not find any leap second files @ ftp://%s%s" % (host, path))
         ftp.close()
-        return
+        return None
 
     latest_time = max(times_list)
     latest_file = match_dict[latest_time]
@@ -156,24 +156,30 @@ def install_latestleap(latest, filename, verbose=False):
 
         try:
             os.remove(latest)
-        except:
+        except:  # pylint: disable=bare-except
             pass  # ignore all errors
         os.symlink(basename, latest)
 
         if verbose:
-            print("Moved %s to %s and updated %s symlink" % \
-                    (basename, ldir, os.path.basename(latest)))
+            print("Moved %s to %s and updated %s symlink" %
+                  (basename, ldir, os.path.basename(latest)))
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     import sys
 
     verbose = len(sys.argv) > 1 and sys.argv[1] == "-v"
 
-    latest = leapseconds.get_latest_path()
+    latest = LeapSeconds.get_latest_path()
 
     newfile = fetch_latestleap(host='ftp.nist.gov',
                                path='/pub/time/', verbose=verbose)
 
     if compare_latestleap(latest, newfile, True):
         install_latestleap(latest, newfile, True)
+
+
+if __name__ == "__main__":
+    main()

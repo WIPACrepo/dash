@@ -24,7 +24,7 @@ import time
 import icetop_hdf5
 
 from DefaultDomGeometry import DefaultDomGeometryReader
-from Process import exclusive_process
+from Process import exclusive_process, ProcessException
 
 MAX_FILES_PER_TARBALL = 50
 
@@ -49,9 +49,10 @@ class SuperSaver(object):
             stat_str = ""
         else:
             stat_str = "#%s,%s-%s," % (self.__run, self.__start, self.__stop)
+        no_times = len(self.__run_times) == 0
         return "SuperSaver[%s%s]%s" % \
           (stat_str, self.state,
-           "" if len(self.__run_times) == 0 else "+%d" % len(self.__run_times))
+           "" if no_times else "+%d" % len(self.__run_times))
 
     def __add_time(self, run, mtime, idx):
         if run not in self.__run_times:
@@ -141,7 +142,8 @@ class SuperSaver(object):
             self.__state = self.STATE_IN_RUN
             logging.debug("*** FoundRun -> True")
             return True
-        elif self.__state == self.STATE_IN_RUN:
+
+        if self.__state == self.STATE_IN_RUN:
             if self.__stop is None or mtime <= self.__stop:
                 # continue processing SuperSaver files
                 logging.debug("*** InRun -> False")
@@ -149,9 +151,9 @@ class SuperSaver(object):
 
             logging.debug("*** PastRun -> True")
             return True
-        else:
-            raise Exception("Unknown state %s (type %s)" %
-                            (self.__state, type(self.__state)))
+
+        raise Exception("Unknown state %s (type %s)" %
+                        (self.__state, type(self.__state)))
 
     def in_range(self, mtime):
         return mtime >= self.__start and \
@@ -161,7 +163,7 @@ class SuperSaver(object):
     def state(self):
         if self.__state == self.STATE_PRESTART:
             return "<prestart>"
-        elif self.__state == self.STATE_IN_RUN:
+        if self.__state == self.STATE_IN_RUN:
             return "<in_run>"
         return "<??%s??>" % str(self.__state)
 
@@ -234,7 +236,7 @@ def process_files(spade_dir, create_icetop_hdf5=False, dry_run=False,
                               name, "" if do_extra_link else "!")
 
                 # process this group of files
-                if len(files_to_tar) > 0:
+                if len(files_to_tar) > 0:  # pylint: disable=len-as-condition
                     create_tar_and_sem_files(files_to_tar, verbose=verbose,
                                              dry_run=dry_run,
                                              enable_moni_link=enable_moni_link,
@@ -263,7 +265,7 @@ def process_files(spade_dir, create_icetop_hdf5=False, dry_run=False,
                           len(files_to_tar))
             break
 
-    if len(files_to_tar) != 0:
+    if len(files_to_tar) != 0:  # pylint: disable=len-as-condition
         do_extra_link = supersaver is not None
 
         create_tar_and_sem_files(files_to_tar, verbose=verbose,
@@ -271,12 +273,13 @@ def process_files(spade_dir, create_icetop_hdf5=False, dry_run=False,
                                  enable_moni_link=enable_moni_link,
                                  is_supersaver=do_extra_link)
 
-    if create_icetop_hdf5 and len(moni_files) > 0:
+    if create_icetop_hdf5 and \
+      len(moni_files) > 0:  # pylint: disable=len-as-condition
         # read in default-dom-geometry.xml
-        ddg = DefaultDomGeometryReader.parse(translateDoms=True)
+        ddg = DefaultDomGeometryReader.parse(translate_doms=True)
 
         # cache the DOM ID -> DOM dictionary
-        dom_dict = ddg.getDomIdToDomDict()
+        dom_dict = ddg.get_dom_id_to_dom_dict()
 
         icetop_hdf5.process_list(moni_files, dom_dict, verbose=verbose,
                                  dry_run=dry_run)
@@ -324,7 +327,7 @@ def create_tar_and_sem_files(files_to_tar, verbose=False, dry_run=False,
         for tfile in files_to_tar:
             if verbose:
                 print("  %s" % str(tfile))
-            logging.debug("++ %s" % str(tfile))
+            logging.debug("++ %s", tfile)
             if not dry_run:
                 tarball.add(tfile)
         if not dry_run:
@@ -373,43 +376,45 @@ def create_tar_and_sem_files(files_to_tar, verbose=False, dry_run=False,
     return False
 
 
-if __name__ == "__main__":
+def main():
+    "Main program"
+
     # pylint: disable=invalid-name,wrong-import-position
     import argparse
 
     from ClusterDescription import ClusterDescription
 
-    op = argparse.ArgumentParser()
-    op.add_argument("-5", "--icetop-hdf5", dest="create_icetop_hdf5",
-                    action="store_false", default=True,
-                    help="Do NOT create HDF5 files for IceTop")
-    op.add_argument("-d", "--spadedir", dest="spadedir",
-                    action="store", default=None,
-                    help="SPADE directory")
-    op.add_argument("-l", "--log-level", dest="log_level",
-                    action="store", default=None,
-                    help="Logging level (DEBUG, INFO, WARNING, ERROR,"
-                    " CRITICAL)")
-    op.add_argument("-m", "--enable-moni-link", dest="enable_moni_link",
-                    action="store_true", default=False,
-                    help="Include moni files and create a moni link")
-    op.add_argument("-n", "--dry-run", dest="dry_run",
-                    action="store_true", default=False,
-                    help="Do not actually do anything")
-    op.add_argument("-q", "--quiet", dest="verbose",
-                    action="store_false", default=False,
-                    help="Do not print log of actions to console")
-    op.add_argument("-v", "--verbose", dest="verbose",
-                    action="store_true", default=False,
-                    help="Print log of actions to console (default)")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-5", "--icetop-hdf5", dest="create_icetop_hdf5",
+                        action="store_false", default=True,
+                        help="Do NOT create HDF5 files for IceTop")
+    parser.add_argument("-d", "--spadedir", dest="spadedir",
+                        action="store", default=None,
+                        help="SPADE directory")
+    parser.add_argument("-l", "--log-level", dest="log_level",
+                        action="store", default=None,
+                        help=("Logging level (DEBUG, INFO, WARNING, ERROR,"
+                              " CRITICAL)"))
+    parser.add_argument("-m", "--enable-moni-link", dest="enable_moni_link",
+                        action="store_true", default=False,
+                        help="Include moni files and create a moni link")
+    parser.add_argument("-n", "--dry-run", dest="dry_run",
+                        action="store_true", default=False,
+                        help="Do not actually do anything")
+    parser.add_argument("-q", "--quiet", dest="verbose",
+                        action="store_false", default=False,
+                        help="Do not print log of actions to console")
+    parser.add_argument("-v", "--verbose", dest="verbose",
+                        action="store_true", default=False,
+                        help="Print log of actions to console (default)")
 
-    args = op.parse_args()
+    args = parser.parse_args()
 
     if args.spadedir is not None:
         spade_dir = args.spadedir
     else:
         cluster = ClusterDescription()
-        spade_dir = cluster.logDirForSpade
+        spade_dir = cluster.log_dir_for_spade
 
     # use '.pid' file to ensure multiple instances aren't
     # adding the same files to different tar files
@@ -419,3 +424,7 @@ if __name__ == "__main__":
                       dry_run=args.dry_run,
                       enable_moni_link=args.enable_moni_link,
                       log_level=args.log_level, verbose=args.verbose)
+
+
+if __name__ == "__main__":
+    main()
