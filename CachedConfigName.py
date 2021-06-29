@@ -55,7 +55,10 @@ class CachedFile(object):
             cfg = cmdline_config
         else:
             cfg = cls.__read_cache_file(use_active_config)
-            if cfg is None and use_fallback_config:
+            if cfg is not None:
+                if isinstance(cfg, bytes):
+                    cfg = cfg.decode()
+            elif use_fallback_config:
                 cfg = 'sim-localhost'
 
         return cfg
@@ -92,3 +95,14 @@ class CachedConfigName(CachedFile):
             raise NoNameException("Configuration name has not been set")
 
         self.write_name_to_cache_file(self.__config_name, write_active_config)
+
+
+def main():
+    print("INACTIVE: %s" %
+          CachedConfigName.get_config_to_use(None, False, False))
+    print("ACTIVE: %s" %
+          CachedConfigName.get_config_to_use(None, False, True))
+
+
+if __name__ == "__main__":
+    main()
