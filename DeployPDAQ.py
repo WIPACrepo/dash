@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""
+`pdaq deploy` script which updates all hosts with the latest version
+of all pDAQ software and data
+"""
 
 # DeployPDAQ.py
 # Jacobsen Feb. 2007
@@ -125,6 +129,8 @@ class RSyncRunner(object):
         """
         if string is None:
             return None
+        elif isinstance(string, bytes):
+            string = string.decode()
 
         kept = []
         for line in string.split(os.linesep):
@@ -134,6 +140,10 @@ class RSyncRunner(object):
               len(kept) > 0:  # pylint: disable=len-as-condition
                 continue
             kept.append(line)
+
+        if len(kept) == 1 and len(kept[0]) == 0:
+            return None
+
         return kept
 
     def __run(self):
@@ -161,7 +171,7 @@ class RSyncRunner(object):
 
             if proc.returncode == 0:
                 # there shouldn't be any error messages if return code is 0
-                if errlines is not None:
+                if errlines is not None and len(errlines) > 0:
                     with self.__qlock:
                         print("Unexpected error(s) after rsyncing %s to %s" %
                               (description, cmdhost))
@@ -264,7 +274,8 @@ def collapse_user(path, home=None):
 
 def deploy(config, pdaq_dir, subdirs, delete, dry_run, deep_dry_run,
            trace_level, nice_level=NICE_LEVEL_DEFAULT, express=EXPRESS_DEFAULT,
-           wait_seconds=WAIT_SECONDS_DEFAULT, home=None, rsync_runner=None):
+           wait_seconds=WAIT_SECONDS_DEFAULT, home=None,
+           rsync_runner=None):
     """
     Deploy pDAQ software and configuration files to the cluster
     """
