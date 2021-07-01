@@ -147,7 +147,10 @@ def create_meta_xml(path, suffix, run_number, verbose=False, dry_run=False):
         print("Creating JADE semaphore file %s" % (metaname, ))
     if not dry_run:
         with open(os.path.join(directory, metaname), "w") as out:
-            out.write(etree.tostring(root))
+            contents = etree.tostring(root)
+            if isinstance(contents, bytes):
+                contents = contents.decode()
+            out.write(contents)
 
     return metaname
 
