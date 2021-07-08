@@ -825,7 +825,7 @@ class CnCServer(DAQPool):
                                       " not %d") % len(user_list))
 
         of_list = []
-        for fdata in user_list[0].files():
+        for fdata in user_list[0].files:
             if isinstance(fdata.file_desc, str) or fdata.file_desc < 3:
                 continue
 
