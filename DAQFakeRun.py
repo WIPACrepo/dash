@@ -103,7 +103,7 @@ class LogThread(threading.Thread):
             try:
                 rdsock, _, ersock = select.select(prd, pwr, per, self.TIMEOUT)
             except select.error as selerr:
-                if selerr[0] == socket.EBADF:
+                if selerr.errno == socket.EBADF:
                     break
                 raise
             except socket.error as sockerr:

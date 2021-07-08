@@ -183,9 +183,9 @@ class RPCServer(DocXMLRPCServer):
                 rdat, _, _ = select.select([self.socket], [], [],
                                            self.__timeout)
             except select.error as err:
-                if err[0] == errno.EINTR:  # Interrupted system call
+                if err.errno == errno.EINTR:  # Interrupted system call
                     continue
-                if err[0] != errno.EBADF:  # Bad file descriptor
+                if err.errno != errno.EBADF:  # Bad file descriptor
                     traceback.print_exc()
                 break
             if rdat:
