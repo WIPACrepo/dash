@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
-A module for identifying the pDAQ release name (defaults to
-'trunk') and extracting relevant source control details.
+A module for identifying the pDAQ release name (defaults to 'trunk') and
+extracting relevant source control details.
 """
 
 from __future__ import print_function
@@ -21,7 +21,8 @@ __UNRELEASED = 'trunk'
 PDAQ_HOME = find_pdaq_trunk()
 
 # file which caches the revision information
-SCM_REV_FILENAME = os.path.join(PDAQ_HOME, "target", ".deployed_rev")
+TARGET_PATH = os.path.join(PDAQ_HOME, "target")
+SCM_REV_FILENAME = os.path.join(TARGET_PATH, ".deployed_rev")
 
 # ignore these externals when calculating version information
 #  (once contained ['cluster-config', 'config'] but both directories
@@ -62,12 +63,15 @@ def __exec_cmd(cmd, shell=False, cwd=None):
         raise SCMVersionError("Command: '%s' returned non-zero code: '%s'" %
                               (cmd, ret_code))
 
-    stdout, stderr = proc.communicate()
-    if stderr is not None and stderr != "":
-        raise SCMVersionError("Command: '%s' returned non-empty stderr: '%s'" %
-                              (cmd, stderr))
+    rawout, rawerr = proc.communicate()
 
-    return stdout
+    if rawerr is not None:
+        stderr = rawerr.decode().rstrip()
+        if stderr != "":
+            raise SCMVersionError("Command: '%s' returned non-empty stderr:"
+                                  " '%s'" % (cmd, stderr))
+
+    return rawout.decode().rstrip()
 
 
 def __get_git_info(svn_dir):
@@ -230,7 +234,7 @@ def __get_svn_info(svn_dir):
     # First, run svnversion on the dir
     proc = subprocess.Popen("svnversion", stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, cwd=svn_dir)
-    svn_rev = proc.communicate()[0].rstrip()
+    svn_rev = proc.communicate()[0].decode().rstrip()
     proc.stdout.close()
 
     # Get the repo URL used by the directory (used to see if any of the
@@ -239,10 +243,11 @@ def __get_svn_info(svn_dir):
     proc = subprocess.Popen(["svn", "info"], stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, cwd=svn_dir)
     for line in proc.stdout:
-        if line.startswith(b"URL:"):
+        line = line.decode().rstrip()
+        if line.startswith("URL:"):
             dir_url = line.split()[1].strip()
-        elif line.startswith(b"Last Changed Date:"):
-            dstr = line.split(b':', 1)[1].strip()
+        elif line.startswith("Last Changed Date:"):
+            dstr = line.split(':', 1)[1].strip()
 
             # only care about first 3 fields (date time timezone)
             bflds = dstr.split(None, 3)[:3]
@@ -251,6 +256,7 @@ def __get_svn_info(svn_dir):
             (date, time) = __parse_date_time(" ".join(dflds),
                                              "%Y-%m-%d %H:%M:%S")
     proc.stdout.close()
+    proc.wait()
 
     repo_rev = __get_svn_repo_revision(svn_dir, dir_url, svn_rev)
 
@@ -462,6 +468,11 @@ def store_scmversion(svn_dir=None):
     except SCMVersionError as exc:
         print("SCMVersionError: " + str(exc), file=sys.stderr)
         return ""
+
+    if not os.path.exists(SCM_REV_FILENAME):
+        if not os.path.exists(TARGET_PATH):
+            raise SystemExit("%s has not been built, run"
+                             " 'mvn assembly:assembly' first" % (PDAQ_HOME, ))
 
     with open(SCM_REV_FILENAME, "w") as svn_rev_file:
         svn_rev_file.write(scmstr)
