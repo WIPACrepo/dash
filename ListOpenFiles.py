@@ -1,7 +1,4 @@
 #!/usr/bin/env python
-"""
-utility which dumps a list of all open files using the `lsof` command
-"""
 
 from __future__ import print_function
 
@@ -117,6 +114,7 @@ class BaseFile(object):
         self.__link_count = None
         self.__flags = None
         self.__offset = None
+        self.__size_off = None
         self.__dev_char_code = None
 
     def __str__(self):
@@ -191,7 +189,7 @@ class BaseFile(object):
 
     @name.setter
     def name(self, val):
-        self.__name = val
+        self.set_name(val)
 
     @property
     def offset(self):
@@ -205,11 +203,21 @@ class BaseFile(object):
     def protocol(self):
         return None
 
+    def set_name(self, val):
+        self.__name = val
+
+    def set_size_offset(self, val):
+        self.__size_off = val
+
     @property
     def size_offset(self):
-        if self.__offset is None:
+        if self.__size_off is None:
             return ""
-        return self.__offset
+        return self.__size_off
+
+    @size_offset.setter
+    def size_offset(self, val):
+        self.set_size_offset(val)
 
 
 class StandardFile(BaseFile):
@@ -233,16 +241,6 @@ class StandardFile(BaseFile):
     @major_minor_device.setter
     def major_minor_device(self, val):
         self.__major_minor_dev = int(val, 16)
-
-    @property
-    def size_offset(self):
-        if self.__size is None:
-            return ""
-        return str(self.__size)
-
-    @size_offset.setter
-    def size_offset(self, val):
-        self.__size = val
 
 
 class CharacterFile(StandardFile):
@@ -304,6 +302,10 @@ class BaseIP(BaseFile):
                 name += " (%s)" % info[3:]
         return name
 
+    @name.setter
+    def name(self, name):
+        super(BaseIP, self).set_name(name)
+
     @property
     def protocol(self):
         return self.__proto
@@ -326,18 +328,7 @@ class KQueue(BaseFile):
 
 
 class Pipe(BaseFile):
-    def __init__(self, file_type, file_desc, access_mode, lock_status):
-        super(Pipe, self).__init__(file_type, file_desc, access_mode,
-                                   lock_status)
-        self.__size = None
-
-    @property
-    def size_offset(self):
-        return self.__size
-
-    @size_offset.setter
-    def size_offset(self, val):
-        self.__size = val
+    "Unix pipe"
 
 
 class RegularFile(StandardFile):
@@ -373,18 +364,6 @@ class UnknownSocket(BaseFile):
 
 class UnknownEntry(BaseFile):
     "Stand-in for unknown entry"
-    def __init__(self, file_type, file_desc, access_mode, lock_status):
-        super(UnknownEntry, self).__init__(file_type, file_desc, access_mode,
-                                           lock_status)
-        self.__size = None
-
-    @property
-    def size_offset(self):
-        return self.__size
-
-    @size_offset.setter
-    def size_offset(self, val):
-        self.__size = val
 
 
 class ListOpenFiles(object):
@@ -437,6 +416,8 @@ class ListOpenFiles(object):
         user_list = []
 
         for line in fin:
+            if isinstance(line, bytes):
+                line = line.decode()
             line = line.rstrip()
             if line == "":
                 continue
