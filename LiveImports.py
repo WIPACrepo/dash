@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""
+Utility classes which provide a uniform interface to I3Live's API
+They also provide stubs for developing/debugging without having Live installed
+"""
 
 # assume that the imports will succeed
 LIVE_IMPORT = True
@@ -36,7 +40,7 @@ except ImportError:
 
 # attempt to import MoniPort
 try:
-    from livecore.messaging.moniclient import default_moni_port as MoniPort
+    from livecore.messaging.moniclient import DEFAULT_MONI_PORT as MoniPort
 except ImportError:
     try:
         from live.transport.moniclient import default_moni_port as MoniPort
