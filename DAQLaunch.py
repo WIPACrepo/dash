@@ -1,9 +1,8 @@
 #!/usr/bin/env python
+"""
+`pdaq launch` script used to start/stop the detector
+"""
 
-#
-# DAQ launch script - assumes deployment has occurred already.
-# Run from an "experiment control" node - localhost/laptop or spXsX-expcont
-#
 # John Jacobsen, jacobsen@npxdesigns.com
 # Started January, 2007
 
@@ -267,7 +266,15 @@ def livecmd_default_config():
     config = None
     for line in proc.stdout:
         if config is None:
-            config = line.rstrip()
+            try:
+                line = line.decode()
+            except AttributeError:
+                pass
+            if line.find("Traceback ") >= 0:
+                raise SystemExit("Cannot get default run config file name"
+                                 " from \"livecmd\"")
+            config = line
+            break
 
     proc.stdout.close()
     proc.wait()
