@@ -40,7 +40,7 @@ except ImportError:
 
 # attempt to import MoniPort
 try:
-    from livecore.messaging.moniclient import default_moni_port as MoniPort
+    from livecore.messaging.moniclient import DEFAULT_MONI_PORT as MoniPort
 except ImportError:
     try:
         from live.transport.moniclient import default_moni_port as MoniPort
