@@ -188,8 +188,10 @@ class RPCServer(DocXMLRPCServer):
                 if err.errno != errno.EBADF:  # Bad file descriptor
                     traceback.print_exc()
                 break
-            if rdat:
-                self.handle_request()
+            if self.__running and len(rdat) > 0:
+                # ignore closed sockets
+                if self.socket.fileno() >= 0:
+                    self.handle_request()
 
         self.__is_shut_down.set()
 
