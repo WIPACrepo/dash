@@ -1,9 +1,12 @@
 #!/usr/bin/env python
-#
-# Run standard pDAQ tests
+"""
+`pdaq stdtest` script which drives the detector through a standard
+set of runs
+"""
 
 from __future__ import print_function
 
+import argparse
 import os
 import re
 import sys
@@ -50,10 +53,12 @@ class PDAQRun(object):
     #
     MAX_TIMEOUTS = 6
 
-    def __init__(self, run_cfg_name, duration, num_runs=1, flasher_data=None):
+    def __init__(self, run_cfg_name, duration, num_runs=1, flasher_data=None,
+                 has_doms=False):
         self.__run_cfg_name = run_cfg_name
         self.__duration = duration
         self.__num_runs = num_runs
+        self.__has_doms = has_doms
 
         if flasher_data is None:
             self.__flasher_data = None
@@ -72,6 +77,10 @@ class PDAQRun(object):
     @property
     def cluster_config(self):
         return self.__run_cfg_name
+
+    @property
+    def has_doms(self):
+        return self.__has_doms
 
     @classproperty
     def test_resource_path(cls):  # pylint: disable=no-self-argument
@@ -215,16 +224,23 @@ def add_arguments(parser):
                         help=("Show the output of the deploy and/or"
                               " run commands"))
 
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--doms", dest="only_doms", action="store_true",
+                       help="Only run realDOM tests")
+    group.add_argument("--replay", dest="only_replay", action="store_true",
+                       help="Only run replay tests")
+
 
 # configurations to run
 #
 RUN_LIST = (
-    PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR),
+    PDAQRun("spts64-dirtydozen-hlc-006", FOUR_HR, has_doms=True),
     PDAQRun("spts64-dirtydozen-hlc-006", 0, 1,
             (("flash-21", 60), (None, 10), ("flash-21", 45),
-             (None, 20), ("flash-21", 120))),
-    PDAQRun("spts64-dirtydozen-hitspool-15s-interval-8h-spool", HALF_HR),
-    PDAQRun("spts-dirtydozen-intervals3-snmix-014", HALF_HR),
+             (None, 20), ("flash-21", 120)), has_doms=True),
+    PDAQRun("spts64-dirtydozen-hitspool-15s-interval-8h-spool", HALF_HR,
+            has_doms=True),
+    PDAQRun("spts-dirtydozen-intervals3-snmix-014", HALF_HR, has_doms=True),
     PDAQRun("random-01", HALF_HR),
     PDAQRun("replay-125659-local", EIGHT_HR),
     PDAQRun("replay-125659-local", QUARTER_HR, num_runs=3),
@@ -238,6 +254,9 @@ def run_tests(args):
 
     if hostid.is_sps_cluster:
         raise SystemExit("Tests should not be run on SPS cluster")
+
+    if args.deploy and args.run:
+        raise SystemExit("Cannot deploy and run at the same time")
 
     if not args.deploy and not args.run:
         if hostid.is_build_host:
@@ -259,7 +278,8 @@ def run_tests(args):
         for cfg in Deploy.get_unique_cluster_configs(RUN_LIST):
             deploy.deploy(cfg)
         deploy.show_home()
-    if args.run:
+
+    elif args.run:
         if args.cncrun:
             runmgr = CnCRun(show_commands=args.show_commands,
                             show_command_output=args.show_command_output,
@@ -285,6 +305,10 @@ def run_tests(args):
         signal.signal(signal.SIGINT, runmgr.stop_on_sigint)
 
         for data in RUN_LIST:
+            if args.only_doms and not data.has_doms or \
+              args.only_replay and data.has_doms:
+                continue
+
             data.run(runmgr, args.quick, cluster_desc=args.cluster_desc,
                      ignore_db=args.ignore_db, verbose=args.verbose)
 
@@ -298,6 +322,4 @@ def main():
 
 
 if __name__ == "__main__":
-    import argparse
-
     main()
