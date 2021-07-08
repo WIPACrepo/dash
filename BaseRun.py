@@ -1083,7 +1083,7 @@ class BaseRun(object):
 
         for line in proc.stdout:
             try:
-                line = line.decode("utf-8")
+                line = line.decode()
             except AttributeError:
                 pass
             line = line.rstrip()
