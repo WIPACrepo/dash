@@ -4,13 +4,10 @@
 Process2ndBuild.py
 Jacobsen, back in the 2007's or so
 
-This script is installed on 2ndbuild, collects the output of 2ndbuild
-as it appears on /mnt/data/pdaqlocal, tars them in groups as they
-appear, makes hard links for I3Moni, SNDAQ and SPADE, and puts the
-appropriate semaphores in place.
-
-It should be installed and activated (in cron) by the pDAQ Fabric
-installation procedure.
+This script is installed on 2ndbuild and run from cron.  It collects the
+output of 2ndbuild as it appears on /mnt/data/pdaqlocal, tars them in
+groups as they appear, makes hard links for I3Moni, SNDAQ and SPADE, and
+puts the appropriate semaphores in place.
 """
 
 from __future__ import print_function
