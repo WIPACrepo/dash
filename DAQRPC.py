@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-"""
-RPCServer and RPCClient classes which use Python's XML-RPC code internally 
-"""
 
+#
+# DAQRPC - Python wrapper for pDAQ RPC calls
+#          Implemented with XML-RPC
 #
 # J. Jacobsen, for UW-IceCube 2006-2007
 #
@@ -183,9 +183,9 @@ class RPCServer(DocXMLRPCServer):
                 rdat, _, _ = select.select([self.socket], [], [],
                                            self.__timeout)
             except select.error as err:
-                if err[0] == errno.EINTR:  # Interrupted system call
+                if err.errno == errno.EINTR:  # Interrupted system call
                     continue
-                if err[0] != errno.EBADF:  # Bad file descriptor
+                if err.errno != errno.EBADF:  # Bad file descriptor
                     traceback.print_exc()
                 break
             if self.__running and len(rdat) > 0:
