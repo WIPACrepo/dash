@@ -1,5 +1,8 @@
 #!/usr/bin/env python
-#
+"""
+Implementation of BaseRun.py which uses I3Live to control CnCServer
+"""
+
 # Manage pDAQ runs via IceCube Live
 #
 # Examples:
@@ -199,6 +202,27 @@ class LiveState(object):
     PARSE_ALERTS = 3
     PARSE_PAGES = 4
 
+    IGNORED_FIELDS = (
+        # start/stop times
+        "tstart", "t_valid_start", "t_valid_start_frac", "tstop", "tstop_frac",
+        "livestart",
+        # rates
+        "physicsEvents", "physicsEventsTime",
+        "walltimeEvents", "walltimeEventsTime",
+        "tcalEvents", "moniEvents", "snEvents", "runlength",
+        # run time info
+        "Target run stop time", "Currently", "Time since start",
+        "Time until stop", "Next run transition",
+        # DAQ release name
+        "daqrelease",
+        # run start/switch info
+        "Run starts",
+        # flashing state
+        "Flashing state",
+        # mode info
+        "Run mode", "Filter mode", "Extended mode",
+        )
+
     def __init__(self,
                  liveCmd=os.path.join(os.environ["HOME"], "bin", "livecmd"),
                  show_check=False, show_check_output=False, logger=None,
@@ -338,50 +362,21 @@ class LiveState(object):
                 self.__config = back
                 return self.PARSE_NORMAL
 
-            if front.startswith("tstart") or front.startswith("tstop") or \
-                 front.startswith("t_valid") or front == "livestart":
-                # ignore start/stop times
-                return self.PARSE_NORMAL
-
-            if front in ("physicsEvents", "physicsEventsTime",
-                         "walltimeEvents", "walltimeEventsTime",
-                         "tcalEvents", "moniEvents", "snEvents", "runlength"):
-                # ignore rates
-                return self.PARSE_NORMAL
-
-            if front in ("Target run stop time", "Currently",
-                         "Time since start", "Time until stop",
-                         "Next run transition"):
-                # ignore run time info
-                return self.PARSE_NORMAL
-
-            if front == "daqrelease":
-                # ignore DAQ release name
-                return self.PARSE_NORMAL
-
-            if front == "Run starts":
-                # ignore run start/switch info
-                return self.PARSE_NORMAL
-
-            if front == "Flashing state":
-                # ignore flashing state
-                return self.PARSE_NORMAL
-
             if front == "check failed" and back.find("timed out") >= 0:
                 self.__logger.error("I3Live may have died" +
                                     " (livecmd check returned '%s')" %
                                     line.rstrip())
                 return self.PARSE_NORMAL
 
-            if front in ("Run mode", "Filter mode"):
-                # ignore run/filter mode info
+            if front in self.IGNORED_FIELDS:
                 return self.PARSE_NORMAL
 
             if front not in self.__complained:
-                self.__logger.error("Unknown livecmd pair: \"%s\"/\"%s\"" %
-                                    (front, back))
+                self.__logger.error("Unknown livecmd field: \"%s\""
+                                    " (set to \"%s\")" % (front, back))
                 self.__complained[front] = 1
-                return self.PARSE_NORMAL
+
+            return self.PARSE_NORMAL
 
         mtch = self.SVC_PAT.match(line)
         if mtch is not None:
@@ -420,7 +415,7 @@ class LiveState(object):
     def check(self):
         "Check the current I3Live service states"
 
-        cmd = "%s check" % self.__prog
+        cmd = "livecmd check --nolog"
         if self.__show_check:
             self.log_command(cmd)
 
@@ -436,7 +431,7 @@ class LiveState(object):
 
         parse_state = self.PARSE_NORMAL
         for line in proc.stdout:
-            line = line.rstrip()
+            line = line.decode("utf-8").rstrip()
             if self.__show_check_output:
                 self.log_command_output(line)
 
@@ -514,7 +509,7 @@ class LiveRun(BaseRun):
         Return True if I3Live controls pDAQ
         """
 
-        cmd = "%s control pdaq localhost:%s" % \
+        cmd = "%s control pdaq --host localhost --port %s" % \
             (self.__livecmd_path, DAQPort.DAQLIVE)
         self.log_command(cmd)
 
@@ -530,7 +525,7 @@ class LiveRun(BaseRun):
 
         controlled = False
         for line in proc.stdout:
-            line = line.rstrip()
+            line = line.decode("utf-8").rstrip()
             self.log_command_output(line)
 
             if line == "Service pdaq is now being controlled" or \
@@ -584,7 +579,7 @@ class LiveRun(BaseRun):
 
         problem = False
         for line in proc.stdout:
-            line = line.rstrip()
+            line = line.decode("utf-8").rstrip()
             self.log_command_output(line)
 
             if line != "OK":
@@ -683,13 +678,13 @@ class LiveRun(BaseRun):
             proc.stdin.close()
 
             for line in proc.stdout:
-                line = line.rstrip()
+                line = line.decode("utf-8").rstrip()
                 self.log_command_output(line)
 
-                if line != "OK" and not line.startswith("Starting subrun"):
-                    problem = True
-                if problem:
+                if line != "OK" and not line.find("Starting subrun") >= 0:
                     self.log_error("Flasher: %s" % line)
+                    problem = True
+
             proc.stdout.close()
 
             proc.wait()
@@ -716,7 +711,7 @@ class LiveRun(BaseRun):
 
         num = None
         for line in proc.stdout:
-            line = line.rstrip()
+            line = line.decode("utf-8").rstrip()
             self.log_command_output(line)
 
             try:
@@ -743,7 +738,7 @@ class LiveRun(BaseRun):
     @property
     def runs_per_restart(self):
         """Get the number of continuous runs between restarts"""
-        cmd = "livecmd runs per restart"
+        cmd = "livecmd runs-per-restart"
         self.log_command(cmd)
 
         if self.__dry_run:
@@ -758,7 +753,7 @@ class LiveRun(BaseRun):
 
         cur_num = None
         for line in proc.stdout:
-            line = line.rstrip()
+            line = line.decode("utf-8").rstrip()
             self.log_command_output(line)
             try:
                 cur_num = int(line)
@@ -857,7 +852,7 @@ class LiveRun(BaseRun):
         if cur_num == num:
             return
 
-        cmd = "livecmd runs per restart %d" % int(num)
+        cmd = "livecmd runs-per-restart %d" % (num, )
         self.log_command(cmd)
 
         if self.__dry_run:
@@ -871,13 +866,14 @@ class LiveRun(BaseRun):
                                 shell=True)
         proc.stdin.close()
         for line in proc.stdout:
-            line = line.rstrip()
+            line = line.decode("utf-8").rstrip()
             self.log_command_output(line)
         proc.stdout.close()
         proc.wait()
 
     def start_run(self, run_cfg_name, duration, num_runs=1, ignore_db=False,
-                  run_mode=None, filter_mode=None, verbose=False):
+                  run_mode=None, filter_mode=None, extended_mode=False,
+                  verbose=False):
         """
         Tell I3Live to start a run
 
@@ -887,6 +883,7 @@ class LiveRun(BaseRun):
         ignore_db - tell I3Live to not check the database for this run config
         run_mode - Run mode for 'livecmd'
         filter_mode - Run mode for 'livecmd'
+        extended_mode - True if DOMs should be put into "extended" mode
         verbose - print more details of run transitions
 
         Return True if the run was started
@@ -901,6 +898,8 @@ class LiveRun(BaseRun):
             args += " -r %s" % run_mode
         if filter_mode is not None:
             args += " -p %s" % filter_mode
+        if extended_mode:
+            args += " -x"
 
         cmd = "%s start -c %s -n %d -l %ds %s daq" % \
             (self.__livecmd_path, run_cfg_name, num_runs, duration, args)
