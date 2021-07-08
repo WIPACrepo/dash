@@ -267,7 +267,7 @@ def livecmd_default_config():
     for line in proc.stdout:
         if config is None:
             try:
-                line = line.decode("utf-8")
+                line = line.decode()
             except AttributeError:
                 pass
             if line.find("Traceback ") >= 0:
