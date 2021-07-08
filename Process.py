@@ -70,12 +70,13 @@ def process_exists(filename):
     proc.stdout.close()
     proc.wait()
 
-    if not exists:
-        # process is dead, remove the irrelevant file and return
-        os.unlink(filename)
-        return False
+    if exists:
+        return True
 
-    return True
+    # process is dead, remove the irrelevant file and return
+    if os.path.exists(filename):
+        os.unlink(filename)
+    return False
 
 
 def write_pid_file(filename):
