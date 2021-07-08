@@ -1,10 +1,14 @@
 #!/usr/bin/env python
-#
+"""
+A few utilities for dealing with Unix processes 
+"""
+
 # Note that most of this functionality exists in the `psutil` package
 # so this code should be reexamined if we ever add it to pDAQ
 
 import os
 import re
+import shutil
 import subprocess
 
 
@@ -58,6 +62,12 @@ def process_exists(filename):
                                        " \"%s\"" % (filename, line.rstrip()))
 
     if pid is None:
+        # delete the empty file so we don't keep
+        try:
+            os.unlink(filename)
+        except:
+            # ignore errors encountered while trying to remove the file
+            pass
         raise ProcessException("File \"%s\" seems to be empty" % (filename, ))
 
     proc = subprocess.Popen(("ps", "h", str(pid)), close_fds=True,
@@ -75,15 +85,20 @@ def process_exists(filename):
 
     # process is dead, remove the irrelevant file and return
     if os.path.exists(filename):
-        os.unlink(filename)
+        try:
+            os.unlink(filename)
+        except:
+            # ignore errors encountered while trying to remove the file
+            pass
     return False
 
 
 def write_pid_file(filename):
     "Write the current process ID to the named file"
 
+    tmpname = filename + ".tmp"
     try:
-        fdout = os.open(filename, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        fdout = os.open(tmpname, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
     except OSError:
         raise ProcessException("Cannot write to existing \"%s\"" %
                                (filename, ))
@@ -91,6 +106,7 @@ def write_pid_file(filename):
         with os.fdopen(fdout, "w") as out:
             out.write(str(os.getpid()))
 
+    shutil.move(tmpname, filename)
 
 class exclusive_process(object):  # pylint: disable=invalid-name
     "context manager guaranteeing only one process at a time can run"
