@@ -716,6 +716,8 @@ class RunData(object):
                            self.__run_options)
 
     def destroy(self):
+        self.set_finished()
+
         saved_exc = None
         try:
             # stop monitoring, watchdog, etc.
@@ -1339,7 +1341,7 @@ class RunSet(object):
         self.__stopping = None
         self.__stop_lock = threading.Lock()
 
-        self.__spade_thread = None
+        self.__final_thread = None
 
         # make sure components are in a known order
         self.__set.sort()
@@ -1663,14 +1665,12 @@ class RunSet(object):
 
             # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
             # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
+            # AND THE RUN DATA OBJECT IS DESTROYED
             try:
-                self.__queue_for_spade(run_data)
+                self.__queue_data_and_destroy(run_data)
             except:  # pylint: disable=bare-except
                 if sent_error is None:
                     sent_error = exc_string()
-
-            # note that this run is finished
-            run_data.set_finished()
 
         if sent_error is not None:
             self.__logger.error("Could not send event counts for %s (%s): %s" %
@@ -1828,30 +1828,41 @@ class RunSet(object):
                 self.__logger.error("%s :: %s: %s" %
                                     (text, comp.fullname, connstr))
 
-    def __queue_for_spade(self, run_data):
+    def __queue_data_and_destroy(self, run_data):
         if run_data.log_directory is None:
             run_data.error("Not logging to file so cannot queue to SPADE")
             return
 
-        if run_data.spade_directory is not None:
-            if self.__spade_thread is not None:
-                if self.__spade_thread.is_alive():
-                    try:
-                        self.__spade_thread.join(0.001)
-                    except:  # pylint: disable=bare-except
-                        pass
-                if self.__spade_thread.is_alive():
-                    run_data.error("Previous SpadeQueue thread is still"
-                                   " running!!!")
+        if run_data.spade_directory is None:
+            run_data.error("Cannot queue to unknown SPADE directory")
+            return
 
-            args = (run_data, run_data.spade_directory,
-                    run_data.copy_directory, run_data.log_directory,
-                    run_data.run_number)
-            thrd = threading.Thread(target=SpadeQueue.queue_for_spade,
-                                    args=args)
-            thrd.start()
+        if self.__final_thread is not None:
+            # attempt to clean up the previous final thread
+            if self.__final_thread.is_alive():
+                try:
+                    self.__final_thread.join(0.001)
+                except:  # pylint: disable=bare-except
+                    pass
+            if self.__final_thread.is_alive():
+                run_data.error("Previous SpadeQueue thread is still"
+                               " running!!!")
 
-            self.__spade_thread = thrd
+        thrd = threading.Thread(target=self.__queue_internal,
+                                args=(run_data, ))
+        thrd.start()
+
+        self.__final_thread = thrd
+
+    def __queue_internal(self, run_data):
+        try:
+            SpadeQueue.queue_for_spade(run_data, run_data.spade_directory,
+                                       run_data.copy_directory,
+                                       run_data.log_directory,
+                                       run_data.run_number)
+        finally:
+            # destroy run data
+            run_data.destroy()
 
     @classmethod
     def __report_run_start(cls, moni_client, run_number, release, revision,
@@ -3195,13 +3206,11 @@ class RunSet(object):
         try:
             # NOTE: ALL FILES MUST BE WRITTEN OUT BEFORE THIS POINT
             # THIS IS WHERE EVERYTHING IS PUT IN A TARBALL FOR SPADE
-            self.__queue_for_spade(old_data)
+            # AND THE RUN DATA OBJECT IS DESTROYED
+            self.__queue_data_and_destroy(old_data)
         except:  # pylint: disable=bare-except
             if not saved_exc:
                 saved_exc = sys.exc_info()
-
-        # note that the old run is finished
-        old_data.set_finished()
 
         try:
             new_data.report_first_good_time(self)
