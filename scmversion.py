@@ -66,12 +66,12 @@ def __exec_cmd(cmd, shell=False, cwd=None):
     rawout, rawerr = proc.communicate()
 
     if rawerr is not None:
-        stderr = rawerr.decode("utf-8").rstrip()
+        stderr = rawerr.decode().rstrip()
         if stderr != "":
             raise SCMVersionError("Command: '%s' returned non-empty stderr:"
                                   " '%s'" % (cmd, stderr))
 
-    return rawout.decode("utf-8").rstrip()
+    return rawout.decode().rstrip()
 
 
 def __get_git_info(svn_dir):
@@ -234,7 +234,7 @@ def __get_svn_info(svn_dir):
     # First, run svnversion on the dir
     proc = subprocess.Popen("svnversion", stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, cwd=svn_dir)
-    svn_rev = proc.communicate()[0].decode("utf-8").rstrip()
+    svn_rev = proc.communicate()[0].decode().rstrip()
     proc.stdout.close()
 
     # Get the repo URL used by the directory (used to see if any of the
@@ -243,7 +243,7 @@ def __get_svn_info(svn_dir):
     proc = subprocess.Popen(["svn", "info"], stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, cwd=svn_dir)
     for line in proc.stdout:
-        line = line.decode("utf-8").rstrip()
+        line = line.decode().rstrip()
         if line.startswith("URL:"):
             dir_url = line.split()[1].strip()
         elif line.startswith("Last Changed Date:"):

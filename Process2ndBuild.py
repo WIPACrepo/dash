@@ -15,8 +15,10 @@ from __future__ import print_function
 import datetime
 import logging
 import os
+import sys
 import tarfile
 import time
+import traceback
 
 import icetop_hdf5
 
@@ -417,10 +419,15 @@ def main():
     # adding the same files to different tar files
     guard_file = os.path.join(os.environ["HOME"], ".proc2ndbld.pid")
     with exclusive_process(guard_file):
-        process_files(spade_dir, create_icetop_hdf5=args.create_icetop_hdf5,
-                      dry_run=args.dry_run,
-                      enable_moni_link=args.enable_moni_link,
-                      log_level=args.log_level, verbose=args.verbose)
+        try:
+            process_files(spade_dir,
+                          create_icetop_hdf5=args.create_icetop_hdf5,
+                          dry_run=args.dry_run,
+                          enable_moni_link=args.enable_moni_link,
+                          log_level=args.log_level, verbose=args.verbose)
+        except ProcessException:
+            if sys.stdout.isatty():
+                traceback.print_exc()
 
 
 if __name__ == "__main__":

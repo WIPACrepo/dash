@@ -867,6 +867,8 @@ class MonitorASCII(MonitorRecord):
 
     def __init__(self, utime, dom_id, domclock, data):
         self.__text = struct.unpack("%ds" % len(data), data)[0]
+        if isinstance(self.__text, bytes):
+            self.__text = self.__text.decode()
 
         super(MonitorASCII, self).__init__(utime, dom_id, domclock)
 
@@ -1342,6 +1344,7 @@ def main():
             path = os.path.join(fnm, entry)
             if os.path.isfile(path):
                 read_file(path, args.max_payloads, args.write_simple_hits)
+
 
 if __name__ == "__main__":
     main()
