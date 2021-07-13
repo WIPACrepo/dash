@@ -265,23 +265,22 @@ def livecmd_default_config():
 
     config = None
     for line in proc.stdout:
-        if config is None:
-            try:
-                line = line.decode()
-            except AttributeError:
-                pass
-            if line.find("Traceback ") >= 0:
-                raise SystemExit("Cannot get default run config file name"
-                                 " from \"livecmd\"")
-            config = line
-            break
+        if isinstance(line, bytes):
+            line = line.decode()
+        line = line.rstrip()
+
+        if line.find("Traceback ") >= 0:
+            raise SystemExit("Cannot get default run config file name from"
+                             " \"livecmd\"")
+        config = line
+        break
 
     proc.stdout.close()
     proc.wait()
 
     if proc.returncode > 1:
-        raise SystemExit("Cannot get default run config file name"
-                         " from \"livecmd\"")
+        raise SystemExit("Cannot get default run config file name from"
+                         " \"livecmd\"")
 
     return config
 
